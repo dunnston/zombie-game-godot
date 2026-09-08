@@ -240,6 +240,14 @@ func nav_for(p: PlayerSim) -> NavField:
 	return nf
 
 
+## The base belongs to one player. Wall strength, turret reach, upkeep and
+## the roster cap are read off the host's build and not off whoever happens
+## to be standing next to the thing — otherwise a guest walking past a turret
+## would change how hard it hits.
+func host() -> PlayerSim:
+	return players[0] if not players.is_empty() else null
+
+
 # ----------------------------------------------------------------- output --
 
 func emit(ev: Dictionary) -> void:

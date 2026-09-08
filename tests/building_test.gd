@@ -254,12 +254,15 @@ func test_repair_costs_a_share_of_the_build_price() -> void:
 	_stock()
 	var wall := _build("woodWall", plot.x + 2, plot.y)
 	sim.structs.damage(sim, wall, wall.max_hp * 0.5)
-	var cost := Structures.repair_cost(wall)
-	eq(cost.wood, 4, "half the damage on a 16-wood wall at 45%")
+	# The bill is quoted with the same discount it is charged at, or the
+	# prompt and the charge disagree. Intelligence 2 is 3% off, which on a
+	# four-wood bill is a whole unit once it is rounded.
+	var cost := Structures.repair_cost(wall, p.build_cost_mul)
+	eq(cost.wood, 3, "half the damage on a 16-wood wall at 45%, less Engineering")
 	var before := p.count_res("wood")
 	ok(sim.structs.repair(sim, wall, p))
 	eq(wall.hp, wall.max_hp, "back to full")
-	eq(p.count_res("wood"), before - 4)
+	eq(p.count_res("wood"), before - 3)
 
 
 func test_a_scratch_still_costs_one_of_the_main_material() -> void:
@@ -274,20 +277,29 @@ func test_repair_all_is_the_plan_it_printed() -> void:
 	# Four walls at 16 wood each: a 60-unit pack paid for three, and the
 	# fourth came back empty for want of materials.
 	_stock()
+	var walls: Array[Dictionary] = []
 	for i in range(4):
 		var w := _build("woodWall", plot.x + 2, plot.y - 1 + i)
 		ok(not w.is_empty(), "wall %d went up" % i)
 		sim.structs.damage(sim, w, w.max_hp * 0.5)
-	# Four walls at 4 wood each, with only 10 wood in the pack: two get done
-	# and the plan says so before the button is pressed.
+		walls.append(w)
+	# Ten wood in the pack against four identical bills. What the test is
+	# about is that the plan and the sweep agree and that the shortfall is
+	# skipped rather than part-paid — not what a wall happens to cost, which
+	# moves with every build-cost modifier the player has. So derive it.
 	p.bag.clear_all()
 	p.bag.add("wood", 10)
+	var unit: int = Structures.repair_cost(walls[0], p.build_cost_mul).wood
+	var affordable: int = 10 / unit
+	gt(affordable, 0, "ten wood pays for at least one wall at %d each" % unit)
+	ok(affordable < 4, "and not for all four")
+
 	var plan := sim.structs.plan_repair_all(sim, p)
 	eq(plan.pieces.size(), 4)
-	eq(plan.repairable, 2, "10 wood pays for two")
-	eq(plan.skipped, 2)
-	eq(sim.structs.repair_all(sim, p), 2, "and the sweep does exactly that")
-	eq(p.count_res("wood"), 2)
+	eq(plan.repairable, affordable, "10 wood pays for %d at %d each" % [affordable, unit])
+	eq(plan.skipped, 4 - affordable)
+	eq(sim.structs.repair_all(sim, p), affordable, "and the sweep does exactly that")
+	eq(p.count_res("wood"), 10 - affordable * unit, "the remainder is not part-spent")
 
 
 func test_demolishing_a_full_chest_never_eats_what_is_in_it() -> void:
@@ -452,4 +464,4 @@ func test_a_repair_sweep_bills_each_piece_once() -> void:
 			sim.structs.repair(sim, w, p)
 	for w in walls:
 		eq(w.hp, w.max_hp)
-	eq(p.count_res("wood"), before - 12, "three walls at four wood, billed once each")
+	eq(p.count_res("wood"), before - 9, "three walls at three wood, billed once each")

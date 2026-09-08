@@ -273,9 +273,9 @@ func test_a_gun_you_cannot_carry_stays_on_the_ground() -> void:
 	var s := _own_sim()
 	var q := s.players[0]
 	q.hotbar.clear_all()
-	# 199.5 of 200 units: a free grid slot, but no room for a six-unit rifle.
+	# 225 of 225 units: a free grid slot, but no room for a six-unit rifle.
 	q.bag.add_capped("stone", 400, q.pack_allowance())
-	near(q.carried_weight(), 199.5, 0.01)
+	near(q.carried_weight(), 225.0, 0.01)
 	var r := Loot.give_entry(s, q, {"id": "weapon:rifle", "n": 1})
 	ok(r.has("overflow"), "refused: %s" % r.text)
 	eq(q.count_carried("rifle"), 0)

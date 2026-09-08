@@ -121,16 +121,19 @@ func test_the_raid_xp_bonus_is_only_for_raiders() -> void:
 	ok(sim.raid != null and sim.raid.phase == "active")
 	var walker: int = Config.ENEMIES.walker.xp
 
+	# Every award goes through Progression.add_xp, so what lands is the table
+	# value times the player's own xp_mul — Intelligence 2 is 7%. The bonus
+	# being tested is the raid multiplier on top of that.
 	var ambient := sim.enemies.spawn("walker", plot + Vector2(200, 0))
 	var before := p.xp
 	Damage.kill_enemy(sim, ambient, p)
-	eq(p.xp - before, walker, "an ambient kill mid-raid is worth what it always was")
+	near(p.xp - before, walker * p.xp_mul, 0.001, "an ambient kill mid-raid is worth what it always was")
 	eq(sim.raid.killed, 0, "and is not raid progress")
 
 	var raider := sim.enemies.spawn("walker", plot + Vector2(200, 0), true, true)
 	before = p.xp
 	Damage.kill_enemy(sim, raider, p)
-	eq(p.xp - before, roundi(walker * Config.RAID.kill_xp_mul), "a raider pays the bonus")
+	near(p.xp - before, roundi(walker * Config.RAID.kill_xp_mul) * p.xp_mul, 0.001, "a raider pays the bonus")
 	eq(sim.raid.killed, 1)
 
 

@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-08, Phase 3 complete: items, loot, the pack, building, crafting, storage and saves
+- **Last updated:** 2026-09-08, Phase 4a: XP, levels, six attributes and twenty-eight perks
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -80,7 +80,15 @@ These settle arguments. When a decision is close, the pillar wins.
 
 ## 3. Where we are right now
 
-**Status: Phase 3 complete — the loop closes.** You can make things, keep
+**Status: Phase 4a — the loop now pays out.** Kills, containers, harvests,
+crafts, builds and raid payouts all pay XP into levels; a level hands you
+skill points; `K` opens the character sheet, a fourth tab of the pack, where
+a point buys a rank in one of six attributes or one of twenty-eight perks.
+**`recompute_stats` is now what it was always meant to be** — every derived
+number on the player is produced from base, attributes, perks and gear on one
+pure pass, and nothing else writes one.
+
+**Phase 3 — the loop closes.** You can make things, keep
 them and come back to them. Crafting is a tab of the pack (`C`), not a menu
 of its own: thirty-eight recipes across three bench tiers, with the Stone
 Hammer lifting the simple bench work and never a gun. A chest opens on `E`
@@ -114,12 +122,12 @@ that will not fit is ever destroyed: it lands on the ground.
 
 | | |
 | --- | --- |
-| Phase | 3 of 5 — something to keep, complete (three PRs open: 3a, 3b, 3c) |
-| Playable | The whole loop. **E** searches and uses, **Tab** the pack, **C** crafting, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
-| Unit tests | 165 tests, 1923 assertions, 8.9s (`tools\test.cmd`). `--all` adds the compound raid harness and the save round trips: 175 tests, 16.0s |
-| Smoke | 24 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, a chest filled, a save reloaded, a walker shot, a raid |
+| Phase | 4 of 5 — 4a (progression) done; 4b light and fire, 4c survivors and vehicles, 4d menus and audio to come |
+| Playable | The whole loop, and it levels you. **E** searches and uses, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
+| Unit tests | 199 tests, 2434 assertions, 9.8s (`tools\test.cmd`). `--all` adds the compound raid harness and the save round trips: 209 tests, 17.6s |
+| Smoke | 26 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
-| Save format | **v1** — tile-derived container identity, world fingerprint, slots under `user://saves/` |
+| Save format | **v2** — the build (level, points, attributes, perks) beside v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored. |
 
 ### Port status by system
 
@@ -150,7 +158,7 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Building, structures, turrets | 3b | ported | Build anywhere; a Watchtower needs Phase 4 to post a survivor on it |
 | Storage tiers | 3b | ported | Stash 48 / locker 32 / chest 16; the two-panel screen is 3c |
 | Save / load | 3c | ported | v1: container identity by tile, world fingerprint, refusals with a reason |
-| Progression, SPECIAL, perks | 4 | — | |
+| Progression, SPECIAL, perks | 4a | ported | `recompute_stats` is the whole build: base -> attributes -> perks -> gear, on one pure pass |
 | Day/night and light | 4 | — | Real 2D lights this time |
 | Survivors, jobs, bunks | 4 | — | |
 | Vehicles | 4 | — | |
@@ -162,6 +170,63 @@ The spec for each row is in `tasks/port-inventory.md`.
 ---
 
 ## 4. What is built
+
+### What you become (Phase 4a)
+
+- **`Progression`** — one door for XP. All nine award sites (kills, container
+  searches, harvesting by hand and by tool, crafting, building, repairing, the
+  workbench upgrade, raid payouts) call `add_xp`, which is the only place
+  `xp_mul` is applied and the only place a level can happen. Levelling is a
+  loop, not an `if`: a first raid payout is worth several levels at once.
+  XP to the next level is `floor(55 + 45 * (level - 1) ^ 2.35)` — 55, 100,
+  284, 649, 1224 — and every fifth level pays two points instead of one.
+- **`Perks`** — six attributes (rank 1–10, everyone starts at 2) and
+  twenty-eight perks gated on the rank of their parent attribute. The tables
+  are data in `config.gd`; what a perk *does* is a match on its id, and a test
+  asserts every id in the table moves at least one stat.
+- **`recompute_stats` finally does its job.** Every derived number is written
+  from `Config.STAT_BASE` and then layered: attributes, then perks, then gear.
+  Buying a rank writes a count into `p.attrs` or `p.perks` and re-derives
+  everything; nothing is mutated on purchase. That is what makes save/load and
+  any future respec correct by construction, and it is why a save stores the
+  build and never a stat.
+  - The one deliberate exception is in `Progression`, not the recompute: a
+    rank that raises the ceiling **hands the gain over** rather than leaving
+    it as headroom, so Thick Skin bought mid-raid heals you by 30.
+- **The character sheet is a fourth tab of the pack** (`K`), on the same
+  argument that put crafting there. Clicking an attribute opens its tree;
+  clicking it again spends a point — so browsing can never cost you one.
+  Nothing is merely greyed out: a row you cannot buy says *why*, because
+  "Needs STR 5" is a plan and "No skill points" is a wait.
+- **Everything a perk promises, it does.** Build cost, structure health,
+  turret power, trap damage, crafted ammunition yield, loot rarity, double
+  drops, Adrenaline, Second Wind and the rest are wired to their consumers.
+  Base-wide numbers (wall strength, turret reach) come from `sim.host()`, not
+  from whoever is standing next to the thing.
+  - **A perk whose system does not exist yet carries a `needs` field and
+    cannot be bought.** It stays visible so the tree matches the spec and can
+    be planned around, and its row says what it is waiting on — a point spent
+    on nothing is worse than a row that explains itself. Two carry it today:
+    **Sixth Sense** (the minimap, 4d) and **Hotwire** (cars, 4c). The field
+    comes off as each system lands.
+  - The five survivor stats (`survivor_cap`, `upkeep_mul` and friends) are
+    produced here and not read until 4c, but the perks that write them —
+    Recruiter, Inspiring Presence, Quartermaster, Natural Leader — are not
+    gated, because 4c reads what they set the moment it exists.
+- **Two perk descriptions were rewritten to match what they do.** Fire Control
+  gives range half the bonus damage gets, and Fortune Favours is a 35% chance
+  rather than a certainty. Both are the prototype's own numbers, and in the
+  prototype both descriptions overstate them; the behaviour is ported
+  faithfully and the wording corrected.
+- **Salvage refunds a share of what you paid, not of the list price.** Without
+  that, Engineer 3 builds a wall for 0.47 and salvages it for 0.55, and a wall
+  put up and taken down again is free material. There is a test that turns 400
+  wood into 424 against the unfixed code.
+
+Starting stats are now *produced* rather than written down, and four of them
+were previously sitting at their pre-attribute values: carry capacity 200 →
+**225**, pickup range 46 → **49**, search time ×1.0 → **×0.95**, chop ×1.0 →
+**×1.06**. All four now match the prototype at Strength/Perception 2.
 
 ### What you make and what you keep (Phase 3c)
 
@@ -487,15 +552,27 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    time; do enemies coming round a building feel like hunting or like
    cheating; does the tier-1 crowd (four around you, 1400px) feel thin or
    dead; does a raid with nothing to defend feel like anything.
-1. **Phase 4.** Progression and `recompute_stats` growing into the whole
-   stat build, day and night with real 2D lights and the torch that is
-   already in the off-hand, survivors on the bunks and the watchtowers that
-   are already built, vehicles, fire, and the title screen that gives saves
-   their slots and autosave.
-2. **Render interpolation.** The sim runs at 60Hz and the view at the
-   monitor's rate; on a 144Hz screen movement judders until positions are
-   interpolated between physics frames. Every entity now needs a previous
-   position captured at the top of its tick.
+   Phase 4a adds two more: does a level arrive often enough to feel earned
+   and rarely enough to feel like something, and is the character sheet worth
+   a tab or does it want to be a menu you stop for?
+1. **Phase 4b — day, night, light, fire, and render interpolation.** The day
+   is 540s; night multiplies enemy density, sense, speed and Threat gain by
+   the darkness. Where the prototype dimmed the canvas with an alpha, this
+   gets a real `CanvasModulate` and `PointLight2D`s — the torch and flashlight
+   have been in the off-hand since 3a with nothing to light. Fire is new.
+   Interpolation rides along because it is the same rendering pass: the sim
+   runs at 60Hz and the view at the monitor's rate, so on a 144Hz screen
+   movement judders until every entity captures a previous position at the top
+   of its tick.
+2. **Phase 4c — survivors and vehicles.** The roster capped by Charisma *and*
+   bunks, four jobs, Rations upkeep from the shared stash, permanent death;
+   about thirty cars, 62% locked, opened by a key, a lockpick or Hotwire. Both
+   read stats 4a already produces. The Bunk and the Watchtower are buildable
+   today and have nothing to put in them.
+3. **Phase 4d — the front door.** Title screen, save slots with an index,
+   autosave, full key rebinding over `src/core/bindings.gd`, a pause menu that
+   saves before it quits, the minimap (which is what Sixth Sense is waiting
+   for), and synthesised audio with per-kind rate limits.
 
 ### Deliberately not building
 
@@ -616,10 +693,14 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 165  asserts: 1901  failures: 0   (9.0s)
-tests: 175  asserts: 1958  failures: 0   (--all, 16.6s)
-SMOKE done checkpoints=24 failures=0 exit=0
+tests: 199  asserts: 2434  failures: 0   (9.8s)
+tests: 209  asserts: 2491  failures: 0   (--all, 17.6s)
+SMOKE done checkpoints=26 failures=0 exit=0
 ```
+
+Since PR #7 the runner fails a test on any engine error logged while it ran,
+so a method that aborts partway can no longer report as passing. Four
+`building_test.gd` methods had been doing exactly that.
 
 `tools\test` skips `*_slow_test.gd` so the default loop stays under the
 ten-second agreement. There is one such file — the compound raid harness,
@@ -645,8 +726,8 @@ index, not the raid's ordinal:** index 1 is the second raid, RUNNING HORDE.
 
 | Index | Ours (2026-09-08) | The prototype's range |
 | --- | --- | --- |
-| 1 RUNNING HORDE | 57s, 0 lost, walls 100% | 70–93s, 0 lost, walls 18–90% |
-| 3 SIEGE | 126s, 13 lost, walls 83% | 72–260s, whole base, walls 0% |
+| 1 RUNNING HORDE | 60s, 0 lost, walls 100% | 70–93s, 0 lost, walls 18–90% |
+| 3 SIEGE | 124s, 11 lost, walls 86% | 72–260s, whole base, walls 0% |
 
 **These are single runs of a stochastic harness — read them as ranges.** The
 browser build produced 67s and 172s for the same raid on the same code. What
@@ -710,6 +791,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-08 | Phase 4a: `ATTRS`, `PERKS`, `STAT_BASE` and the XP curve in `Config`; `Perks` (the pure base → attributes → perks → gear rebuild, and the two `{ok, reason}` gate checks) and `Progression` (one `add_xp` for all nine award sites, `raise_attribute`, `buy_perk`); every derived stat on `PlayerSim` now comes from the recompute instead of a literal; a CHAR tab on the pack screen and a level/XP bar on the HUD; build cost, structure health, turret power, trap damage, ammunition yield, loot rarity, double drops, Adrenaline and Second Wind wired to their consumers; base-wide numbers read `sim.host()`; salvage refunds a share of what you paid so Engineer is not a wood mine; `SaveGame` v2 stores the build and no derived stat; 32 new tests (197 fast, 207 with `--all`); smoke opens the sheet and spends a point. Fixed in passing: the smoke's REPAIR step aimed once and waited a fixed six frames instead of settling the cursor, which made it fail the moment the player stood a few pixels elsewhere |
 | 2026-09-08 | Phase 3c: `RECIPES` in `Config`; `Crafting` (bench tier from the workbench beside you, the Stone Hammer lift, tool gates, room checked against the container the craft will use, overflow to stash then ground); the pack screen grows a CRAFT tab and a STORE mode with DEPOSIT ALL and TAKE SUPPLIES; `SaveGame` v1 — containers by tile, chopped props by tile, structures, stores, worn gear and magazines, behind a world fingerprint taken at generation; `F5` / `F9`; 22 new tests (159 fast, 167 with `--all`); smoke crafts a hatchet, fills a chest, saves and reloads |
 | 2026-09-08 | Phase 3b review pass (PR #4): the shared stash is cleared with its last door; salvaging a workbench recomputes the bench tier; REPAIR sweeps while held |
 | 2026-09-08 | Phase 3b: `STRUCTURES`, `BUILD_ORDER` and `ARMAMENTS` in `Config`; `Structures` — the destructible tile map, placement, damage, repair, `plan_repair_all`, demolition, power, generators, turrets, traps, gates, the bench upgrade and storage; collision, sight and the flow field take it as a parameter; enemies punch what blocks them and raiders walk at the nearest piece; `StructureView` and `BuildBar` with the ghost, the range ring and the repair and salvage tools; building goes through `Intent`; 27 new tests plus the compound raid harness in a slow tier; smoke builds a wall, walks into it, repairs it and takes it down. Fixed in passing: a Phase 2 bug where holding the trigger on an empty shotgun cancelled its reload for ever |

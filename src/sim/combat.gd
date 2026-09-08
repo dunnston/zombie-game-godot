@@ -132,7 +132,7 @@ static func swing_refused(sim: GameSim, p: PlayerSim, w: Dictionary, fighting: b
 ## the bar is short, which is what makes three trees a decision.
 static func melee_attack(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 	var reach: float = w.range + p.r
-	var dmg: float = w.dmg * p.melee_mul
+	var dmg: float = w.dmg * p.melee_mul * (Config.ADRENALINE_MELEE if p.adrenaline_active else 1.0)
 	var hits := melee_targets(sim, p, w)
 
 	if swing_refused(sim, p, w, not hits.is_empty()):
@@ -225,7 +225,7 @@ static func chop_prop(sim: GameSim, p: PlayerSim, w: Dictionary, dmg: float) -> 
 		if rule.has("bonus") and sim.rng.chance(0.8):
 			var bonus: int = rule.bonus_min + roundi(sim.rng.next() * (rule.bonus_max - rule.bonus_min))
 			Loot.give_res_or_drop(sim, p, rule.bonus, bonus, p.pos)
-		p.xp += rule.get("xp", 2)
+		Progression.add_xp(sim, p, rule.get("xp", 2), rule.label)
 	return true
 
 

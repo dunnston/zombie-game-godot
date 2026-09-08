@@ -63,7 +63,7 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 				"label": "Respawn point (active)" if p.spawn_tile == Vector2i(s.tx, s.ty) else "Set as respawn point"}
 		elif Structures.is_damaged(s):
 			entry = {"kind": "repair", "ref": s,
-				"label": "Repair %s  (%d%%)  ·  %s" % [s.def.name, roundi(s.hp / s.max_hp * 100.0), Structures.cost_label(Structures.repair_cost(s))]}
+				"label": "Repair %s  (%d%%)  ·  %s" % [s.def.name, roundi(s.hp / s.max_hp * 100.0), Structures.cost_label(Structures.repair_cost(s, p.build_cost_mul))]}
 		if entry.is_empty():
 			continue
 		# A piece that answers E for something else still says it is hurt.
@@ -167,9 +167,9 @@ static func _finish_search(sim: GameSim, p: PlayerSim) -> void:
 	sim.stats.looted = sim.stats.get("looted", 0) + 1
 
 	var at := Vector2(c.x, c.y)
-	var result := Loot.grant_loot(sim, p, Loot.roll_container(sim, c, p.loot_mul), at)
+	var result := Loot.grant_loot(sim, p, Loot.roll_container(sim, c, p.loot_mul, p.rare_loot_mul, p.double_drop_chance), at)
 	sim.emit({"t": "loot", "x": at.x, "y": at.y, "lines": result.lines, "major": result.major})
-	p.xp += 6 + int(c.rolls[1]) * 3
+	Progression.add_xp(sim, p, 6 + int(c.rolls[1]) * 3, "LOOT")
 	sim.threat.add(sim, Config.THREAT.per_loot, p)
 
 
@@ -185,5 +185,5 @@ static func gather_prop(sim: GameSim, p: PlayerSim, prop: Dictionary) -> bool:
 	if rule.has("bonus") and sim.rng.chance(0.5):
 		var bonus: int = rule.bonus_min + roundi(sim.rng.next() * (rule.bonus_max - rule.bonus_min))
 		Loot.give_res_or_drop(sim, p, rule.bonus, bonus, p.pos)
-	p.xp += rule.get("xp", 1)
+	Progression.add_xp(sim, p, rule.get("xp", 1), rule.label)
 	return true

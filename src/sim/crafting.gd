@@ -118,7 +118,10 @@ static func craft(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> bool
 		label = "%s x%d" % [Config.CONSUMABLES[iid].name, want]
 	elif r.give.has("res"):
 		for id in r.give.res:
-			var want: int = r.give.res[id]
+			# Gunsmith pays out in ammunition only: a bigger batch of arrows,
+			# not a bigger batch of everything a recipe happens to give back.
+			var yield_mul: float = p.craft_yield_mul if id in Config.AMMO_IDS else 1.0
+			var want := roundi(r.give.res[id] * yield_mul)
 			var got := p.bag.add_capped(id, want, p.pack_allowance())
 			if got < want:
 				# Overflow goes to the stash first — it is the base's pile,
@@ -127,7 +130,7 @@ static func craft(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> bool
 				sim.notify("Pack full — the rest went to your stash", "#d9c46a")
 
 	sim.stats.crafted = sim.stats.get("crafted", 0) + 1
-	p.xp += r.xp
+	Progression.add_xp(sim, p, r.xp, "CRAFT")
 	sim.threat.add(sim, Config.THREAT.per_craft, p)
 	sim.emit({"t": "crafted", "x": p.pos.x, "y": p.pos.y, "text": label})
 	sim.notify(label, "#b7e08a")

@@ -102,7 +102,7 @@ func update_hover(world_pos: Vector2) -> void:
 			check = {"ok": false, "reason": "Nothing there"}
 		elif card == "repair":
 			check = {"ok": Structures.is_damaged(s),
-				"reason": Structures.cost_label(Structures.repair_cost(s)) if Structures.is_damaged(s) else "Already intact"}
+				"reason": Structures.cost_label(Structures.repair_cost(s, player.build_cost_mul)) if Structures.is_damaged(s) else "Already intact"}
 		else:
 			check = {"ok": true, "reason": "Salvage %s" % s.def.name}
 	else:
@@ -157,6 +157,29 @@ func cycle(dir: int) -> void:
 	selected = ((selected + dir) % n + n) % n
 
 
+## What one card says: the bill, whether it can be paid, and what it will
+## build. Every number here has to be the one `Structures.place` will act on,
+## or the card promises something the click does not do — a player with
+## Engineer would see a red "WOOD 16" and then put the wall up for eleven.
+##
+## Pulled out of `_draw` for the same reason `InventoryScreen._cells()` is:
+## one source, so what is drawn and what is asserted cannot drift apart.
+func card_info(id: String) -> Dictionary:
+	if TOOLS.has(id):
+		return {"tool": true, "cost": {}, "afford": true, "locked": false, "hp": 0,
+			"label": TOOL_NAMES.get(id, id)}
+	var def: Dictionary = Config.STRUCTURES.get(id, {})
+	var owner := sim.host()
+	return {
+		"tool": false,
+		"cost": sim.structs.cost_of(id, player),
+		"afford": player.can_afford(sim, def.cost, player.build_cost_mul),
+		"locked": not sim.structs.is_unlocked(id),
+		"hp": roundi(def.hp * (owner.struct_hp_mul if owner != null else 1.0)),
+		"label": def.get("name", id),
+	}
+
+
 # ----------------------------------------------------------------- drawing --
 
 func _draw() -> void:
@@ -176,22 +199,20 @@ func _draw() -> void:
 	for i in range(all.size()):
 		var id: String = all[i]
 		var r: Rect2 = rects[i]
-		var is_tool := TOOLS.has(id)
-		var def: Dictionary = Config.STRUCTURES.get(id, {})
-		var locked := not is_tool and not sim.structs.is_unlocked(id)
-		var afford := is_tool or player.can_afford(sim, def.cost)
+		var info := card_info(id)
+		var locked: bool = info.locked
+		var afford: bool = info.afford
 		draw_rect(r, Color("#14161a", 0.92 if i == selected else 0.72))
 		draw_rect(r, Color("#d8e8c0") if i == selected else Color("#3a4048"), false, 2.0 if i == selected else 1.0)
 		var name_col := Color("#ebe6d6")
 		if locked or not afford:
 			name_col = Color("#7a7f76")
-		var label: String = TOOL_NAMES.get(id, def.get("name", id))
-		_fit(font, label, r.position + Vector2(0, 16), r.size.x, 11, name_col)
-		if is_tool:
+		_fit(font, info.label, r.position + Vector2(0, 16), r.size.x, 11, name_col)
+		if info.tool:
 			continue
-		_fit(font, Structures.cost_label(def.cost), r.position + Vector2(0, 30), r.size.x, 9,
+		_fit(font, Structures.cost_label(info.cost), r.position + Vector2(0, 30), r.size.x, 9,
 			Color("#c9a227") if afford else Color("#c96a5a"))
-		draw_string(font, r.position + Vector2(0, 42), "LOCKED" if locked else "%d hp" % int(def.hp),
+		draw_string(font, r.position + Vector2(0, 42), "LOCKED" if locked else "%d hp" % int(info.hp),
 			HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 9, Color("#c96a5a") if locked else Color(1, 1, 1, 0.4))
 
 

@@ -9,11 +9,14 @@ extends Control
 ## is, so the hit test and the drawing can never describe different
 ## rectangles: `_cells()` is the single source of both.
 ##
-## Three modes share one panel, because they are one panel. **PACK** is what
+## Four modes share one panel, because they are one panel. **PACK** is what
 ## you carry. **CRAFT** is the recipe list for whatever bench you happen to
 ## be standing beside — in here rather than in a screen of its own, which is
 ## the playtest finding: a separate crafting menu made you forget what you
-## were carrying. **STORE** swaps the body slots for a container's contents.
+## were carrying. **CHAR** is the same argument again: what a skill point
+## buys is a decision about what you are carrying and fighting with, so it
+## belongs beside them. **STORE** swaps the body slots for a container's
+## contents.
 
 const CELL := 44.0
 const GAP := 4.0
@@ -27,13 +30,16 @@ var drag := {}                   # {from: cell, id, n} while held
 var hover := {}
 var mouse := Vector2.ZERO
 
-## "pack", "craft" or "store".
+## "pack", "craft", "char" or "store".
 var mode := "pack"
 ## The tile of the container being looked into, or (-1, -1). A tile rather
 ## than the container itself, so the reach check happens every frame and
 ## walking away closes the screen.
 var store_tile := Vector2i(-1, -1)
 var craft_top := 0               # first visible recipe row
+var char_top := 0                # first visible perk row
+## Which attribute's tree the character sheet is showing.
+var char_attr := "str"
 
 
 func _init(sim_: GameSim) -> void:
@@ -98,7 +104,7 @@ func _panel() -> Rect2:
 func _tabs() -> Array[Dictionary]:
 	var panel := _panel()
 	var out: Array[Dictionary] = []
-	var names := ["pack", "craft"] if mode != "store" else ["store"]
+	var names := ["pack", "craft", "char"] if mode != "store" else ["store"]
 	var x := panel.position.x + 24.0
 	for name in names:
 		out.append({"mode": name, "rect": Rect2(x, panel.position.y + 14.0, 84.0, 24.0)})
@@ -129,7 +135,7 @@ func _cells() -> Array[Dictionary]:
 				"rect": Rect2(x0, y0 + i * (CELL + GAP), CELL, CELL)})
 
 	# The pack grid moves right in store mode but is otherwise the same grid.
-	if mode != "craft":
+	if mode != "craft" and mode != "char":
 		for i in range(player.bag.size()):
 			out.append({"kind": "bag", "slot": "", "index": i,
 				"rect": Rect2(gx + (i % BAG_COLS) * (CELL + GAP), y0 + (i / BAG_COLS) * (CELL + GAP), CELL, CELL)})
@@ -157,6 +163,39 @@ func _recipe_rows() -> Array[Dictionary]:
 	return out
 
 
+## The character sheet's clickable rows: the six attributes down the left,
+## and the perk tree of whichever attribute is selected down the right.
+##
+## Attribute rows carry `attr`; perk rows carry `perk`. Both are drawn and hit
+## tested off this one list, so what looks clickable is clickable.
+func _char_rows() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if mode != "char":
+		return out
+	var panel := _panel()
+	var x0 := panel.position.x + 24.0
+	var top := panel.position.y + 92.0
+	# Wide enough for the longest per-rank line ("+12 health · +10 stamina ·
+	# +1.2 stam/s") without clipping it, which is the whole reason the column
+	# is here — a stat line you cannot read is not a stat line.
+	var col_w := 300.0
+
+	for i in range(Config.ATTR_IDS.size()):
+		var id: String = Config.ATTR_IDS[i]
+		out.append({"attr": id, "perk": "",
+			"rect": Rect2(x0, top + i * 40.0, col_w, 36.0)})
+
+	var list := Perks.perks_for(char_attr)
+	var px := x0 + col_w + 22.0
+	var pw := panel.position.x + panel.size.x - 24.0 - px
+	var rows := int((panel.size.y - 150.0) / 38.0)
+	char_top = clampi(char_top, 0, maxi(0, list.size() - rows))
+	for i in range(char_top, mini(list.size(), char_top + rows)):
+		out.append({"attr": "", "perk": String(list[i].id),
+			"rect": Rect2(px, top + (i - char_top) * 38.0, pw, 34.0)})
+	return out
+
+
 ## The middle of one cell, for the smoke run to click on.
 func cell_centre(kind: String, index: int, slot := "") -> Vector2:
 	for c in _cells():
@@ -169,6 +208,14 @@ func cell_centre(kind: String, index: int, slot := "") -> Vector2:
 func recipe_centre(id: String) -> Vector2:
 	for r in _recipe_rows():
 		if r.recipe.id == id:
+			return r.rect.get_center()
+	return Vector2.ZERO
+
+
+## The middle of an attribute or perk row on the character sheet, likewise.
+func char_row_centre(attr := "", perk := "") -> Vector2:
+	for r in _char_rows():
+		if (not attr.is_empty() and r.attr == attr) or (not perk.is_empty() and r.perk == perk):
 			return r.rect.get_center()
 	return Vector2.ZERO
 
@@ -208,9 +255,15 @@ func _gui_input(event: InputEvent) -> void:
 	var mb := event as InputEventMouseButton
 	mouse = mb.position
 	if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
-		craft_top += 1
+		if mode == "char":
+			char_top += 1
+		else:
+			craft_top += 1
 	elif mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
-		craft_top = maxi(0, craft_top - 1)
+		if mode == "char":
+			char_top = maxi(0, char_top - 1)
+		else:
+			craft_top = maxi(0, craft_top - 1)
 	elif mb.button_index == MOUSE_BUTTON_LEFT:
 		if mb.pressed:
 			if not _click_chrome(mouse):
@@ -237,6 +290,21 @@ func _click_chrome(at: Vector2) -> bool:
 		if r.rect.has_point(at):
 			Crafting.craft(sim, player, r.recipe, bench())
 			return true
+	for r in _char_rows():
+		if not r.rect.has_point(at):
+			continue
+		if not String(r.attr).is_empty():
+			# Clicking an attribute you are not looking at selects it; clicking
+			# the one you are looking at spends a point on it. One click never
+			# does both, so browsing the tree can never cost you a point.
+			if char_attr != r.attr:
+				char_attr = r.attr
+				char_top = 0
+			else:
+				Progression.raise_attribute(sim, player, String(r.attr))
+		else:
+			Progression.buy_perk(sim, player, String(r.perk))
+		return true
 	return false
 
 
@@ -391,6 +459,8 @@ func _draw() -> void:
 	match mode:
 		"craft":
 			_draw_craft(font, panel)
+		"char":
+			_draw_char(font, panel)
 		"store":
 			var s := store()
 			draw_string(font, panel.position + Vector2(24, 60),
@@ -409,9 +479,12 @@ func _draw() -> void:
 		draw_rect(b.rect, Color("#8a949e") if hot else Color("#3a4048"), false, 1.0)
 		draw_string(font, b.rect.position + Vector2(0, 16), b.label, HORIZONTAL_ALIGNMENT_CENTER, b.rect.size.x, 11, Color("#d5d0c4"))
 
-	draw_string(font, Vector2(panel.position.x + 24, panel.position.y + panel.size.y - 8),
-		"drag to move  ·  right-click to equip or stow  ·  ctrl+click to drop  ·  shift+click to split",
-		HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 40, 10, Color(1, 1, 1, 0.4))
+	# The dragging hint is about the grids, and the character sheet has none —
+	# it prints its own line instead, and two of them overlap.
+	if mode != "char":
+		draw_string(font, Vector2(panel.position.x + 24, panel.position.y + panel.size.y - 8),
+			"drag to move  ·  right-click to equip or stow  ·  ctrl+click to drop  ·  shift+click to split",
+			HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 40, 10, Color(1, 1, 1, 0.4))
 
 	if not drag.is_empty():
 		var r := Rect2(mouse - Vector2(CELL, CELL) / 2.0, Vector2(CELL, CELL))
@@ -447,6 +520,86 @@ func _draw_craft(font: Font, panel: Rect2) -> void:
 			draw_string(font, rect.position + Vector2(0, 15), st.reason, HORIZONTAL_ALIGNMENT_RIGHT, rect.size.x - 8, 11, Color("#c96a5a"))
 		else:
 			draw_string(font, rect.position + Vector2(0, 15), "CRAFT", HORIZONTAL_ALIGNMENT_RIGHT, rect.size.x - 8, 11, Color("#9fd07a"))
+
+
+## The character sheet. Attributes down the left with their per-rank line,
+## the selected attribute's perks down the right. Nothing is merely greyed
+## out: a row you cannot buy says why, because "needs STR 5" is a plan and
+## "no skill points" is a wait, and those are different problems.
+func _draw_char(font: Font, panel: Rect2) -> void:
+	var points := player.skill_points
+	var head := "LEVEL %d" % player.level
+	draw_string(font, panel.position + Vector2(24, 60), head, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#ebe6d6"))
+
+	# The XP bar sits under the heading so the next level is always in view.
+	var bar := Rect2(panel.position.x + 92.0, panel.position.y + 50.0, 200.0, 10.0)
+	draw_rect(bar, Color(0, 0, 0, 0.6))
+	var frac := clampf(player.xp / maxf(1.0, float(player.xp_next)), 0.0, 1.0)
+	draw_rect(Rect2(bar.position, Vector2(bar.size.x * frac, bar.size.y)), Color("#9fd0ff"))
+	draw_string(font, bar.position + Vector2(bar.size.x + 8, 9), "%d / %d XP" % [roundi(player.xp), player.xp_next],
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("#8a8f84"))
+
+	var pts_col := Color("#ffe08a") if points > 0 else Color("#8a8f84")
+	draw_string(font, Vector2(panel.position.x, panel.position.y + 60),
+		"%d POINT%s TO SPEND" % [points, "" if points == 1 else "S"],
+		HORIZONTAL_ALIGNMENT_RIGHT, panel.size.x - 24.0, 12, pts_col)
+
+	for row in _char_rows():
+		var rect: Rect2 = row.rect
+		var hot: bool = rect.has_point(mouse)
+		if not String(row.attr).is_empty():
+			_draw_attr_row(font, rect, String(row.attr), hot)
+		else:
+			_draw_perk_row(font, rect, Perks.perk_by_id(String(row.perk)), hot)
+
+	draw_string(font, Vector2(panel.position.x + 24, panel.position.y + panel.size.y - 8),
+		"click an attribute to open its tree  ·  click it again to raise it  ·  %d of %d points spent" %
+			[Progression.spent_points(player), Progression.lifetime_points(player)],
+		HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 40, 10, Color(1, 1, 1, 0.4))
+
+
+func _draw_attr_row(font: Font, rect: Rect2, id: String, hot: bool) -> void:
+	var a: Dictionary = Config.ATTRS[id]
+	var rank: int = int(player.attrs.get(id, Config.ATTR_START))
+	var selected := char_attr == id
+	var check := Perks.can_raise_attr(player, id)
+	draw_rect(rect, Color("#242a32") if selected else (Color("#1c2028") if hot else Color("#181b20")))
+	draw_rect(rect, Color(a.color) if selected else Color("#3a4048"), false, 1.0)
+
+	# Rank on the left, what a rank is worth on the right, and the flavour
+	# underneath on a line of its own so neither has to be cut short.
+	draw_string(font, rect.position + Vector2(8, 15), "%s  %d" % [a.abbr, rank], HORIZONTAL_ALIGNMENT_LEFT, 60, 13, Color(a.color))
+	draw_string(font, rect.position + Vector2(0, 15), a.per_rank, HORIZONTAL_ALIGNMENT_RIGHT, rect.size.x - 8, 9, Color("#8a8f84"))
+	draw_string(font, rect.position + Vector2(8, 28), a.blurb, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 90, 9, Color(1, 1, 1, 0.3))
+	if selected:
+		draw_string(font, rect.position + Vector2(0, 29), "SPEND A POINT" if check.ok else check.reason,
+			HORIZONTAL_ALIGNMENT_RIGHT, rect.size.x - 8, 9,
+			Color("#9fd07a") if check.ok else Color("#7a7f76"))
+
+
+func _draw_perk_row(font: Font, rect: Rect2, perk: Dictionary, hot: bool) -> void:
+	if perk.is_empty():
+		return
+	var st := Perks.perk_status(player, perk)
+	var rank: int = int(st.rank)
+	if hot and st.ok:
+		draw_rect(rect, Color("#242a32"))
+	draw_rect(rect, Color("#3a4048"), false, 1.0)
+
+	var name_col := Color("#ebe6d6")
+	if st.locked:
+		name_col = Color("#6a6f68")
+	elif rank >= int(perk.max):
+		name_col = Color("#9fd07a")
+	var label: String = perk.name
+	if int(perk.max) > 1:
+		label += "  %d/%d" % [rank, int(perk.max)]
+	draw_string(font, rect.position + Vector2(8, 15), label, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 100, 12, name_col)
+	draw_string(font, rect.position + Vector2(8, 28), perk.desc, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 16, 9,
+		Color(1, 1, 1, 0.2 if st.locked else 0.38))
+	draw_string(font, rect.position + Vector2(0, 15), "BUY" if st.ok else st.reason,
+		HORIZONTAL_ALIGNMENT_RIGHT, rect.size.x - 8, 10,
+		Color("#9fd07a") if st.ok else (Color("#c9a227") if st.locked else Color("#7a7f76")))
 
 
 func _draw_cell(font: Font, cell: Dictionary) -> void:

@@ -334,7 +334,8 @@ and runners threaten *you*, brutes are what breaches a wall.
   time; CON +12 HP, +10 stamina, +1.2 stam/s; CHA +1 survivor slot per 2
   ranks, +6% ally damage; INT +7% XP, -3% build cost, +5% turret; LCK +2%
   crit, +5% rare loot.
-- 27 perks, each gated on a rank in its attribute, with a max rank:
+- 28 perks, each gated on a rank in its attribute, with a max rank (the list
+  below is 28; earlier drafts of this line said 27):
   - STR: Pack Mule (2, x3, +70 carry), Heavy Hitter (3, x3, +25% melee),
     Demolisher (5, x2, fell/salvage 2x faster), Adrenaline (7, x1, below a
     third HP +45% melee +15% speed).

@@ -7,19 +7,13 @@ extends RefCounted
 ## invariant 4: that is the only function that writes a stat modifier.
 
 
-## The only source of derived player stats.
+## The only source of derived player stats (invariant 4).
 ##
-## Phase 3 produces one of them: damage reduction from what is worn, capped so
-## no amount of scavenging makes you immune. Phase 4 grows this into the full
-## build — attributes and perks feed the same function, and nothing else is
-## ever allowed to write these fields.
+## The rebuild itself lives in `Perks`, because attributes and perks are two
+## thirds of it and gear is the third. This stays the name every equipment
+## path calls, so there is still exactly one door.
 static func recompute_stats(p: PlayerSim) -> void:
-	var dr := 0.0
-	for slot in Config.ARMOR_SLOTS:
-		var id: String = p.equip.get(slot, "")
-		if not id.is_empty() and Config.GEAR.has(id):
-			dr += float(Config.GEAR[id].dr)
-	p.armor_dr = minf(dr, Config.MAX_GEAR_DR)
+	Perks.recompute_stats(p)
 
 
 ## Reconciles the off-hand after anything changes what is worn, then rebuilds

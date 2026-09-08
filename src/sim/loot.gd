@@ -52,14 +52,26 @@ static func pickup_entry_id(it: Dictionary) -> String:
 ## Rolls a container's table. Returns [{id, n}] where `id` may be prefixed.
 ## `loot_mul` multiplies bulk resources only — unique equipment is not
 ## something a perk can hand you two of.
-static func roll_container(sim: GameSim, c: Dictionary, loot_mul := 1.0) -> Array[Dictionary]:
+static func roll_container(sim: GameSim, c: Dictionary, loot_mul := 1.0, rare_mul := 1.0, double_chance := 0.0) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var table: Array = Config.LOOT.get(c.table, [])
 	if table.is_empty():
 		return out
+	# Luck re-weights the table toward its scarcer entries rather than simply
+	# handing out more of everything — that is Scrounger's job. "Rare" is
+	# anything that is not a bulk resource, plus the two resources that are
+	# scarce enough to be the prize themselves.
+	if rare_mul != 1.0:
+		var weighted: Array = []
+		for e in table:
+			var rare: bool = not Config.RES.has(e.id) or e.id == "mil" or e.id == "parts"
+			weighted.append({"id": e.id, "min": e.min, "max": e.max, "w": e.w * rare_mul} if rare else e)
+		table = weighted
 	var lo: int = c.rolls[0]
 	var hi: int = c.rolls[1]
 	var rolls := sim.loot_rng.irange(lo, hi)
+	if double_chance > 0.0 and sim.loot_rng.chance(double_chance):
+		rolls *= 2
 	var totals := {}
 	var order: Array[String] = []
 	for i in range(rolls):
@@ -382,7 +394,17 @@ static func collect_backpack(sim: GameSim, p: PlayerSim, pack: Dictionary) -> in
 # -------------------------------------------------------------- enemy drop --
 
 ## Small drops from a dead body, so guns stay usable between containers.
-static func enemy_drop(sim: GameSim, e: EnemySim) -> void:
+##
+## `killer` is who gets to be lucky about it: Fortune Favours rolls the whole
+## drop a second time rather than doubling the numbers, so it pays out in
+## more *kinds* of thing and can still come up empty.
+static func enemy_drop(sim: GameSim, e: EnemySim, killer: PlayerSim = null) -> void:
+	_roll_enemy_drop(sim, e)
+	if killer != null and killer.double_drop_chance > 0.0 and sim.loot_rng.chance(killer.double_drop_chance):
+		_roll_enemy_drop(sim, e)
+
+
+static func _roll_enemy_drop(sim: GameSim, e: EnemySim) -> void:
 	if e.def.get("boss", false):
 		spawn_pickup(sim, e.pos, "res", "mil", sim.loot_rng.irange(4, 8))
 		spawn_pickup(sim, e.pos, "res", "parts", sim.loot_rng.irange(2, 4))

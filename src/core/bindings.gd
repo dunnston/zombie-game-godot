@@ -18,6 +18,7 @@ const KEYS := {
 	"slot4": [KEY_4], "slot5": [KEY_5], "slot6": [KEY_6],
 	"inventory": [KEY_TAB],
 	"crafting": [KEY_C],
+	"character": [KEY_K],
 	"build": [KEY_B],
 	"map": [KEY_M],
 	"quick_save": [KEY_F5],

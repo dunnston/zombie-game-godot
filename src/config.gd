@@ -78,6 +78,173 @@ const PLAYER := {
 ## zooms so that the viewport shows about that much world vertically.
 const CAMERA := {"follow": 7.5, "view_height": 580.0, "min_zoom": 0.9, "max_zoom": 2.6, "lead": 0.22, "lead_max": 170.0}
 
+# -------------------------------------------------------------- progression --
+
+## XP to reach the next level. The first few come quickly and then it bites;
+## the exponent is what stops levelling going close to linear and never
+## slowing down.
+static func xp_for_level(level: int) -> int:
+	return floori(55.0 + 45.0 * pow(float(level - 1), 2.35))
+
+
+## Skill points granted for reaching a level. Every fifth level pays double.
+static func points_for_level(level: int) -> int:
+	return 2 if level % 5 == 0 else 1
+
+
+const ATTR_MIN := 1
+const ATTR_MAX := 10
+## Everyone starts at rank 2, and rank 1 is the baseline the tables are
+## written against — so a new survivor already carries one rank of each.
+const ATTR_START := 2
+
+const ATTR_IDS := ["str", "per", "con", "cha", "int", "lck"]
+
+const ATTRS := {
+	"str": {"id": "str", "name": "Strength", "abbr": "STR", "color": "#d9765a",
+		"blurb": "Swing harder, carry more.",
+		"per_rank": "+9% melee · +25 carry · +6% chop"},
+	"per": {"id": "per", "name": "Perception", "abbr": "PER", "color": "#6fb0c4",
+		"blurb": "Steadier aim, sharper eyes, faster hands.",
+		"per_rank": "-4% spread · -5% search time"},
+	"con": {"id": "con", "name": "Constitution", "abbr": "CON", "color": "#7ec46a",
+		"blurb": "More to lose before you lose it.",
+		"per_rank": "+12 health · +10 stamina · +1.2 stam/s"},
+	"cha": {"id": "cha", "name": "Charisma", "abbr": "CHA", "color": "#c48fd0",
+		"blurb": "People will follow you, and fight for you.",
+		"per_rank": "+1 slot per 2 ranks · +6% ally damage"},
+	"int": {"id": "int", "name": "Intelligence", "abbr": "INT", "color": "#d0c46a",
+		"blurb": "Learn faster, build cheaper, wire better.",
+		"per_rank": "+7% XP · -3% build cost · +5% turret"},
+	"lck": {"id": "lck", "name": "Luck", "abbr": "LCK", "color": "#d0a05a",
+		"blurb": "The world is kinder than it should be.",
+		"per_rank": "+2% crit · +5% rare loot"},
+}
+
+## Twenty-seven perks. `req` is the rank needed in the parent attribute, so
+## investing in an attribute is what opens its tree; `max` is how many times
+## the perk can be taken.
+##
+## The table is data only. What each one *does* is the match in
+## `Perks._apply_perk`, which runs during the recompute and never on
+## purchase — a test asserts every id here has a branch there.
+##
+## `needs` names a system that has not been built yet. Such a perk stays
+## visible so the tree matches the spec and can be planned around, but it
+## cannot be bought: a point spent on nothing is worse than a row that says
+## why it is waiting. The field comes off as each system lands.
+const PERKS := [
+	# ------------------------------------------------------------ strength --
+	{"id": "packMule", "attr": "str", "req": 2, "max": 3, "name": "Pack Mule",
+		"desc": "+70 carry capacity per rank."},
+	{"id": "heavyHitter", "attr": "str", "req": 3, "max": 3, "name": "Heavy Hitter",
+		"desc": "+25% melee damage per rank."},
+	{"id": "demolisher", "attr": "str", "req": 5, "max": 2, "name": "Demolisher",
+		"desc": "Fell trees and salvage twice as fast per rank."},
+	{"id": "adrenaline", "attr": "str", "req": 7, "max": 1, "name": "Adrenaline",
+		"desc": "Below a third health: +45% melee damage and +15% speed."},
+
+	# ---------------------------------------------------------- perception --
+	{"id": "scrounger", "attr": "per", "req": 2, "max": 3, "name": "Scrounger",
+		"desc": "+35% resources from containers per rank."},
+	{"id": "quickHands", "attr": "per", "req": 3, "max": 2, "name": "Quick Hands",
+		"desc": "-30% search time and +18 pickup range per rank."},
+	{"id": "eagleEye", "attr": "per", "req": 4, "max": 3, "name": "Eagle Eye",
+		"desc": "-22% weapon spread and +12% bullet range per rank."},
+	{"id": "sixthSense", "attr": "per", "req": 6, "max": 1, "name": "Sixth Sense",
+		"desc": "Enemies show on the minimap much further out, even unaware ones.",
+		"needs": "the minimap"},
+
+	# --------------------------------------------------------- constitution --
+	{"id": "thickSkin", "attr": "con", "req": 2, "max": 4, "name": "Thick Skin",
+		"desc": "+30 max health per rank."},
+	{"id": "marathon", "attr": "con", "req": 3, "max": 3, "name": "Marathon",
+		"desc": "+45 stamina and faster recovery per rank."},
+	{"id": "woodcraft", "attr": "con", "req": 4, "max": 2, "name": "Woodcraft",
+		"desc": "Harvest swings cost 35% less stamina per rank."},
+	{"id": "ironStomach", "attr": "con", "req": 4, "max": 2, "name": "Iron Stomach",
+		"desc": "Medical supplies heal +60% and are used 30% faster per rank."},
+	{"id": "secondWind", "attr": "con", "req": 6, "max": 1, "name": "Second Wind",
+		"desc": "Once every two minutes, a killing blow leaves you on 1 health instead."},
+
+	# ------------------------------------------------------------- charisma --
+	{"id": "recruiter", "attr": "cha", "req": 2, "max": 3, "name": "Recruiter",
+		"desc": "+1 survivor slot per rank."},
+	{"id": "inspiring", "attr": "cha", "req": 3, "max": 2, "name": "Inspiring Presence",
+		"desc": "Survivors gain +30% damage and +25% health per rank."},
+	{"id": "quartermaster", "attr": "cha", "req": 4, "max": 2, "name": "Quartermaster",
+		"desc": "Survivors eat 40% fewer Rations per rank."},
+	{"id": "leader", "attr": "cha", "req": 6, "max": 1, "name": "Natural Leader",
+		"desc": "Survivors earn experience 60% faster and rally after a raid."},
+
+	# --------------------------------------------------------- intelligence --
+	{"id": "fastLearner", "attr": "int", "req": 2, "max": 3, "name": "Fast Learner",
+		"desc": "+22% experience from everything per rank."},
+	{"id": "engineer", "attr": "int", "req": 3, "max": 3, "name": "Engineer",
+		"desc": "-22% structure cost per rank."},
+	{"id": "fortifier", "attr": "int", "req": 4, "max": 3, "name": "Fortifier",
+		"desc": "+45% structure health per rank."},
+	{"id": "gunsmith", "attr": "int", "req": 4, "max": 2, "name": "Gunsmith",
+		"desc": "Crafted ammo yields +60% per rank."},
+	{"id": "fireControl", "attr": "int", "req": 5, "max": 2, "name": "Fire Control",
+		"desc": "+35% turret damage per rank, and half that in reach."},
+	{"id": "hotwire", "attr": "int", "req": 5, "max": 2, "name": "Hotwire",
+		"desc": "Start any locked car without a key. Rank 2 does it twice as fast.",
+		"needs": "cars"},
+
+	# ------------------------------------------------------------------ luck --
+	{"id": "scavengersLuck", "attr": "lck", "req": 2, "max": 3, "name": "Scavenger's Luck",
+		"desc": "+30% chance of the rare entry in any loot roll, per rank."},
+	{"id": "luckyStrike", "attr": "lck", "req": 3, "max": 3, "name": "Lucky Strike",
+		"desc": "+7% critical hit chance per rank."},
+	{"id": "ammoCache", "attr": "lck", "req": 4, "max": 2, "name": "Ammo Cache",
+		"desc": "20% chance per rank that a shot costs no ammunition."},
+	{"id": "lowProfile", "attr": "lck", "req": 5, "max": 2, "name": "Low Profile",
+		"desc": "-30% Threat generated and quieter gunfire per rank."},
+	{"id": "fortune", "attr": "lck", "req": 7, "max": 1, "name": "Fortune Favours",
+		"desc": "A 35% chance that a body or a container pays out twice."},
+]
+
+## Every modifier the game reads, at its untouched base value — before any
+## attribute, perk or piece of gear. `Perks.recompute_stats` writes this whole
+## block onto the player and then layers the three sources over it, so a stat
+## can never keep a value from a build that no longer exists.
+##
+## Keys are PlayerSim property names, applied with `set()`, so a typo here
+## would be a silent no-op: `progression_test` asserts every key resolves.
+const STAT_BASE := {
+	"max_hp": 100.0, "max_stam": 100.0, "stam_regen": 20.0,
+	"carry_cap": 200.0, "pickup_range": 46.0,
+
+	"melee_mul": 1.0, "gun_mul": 1.0, "reload_mul": 1.0, "fire_rate_mul": 1.0,
+	"spread_mul": 1.0, "range_mul": 1.0, "chop_mul": 1.0, "chop_stam_mul": 1.0,
+	"crit_chance": 0.06, "free_shot_chance": 0.0, "speed_mul": 1.0,
+	"loot_mul": 1.0, "rare_loot_mul": 1.0, "double_drop_chance": 0.0, "search_mul": 1.0,
+	"build_cost_mul": 1.0, "struct_hp_mul": 1.0, "turret_mul": 1.0, "craft_yield_mul": 1.0,
+	"heal_mul": 1.0, "heal_speed_mul": 1.0,
+	"threat_mul": 1.0, "noise_mul": 1.0, "xp_mul": 1.0, "radar_mul": 1.0,
+
+	# Read by Phase 4c. Produced here because a perk that quietly does nothing
+	# is worse than a field whose reader has not been written yet.
+	"survivor_cap": 0, "survivor_dmg_mul": 1.0, "survivor_hp_mul": 1.0,
+	"survivor_xp_mul": 1.0, "upkeep_mul": 1.0,
+
+	"adrenaline": false, "second_wind": false,
+	"hotwire": false, "hotwire_speed_mul": 1.0,
+
+	# Summed from worn gear by the recompute and capped. Nothing else may write
+	# it: damage.gd reads this rather than inspecting what is worn, so gear,
+	# perks and any later source of mitigation all arrive through one number.
+	"armor_dr": 0.0,
+}
+
+## Adrenaline is active below this fraction of maximum health.
+const ADRENALINE_HP_FRAC := 0.34
+const ADRENALINE_MELEE := 1.45
+const ADRENALINE_SPEED := 1.15
+## Second Wind cannot save you again until this many seconds have passed.
+const SECOND_WIND_CD := 120.0
+
 # ---------------------------------------------------------------- resources --
 
 ## Everything that stacks as a count. Phase 2 uses the ammunition and the
@@ -164,6 +331,10 @@ const MAX_GEAR_DR := 0.72
 
 ## A lit player is noticed this much further out — the cost of seeing at night.
 const LIT_SENSE_BONUS := 90.0
+
+## What Gunsmith multiplies: everything a gun eats. Crafting a batch of
+## bandages is not ammunition and is not affected.
+const AMMO_IDS := ["arrow", "ammoP", "ammoS", "ammoR"]
 
 ## Weapons and consumables carry no weight of their own in the tables, so the
 ## item registry gives them these. A gun is six units; a bandage is half one.

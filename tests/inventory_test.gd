@@ -96,14 +96,16 @@ func test_a_stack_moves_between_containers() -> void:
 # ------------------------------------------------------------------ weight --
 
 func test_capacity_is_weight_and_it_counts_the_hotbar_too() -> void:
-	# 200 units of budget. A rifle on the hotbar weighs 6 of it, and the pack
-	# has to know that or the weight bar and the loot rules disagree.
-	near(p.carry_cap, 200.0, 0.01)
+	# 225 units of budget: the 200 base plus the 25 that Strength 2 is worth,
+	# because every survivor starts one rank above the tables' baseline.
+	# A rifle on the hotbar weighs 6 of it, and the pack has to know that or
+	# the weight bar and the loot rules disagree.
+	near(p.carry_cap, 225.0, 0.01)
 	p.hotbar.clear_all()
 	p.hotbar.add("rifle", 1)
-	near(p.pack_allowance(), 194.0, 0.01, "the rifle is off the pack's budget")
+	near(p.pack_allowance(), 219.0, 0.01, "the rifle is off the pack's budget")
 	var took := p.bag.add_capped("stone", 200, p.pack_allowance())
-	eq(took, 129, "stone is 1.5 each: 129 fits under 194")
+	eq(took, 146, "stone is 1.5 each: 146 fits under 219")
 	ok(not p.overloaded(), "and the bar has not passed full")
 	ok(p.carried_weight() <= p.carry_cap)
 
@@ -111,7 +113,7 @@ func test_capacity_is_weight_and_it_counts_the_hotbar_too() -> void:
 func test_a_pack_that_is_full_by_weight_takes_nothing_more() -> void:
 	p.bag.clear_all()
 	p.hotbar.clear_all()
-	eq(p.bag.add_capped("stone", 400, p.pack_allowance()), 133, "133 x 1.5 is 199.5 of 200")
+	eq(p.bag.add_capped("stone", 400, p.pack_allowance()), 150, "150 x 1.5 is 225.0 of 225")
 	eq(p.bag.add_capped("wood", 10, p.pack_allowance()), 0, "half a unit of room takes nothing")
 	ok(p.carried_weight() <= p.carry_cap)
 

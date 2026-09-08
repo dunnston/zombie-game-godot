@@ -79,6 +79,17 @@ func _draw() -> void:
 	draw_rect(Rect2(x, y, w * clampf(p.stam / p.max_stam, 0, 1), 14), stam_col)
 	draw_string(font, Vector2(x + 6, y + 11), "STAMINA" + ("  —  WINDED" if p.winded else ""), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color.WHITE)
 
+	# Level and progress to the next one, under the other two bars. A point
+	# waiting to be spent says so here, because the character sheet is behind
+	# a key you have to remember to press.
+	y += 20
+	draw_rect(Rect2(x, y, w, 8), Color(0, 0, 0, 0.55))
+	draw_rect(Rect2(x, y, w * clampf(p.xp / maxf(1.0, float(p.xp_next)), 0, 1), 8), Color("#9fd0ff"))
+	draw_string(font, Vector2(x + 6, y + 7), "LV %d" % p.level, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color.WHITE)
+	if p.skill_points > 0:
+		draw_string(font, Vector2(x, y + 7), "%d POINT%s  ·  K" % [p.skill_points, "" if p.skill_points == 1 else "S"],
+			HORIZONTAL_ALIGNMENT_RIGHT, w - 6, 9, Color("#ffe08a"))
+
 	# Threat meter, top right.
 	var tx := vp.x - 240.0
 	var ty := 24.0
