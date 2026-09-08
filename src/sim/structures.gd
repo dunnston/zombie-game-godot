@@ -109,6 +109,15 @@ func raid_target(from: Vector2) -> Dictionary:
 	return best
 
 
+## The armament a manned tower is set to, falling back to the free default.
+## `arm` is a per-tower choice; what has been *bought* is base-wide.
+static func armament_of(tower: Dictionary) -> Dictionary:
+	if tower.is_empty():
+		return {}
+	var id := String(tower.get("arm", Config.DEFAULT_ARMAMENT))
+	return Config.ARMAMENTS.get(id, Config.ARMAMENTS[Config.DEFAULT_ARMAMENT])
+
+
 func near_workbench(at: Vector2) -> Dictionary:
 	return nearest(at, B.bench_range, func(s: Dictionary) -> bool: return s.type == "workbench")
 

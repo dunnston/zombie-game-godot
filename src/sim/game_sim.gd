@@ -12,6 +12,7 @@ var quiet := QuietField.new()
 var threat := Threat.new()
 var clock := DayNight.new()
 var fire := Fire.new()
+var crew := Survivors.new()
 var raid: Raid = null
 var raids_done := 0
 var time := 0.0
@@ -98,6 +99,8 @@ func start(world_: World, run_seed: int = 1) -> void:
 	threat = Threat.new()
 	clock = DayNight.new()
 	fire.reset()
+	crew.reset()
+	crew.seed_rescues(world)
 	world_version += 1                # any cached flow field is about a dead world
 	_nav.clear()
 	events.clear()
@@ -280,6 +283,9 @@ func tick(dt: float) -> void:
 	# After the structures and before the spawner: fire kills, and a kill
 	# should deposit its quiet before the refill check reads the field.
 	fire.tick(self, dt)
+	# After the structures so a builder patches what this tick damaged, and
+	# before the spawner so a survivor kill deposits its quiet in time.
+	crew.tick(self, dt)
 	Loot.update_pickups(self, dt)
 	# Quiet decays before the spawner reads it, so a lull always ends on time.
 	quiet.tick(dt)

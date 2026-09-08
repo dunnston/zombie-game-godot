@@ -62,6 +62,17 @@ static func kill_enemy(sim: GameSim, e: EnemySim, source: Variant = null) -> voi
 	if source is PlayerSim:
 		Progression.add_xp(sim, source, xp, "KILL")
 	else:
+		# A survivor's kill pays the survivor too, which is how a guard you
+		# leave standing at the gate gets better at standing at the gate. The
+		# tag carries their id: `survivor:3`.
+		var tag := String(source) if source is String else ""
+		if tag.begins_with("survivor:"):
+			var sid := int(tag.substr(9))
+			for s in sim.crew.list:
+				if s.id == sid:
+					s.kills += 1
+					sim.crew.award_xp(sim, s, xp)
+					break
 		for p in sim.players:
 			Progression.add_xp(sim, p, xp, "KILL")
 	if sim.raid == null:

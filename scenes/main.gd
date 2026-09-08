@@ -15,6 +15,7 @@ var pickup_view: PickupView
 var structure_view: StructureView
 var fx: FxView
 var lights: LightView
+var survivor_view: SurvivorView
 var player_view: PlayerView
 var camera: Camera2D
 var hud: Hud
@@ -43,6 +44,8 @@ func _ready() -> void:
 	add_child(structure_view)
 	enemy_view = EnemyView.new(sim)
 	add_child(enemy_view)
+	survivor_view = SurvivorView.new(sim)
+	add_child(survivor_view)
 	player_view = PlayerView.new(sim.players[0])
 	add_child(player_view)
 	props_above = PropRenderer.new(sim, true)
@@ -641,3 +644,54 @@ func smoke_run(smoke: Node) -> void:
 	if sim.fire.list.size() < 4:
 		smoke.fail("the treeline did not catch: %d alight" % sim.fire.list.size())
 	await smoke.checkpoint("fire")
+
+	# The crew. Charisma and a bunk are both required, so the smoke has to
+	# supply both before anyone will follow.
+	sim.clock.t = 0.30
+	p.attrs["cha"] = 10
+	Perks.recompute_stats(p)
+	for entry in [["wood", 200], ["cloth", 120], ["scrap", 200], ["stone", 120]]:
+		p.bag.add(entry[0], entry[1])
+	var btx := floori(p.pos.x / 32) - 3
+	var bty := floori(p.pos.y / 32) + 2
+	sim.structs.place(sim, "stash", btx, bty, p)
+	sim.structs.place(sim, "bunk", btx + 1, bty, p)
+	if sim.crew.cap(sim) < 1:
+		smoke.fail("a bunk and Charisma 10 is still no room: %s" % str(sim.crew.limits(sim)))
+	await smoke.frames(3)
+
+	# Take somebody in, off the map and into the roster.
+	if sim.crew.rescues.is_empty():
+		smoke.fail("the world seeded nobody to find")
+	else:
+		var rescue: Dictionary = sim.crew.rescues[0]
+		var out_there := sim.crew.rescues.size()
+		var joined := sim.crew.recruit(sim, rescue, p)
+		if joined == null:
+			smoke.fail("nobody joined: %s" % sim.crew.recruit_refusal(sim))
+		elif sim.crew.rescues.size() != out_there - 1:
+			smoke.fail("they joined but are still out there")
+		else:
+			joined.pos = p.pos + Vector2(70, 0)
+	await smoke.frames(4)
+	await smoke.checkpoint("crew_joined")
+
+	# The roster, and reassigning what they do all day.
+	await smoke.tap("inventory")
+	await smoke.frames(2)
+	inventory.mode = "crew"
+	await smoke.frames(3)
+	if not inventory.visible or inventory.mode != "crew":
+		smoke.fail("the roster did not open")
+	await smoke.checkpoint("roster")
+
+	var member := sim.crew.alive()[0] if not sim.crew.alive().is_empty() else null
+	if member != null:
+		if not sim.crew.assign_job(sim, member, "builder"):
+			smoke.fail("could not put them on Builder duty")
+		if member.job != "builder":
+			smoke.fail("the job did not stick")
+		await smoke.frames(3)
+		await smoke.checkpoint("crew_reassigned")
+	await smoke.tap("inventory")
+	await smoke.frames(2)

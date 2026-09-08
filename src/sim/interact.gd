@@ -28,6 +28,30 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 	if not best_pack.is_empty():
 		return best_pack
 
+	# People come before things. A survivor bleeding out has eight seconds and
+	# a container does not, so neither a shelf nor a gate may ever be what the
+	# key offers while someone is down beside you.
+	var best_person := {}
+	var person_d := reach2
+	for s in sim.crew.list:
+		if s.dead or not s.downed:
+			continue
+		var d: float = p.pos.distance_squared_to(s.pos)
+		if d < person_d:
+			person_d = d
+			best_person = {"kind": "revive", "ref": s,
+				"label": "Help %s up  (%.0fs)" % [s.display_name, maxf(0.0, s.down_t)]}
+	for rescue in sim.crew.rescues:
+		var d: float = p.pos.distance_squared_to(rescue.pos)
+		if d >= person_d:
+			continue
+		var why := sim.crew.recruit_refusal(sim)
+		person_d = d
+		best_person = {"kind": "recruit", "ref": rescue,
+			"label": "Take %s in  (level %d)" % [rescue.name, int(rescue.level)] if why.is_empty() else why}
+	if not best_person.is_empty():
+		return best_person
+
 	var best := {}
 	var best_d := reach2
 	for c in sim.world.containers:
@@ -138,6 +162,10 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 			p.searching = {"container": c, "t": 0.0, "dur": dur}
 		"gather":
 			gather_prop(sim, p, target.ref)
+		"revive":
+			sim.crew.revive(sim, target.ref, p)
+		"recruit":
+			sim.crew.recruit(sim, target.ref, p)
 		"gate":
 			sim.structs.toggle_gate(sim, target.ref)
 		"generator":

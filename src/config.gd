@@ -904,6 +904,87 @@ const ARMAMENTS := {
 ## The one every base starts with, so a manned tower always does something.
 const DEFAULT_ARMAMENT := "arrows"
 
+# ---------------------------------------------------------------- survivors --
+
+const SURVIVOR := {
+	"r": 12.0,
+	"base_hp": 90.0,
+	"hp_per_level": 22.0,
+	"base_dmg": 11.0,
+	"dmg_per_level": 2.6,
+	"fire_cd": 0.62,
+	"range": 300.0,
+	"speed": 118.0,
+	"xp_per_level": 55.0,
+	"max_level": 10,
+	"guard_radius": 190.0,   # how far from their post they will roam
+	"revive_time": 8.0,      # downed -> dead if nobody helps
+	"upkeep_per_min": 1.0,   # Rations eaten per survivor per minute
+	"upkeep_every": 10.0,    # how often the bill is presented
+	"debt_cap": 5.0,         # a long trip away has to be recoverable
+	"warn_every": 45.0,
+	"hungry_speed": 0.75,
+	"hungry_cd": 1.35,
+	"revive_hp_frac": 0.45,
+}
+
+## How close a sniper must be to their tower to count as posted on it.
+const POST_RADIUS := 52.0
+
+## How many rescues are scattered across the world at generation.
+const RESCUE_COUNT := 7
+## Rescues are kept this far apart, so finding one is not finding all of them.
+const RESCUE_SPACING := 700.0
+
+## Names are cosmetic but they matter: a numbered unit is a resource, a named
+## one is a person you would rather not lose.
+const SURVIVOR_NAMES := [
+	"Mira", "Cass", "Dev", "Rosa", "Tobin", "Junie", "Hal", "Ada",
+	"Wes", "Nel", "Bram", "Ivy", "Otto", "Sona", "Rhett", "Pim",
+]
+
+const SURVIVOR_TINTS := ["#7a8fa8", "#8a7f6a", "#7f8a6a", "#8a6f7a"]
+
+const JOBS := {
+	"guard": {"id": "guard", "name": "Guard", "short": "GRD", "color": "#d9765a",
+		"desc": "Holds the base and shoots what comes at it."},
+	"sniper": {"id": "sniper", "name": "Sniper", "short": "SNP", "color": "#6fb0c4",
+		"desc": "Posted on a Watchtower: far more range and damage, but tied to it.",
+		"needs": "watchtower"},
+	"scavenger": {"id": "scavenger", "name": "Scavenger", "short": "SCV", "color": "#e8c86a",
+		"desc": "Makes supply runs and brings materials back to the stash."},
+	"builder": {"id": "builder", "name": "Builder", "short": "BLD", "color": "#8fd07a",
+		"desc": "Repairs damaged structures, during a raid and after it."},
+}
+
+const JOB_IDS := ["guard", "sniper", "scavenger", "builder"]
+
+## Scavengers turn time into materials while you do something else. They are
+## slower and less thorough than you are, which is the point.
+const SCAVENGE := {
+	"radius": 900.0,       # how far from the base they will range
+	"reach": 68.0,         # a container's own tile is solid, so allow for it
+	"search_time": 6.0,
+	"give_up_after": 2.5,  # seconds of no progress before trying something else
+	"deliver_range": 52.0,
+	"empty_haul": {"scrap": 3},
+}
+
+## Builders are the difference, during a raid, between a wall that holds and
+## one that does not.
+const BUILDER := {
+	"radius": 700.0,       # searched from the base, not from the builder
+	"reach": 58.0,
+	"give_up_after": 2.5,
+	"repair_per_sec": 26.0,
+	"cost_per_100": {"wood": 2, "scrap": 1},
+}
+
+## There is no pathfinding for survivors (invariant 6 is about enemies, and
+## this is the same rule again): every walk to a thing has a give-up timer, and
+## "no progress for `give_up_after`" drops the target and picks another.
+const SURVIVOR_PROGRESS := 900.0    # squared-distance closed to count as progress
+
 # -------------------------------------------------------------- loot tables --
 
 ## Each entry is `{id, min, max, w}`. `id` is a resource, or a prefixed
