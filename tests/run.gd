@@ -71,9 +71,11 @@ func _init() -> void:
 				methods.append(m.name)
 		methods.sort()
 		for name in methods:
-			var case = script.new()
+			# Installed before the case is constructed: `_init` and the property
+			# initializers are as much a part of the test as its body.
 			spy.caught.clear()
 			OS.add_logger(spy)
+			var case = script.new()
 			case.before_each()
 			case.call(name)
 			case.after_each()
