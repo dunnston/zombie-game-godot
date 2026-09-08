@@ -62,3 +62,22 @@ Distilled into `PROJECT.md` §8. Append here first.
   goes to the nearest. Assert on what the sim chose.
 - Regenerating the world per test costs a third of a second each. One
   private world, with `looted` reset between tests, kept the suite at 6.8s.
+
+## 2026-09-08 (Phase 3b)
+
+- Pass the structure map into collision rather than reading a global. Every
+  test shares one generated World; a wall built in one sim would otherwise
+  exist in the next.
+- A harness that only checks the end state hides the middle. The compound
+  siege "ended" every time — at the 300s backstop, which is a pass for
+  `raid == null` and a failure for the game. A sixty-second progress print
+  found an empty-shotgun reload bug in one run.
+- Scripted mouse input needs the cursor warped, not just an event parsed:
+  `_gui_input` reads the event, polled code reads the real mouse. Hold the
+  button several frames so a physics step sees it, and re-aim in a loop
+  when the camera leads toward the cursor.
+- When the suite passes its time budget, split a tier rather than deleting
+  coverage or quietly widening the rule.
+- Dead ported code is worse than none: the prototype's "Container there"
+  placement check cannot fire here, because a container already blocks its
+  own tile.

@@ -114,3 +114,103 @@ func has(container, item, msg := "") -> void:
 	_asserts += 1
 	if not container.has(item):
 		_fail("expected %s to contain %s%s" % [str(container), str(item), "" if msg.is_empty() else " (" + msg + ")"])
+
+# ------------------------------------------------------------ raid harness --
+
+## A competent defender with `weapon` and a full pack plays raid `index`
+## through to the end, aiming at the nearest raider and holding fire. Shared
+## because both the open-field and the compound harnesses run it.
+##
+## The twelve-second warning is skipped: it has its own test, and every
+## harness sitting through it is simulation that measures nothing.
+static func play_raid(sim: GameSim, p: PlayerSim, index: int, weapon := "rifle", max_seconds := 300.0) -> Dictionary:
+	sim.raids_done = index
+	p.god_mode = true
+	p.select_slot(p.hotbar_index(weapon))
+	p.add_res(Config.WEAPONS[weapon].ammo, 400)
+	sim.threat.value = 100.0
+	sim.tick(1.0 / 60.0)
+	if sim.raid != null:
+		sim.raid.timer = 0.05
+	run(sim, 0.2)
+	var t0 := sim.time
+	for i in range(int(max_seconds * 60)):
+		var best: EnemySim = null
+		var bd := INF
+		for e in sim.enemies.list:
+			if e.dead or not e.raid:
+				continue
+			var d := e.pos.distance_squared_to(p.pos)
+			if d < bd:
+				bd = d
+				best = e
+		if best != null:
+			p.intent.aim = best.pos
+			p.intent.fire = true
+			p.intent.fire_pressed = i % 30 == 0
+		else:
+			p.intent.fire = false
+		sim.tick(1.0 / 60.0)
+		if sim.raid == null:
+			break
+	return {"seconds": sim.time - t0, "done": sim.raid == null, "kills": sim.stats.kills,
+		"repelled": sim.raids_done == index + 1 and events_of(sim, "raid_end").back().repelled,
+		"reward": p.count_res("scrap")}
+
+
+## The standard compound the prototype measured raids against: an 11x11
+## perimeter of wood north and south and reinforced east and west, four
+## gates, spikes on the north approach, and the workshop inside. Fixed at
+## roughly first-raid strength whatever index is thrown at it — high indices
+## are meant to flatten it.
+static func build_compound(sim: GameSim, p: PlayerSim) -> Dictionary:
+	p.bag = Slots.new(400)
+	p.carry_cap = 1000000.0
+	for id in ["wood", "stone", "sticks", "scrap", "cloth", "elec", "parts", "mil", "fuel"]:
+		p.bag.add(id, 900)
+	sim.structs.bench_tier = 2
+	var tx := floori(p.pos.x / Config.TILE)
+	var ty := floori(p.pos.y / Config.TILE)
+	# Placement is range-limited, so the builder walks its own perimeter.
+	var put := func(type: String, x: int, y: int) -> Dictionary:
+		p.pos = Vector2(x * Config.TILE + 16, y * Config.TILE + 16) + Vector2(0, Config.TILE * 2)
+		return sim.structs.place(sim, type, x, y, p)
+	for i in range(-5, 6):
+		if i != 0:
+			put.call("woodWall", tx + i, ty - 5)
+			put.call("woodWall", tx + i, ty + 5)
+	for j in range(-4, 5):
+		if j != 0:
+			put.call("reinforcedWall", tx - 5, ty + j)
+			put.call("reinforcedWall", tx + 5, ty + j)
+	put.call("gate", tx, ty - 5)
+	put.call("gate", tx, ty + 5)
+	put.call("gate", tx - 5, ty)
+	put.call("gate", tx + 5, ty)
+	for i in range(-2, 3):
+		put.call("spike", tx + i, ty - 6)
+	put.call("workbench", tx - 3, ty - 2)
+	put.call("stash", tx - 3, ty + 2)
+	put.call("bedroll", tx + 3, ty + 3)
+	var gen: Dictionary = put.call("generator", tx + 3, ty - 3)
+	put.call("turret", tx + 2, ty - 1)
+	put.call("turret", tx - 2, ty + 1)
+	if not gen.is_empty():
+		gen.fuel = gen.def.fuel_max
+	if sim.stash != null:
+		sim.stash.add("ammoP", 600)
+	p.pos = tile_centre(Vector2i(tx, ty))
+	return {"tx": tx, "ty": ty, "built": sim.structs.count(), "hp": sim.structs.hp_total()}
+
+
+## What a raid left of it: pieces gone, and the health of the walls still up.
+static func compound_report(sim: GameSim, before: Dictionary) -> Dictionary:
+	var walls_hp := 0.0
+	var walls_max := 0.0
+	for s in sim.structs.list:
+		if s.destroyed or not s.def.get("wall", false):
+			continue
+		walls_hp += s.hp
+		walls_max += s.max_hp
+	return {"lost": int(before.built) - sim.structs.count(),
+		"walls_pct": roundi(walls_hp / maxf(1.0, walls_max) * 100.0)}

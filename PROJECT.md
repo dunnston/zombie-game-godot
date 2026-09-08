@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-08, Phase 2: enemies, combat, noise, quiet, navigation, raids — fightable
+- **Last updated:** 2026-09-08, Phase 3b: items, loot, the pack, building and structures — buildable
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -80,7 +80,19 @@ These settle arguments. When a decision is close, the pillar wins.
 
 ## 3. Where we are right now
 
-**Status: Phase 3a built — the game now has things in it.** On top of Phase
+**Status: Phase 3b built — you can put up a wall and the horde breaks on
+it.** Everything the player builds lives in a destructible tile map beside
+the terrain bitmap: walls, gates, spikes, three tiers of storage, a
+workbench that upgrades, a bedroll that is where you wake up, a generator
+that powers turrets and floodlights, and a watchtower waiting for Phase 4's
+survivor. `B` opens build mode with the ghost, the range ring and the
+repair and salvage tools. Enemies punch what blocks them, brutes are what
+breaches a wall, raiders walk at the *nearest* structure so a horde breaks
+on the perimeter, and a base quietens the ground around it.
+
+Still to come in Phase 3: crafting, storage screens and saves (3c).
+
+**Phase 3a — the game has things in it.** On top of Phase
 2's fight: a survivor wakes with a steel pipe and two bandages and nothing
 else. Everything else is out there. Thirty container archetypes answer a
 held E and pay out of their own loot table; ground litter, bushes and rocks
@@ -91,16 +103,13 @@ damage through `recompute_stats()` and nothing else; a torch lights the
 off-hand and burns itself away. Dying leaves a pack where you fell. Nothing
 that will not fit is ever destroyed: it lands on the ground.
 
-Still to come in Phase 3: building and structures (3b), then crafting,
-storage and saves (3c).
-
 | | |
 | --- | --- |
-| Phase | 3a of 5 — what you carry (PR open) |
-| Playable | Scavengeable. Play, then hold **E** at a cabinet, **Tab** for the pack, **T** for a torch. |
-| Unit tests | 105 tests, 1154 assertions, ~6.8s (`tools\test.cmd`, ~9s with the import pass) |
-| Smoke | 18 checkpoints: walk, sprint, seven districts, a container searched, the pack opened, a stack dropped and recovered, a walker shot, a raid |
-| World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~1.6ms |
+| Phase | 3b of 5 — what you build (PR open; 3a's PR is open too) |
+| Playable | Buildable. **E** searches and uses, **Tab** is the pack, **B** is build mode, **T** is a torch. |
+| Unit tests | 139 tests, 1491 assertions, 8.0s (`tools\test.cmd`). `--all` adds the compound raid harness: 141 tests, 12.9s |
+| Smoke | 20 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a walker shot, a raid |
+| World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
 | Save format | none yet (3c) |
 
 ### Port status by system
@@ -112,24 +121,24 @@ The spec for each row is in `tasks/port-inventory.md`.
 | System | Phase | Status | Notes |
 | --- | --- | --- | --- |
 | World generation, districts, danger field | 1 | ported | Bit-identical to the prototype: same RNG, same order |
-| Tile collision (one bitmap) | 1 | ported | `World.blocked`; structures map comes in Phase 3 |
+| Tile collision (two maps) | 1, 3b | ported | `World.blocked` for terrain, `Structures` for what you built; passed in, never global |
 | Player movement, stamina, camera | 1 | ported | Winded latch present; sprint alone never trips it (as in the prototype) |
 | Intent (input → sim boundary) | 1 | ported | `LocalInput.gather` is the only reader of `Input` for the sim |
 | Enemies, spawning, chase | 2 | ported | Count radius widened past the spawn ring (§6); stuck test is relative to pace (§6) |
 | Noise | 2 | ported | One `Sound.make_noise`; alert + destination, never aggro |
-| Quiet field / pressure | 2 | ported | Structures' standing quiet arrives with structures (Phase 3) |
+| Quiet field / pressure | 2, 3b | ported | A base standing nearby quietens the ground, and losing it makes it dangerous again |
 | Combat: melee, bow, guns, bullets | 2 | ported | Now fed by the hotbar; `TEST_KIT` is what the tests hold |
 | Damage routing | 2 | ported | Solo death only; downed-not-dead is co-op (Phase 5) |
 | Navigation | 2 | **new** | Flow field per living player; enemies chasing you follow it |
-| Raids and threat | 2 | ported | Raiders come for you; targeting the nearest structure needs 3b |
+| Raids and threat | 2, 3b | ported | Raiders walk at the nearest structure; the compound harness reproduces §9 |
 | Items registry | 3a | ported | `Items` over RES + WEAPONS + GEAR + CONSUMABLES; `Slots` is the container |
 | Inventory, equipment, hotbar | 3a | ported | Tab; drag, right-click, ctrl+click to drop, shift+click to split |
 | Loot and containers | 3a | ported | 30 tables; overflow always lands on the ground |
 | Ground pickups and death packs | 3a | ported | Magnet, dropper hold-off, recoverable backpack |
 | Lights (torch, flashlight) | 3a | ported | Charge lives on the player; the dark itself is Phase 4 |
-| Crafting | 3 | — | Inside the inventory screen this time |
-| Building, structures, towers, turrets | 3 | — | |
-| Storage tiers | 3 | — | |
+| Crafting | 3c | — | Inside the inventory screen this time |
+| Building, structures, turrets | 3b | ported | Build anywhere; a Watchtower needs Phase 4 to post a survivor on it |
+| Storage tiers | 3b | ported | Stash 48 / locker 32 / chest 16; the two-panel screen is 3c |
 | Save / load | 3 | — | Stable container IDs this time |
 | Progression, SPECIAL, perks | 4 | — | |
 | Day/night and light | 4 | — | Real 2D lights this time |
@@ -143,6 +152,34 @@ The spec for each row is in `tasks/port-inventory.md`.
 ---
 
 ## 4. What is built
+
+### What you build (Phase 3b)
+
+- **`Structures`** — the destructible tile map and everything done to it:
+  placement with the full refusal list, damage, destruction, repair,
+  `plan_repair_all` (the label is the plan the button runs), demolition
+  that spills what was inside, power, generators, turrets, spike traps,
+  gates and the workbench upgrade. It hangs off `GameSim`, and every query
+  that needs it is **handed** it rather than reaching for a global.
+- **Collision** — `World.is_blocked_tile(tx, ty, structs)`. Movement,
+  `unstick`, sight and the flow field all take the same optional argument;
+  omit it and you get terrain, which is what bullets and the world
+  generator want. Building bumps `world_version`, so the flow fields
+  rebuild and the horde walks round the wall rather than through it.
+- **Enemies** — the wall in front of one becomes the thing it hits, flesh
+  always outranks scenery, and a stuck raider punches whatever it is stuck
+  against rather than shuffling sideways for ever. `struct_mul` is what
+  makes a brute the answer to a wall and a walker not.
+- **Raids** — the centre is the base's centre, each raider walks at the
+  *nearest* piece so the horde breaks on the perimeter, objectives are
+  refreshed as walls fall, and the payout goes into the stash.
+- **View** — `StructureView` draws every piece with its damage, a gate that
+  is visibly open, a turret that points at what it is shooting and says
+  when it has no power or no rounds. `BuildBar` is build mode: the wrapping
+  card bar, the ghost, the range ring, REPAIR, REPAIR ALL and DEMOLISH.
+- **The click is an intent.** `BuildBar` writes `build_action` /
+  `build_type` / `build_tile` into the player's `Intent` and `PlayerSim`
+  acts on it, so building goes through the same door as walking and firing.
 
 ### What you carry (Phase 3a)
 
@@ -368,6 +405,10 @@ Phases 1–4 respecting it.
 | 2026-09-08 | A melee target needs the line a bullet needs | The arc checked distance and angle only, so a pipe (73px of threshold) hit through a one-tile wall that holds two bodies 66px apart. Terrain line of sight, not foot collision, so water and fences are still swung over — the same asymmetry shots have. | Yes, one check |
 | 2026-09-08 | `bleed` dropped from the machete, knife and scythe | The prototype declared it on three weapons and never read it anywhere. Advertising a mechanic nothing implements is worse than not having it (pillar 5); those three are already separated by damage, cadence, reach and arc. Comes back as a spec'd mechanic or not at all. | Yes |
 | 2026-09-08 | An unfinished raid pays XP on the same share as salvage | The floor was `0.5 + share/2`, so a horde you never touched still paid half its XP — the exact "hiding beats defending" the salvage share exists to prevent. | Yes, one expression |
+| 2026-09-08 | The structure map is passed to collision, never read from a global | The prototype reached for `G.structures` from inside `solidTile`. Here every test shares one generated `World` — a wall built in one simulation would exist in the next — so `is_blocked_tile(tx, ty, structs)` takes it as an argument and the world stays a pure generated artefact. It also makes invariant 3 impossible to get wrong: bullets simply do not pass it. | Yes, but it is a signature change |
+| 2026-09-08 | A click in build mode becomes an `Intent` field, not a call into the sim | `build_action` / `build_type` / `build_tile` go through the same door as movement and firing, so a guest's build command will run identical code and the UI stays a view. | No reason to |
+| 2026-09-08 | The pump-action interrupt only fires with a round in the tube | Found by the compound harness on its first run: a defender holding the trigger on an empty shotgun cancelled its shell-at-a-time reload every frame and never fired again — 900 shells, two minutes, no kills, and the siege ran to the 300s backstop. Firing interrupts a reload because there is something to fire; an empty gun has nothing to interrupt it with. | Yes, one condition |
+| 2026-09-08 | The compound raid harness is a `_slow_test.gd`, run by `tools\test --all` | It is 3.5s of simulated siege on its own and took the suite past the ten-second agreement. Splitting the tier keeps the working agreement honest instead of quietly widening it; `--all` runs once per branch beside the smoke run. | Yes |
 | 2026-09-08 | One `Slots` container, and the pack keeps the Phase 2 resource API | `count_res` / `add_res` / `take_res` now answer for the bag rather than a flat map, so reloading, chopping and healing did not change at all when the inventory landed underneath them. The stash and car boots stay plain id→count maps with three functions of their own: the prototype proved one API can serve both shapes. | Yes |
 | 2026-09-08 | Weight capacity is netted across the pack and the hotbar | The bar shows both, so every capacity check has to subtract the hotbar or loot keeps fitting after the bar reads full. `pack_allowance()` is the one expression that does it. | Yes |
 | 2026-09-08 | The entry grammar and the pickup decoder live in the same file | `weapon:` / `gear:` / `item:` / bare resource, encoded and decoded within twenty lines of each other. In the prototype the two drifted and the symptom was rare gear silently deleted on contact — a bug you only find by dropping a rifle. | No reason to |
@@ -498,6 +539,16 @@ summarised in `tasks/port-inventory.md`.
   action's state, so polled code sees it and `_input`/`_unhandled_input`
   never fire. Anything the smoke run needs to press must be polled.
   (2026-09-08)
+- **A harness that only measures the end state hides the middle.** The
+  compound siege "ended" every time — at the 300s backstop, which is a
+  pass for `raid == null` and a failure for the game. Printing what was
+  alive, how far out and what the defender was holding, every sixty
+  seconds, found the empty-shotgun reload bug in one run. (2026-09-08)
+- **Scripted mouse input needs the cursor, not just the event.** A panel
+  reading `_gui_input` gets the position off the event; code polling
+  `get_global_mouse_position` does not. Warp first, hold the button for
+  several frames so a physics step sees it, and re-aim in a loop when the
+  camera leads toward the cursor and moves the target. (2026-09-08)
 
 ---
 
@@ -507,14 +558,19 @@ summarised in `tasks/port-inventory.md`.
 | --- | --- |
 | While working | `tools\test.cmd` (optionally with a filter), plus a targeted smoke checkpoint of the one thing you changed |
 | Before you commit | `tools\test.cmd` |
-| Before you push for review | `tools\smoke.cmd` once, and read the PNGs |
+| Before you push for review | `tools\test.cmd --all` and `tools\smoke.cmd` once, and read the PNGs |
 
-Both must report **zero failures**. Current expected output:
+All must report **zero failures**. Current expected output:
 
 ```
-tests: 105  asserts: 1154  failures: 0
-SMOKE done checkpoints=18 failures=0 exit=0
+tests: 139  asserts: 1491  failures: 0   (8.0s)
+tests: 141  asserts: 1498  failures: 0   (--all, 12.9s)
+SMOKE done checkpoints=20 failures=0 exit=0
 ```
+
+`tools\test` skips `*_slow_test.gd` so the default loop stays under the
+ten-second agreement. There is one such file — the compound raid harness,
+three and a half seconds of simulated siege — and `--all` is what runs it.
 
 The tests also print measurements worth reading when a number moves:
 
@@ -527,12 +583,24 @@ raid harness [0 SCATTERED HORDE]: 18s, 19 kills, repelled=true, scrap +30
 raid harness [2 HEAVY HORDE]: 93s, 52 kills, repelled=false
 ```
 
-The raid harness (`tests/raid_test.gd`) plays a god-mode rifle defender in
-the open against raid index 0 and 2. The prototype's reference figures were
-measured against a walled compound with turrets; those are reproduced in
-Phase 3 once there is a compound to build. What matters now is that no raid
-reaches the 300s backstop: index 2 breaks off at ~93s with 52 of 57 killed
-because the last stragglers wedge and the 25s no-progress rule fires.
+The raid harness plays a god-mode defender against a raid and reports.
+`tests/raid_test.gd` runs index 0 in the open; `tests/compound_slow_test.gd`
+builds the prototype's standard compound — an 11x11 perimeter, four gates,
+spikes on the north approach, workbench, stash, bedroll, generator and two
+turrets — and throws raids at it. **The number is `raids_done`, a zero-based
+index, not the raid's ordinal:** index 1 is the second raid, RUNNING HORDE.
+
+| Index | Ours (2026-09-08) | The prototype's range |
+| --- | --- | --- |
+| 1 RUNNING HORDE | 60s, 0 lost, walls 100% | 70–93s, 0 lost, walls 18–90% |
+| 3 SIEGE | 131s, 16 lost, walls 84% | 72–260s, whole base, walls 0% |
+
+**These are single runs of a stochastic harness — read them as ranges.** The
+browser build produced 67s and 172s for the same raid on the same code. What
+matters is that nothing reaches the 300s backstop and that what the compound
+loses is stable; when a run looks wrong, run it twice more before reading
+anything into it. Index 3 leaves more perimeter standing than the browser
+build did because our defender never dies and the prototype's died twice.
 
 The smoke PNGs in `.smoke/` are the proof for anything visual: read them.
 `00_spawn` and `01_walked_east` should show the survivor on the highway
@@ -540,9 +608,10 @@ west of the camp; `03`–`09` are the suburbs, Market Row, downtown, the
 farms, the lake lodge, the forest and the junkyard; `10`–`13` are a
 container just searched, the pack screen with the pipe and the bandages on
 the hotbar, a dropped stack on the ground and the same stack recovered;
-`14`–`17` are a walker approaching with its arms out, its corpse after
-three pistol rounds, the raid banner with a raider on the ring, and the
-salvage notice.
+`14`–`15` are a wall built beside the camp and the same wall repaired,
+with the build bar and its ghost; `16`–`19` are a walker approaching with
+its arms out, its corpse after three pistol rounds, the raid banner with a
+raider on the ring, and the salvage notice.
 
 A UI change is not verified by `tools\test.cmd`: the headless run never
 loads a Control, so a parse error in a screen passes the tests and fails
@@ -569,6 +638,8 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 
 | Date | What |
 | --- | --- |
+| 2026-09-08 | Phase 3b: `STRUCTURES`, `BUILD_ORDER` and `ARMAMENTS` in `Config`; `Structures` — the destructible tile map, placement, damage, repair, `plan_repair_all`, demolition, power, generators, turrets, traps, gates, the bench upgrade and storage; collision, sight and the flow field take it as a parameter; enemies punch what blocks them and raiders walk at the nearest piece; `StructureView` and `BuildBar` with the ghost, the range ring and the repair and salvage tools; building goes through `Intent`; 27 new tests plus the compound raid harness in a slow tier; smoke builds a wall, walks into it, repairs it and takes it down. Fixed in passing: a Phase 2 bug where holding the trigger on an empty shotgun cancelled its reload for ever |
+| 2026-09-08 | Phase 3a review pass (PR #3): raid payouts through the capped path; weight is the cap for guns and gear too; a duplicate gun's spare ammo spills rather than vanishing, and a pickup refuses an overflow that is not its own; non-stacking rolls are never aggregated; magazines clear on death; light charge is per light id; `drop_stack` empties the slot that was clicked; 8 new tests, 113 total |
 | 2026-09-08 | Phase 3a: `GEAR`, the 30 `LOOT` tables and the real starting kit in `Config`; `Items` and `Slots`; the pack, hotbar and body slots on `PlayerSim` with weight capacity; `Loot` (rolls, the entry grammar, ground pickups, the death backpack, body drops), `Interact` (the E target and the search channel), `Equipment` (wearing things, moves, drops, the light, and `recompute_stats`); `PickupView` and `InventoryScreen`; the HUD's real hotbar, weight bar and interact prompt; 30 new headless tests, 105 total; smoke searches a container, opens the pack, drops a stack and picks it back up |
 | 2026-09-08 | Phase 2 review pass (PR #2): melee needs terrain line of sight; raid XP paid on the killed share and the raid kill bonus limited to raiders; the no-base raid centre follows the player and the anti-stall gate moved into `Config.RAID.stall_radius`; `bleed` removed from three weapon rows; 3 new tests, 75 total |
 | 2026-09-08 | Phase 2: the spec's enemy, weapon, resource, spawn, noise, quiet, threat and raid tables in `Config`; `EnemySim`, `Enemies` (spawner + AI), `SpatialHash`, `NavField` (the flow field), `Sound`, `QuietField`, `Combat`, `Damage`, `Threat`, `Raid`; player combat, the Phase 2 kit, sim events; enemy, effects and player views, the HUD's hotbar, threat meter, raid banner and notices; 53 new headless tests including a raid harness; smoke run shoots a walker and forces a raid |

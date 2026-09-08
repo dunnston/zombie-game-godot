@@ -121,28 +121,28 @@ an item can be held, carried and dropped.
 
 ### 3b — what you build (`phase-3-building`)
 
-- [ ] `config.gd`: `STRUCTURES` (walls, gate, spike, bench, three stores,
+- [x] `config.gd`: `STRUCTURES` (walls, gate, spike, bench, three stores,
       bedroll, bunk, watchtower, generator, turret, floodlight),
       `BUILD_ORDER`, `ARMAMENTS`, `STASH_SLOTS` 48
-- [ ] `src/sim/structures.gd`: the destructible structure map — tile keyed,
+- [x] `src/sim/structures.gd`: the destructible structure map — tile keyed,
       separate from the terrain bitmap (invariant 2). Place with the full
       refusal list, damage, destroy, repair, `plan_repair_all` (the label is
       the plan), demolish (spills its store), power, generators, gates
-- [ ] `World.is_blocked_tile` consults the structure map; `world_version`
+- [x] `World.is_blocked_tile` consults the structure map; `world_version`
       bumps on every change so flow fields rebuild. Bullets stay terrain
       only (invariant 3) — you can shoot over your own barricade
-- [ ] Enemies: the blocker in front, the adjacent-structure attack,
+- [x] Enemies: the blocker in front, the adjacent-structure attack,
       `struct_mul` damage, so a horde breaks on the perimeter
-- [ ] Turrets (powered, stash-fed, sight-checked) and spike traps
-- [ ] Raids: `base_centre` and `structure_hp_total` become real,
+- [x] Turrets (powered, stash-fed, sight-checked) and spike traps
+- [x] Raids: `base_centre` and `structure_hp_total` become real,
       `raid_target` is the nearest structure, break-off measured against it
-- [ ] View: structures drawn with damage state, build mode on `B` with the
+- [x] View: structures drawn with damage state, build mode on `B` with the
       wrapping build bar, the ghost, repair and demolish tools
-- [ ] Tests: placement refusals, a wall makes the flow field go round, a
+- [x] Tests: placement refusals, a wall makes the flow field go round, a
       brute breaches one, turret kills, trap damage and wear, repair cost
       and plan, demolish spills a full chest, generator fuel and power, a
       raid aims at the base. Raid harness gets its compound figures
-- [ ] Smoke: build a wall, let something break it, repair it
+- [x] Smoke: build a wall, let something break it, repair it
 
 ### 3c — what you make and what you keep (`phase-3-craft-save`)
 
@@ -316,3 +316,41 @@ pre-fix `src/` and passes after.
       the start of the grid: ctrl+dropping the second stack of scrap
       emptied the first and left the clicked cell full. It empties the
       slot that was clicked.
+
+## Review — Phase 3b (2026-09-08)
+
+- The structure map is the second collision source and it is passed as a
+  parameter, not read from a global: `World.is_blocked_tile(tx, ty, structs)`
+  and the movement, sight and flow-field queries above it all take it. The
+  world stays a pure generated artefact — which matters because every test
+  shares one, and a wall built in one sim must not exist in the next.
+- Bullets still ignore it (invariant 3), proved by a test that fires across
+  a wall it cannot see through.
+- The compound raid harness is here at last, and it caught a **Phase 2
+  combat bug on its first run**: holding the trigger on an empty shotgun
+  cancelled its shell-at-a-time reload every frame, so it could never
+  refill. A god-mode defender with 900 shells killed nothing for two
+  minutes and the siege ran to the 300s backstop. The pump-action interrupt
+  now only fires when there is a round in the tube. With that fixed the
+  siege finishes in 131s and every raider dies.
+- Compound figures, against the prototype's reference ranges:
+
+  | Index | Ours | Prototype |
+  | --- | --- | --- |
+  | 1 RUNNING HORDE | 60s, 0 lost, walls 100% | 70–93s, 0 lost, walls 18–90% |
+  | 3 SIEGE | 131s, 16 lost, walls 84% | 72–260s, whole base, walls 0% |
+
+  Index 1 matches on what matters (nothing lost). Index 3 gets inside and
+  eats the compound's insides but leaves more of the perimeter than the
+  browser build did — our defender never dies, and the prototype's runs
+  included two deaths. Neither goes near the 300s backstop.
+- `tools/test` grew past ten seconds with the compound harness in it, so
+  the harness moved to a `_slow_test.gd` tier: the default run is back to
+  8.0s, `tools/test --all` is 12.9s and belongs with the smoke run, once
+  per branch. The working agreement is kept rather than quietly broken.
+- Found dead on arrival: the prototype's "Container there" placement check
+  cannot fire here, because a container blocks its own tile in the terrain
+  bitmap. Removed rather than left as a comforting no-op.
+- Stand-ins, flagged: a Watchtower can be built and carries its armament
+  choice, but posting a survivor on it is Phase 4; the floodlight lights
+  nothing until there is a night; `ARMAMENTS` is content without a shooter.

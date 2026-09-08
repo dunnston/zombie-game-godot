@@ -12,11 +12,13 @@ var props_below: PropRenderer
 var props_above: PropRenderer
 var enemy_view: EnemyView
 var pickup_view: PickupView
+var structure_view: StructureView
 var fx: FxView
 var player_view: PlayerView
 var camera: Camera2D
 var hud: Hud
 var inventory: InventoryScreen
+var build_bar: BuildBar
 var shake := 0.0
 var _shake_rng := RandomNumberGenerator.new()
 
@@ -36,6 +38,8 @@ func _ready() -> void:
 	add_child(props_below)
 	pickup_view = PickupView.new(sim)
 	add_child(pickup_view)
+	structure_view = StructureView.new(sim)
+	add_child(structure_view)
 	enemy_view = EnemyView.new(sim)
 	add_child(enemy_view)
 	player_view = PlayerView.new(sim.players[0])
@@ -66,6 +70,9 @@ func _ready() -> void:
 	layer.add_child(hud)
 	inventory = InventoryScreen.new(sim)
 	layer.add_child(inventory)
+	build_bar = BuildBar.new(sim)
+	layer.add_child(build_bar)
+	structure_view.build_bar = build_bar
 	print("boot: world %d ms, terrain %d ms, props %d, containers %d" % [t1 - t0, t2 - t1, sim.world.props.size(), sim.world.containers.size()])
 
 
@@ -75,11 +82,29 @@ func _physics_process(dt: float) -> void:
 	# without ever synthesising an InputEvent.
 	if Input.is_action_just_pressed("inventory"):
 		inventory.toggle()
-	elif Input.is_action_just_pressed("pause") and inventory.visible:
-		inventory.toggle()
+		if inventory.visible and build_bar.open:
+			build_bar.toggle()
+	elif Input.is_action_just_pressed("build") and not inventory.visible:
+		build_bar.toggle()
+	elif Input.is_action_just_pressed("pause"):
+		if inventory.visible:
+			inventory.toggle()
+		elif build_bar.open:
+			build_bar.toggle()
+
+	var intent := sim.players[0].intent
 	# An open panel owns the mouse: you can still walk, but a click belongs to
 	# the screen you are looking at rather than to the gun in your hand.
-	LocalInput.gather(sim.players[0].intent, self, inventory.visible)
+	LocalInput.gather(intent, self, inventory.visible or build_bar.open)
+	if build_bar.open:
+		build_bar.update_hover(get_global_mouse_position())
+		if Input.is_action_just_pressed("fire"):
+			build_bar.click(get_viewport().get_mouse_position())
+		if Input.is_action_just_pressed("wheel_down"):
+			build_bar.cycle(1)
+		elif Input.is_action_just_pressed("wheel_up"):
+			build_bar.cycle(-1)
+		build_bar.fill_intent(intent)
 	sim.tick(dt)
 
 
@@ -97,6 +122,9 @@ func _process(dt: float) -> void:
 	props_below.queue_redraw()
 	props_above.queue_redraw()
 	pickup_view.queue_redraw()
+	structure_view.queue_redraw()
+	if build_bar.open:
+		build_bar.queue_redraw()
 	if inventory.visible:
 		inventory.queue_redraw()
 	enemy_view.queue_redraw()
@@ -150,7 +178,16 @@ func smoke_aim(world_pos: Vector2) -> void:
 
 ## A click at a screen position, fed through the real input pipeline so it
 ## reaches the panel's own hit test rather than a back door.
+##
+## The cursor is warped first: a panel that reads `_gui_input` gets the
+## position off the event, but build mode polls `get_mouse_position()` the
+## way the rest of this scene polls its keys, and those two have to agree.
+## The button is held for several frames so a physics step is guaranteed to
+## see the press — process and physics both run at 60Hz, and a one-frame tap
+## lands between them about half the time.
 func smoke_click(at: Vector2, ctrl := false) -> void:
+	Input.warp_mouse(at)
+	await get_tree().process_frame
 	for pressed in [true, false]:
 		var ev := InputEventMouseButton.new()
 		ev.button_index = MOUSE_BUTTON_LEFT
@@ -159,7 +196,8 @@ func smoke_click(at: Vector2, ctrl := false) -> void:
 		ev.ctrl_pressed = ctrl
 		ev.pressed = pressed
 		Input.parse_input_event(ev)
-		await get_tree().process_frame
+		for i in range(3):
+			await get_tree().process_frame
 
 
 ## The nearest container to a point that still has something in it.
@@ -247,6 +285,71 @@ func smoke_run(smoke: Node) -> void:
 		if p.count_carried("bandage") < 2:
 			smoke.fail("the bandages did not come back: %d" % p.count_carried("bandage"))
 	await smoke.checkpoint("pack_recovered")
+
+	# Build mode: open the bar, put up a wall, look at it, take it down.
+	for id in ["wood", "stone", "sticks", "scrap"]:
+		p.bag.add(id, 120)
+	await smoke.tap("build")
+	await smoke.frames(3)
+	if not build_bar.open:
+		smoke.fail("B did not open the build bar")
+	build_bar.selected = build_bar.cards().find("woodWall")
+	# A tile the wall can actually go on, due east so that walking into it
+	# below means something: beside the camp shack, "two to the right" is as
+	# likely to be the shack wall as open ground.
+	var tile := Vector2i(int(p.pos.x / 32) + 2, int(p.pos.y / 32))
+	for i in range(2, 6):
+		var t := Vector2i(int(p.pos.x / 32) + i, int(p.pos.y / 32))
+		if sim.structs.can_place(sim, "woodWall", t.x, t.y, p).ok:
+			tile = t
+			break
+	var spot := Vector2(tile.x * 32 + 16, tile.y * 32 + 16)
+	# Point the cursor at the tile in the world and let it settle: the scene
+	# recomputes the hovered tile from the real mouse every physics frame, and
+	# the camera leads toward the cursor, so one warp is a moving target.
+	for i in range(12):
+		smoke_aim(spot)
+		await smoke.frames(2)
+		if build_bar.check.ok and build_bar.hover_tile == tile:
+			break
+	if not build_bar.check.ok:
+		smoke.fail("the ghost says the wall cannot go there: %s" % build_bar.check.reason)
+	await smoke_click(get_viewport().get_canvas_transform() * spot)
+	await smoke.frames(3)
+	var wall := sim.structs.at_tile(tile.x, tile.y)
+	if wall.is_empty():
+		smoke.fail("clicking in build mode did not put up a wall")
+	await smoke.checkpoint("built_a_wall")
+
+	# It is solid: walking into it stops you.
+	if not wall.is_empty():
+		var before_x := p.pos.x
+		await smoke.hold("move_right", 60)
+		if p.pos.x > wall.pos.x:
+			smoke.fail("walked straight through the wall")
+		if p.pos.x <= before_x:
+			smoke.fail("did not walk toward the wall at all")
+		# Damage it, then repair it with the tool.
+		sim.structs.damage(sim, wall, wall.max_hp * 0.6)
+		build_bar.selected = build_bar.cards().find("repair")
+		smoke_aim(wall.pos)
+		await smoke.frames(3)
+		await smoke_click(get_viewport().get_canvas_transform() * wall.pos)
+		await smoke.frames(3)
+		if wall.hp < wall.max_hp:
+			smoke.fail("REPAIR left the wall at %.0f of %.0f" % [wall.hp, wall.max_hp])
+		await smoke.checkpoint("repaired_the_wall")
+		build_bar.selected = build_bar.cards().find("demolish")
+		smoke_aim(wall.pos)
+		await smoke.frames(3)
+		await smoke_click(get_viewport().get_canvas_transform() * wall.pos)
+		await smoke.frames(3)
+		if not sim.structs.at_tile(tile.x, tile.y).is_empty():
+			smoke.fail("DEMOLISH left the wall standing")
+	await smoke.tap("build")
+	await smoke.frames(2)
+	if build_bar.open:
+		smoke.fail("B did not close the build bar")
 
 	# A fight on the highway west of the camp: a walker walks in, the pistol
 	# answers. The six-weapon test kit, so every weapon is to hand.

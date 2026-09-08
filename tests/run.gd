@@ -4,13 +4,29 @@ extends SceneTree
 ## non-zero if anything failed. Run via tools/test.cmd.
 ##
 ## Optional filter: pass `-- <substring>` to run only matching test files.
+##
+## `_slow_test.gd` files are skipped unless the filter names them or `--all`
+## is passed. There is exactly one: the compound siege harness, which is
+## three and a half seconds of simulated raid on its own. The working
+## agreement is that `tools\test` stays under ten seconds — the slow tier
+## runs with `tools\test --all`, once per branch, beside the smoke run.
 
 func _init() -> void:
 	var filter := ""
+	var run_all := false
 	var args := OS.get_cmdline_user_args()
-	if args.size() > 0:
-		filter = args[0]
+	for a in args:
+		if a == "--all":
+			run_all = true
+		elif filter.is_empty():
+			filter = a
 	var files := _discover("res://tests", filter)
+	if not run_all and filter.is_empty():
+		var fast: Array[String] = []
+		for f in files:
+			if not f.get_file().ends_with("_slow_test.gd"):
+				fast.append(f)
+		files = fast
 	if files.is_empty():
 		push_error("no test files found")
 		quit(2)

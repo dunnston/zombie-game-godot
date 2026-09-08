@@ -30,6 +30,10 @@ var loot_rng: Rng
 ## and everything falls on the ground.
 var stash: Slots = null
 
+## Everything the player has built. The second collision source: terrain is
+## the bitmap, this is the destructible map (invariant 2).
+var structs: Structures = null
+
 ## The view drains these every frame: shots, hits, kills, notices, shakes.
 ## Co-op sends the same list to guests.
 var events: Array[Dictionary] = []
@@ -50,6 +54,13 @@ var nav_enabled := true
 var _nav := {}                    # seat -> NavField
 
 
+func _init() -> void:
+	# Built here rather than in the member list: a member initializer runs
+	# while the class is still loading, and reaching for another class_name
+	# at that moment fails (§8).
+	structs = Structures.new()
+
+
 func new_game(world_seed: int = 20240917, run_seed: int = 1) -> void:
 	start(World.new(world_seed), run_seed)
 
@@ -64,6 +75,8 @@ func start(world_: World, run_seed: int = 1) -> void:
 	players.clear()
 	pickups.clear()
 	backpacks.clear()
+	stash = null
+	structs = Structures.new()
 	var p := PlayerSim.new()
 	p.seat = 0
 	p.display_name = Config.PLAYER.names[0]
@@ -173,15 +186,18 @@ func night_factors() -> Dictionary:
 ## Where a raid aims. With structures (Phase 3) it is their centre; without
 ## a base it is whoever is nearest, which reads as "they are coming for you".
 func base_centre() -> Dictionary:
+	var c := structs.base_centre()
+	if c.has_base:
+		return c
 	var p := nearest_player(Vector2(Config.WORLD_SIZE / 2.0, Config.WORLD_SIZE / 2.0))
 	if p == null and not players.is_empty():
 		p = players[0]
 	return {"pos": p.pos if p != null else Vector2.ZERO, "has_base": false}
 
 
-## Sum of structure health, for the raid's progress signature. Phase 3.
+## Sum of structure health, for the raid's progress signature.
 func structure_hp_total() -> float:
-	return 0.0
+	return structs.hp_total()
 
 
 ## The flow field toward a player, rebuilt when they have moved a couple of
@@ -198,7 +214,7 @@ func nav_for(p: PlayerSim) -> NavField:
 	if nf == null:
 		nf = NavField.new()
 		_nav[p.seat] = nf
-	nf.build(world, tile, Config.NAV.radius_tiles, time, world_version)
+	nf.build(world, tile, Config.NAV.radius_tiles, time, world_version, structs)
 	return nf
 
 
@@ -221,6 +237,7 @@ func tick(dt: float) -> void:
 		p.tick(self, dt)
 	enemies.tick_ai(self, dt)
 	Combat.tick_bullets(self, dt)
+	structs.tick(self, dt)
 	Loot.update_pickups(self, dt)
 	# Quiet decays before the spawner reads it, so a lull always ends on time.
 	quiet.tick(dt)

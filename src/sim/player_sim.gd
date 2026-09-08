@@ -78,6 +78,10 @@ var light_id := ""
 ## refill either one.
 var light_charge := {}
 
+## The tile of the bedroll this player respawns at, or (-1, -1) for "wherever
+## is safe". Only the newest bedroll is yours (Phase 3b).
+var spawn_tile := Vector2i(-1, -1)
+
 var attack_cd := 0.0
 var reloading := {}              # {w, t, dur, shell} or empty
 var using := {}                  # {id, t, dur} or empty
@@ -147,6 +151,40 @@ func pack_allowance() -> float:
 
 func overloaded() -> bool:
 	return carried_weight() > carry_cap
+
+
+## What a bill costs after this player's building or crafting perks
+## (Phase 4 — for now the multiplier is 1).
+static func scaled_cost(cost: Dictionary, mul := 1.0) -> Dictionary:
+	var out := {}
+	for id in cost:
+		out[id] = ceili(cost[id] * mul)
+	return out
+
+
+## What is available to spend: the pack, plus the base's shared stash. A
+## wall you are building beside your stash may be paid for out of it.
+func total_res(sim: GameSim, id: String) -> int:
+	var n := bag.count(id)
+	if sim != null and sim.stash != null:
+		n += sim.stash.count(id)
+	return n
+
+
+func can_afford(sim: GameSim, cost: Dictionary, mul := 1.0) -> bool:
+	for id in cost:
+		if total_res(sim, id) < ceili(cost[id] * mul):
+			return false
+	return true
+
+
+## Spends from the pack first, then the stash. Assumes `can_afford` passed.
+func spend(sim: GameSim, cost: Dictionary, mul := 1.0) -> void:
+	for id in cost:
+		var need := ceili(cost[id] * mul)
+		need -= bag.take(id, need)
+		if need > 0 and sim != null and sim.stash != null:
+			sim.stash.take(id, need)
 
 
 # ---------------------------------------------------------------- weapons --
@@ -236,7 +274,7 @@ func tick(sim: GameSim, dt: float) -> void:
 			Damage.respawn_player(sim, self)
 		return
 
-	pos = world.unstick(pos, r)
+	pos = world.unstick(pos, r, sim.structs)
 	invuln = maxf(0.0, invuln - dt)
 	hurt_flash = maxf(0.0, hurt_flash - dt)
 	attack_cd = maxf(0.0, attack_cd - dt)
@@ -254,7 +292,7 @@ func tick(sim: GameSim, dt: float) -> void:
 
 	# Healing roots you in place.
 	var rooted := not using.is_empty()
-	move(world, dt, rooted)
+	move(world, dt, rooted, sim.structs)
 
 	if not using.is_empty():
 		using.t += dt
@@ -275,8 +313,14 @@ func tick(sim: GameSim, dt: float) -> void:
 			elif not reloading.is_empty() and not reloading.shell:
 				pass                         # hold fire while a magazine swap finishes
 			else:
-				if not reloading.is_empty() and reloading.shell:
-					reloading = {}           # pump-action interrupt
+				# Pump-action interrupt: pulling the trigger part way through
+				# a shell-at-a-time reload sends what is already in the tube.
+				# Only when there IS one — an empty shotgun with the trigger
+				# held would otherwise cancel its own reload every frame and
+				# never refill at all. (Found by the compound raid harness:
+				# a defender holding fire killed nothing for two minutes.)
+				if not reloading.is_empty() and reloading.shell and mag.get(w.id, 0) > 0:
+					reloading = {}
 				if mag.get(w.id, 0) > 0:
 					attack_cd = w.cd * fire_rate_mul
 					Combat.fire_gun(sim, self, w)
@@ -297,11 +341,32 @@ func tick(sim: GameSim, dt: float) -> void:
 		Equipment.toggle_light(sim, self)
 	Equipment.update_light(sim, self, dt)
 	Interact.tick(sim, self, dt)
+	if not it.build_action.is_empty():
+		_build(sim, it)
+
+
+## Building reaches the sim the same way everything else does: as an intent
+## edge, so a guest's build command runs this identical code.
+func _build(sim: GameSim, it: Intent) -> void:
+	var t := it.build_tile
+	match it.build_action:
+		"place":
+			sim.structs.place(sim, it.build_type, t.x, t.y, self)
+		"repair":
+			var s := sim.structs.at_tile(t.x, t.y)
+			if not s.is_empty():
+				sim.structs.repair(sim, s, self)
+		"repair_all":
+			sim.structs.repair_all(sim, self)
+		"demolish":
+			var s := sim.structs.at_tile(t.x, t.y)
+			if not s.is_empty():
+				sim.structs.demolish(sim, s, self)
 
 
 ## Stamina, speed and the actual step, from the movement half of the intent.
 ## Separate from tick so a guest can run exactly this to predict itself.
-func move(world: World, dt: float, rooted := false) -> void:
+func move(world: World, dt: float, rooted := false, structs: Structures = null) -> void:
 	var it := intent
 	var P := Config.PLAYER
 	var moving := it.mx != 0.0 or it.my != 0.0
@@ -341,4 +406,4 @@ func move(world: World, dt: float, rooted := false) -> void:
 	vel.y += (it.my * speed - vel.y) * k
 	if not moving:
 		vel *= exp(-11.0 * dt)
-	pos = world.move_circle(pos, vel * dt, r)
+	pos = world.move_circle(pos, vel * dt, r, structs)
