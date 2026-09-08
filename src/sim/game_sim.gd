@@ -2,16 +2,48 @@ class_name GameSim
 extends RefCounted
 ## The whole simulation: the world and everyone in it, stepped by tick().
 ## Owns no nodes. Presentation reads it; input reaches it only through each
-## player's Intent.
+## player's Intent; what happened this step comes back out as `events`.
 
 var world: World
 var players: Array[PlayerSim] = []
+var enemies := Enemies.new()
+var bullets: Array[Dictionary] = []
+var quiet := QuietField.new()
+var threat := Threat.new()
+var raid: Raid = null
+var raids_done := 0
 var time := 0.0
 var rng: Rng
+var stats := {"kills": 0, "deaths": 0, "damage_dealt": 0.0, "damage_taken": 0.0}
+
+## The view drains these every frame: shots, hits, kills, notices, shakes.
+## Co-op sends the same list to guests.
+var events: Array[Dictionary] = []
+
+## Half the diagonal of the local screen in world px. The presentation sets
+## it so the spawn ring stays off screen; a guest's is a fixed 880.
+var view_radius := 0.0
+
+## Bumped whenever collision changes (a tree felled, later a wall built), so
+## flow fields know to rebuild.
+var world_version := 0
+
+## Off, enemies steer straight at you as the prototype's did. Kept so the
+## tests can measure the field against a control, and the owner can feel
+## the difference.
+var nav_enabled := true
+
+var _nav := {}                    # seat -> NavField
 
 
 func new_game(world_seed: int = 20240917, run_seed: int = 1) -> void:
-	world = World.new(world_seed)
+	start(World.new(world_seed), run_seed)
+
+
+## A new run on an already-built world. Tests share one world between
+## dozens of sims because generating it costs a third of a second.
+func start(world_: World, run_seed: int = 1) -> void:
+	world = world_
 	rng = Rng.new(run_seed)
 	time = 0.0
 	players.clear()
@@ -24,12 +56,29 @@ func new_game(world_seed: int = 20240917, run_seed: int = 1) -> void:
 	var centre := Vector2(camp.position.x + camp.size.x / 2.0, camp.position.y + camp.size.y / 2.0) * Config.TILE
 	p.pos = pick_random_spawn(centre, 30.0 * Config.TILE)
 	p.intent.aim = p.pos + Vector2.RIGHT
+	give_kit(p)
 	players.append(p)
+	enemies.seed_area(self, p.pos, Config.SPAWN.seed_radius, Config.SPAWN.seed_count)
+	notify("You wake up on the roadside. Find shelter before dark.", "#d8e8c0", true)
 
 
-## A random open tile in tier-1 land. With `near`, only tiles within `radius`
-## pixels of that point are considered (falling back to all of them).
-func pick_random_spawn(near: Vector2 = Vector2.INF, radius: float = 0.0) -> Vector2:
+## The Phase 2 loadout. Phase 3 replaces this with the real start.
+func give_kit(p: PlayerSim) -> void:
+	p.loadout.assign(Config.PHASE2_KIT.loadout)
+	for id in Config.PHASE2_KIT.res:
+		p.add_res(id, Config.PHASE2_KIT.res[id])
+	for id in p.loadout:
+		var w: Dictionary = Config.WEAPONS[id]
+		if w.has("mag"):
+			p.mag[id] = w.mag
+			p.take_res(w.ammo, w.mag)
+
+
+## A random open tile in tier-1 land. With `near`, only tiles within
+## `radius` of that point are considered (falling back to all of them).
+## Rejects spots with enemies within `min_enemy_dist` so a respawn is never
+## an instant second death.
+func pick_random_spawn(near: Vector2 = Vector2.INF, radius: float = 0.0, min_enemy_dist := 0.0) -> Vector2:
 	var tiles := world.spawn_tiles
 	if near != Vector2.INF:
 		var close: Array[Vector2i] = []
@@ -42,13 +91,116 @@ func pick_random_spawn(near: Vector2 = Vector2.INF, radius: float = 0.0) -> Vect
 			tiles = close
 	if tiles.is_empty():
 		return Vector2(160 * Config.TILE, 160 * Config.TILE)
-	var t: Vector2i = rng.pick(tiles)
-	return Vector2(t.x * Config.TILE + 16, t.y * Config.TILE + 16)
+	var d2 := min_enemy_dist * min_enemy_dist
+	var fallback := Vector2.INF
+	for i in range(40):
+		var t: Vector2i = rng.pick(tiles)
+		var spot := Vector2(t.x * Config.TILE + 16, t.y * Config.TILE + 16)
+		if fallback == Vector2.INF:
+			fallback = spot
+		if min_enemy_dist <= 0.0:
+			return spot
+		var clear := true
+		for e in enemies.list:
+			if not e.dead and e.pos.distance_squared_to(spot) < d2:
+				clear = false
+				break
+		if clear:
+			return spot
+	return fallback
 
+
+# -------------------------------------------------------------- questions --
+
+## The nearest player an enemy could go for, or null if nobody qualifies.
+func nearest_player(at: Vector2) -> PlayerSim:
+	var best: PlayerSim = null
+	var bd := INF
+	for p in players:
+		if p.dead:
+			continue
+		var d := p.pos.distance_squared_to(at)
+		if d < bd:
+			bd = d
+			best = p
+	return best
+
+
+func living_players() -> Array[PlayerSim]:
+	var out: Array[PlayerSim] = []
+	for p in players:
+		if not p.dead:
+			out.append(p)
+	return out
+
+
+## Day/night arrives in Phase 4; until then it is always day.
+func night_factors() -> Dictionary:
+	return {"density": 1.0, "sense": 1.0, "speed": 1.0, "threat": 1.0}
+
+
+## Where a raid aims. With structures (Phase 3) it is their centre; without
+## a base it is whoever is nearest, which reads as "they are coming for you".
+func base_centre() -> Dictionary:
+	var p := nearest_player(Vector2(Config.WORLD_SIZE / 2.0, Config.WORLD_SIZE / 2.0))
+	if p == null and not players.is_empty():
+		p = players[0]
+	return {"pos": p.pos if p != null else Vector2.ZERO, "has_base": false}
+
+
+## Sum of structure health, for the raid's progress signature. Phase 3.
+func structure_hp_total() -> float:
+	return 0.0
+
+
+## The flow field toward a player, rebuilt when they have moved a couple of
+## tiles or the world has changed. Enemies hunting them read it.
+func nav_for(p: PlayerSim) -> NavField:
+	if not nav_enabled:
+		return null
+	var tile := Vector2i(floori(p.pos.x / Config.TILE), floori(p.pos.y / Config.TILE))
+	var nf: NavField = _nav.get(p.seat)
+	if nf != null and nf.version == world_version:
+		var moved := maxi(absi(tile.x - nf.target.x), absi(tile.y - nf.target.y))
+		if moved == 0 or (moved < 2 and time - nf.built_at < Config.NAV.max_age):
+			return nf
+	if nf == null:
+		nf = NavField.new()
+		_nav[p.seat] = nf
+	nf.build(world, tile, Config.NAV.radius_tiles, time, world_version)
+	return nf
+
+
+# ----------------------------------------------------------------- output --
+
+func emit(ev: Dictionary) -> void:
+	events.append(ev)
+
+
+func notify(text: String, color := "#ebe6d6", important := false) -> void:
+	events.append({"t": "notify", "text": text, "color": color, "important": important})
+
+
+# ------------------------------------------------------------------- step --
 
 func tick(dt: float) -> void:
 	time += dt
+	enemies.rebuild_spatial()
 	for p in players:
-		p.tick(world, dt)
+		p.tick(self, dt)
+	enemies.tick_ai(self, dt)
+	Combat.tick_bullets(self, dt)
+	# Quiet decays before the spawner reads it, so a lull always ends on time.
+	quiet.tick(dt)
+	enemies.tick_spawning(self, dt)
+	threat.tick(self, dt)
+	if raid != null:
+		raid.tick(self, dt)
+	elif threat.raid_ready(self):
+		Raid.start(self)
+	for c in enemies.corpses:
+		c.t += dt
+	while not enemies.corpses.is_empty() and enemies.corpses[0].t > enemies.corpses[0].life:
+		enemies.corpses.pop_front()
 	for p in players:
 		p.intent.clear_edges()

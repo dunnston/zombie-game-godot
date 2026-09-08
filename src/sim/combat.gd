@@ -1,0 +1,308 @@
+class_name Combat
+## Projectiles, melee swings, guns and reloads.
+##
+## Bullets are blocked by terrain and pass over player structures (Phase 3):
+## top-down, your barricades are chest height, and a base you cannot shoot
+## out of punishes you for building it. Water and fences go the other way.
+
+const P := Config.PLAYER
+const HARVEST := Config.HARVEST
+
+static var _scratch: Array = []
+
+
+# ------------------------------------------------------------------ bullets --
+
+## `owner` is the PlayerSim that fired, or a tag string for anything
+## automated. Everything else is the weapon row's numbers, already scaled.
+static func spawn_bullet(sim: GameSim, at: Vector2, angle: float, speed: float, dmg: float, life: float, knock := 0.0, pierce := 0, owner: Variant = null, crit := false, weapon := "", color := "#ffe6a8") -> Dictionary:
+	var b := {
+		"pos": at, "prev": at,
+		"vel": Vector2.from_angle(angle) * speed,
+		"dmg": dmg, "life": life, "knock": knock, "pierce": pierce,
+		"hits": [], "owner": owner, "crit": crit, "w": weapon, "color": color,
+	}
+	sim.bullets.append(b)
+	sim.emit({"t": "shot", "x": at.x, "y": at.y, "a": angle, "w": weapon})
+	return b
+
+
+static func tick_bullets(sim: GameSim, dt: float) -> void:
+	var world := sim.world
+	var hash := sim.enemies.hash
+	for i in range(sim.bullets.size() - 1, -1, -1):
+		var b: Dictionary = sim.bullets[i]
+		b.life -= dt
+		if b.life <= 0.0:
+			sim.bullets.remove_at(i)
+			continue
+		b.prev = b.pos
+		# Substep so a fast round cannot tunnel through a one-tile wall.
+		var vel: Vector2 = b.vel
+		var dist := vel.length() * dt
+		var steps := maxi(1, ceili(dist / 12.0))
+		var step := vel * dt / steps
+		var done := false
+		for s in range(steps):
+			b.pos += step
+			var pos: Vector2 = b.pos
+			if world.bullet_blocks_px(pos.x, pos.y):
+				sim.emit({"t": "bullet_wall", "x": pos.x, "y": pos.y, "dx": -vel.x, "dy": -vel.y})
+				done = true
+				break
+			hash.query(pos.x, pos.y, 26.0, _scratch)
+			for e: EnemySim in _scratch:
+				if e.dead or b.hits.has(e):
+					continue
+				var rr := e.r + 2.2
+				if pos.distance_squared_to(e.pos) > rr * rr:
+					continue
+				Damage.damage_enemy(sim, e, b.dmg, b.prev, b.knock, b.crit, b.owner)
+				if b.pierce > 0:
+					b.pierce -= 1
+					b.dmg *= 0.75
+					b.hits.append(e)
+				else:
+					done = true
+				break
+			if done:
+				break
+		if done:
+			sim.bullets.remove_at(i)
+
+
+# -------------------------------------------------------------------- melee --
+
+## What one harvest swing costs. One function so the HUD, the tests and a
+## guest's own prediction all ask the same question.
+static func chop_stam_cost(p: PlayerSim) -> float:
+	return P.stam_chop * p.chop_stam_mul
+
+
+## Enough left to swing at scenery? Fighting never asks this. `winded` is
+## the hysteresis: it latches when the bar empties, however it emptied, and
+## clears once you are back to half (PlayerSim.move owns both edges).
+static func can_chop(p: PlayerSim) -> bool:
+	return not p.winded and p.stam >= chop_stam_cost(p)
+
+
+## Everything a swing of `w` would connect with, nearest first.
+static func melee_targets(sim: GameSim, p: PlayerSim, w: Dictionary) -> Array[EnemySim]:
+	var reach: float = w.range + p.r
+	var half_arc: float = w.arc / 2.0
+	var max_targets := 6 if w.arc > 1.4 else 3
+	var out: Array[EnemySim] = []
+	sim.enemies.hash.query(p.pos.x, p.pos.y, reach + 24.0, _scratch)
+	for e: EnemySim in _scratch:
+		if e.dead:
+			continue
+		var d2 := e.pos.distance_squared_to(p.pos)
+		if d2 >= (reach + e.r) * (reach + e.r):
+			continue
+		var a := Enemies.angle_delta(p.angle, (e.pos - p.pos).angle())
+		if absf(a) >= half_arc + e.r / reach:
+			continue
+		out.append(e)
+	out.sort_custom(func(a: EnemySim, b: EnemySim) -> bool:
+		return a.pos.distance_squared_to(p.pos) < b.pos.distance_squared_to(p.pos))
+	if out.size() > max_targets:
+		out.resize(max_targets)
+	return out
+
+
+## Would this swing be turned down for want of puff? Only work is refused,
+## so an enemy in the arc always answers no.
+static func swing_refused(sim: GameSim, p: PlayerSim, w: Dictionary, fighting: bool) -> bool:
+	if fighting:
+		return false
+	return not can_chop(p) and not prop_in_front(sim, p, w).is_empty()
+
+
+## One melee swing. Returns true if it happened. This is the only place that
+## knows whether a swing was a fight or a job: the arc is searched for
+## enemies first, and only an empty arc falls through to the scenery. A
+## fight costs stam_swing and is never refused; a harvest costs
+## chop_stam_cost, stops recovery for stam_chop_delay, and IS refused when
+## the bar is short, which is what makes three trees a decision.
+static func melee_attack(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
+	var reach: float = w.range + p.r
+	var dmg: float = w.dmg * p.melee_mul
+	var hits := melee_targets(sim, p, w)
+
+	if swing_refused(sim, p, w, not hits.is_empty()):
+		# Being turned down for work IS what makes you winded. 110 stamina is
+		# 18 swings of 6, so the bar stops at 2 and never reaches zero; without
+		# this latch the player regenerated one swing's worth and took it,
+		# forever (measured in the prototype).
+		p.winded = true
+		if sim.time - p.winded_told_at > 3.0:
+			p.winded_told_at = sim.time
+			sim.notify("Winded — get your breath back before working again", "#d9c46a")
+		sim.emit({"t": "deny", "x": p.pos.x, "y": p.pos.y})
+		return false
+
+	p.swing = {"t": 0.0, "dur": minf(0.26, w.cd * 0.75), "angle": p.angle, "arc": w.arc, "range": reach}
+	sim.emit({"t": "swing", "seat": p.seat, "x": p.pos.x, "y": p.pos.y, "a": p.angle})
+
+	if not hits.is_empty():
+		p.stam = maxf(0.0, p.stam - P.stam_swing)
+		sim.emit({"t": "shake", "amount": w.get("shake", 1.6)})
+		for e in hits:
+			var crit := sim.rng.chance(p.crit_chance + 0.06)
+			Damage.damage_enemy(sim, e, dmg * (1.9 if crit else 1.0), p.pos, w.knock, crit, p)
+	elif chop_prop(sim, p, w, dmg):
+		p.stam = maxf(0.0, p.stam - chop_stam_cost(p))
+		p.stam_lock = P.stam_chop_delay
+	# A swing that connects with nothing costs nothing: flailing at the
+	# scenery is already its own punishment.
+	return true
+
+
+## The tile a swing would land on, if it holds scenery this weapon could
+## actually harvest. Swinging a pipe at a tree should say "you need a
+## hatchet", not "you are too tired".
+static func prop_in_front(sim: GameSim, p: PlayerSim, w: Dictionary) -> Dictionary:
+	var reach: float = w.range + p.r
+	var at := p.pos + Vector2.from_angle(p.angle) * reach * 0.7
+	var prop := sim.world.prop_at_tile(floori(at.x / Config.TILE), floori(at.y / Config.TILE))
+	if prop.is_empty():
+		return {}
+	var rule: Dictionary = HARVEST.get(prop.harvest, {})
+	if rule.is_empty() or (rule.has("needs") and not w.get(rule.needs, false)):
+		return {}
+	return prop
+
+
+## How much harder than a punch this weapon hits scenery: a tool is built
+## for it, and the tool made for this material is better again.
+static func chop_multiplier(w: Dictionary, p: PlayerSim, rule: Dictionary) -> float:
+	var boosted: bool = rule.has("boost") and w.get(rule.boost, false)
+	var base: float = w.get("chop_mul", 1.0)
+	return base * (1.6 if boosted else 1.0) * p.chop_mul
+
+
+## Melee against harvestable scenery. Returns true only when the swing bit:
+## a swing at nothing, or one that bounced off a tree for want of an axe,
+## is charged as an ordinary swing because it moved no material.
+static func chop_prop(sim: GameSim, p: PlayerSim, w: Dictionary, dmg: float) -> bool:
+	var reach: float = w.range + p.r
+	var at := p.pos + Vector2.from_angle(p.angle) * reach * 0.7
+	var prop := sim.world.prop_at_tile(floori(at.x / Config.TILE), floori(at.y / Config.TILE))
+	if prop.is_empty():
+		return false
+	var rule: Dictionary = HARVEST.get(prop.harvest, HARVEST.wood)
+
+	if rule.has("needs") and not w.get(rule.needs, false):
+		if sim.time - p.needs_hint_at > 6.0:
+			p.needs_hint_at = sim.time
+			sim.notify(Config.NEEDS_HINT[rule.needs], "#d9c46a", true)
+		sim.emit({"t": "bounce", "x": prop.x, "y": prop.y})
+		return false
+
+	var boosted: bool = rule.has("boost") and w.get(rule.boost, false)
+	prop.hp -= dmg * chop_multiplier(w, p, rule)
+	prop.flash = 0.12
+	sim.emit({"t": "chop", "x": prop.x, "y": prop.y})
+	# Work is audible: the other half of felling a tree in the open.
+	Sound.make_noise(sim, prop.x, prop.y, Config.NOISE.chop, p)
+	sim.emit({"t": "shake", "amount": 1.2})
+
+	if prop.hp <= 0.0:
+		var n: int = rule.min + roundi(sim.rng.next() * (rule.max - rule.min) * p.loot_mul)
+		if boosted:
+			n = roundi(n * w.get("tool_mul", 2.0))
+		sim.world.remove_prop(prop)
+		if prop.solid:
+			sim.world_version += 1       # the flow fields have a new way through
+		p.add_res(rule.res, n)
+		sim.emit({"t": "harvest", "x": prop.x, "y": prop.y, "res": rule.res, "n": n, "label": rule.label})
+		if rule.has("bonus") and sim.rng.chance(0.8):
+			var bonus: int = rule.bonus_min + roundi(sim.rng.next() * (rule.bonus_max - rule.bonus_min))
+			p.add_res(rule.bonus, bonus)
+		p.xp += rule.get("xp", 2)
+	return true
+
+
+# --------------------------------------------------------------------- guns --
+
+static func fire_gun(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
+	var mag: int = p.mag.get(w.id, 0)
+	if mag <= 0:
+		sim.emit({"t": "dryfire", "x": p.pos.x, "y": p.pos.y})
+		start_reload(sim, p, w)
+		return false
+	# Ammo Cache (Phase 4 luck perk) sometimes gives the round back.
+	if not (p.free_shot_chance > 0.0 and sim.rng.chance(p.free_shot_chance)):
+		p.mag[w.id] = mag - 1
+
+	var spread: float = w.spread * p.spread_mul
+	var muzzle := p.pos + Vector2.from_angle(p.angle) * (p.r + 12.0)
+	var pellets: int = w.get("pellets", 1)
+	var color := "#c8a878" if w.get("bow", false) else ("#ffd08a" if w.id == "shotgun" else "#ffe6a8")
+	for i in range(pellets):
+		var a: float = p.angle + (sim.rng.next() - 0.5) * spread * 2.0
+		var crit := sim.rng.chance(p.crit_chance)
+		spawn_bullet(sim, muzzle, a,
+			w.speed * (0.92 + sim.rng.next() * 0.16),
+			w.dmg * p.gun_mul * (1.8 if crit else 1.0),
+			w.life * p.range_mul, w.knock, w.get("pierce", 0), p, crit,
+			w.id if i == 0 else "", color)   # one sound per shot, not per pellet
+
+	# No flash from a bow: a muzzle flash is a light source at night, and a
+	# bow that lit up the treeline would give away the one thing it is for.
+	if not w.get("bow", false):
+		sim.emit({"t": "muzzle", "x": muzzle.x, "y": muzzle.y, "a": p.angle, "w": w.id})
+	sim.emit({"t": "shake", "amount": w.get("shake", 1.0)})
+	# Recoil kick, so rapid fire visibly pushes the aim around.
+	p.recoil = minf(0.16, p.recoil + spread * 1.4 + 0.012)
+	p.vel -= Vector2.from_angle(p.angle) * (90.0 if w.id == "shotgun" else 22.0)
+
+	sim.threat.add(sim, Config.THREAT.per_gunshot * w.threat, p)
+	Sound.make_noise(sim, p.pos.x, p.pos.y, w.noise, p)
+	return true
+
+
+static func start_reload(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
+	if not w.has("ammo") or not p.reloading.is_empty():
+		return false
+	if p.mag.get(w.id, 0) >= w.mag:
+		return false
+	if p.count_res(w.ammo) <= 0:
+		sim.notify("Out of %s" % Config.RES[w.ammo].name.to_lower(), "#c96a5a")
+		sim.emit({"t": "dryfire", "x": p.pos.x, "y": p.pos.y})
+		return false
+	p.reloading = {"w": w.id, "t": 0.0, "dur": w.reload * p.reload_mul, "shell": w.get("shell_reload", false)}
+	sim.emit({"t": "reload", "seat": p.seat})
+	return true
+
+
+static func _finish_reload_step(sim: GameSim, p: PlayerSim, w: Dictionary) -> void:
+	if p.count_res(w.ammo) <= 0:
+		p.reloading = {}
+		return
+	if w.get("shell_reload", false):
+		# Shotguns load one shell at a time and can be interrupted by firing.
+		p.take_res(w.ammo, 1)
+		p.mag[w.id] = p.mag.get(w.id, 0) + 1
+		if p.mag[w.id] >= w.mag or p.count_res(w.ammo) <= 0:
+			p.reloading = {}
+			sim.emit({"t": "reload_done", "seat": p.seat})
+		else:
+			p.reloading.t = 0.0
+	else:
+		var need: int = w.mag - p.mag.get(w.id, 0)
+		p.mag[w.id] = p.mag.get(w.id, 0) + p.take_res(w.ammo, need)
+		p.reloading = {}
+		sim.emit({"t": "reload_done", "seat": p.seat})
+
+
+static func tick_reload(sim: GameSim, p: PlayerSim, dt: float) -> void:
+	if p.reloading.is_empty():
+		return
+	var w: Dictionary = Config.WEAPONS.get(p.reloading.w, {})
+	if w.is_empty() or p.weapon().id != w.id:
+		p.reloading = {}
+		return
+	p.reloading.t += dt
+	if p.reloading.t >= p.reloading.dur:
+		_finish_reload_step(sim, p, w)

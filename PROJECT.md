@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-08, Phase 1: the world, the player, the camera — walkable
+- **Last updated:** 2026-09-08, Phase 2: enemies, combat, noise, quiet, navigation, raids — fightable
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -80,19 +80,23 @@ These settle arguments. When a decision is close, the pillar wins.
 
 ## 3. Where we are right now
 
-**Status: Phase 1 built, awaiting the owner's walk.** The whole map exists
-and is the prototype's map to the tile (verified by checksum against the
-browser build). The player walks, sprints, sneaks, slides along walls and
-runs out of breath; the camera leads toward the cursor; the HUD names the
-district and shows its danger. Nothing to fight, pick up or build yet.
+**Status: Phase 2 built, awaiting the owner's fight.** On top of Phase 1's
+map: walkers, runners, brutes and behemoths from the spec's table, spawned
+off screen around the player and culled far away; they see, hear, hunt,
+investigate and give up; they find doors with a flow field the prototype
+never had. The player holds a six-slot Phase 2 kit (pipe, hatchet, bow,
+pistol, shotgun, rifle), swings, chops trees, shoots, reloads and bandages;
+bullets stop on walls and fly over water and fences. Gunfire raises Threat;
+at 100 a raid comes for you in waves. Nothing to pick up or build yet, and
+no structures for a raid to break on: that is Phase 3.
 
 | | |
 | --- | --- |
-| Phase | 1 of 5 — a place to stand (PR open, playtest gate pending) |
-| Playable | Walkable. Open the project in Godot and press Play. |
-| Unit tests | 19 tests, 80 assertions, ~1.1s (`tools\test.cmd`, ~4s with the import pass) |
-| Smoke | 10 checkpoints: walk, sprint, seven districts (`tools\smoke.cmd`, ~8s) |
-| World build | ~320ms generation, ~80ms terrain, at boot |
+| Phase | 2 of 5 — something to fear (PR open, playtest gate pending; Phase 1's PR is also still open) |
+| Playable | Fightable. Open the project in Godot and press Play. Keys 1–6 pick a weapon, R reloads, Q bandages. |
+| Unit tests | 72 tests, 365 assertions, ~5.5s (`tools\test.cmd`, ~8s with the import pass) |
+| Smoke | 14 checkpoints: walk, sprint, seven districts, a walker shot, a raid wave, a raid over (`tools\smoke.cmd`, ~10s) |
+| World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~1.6ms |
 | Save format | none yet |
 
 ### Port status by system
@@ -107,13 +111,13 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Tile collision (one bitmap) | 1 | ported | `World.blocked`; structures map comes in Phase 3 |
 | Player movement, stamina, camera | 1 | ported | Winded latch present; sprint alone never trips it (as in the prototype) |
 | Intent (input → sim boundary) | 1 | ported | `LocalInput.gather` is the only reader of `Input` for the sim |
-| Enemies, spawning, chase | 2 | — | |
-| Noise | 2 | — | |
-| Quiet field / pressure | 2 | — | |
-| Combat: melee, bow, guns, bullets | 2 | — | |
-| Damage routing | 2 | — | |
-| Navigation | 2 | — | New: prototype had none |
-| Raids and threat | 3 | — | |
+| Enemies, spawning, chase | 2 | ported | Count radius widened past the spawn ring (§6); stuck test is relative to pace (§6) |
+| Noise | 2 | ported | One `Sound.make_noise`; alert + destination, never aggro |
+| Quiet field / pressure | 2 | ported | Structures' standing quiet arrives with structures (Phase 3) |
+| Combat: melee, bow, guns, bullets | 2 | ported | Fixed six-slot kit stands in for the hotbar until Phase 3 |
+| Damage routing | 2 | ported | Solo death only; downed-not-dead is co-op (Phase 5) |
+| Navigation | 2 | **new** | Flow field per living player; enemies chasing you follow it |
+| Raids and threat | 2 | ported | Raiders come for you; targeting the nearest structure needs Phase 3 |
 | Items registry | 3 | — | |
 | Inventory, equipment, hotbar | 3 | — | |
 | Loot and containers | 3 | — | |
@@ -133,6 +137,58 @@ The spec for each row is in `tasks/port-inventory.md`.
 ---
 
 ## 4. What is built
+
+### Something to fear (Phase 2)
+
+All simulation, all `RefCounted`, all under `src/sim/`:
+
+- **`EnemySim`** — one enemy: the spec row's numbers copied out, position,
+  aggro, alert timer, noise destination, wind-up, stuck timer, raid flag.
+- **`Enemies`** — the list, the spatial hash (96px cells, rebuilt each
+  step), the ambient spawner (population per danger tier around each living
+  player, ring off screen, cull at 2400px, cap 160, the quiet field's
+  suppression) and the AI step: sense (halved crouching), sight check to
+  set aggro, aggro expiry unless real sensing renews it, noise destination
+  dropped on arrival, idle wander, wind-up then bite, probe steering,
+  separation, stuck rescue.
+- **`NavField`** — a flow field: BFS distances over the collision bitmap
+  in an 83-tile window around a player, padded so the loop has no bounds
+  checks (1.6ms). `step_dir` picks the closest of eight neighbours and
+  refuses a diagonal between two blocked corners. `GameSim.nav_for(p)`
+  rebuilds when the player has moved two tiles or the world changed.
+  A hunting enemy goes straight only with a body-width clear run.
+- **`Sound`** — `make_noise(sim, x, y, radius, actor)`: alert + destination
+  for everything in range, scaled by the actor's `noise_mul`. Never aggro.
+- **`QuietField`** — 256px cells, bilinear read, the 1.7-cell kill kernel,
+  ceiling 6, decay 6/270 per second, suppression at 2.9, floor 0.3.
+- **`Combat`** — bullets (12px substeps, terrain-only collision, pierce at
+  75%), the melee arc (enemies first; only an empty arc falls through to
+  scenery), harvest stamina and the winded latch, tool gates and hints,
+  guns with magazines, spread, pellets, recoil, shell-at-a-time reloads,
+  the bow as a one-round gun.
+- **`Damage`** — enemy damage with knockback and resistance, kills (xp to
+  the killer, threat, quiet, corpse), player damage with invulnerability,
+  death, healing, respawn on tier-1 ground clear of enemies.
+- **`Threat`** and **`Raid`** — the meter (gain scaled by night, decay,
+  pinned at 100, tier warnings); the raid (12s warning, waves, 0.22s spawn
+  cadence on a 520–800px ring, hp x(1 + 0.06 x index), anti-stall
+  relocation, 25s no-progress break-off, 300s ceiling, payout by share).
+- **`GameSim`** gained: `events` (the sim tells the view what happened:
+  shot, hit, kill, notify, shake — the list co-op will send), `stats`,
+  `night_factors()` (day until Phase 4), `base_centre()` and
+  `structure_hp_total()` (Phase 3 hooks), `view_radius`, `world_version`.
+- **`PlayerSim`** gained: the loadout, `res` (id -> count, the resource API
+  Phase 3's inventory keeps), magazines, attack cooldown, reload, healing
+  channel, swing, recoil, invulnerability, death and the starting stat
+  multipliers (rank 2 in every attribute: 112 HP, +9% melee, +6% chop, 8%
+  crit).
+
+Presentation: **`EnemyView`** (tiered bodies, arms raised in the wind-up,
+hurt flash and bar, raid tick, fading corpses), **`FxView`** (tracers,
+blood, sparks, muzzle flash, debris, damage numbers, harvest labels, the
+swing arc, rings), the **`Hud`** (hotbar with magazines, reload, Q meds,
+Threat meter with tier, raid banner, notices, hurt vignette, death), and
+`main.gd` draining events into them with camera shake.
 
 ### The game (Phase 1)
 
@@ -265,6 +321,12 @@ Phases 1–4 respecting it.
 | 2026-09-08 | Terrain baked into a TileMapLayer atlas; props drawn with canvas primitives per frame | Tiles never change shape, so bake them once and let the engine cull. Props are ~11k dictionaries that get harvested, burned and rebuilt; drawing the visible few hundred from buckets each frame is simpler than 11k nodes and is what the prototype did. Revisit if a frame ever costs more than 2ms here. | Yes |
 | 2026-09-08 | Sim ticks in `_physics_process` at 60Hz; view redraws in `_process` | Matches the prototype's fixed timestep, and `is_action_just_pressed` is per-physics-frame there, which is invariant 5 (edges consumed exactly once) for free. No render interpolation yet. | Yes |
 | 2026-09-08 | Sprinting alone never winds you | Ported as found: sprint stops at "stamina above 1", so the bar hovers just above empty and only refused work trips the latch. The prototype's comment claimed otherwise; the code did this. Flagged for the owner's walk. | Yes, one condition |
+| 2026-09-08 | A flow field per living player, not NavigationServer2D | The sim must run headless with no nodes or servers; a BFS over the collision bitmap is 1.6ms, deterministic and testable (a walker finds the shack door in 10.7s where straight steering never does). Enemies not hunting a player still steer straight, and the prototype's probe steering and give-up rules stay underneath. | Yes |
+| 2026-09-08 | Spawner count radius 1400, not the prototype's 950 | The prototype counted inside a ring that ran 880–1300, so most of what it spawned never counted: measured here, a still player in tier 1 collected 26 enemies in 20 seconds against a target of 4. Counting past the ring's edge gives exactly 4. The "no lull to build in" the quiet field was added to cure was partly this. Flagged for the owner's fight. | Yes, one number |
+| 2026-09-08 | Stuck test relative to the enemy's own pace | The prototype called an enemy stuck below 1.1px per step, which a walking brute (52px/s) never exceeded, so brutes lurched sideways every 0.7s. "Under a quarter of its pace while trying to get somewhere" is what the check meant. | Yes |
+| 2026-09-08 | A fixed six-weapon kit and a plain `res` map until Phase 3 | The gate is "the owner fights", which needs every weapon in hand. The hotbar, drag and drop and weight arrive with the inventory; the resource API (`count_res`, `add_res`, `take_res`) is the one the stash keeps. | n/a |
+| 2026-09-08 | The sim reports through an event list, not callbacks into nodes | `GameSim.events` is drained by `main.gd` each frame into effects and the HUD. It keeps the sim node-free, and it is the reliable-channel event stream co-op needs. | Expensive later |
+| 2026-09-08 | Raiders come for the player until structures exist | The spec targets the nearest structure so hordes break on the perimeter; with no structures the only target is you. The compound reference figures (§9) are a Phase 3 check. | n/a |
 
 ---
 
@@ -276,28 +338,32 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 | --- | --- | --- |
 | 0 | Harness, smoke path, this document | ✅ 2026-09-08 |
 | 1 | World, tiles, collision, player, camera | Built 2026-09-08 — **owner walks the map** |
-| 2 | Enemies, combat, noise, quiet field, navigation | Owner fights |
+| 2 | Enemies, combat, noise, quiet field, navigation, raids | Built 2026-09-08 — **owner fights** |
 | 3 | Items, inventory, loot, crafting, building, raids, saves | Owner builds and holds a base |
 | 4 | Progression, day/night, survivors, vehicles, fire, menus, audio | Owner plays a full session |
 | 5 | Online co-op | Owner plays with a friend |
 
 ### Next up
 
-0. **The owner walks the map** (the Phase 1 gate). Questions to answer by
-   feel, not by number: is 176px/s the right walking pace at this zoom; does
-   the camera lead feel like aiming or like drift; does sprinting to empty
-   and jogging on feel right, or should it wind you; is the world readable
-   at a glance — can you tell a road from a lot, a field from dirt, a
-   container from a wall — and is the prototype's zoom (about 32 tiles
-   across) too close or too far.
-1. **Phase 2.** Enemies from the spec's tables, spawning and the chase;
-   noise; the quiet field; melee, the bow, guns and terrain-only bullets;
-   damage routing; navigation (the flow field the prototype never had);
-   the raid harness reproducing the prototype's reference figures.
+0. **The owner walks and fights** (the Phase 1 and 2 gates, together).
+   Walking: is 176px/s the right pace at this zoom; does the camera lead
+   feel like aiming or like drift; should sprinting to empty wind you; is
+   the world readable at a glance; is the zoom right. Fighting: does a
+   walker read as a walker and a brute as a brute in a crowd; is the pistol
+   too easy and the bow too weak; does the wind-up telegraph a bite in
+   time; do enemies coming round a building feel like hunting or like
+   cheating; does the tier-1 crowd (four around you, 1400px) feel thin or
+   dead; does a raid with nothing to defend feel like anything.
+1. **Phase 3.** Items, the inventory and hotbar (replacing the kit), loot
+   and containers, the destructible structure map, building, storage,
+   crafting in the inventory screen, saves with tile-derived container
+   identity; then raiders target the nearest structure, enemies punch what
+   blocks them, the quiet field counts structures, and the raid harness is
+   run against the compound to reproduce §9's reference figures.
 2. **Render interpolation.** The sim runs at 60Hz and the view at the
-   monitor's rate; on a 144Hz screen movement will judder until positions
-   are interpolated between physics frames. Cheap, and worth doing before
-   enemies move.
+   monitor's rate; on a 144Hz screen movement judders until positions are
+   interpolated between physics frames. Every entity now needs a previous
+   position captured at the top of its tick.
 
 ### Deliberately not building
 
@@ -350,6 +416,23 @@ summarised in `tasks/port-inventory.md`.
 - **Rewriting `project.godot` while the editor is open loses.** The editor
   holds settings in memory and writes them back. Close the project first,
   or edit through the editor. (2026-09-08 — the owner hit "no main scene")
+- **Measure with a control, and keep the player in range of the cull.** The
+  first noise test parked the player 3000px away so nothing would be
+  sensed, and the walker was culled after 0.6s; "walked 13px toward the
+  bang" looked like a broken mechanic. 1500px is out of sense and inside
+  the cull. (2026-09-08)
+- **A packed array inside an Array is a copy.** `buckets[i].append(x)` on a
+  `PackedInt32Array` element modifies a temporary; use a plain `Array`
+  element or index into one flat packed array. (2026-09-08)
+- **Godot owns some good class names.** `class_name Noise` compiles and
+  then every `Noise.make_noise` call fails with "not found in base
+  GDScriptNativeClass". The sim's is `Sound`. (2026-09-08)
+- **Type the variable when the value comes from `Dictionary.get`.**
+  `var x := d.has("k") and w.get("k", false)` is a Variant and a parse
+  error that takes the dependent scripts down. (2026-09-08)
+- **Trace before tuning.** A walker that took 10.7s round the shack looked
+  like oscillation; a per-second trace of its field distance (22 → 3,
+  monotonic) showed it was a 22-tile path at a walker's pace. (2026-09-08)
 
 ---
 
@@ -364,14 +447,34 @@ summarised in `tasks/port-inventory.md`.
 Both must report **zero failures**. Current expected output:
 
 ```
-tests: 19  asserts: 80  failures: 0
-SMOKE done checkpoints=10 failures=0 exit=0
+tests: 72  asserts: 365  failures: 0
+SMOKE done checkpoints=14 failures=0 exit=0
 ```
+
+The tests also print measurements worth reading when a number moves:
+
+```
+spawner: 4 within 1400 px, 4 alive after 20s in tier 1
+nav: 83x83 field built in 1.6 ms
+nav: with the field the walker closed from 128 to 47 px in 10.7s; straight steering got to 128 px
+noise: closed 105 px toward the bang in 4s; control drifted 43
+raid harness [0 SCATTERED HORDE]: 18s, 19 kills, repelled=true, scrap +30
+raid harness [2 HEAVY HORDE]: 93s, 52 kills, repelled=false
+```
+
+The raid harness (`tests/raid_test.gd`) plays a god-mode rifle defender in
+the open against raid index 0 and 2. The prototype's reference figures were
+measured against a walled compound with turrets; those are reproduced in
+Phase 3 once there is a compound to build. What matters now is that no raid
+reaches the 300s backstop: index 2 breaks off at ~93s with 52 of 57 killed
+because the last stragglers wedge and the 25s no-progress rule fires.
 
 The smoke PNGs in `.smoke/` are the proof for anything visual: read them.
 `00_spawn` and `01_walked_east` should show the survivor on the highway
 west of the camp; `03`–`09` are the suburbs, Market Row, downtown, the
-farms, the lake lodge, the forest and the junkyard.
+farms, the lake lodge, the forest and the junkyard; `10`–`13` are a walker
+approaching with its arms out, its corpse after three pistol rounds, the
+raid banner with a raider on the ring, and the salvage notice.
 
 `tools\smoke.cmd` opens a window for a few seconds; that is expected. The
 Godot MCP's `run_project` / `get_debug_output` are the alternative when a
@@ -394,5 +497,6 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 
 | Date | What |
 | --- | --- |
+| 2026-09-08 | Phase 2: the spec's enemy, weapon, resource, spawn, noise, quiet, threat and raid tables in `Config`; `EnemySim`, `Enemies` (spawner + AI), `SpatialHash`, `NavField` (the flow field), `Sound`, `QuietField`, `Combat`, `Damage`, `Threat`, `Raid`; player combat, the Phase 2 kit, sim events; enemy, effects and player views, the HUD's hotbar, threat meter, raid banner and notices; 53 new headless tests including a raid harness; smoke run shoots a walker and forces a raid |
 | 2026-09-08 | Phase 1: `Config`, `Rng`, `World` (the generator, bit-identical to the prototype), `PlayerSim`, `GameSim`, `Intent`; terrain atlas + TileMapLayers, prop renderer, player view, HUD; bindings autoload and `LocalInput`; 19 headless tests; smoke run walks, sprints and photographs seven districts |
 | 2026-09-08 | Phase 0: project created on Godot 4.7.2; headless test runner and `TestCase`; smoke autoload with screenshot + state checkpoints; placeholder scene; this document; `tasks/port-inventory.md` as the spec |

@@ -40,10 +40,42 @@ Godot 4.7.2 · GDScript · 2D · headless tests via
 
 ## Phase 2 — something to fear
 
-- [ ] Enemies: types, spawn, chase, the quiet field (pressure), noise
-- [ ] Combat: melee, bow, guns, bullets vs terrain only (pillar 3), damage routing
-- [ ] Navigation: NavigationServer2D or a flow field — the prototype's #1 wanted upgrade
-- [ ] Raid harness reproducing the prototype's reference figures
+Branch `phase-2-combat`, off `phase-1-world` (its PR is still open).
+
+- [x] `config.gd`: ENEMIES, WEAPONS, RES (ammo and consumables), SPAWN, NOISE,
+      QUIET, THREAT, RAIDS + `raid_spec()`, NAV, HARVEST — every number from
+      the spec
+- [x] Sim events: `GameSim.events` is how the sim tells the view what happened
+      (shot, hit, kill, notify, shake); the same list co-op will send
+- [x] Enemies: `EnemySim`, spatial hash, ambient spawner (density per tier,
+      mix, ring, cull, cap), the AI step (sense, sight, aggro expiry, noise
+      destination, wander, windup attack, separation, stuck rescue)
+- [x] Navigation: a local flow field per living player (`NavField`), BFS
+      over the collision bitmap, no corner cutting; enemies chasing a player
+      follow it and keep the prototype's probe steering and give-up rules
+- [x] Noise: one `make_noise`, alert + destination, never aggro
+- [x] Quiet field: 256px cells, bilinear read, kill kernel, decay, suppression
+- [x] Combat: melee arc (fight first, then scenery), chop stamina and the
+      winded latch, tool gates, bullets with substeps vs terrain only, guns
+      with magazines, reloads (shell-at-a-time shotgun), spread, pellets,
+      pierce, the bow as a one-round gun
+- [x] Damage routing: enemy (knockback, resist, kill → xp/threat/quiet),
+      player (invuln, death, respawn on safe tier-1 ground), healing (Q)
+- [x] Threat meter and raids: gain, decay, pinned at 100, warning, waves,
+      spawn ring, hp scaling, anti-stall, break-off, 300s cap, share payout.
+      Raiders target the nearest structure in Phase 3; here they come for you
+- [x] Phase 2 loadout: a fixed six-slot kit (pipe, hatchet, bow, pistol,
+      shotgun, rifle) with ammo, on keys 1–6, so the gate can fire everything.
+      Phase 3's hotbar replaces it
+- [x] View: enemies, corpses, bullets, muzzle flash, blood, damage numbers,
+      swing arc, screen shake, hurt flash; HUD weapon/ammo/reload, threat
+      meter, raid banner, notifications
+- [x] Tests: enemies, nav, noise, quiet, combat, damage, threat/raid — every
+      one asserting an outcome (`killed > 0`, `raid completes`)
+- [x] Raid harness: headless, scripted defender, indexes 0 and 2, logs
+      duration and kills; the compound figures wait for Phase 3's walls
+- [x] Smoke: fight checkpoint (spawn a walker, kill it), raid checkpoint
+- [x] `PROJECT.md` §3, §4, §6, §7, §8, §11
 - [ ] **Playtest gate:** owner fights
 
 ## Phase 3 — something to keep
@@ -97,3 +129,23 @@ Godot 4.7.2 · GDScript · 2D · headless tests via
   76px interact range covers that, so the test counts eight neighbours.
 - Not done: render interpolation between physics frames (judder on
   high-refresh monitors). Listed in §7.
+
+## Review — Phase 2 (2026-09-08)
+
+- Everything under `src/sim/` is `RefCounted` and headless; 53 new tests
+  step the real sim and assert outcomes (a walker dies, a tree falls, a
+  raid completes). The tests print their measurements.
+- Navigation is new: a flow field per living player, 1.6ms to build,
+  rebuilt every two tiles of movement. A walker behind the camp shack
+  reaches the player in 10.7s; straight steering never does.
+- Two prototype numbers moved, both measured and both in PROJECT.md §6:
+  the spawner's count radius (26 enemies in 20s against a target of 4) and
+  the stuck threshold (a walking brute counted as stuck).
+- Starting stats corrected: rank 2 in every attribute is one rank above
+  the baseline, so 112 HP, +9% melee, +6% chop, 8% crit. This is what
+  makes a tree six hatchet swings, as the spec says.
+- Stand-ins, all flagged: the six-weapon kit and `res` map (Phase 3
+  inventory), raids targeting the player (Phase 3 structures), day always
+  (Phase 4), solo death only (Phase 5 downed). The raid harness runs in the
+  open; the compound reference figures are a Phase 3 check.
+- Not done: render interpolation, still in §7.

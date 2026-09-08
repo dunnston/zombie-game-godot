@@ -4,26 +4,23 @@ extends "res://tests/test_case.gd"
 
 const DT := 1.0 / 60.0
 
-static var _world: World
+var sim: GameSim
 
 
-static func world() -> World:
-	if _world == null:
-		_world = World.new()
-	return _world
+func before_each() -> void:
+	sim = new_sim()
 
 
 func _player_at_tile(tx: int, ty: int) -> PlayerSim:
-	var p := PlayerSim.new()
+	var p := sim.players[0]
 	p.pos = Vector2(tx * 32 + 16, ty * 32 + 16)
 	p.intent.aim = p.pos + Vector2.RIGHT
 	return p
 
 
 func _run(p: PlayerSim, seconds: float) -> void:
-	var w := world()
 	for i in range(int(seconds / DT)):
-		p.tick(w, DT)
+		p.tick(sim, DT)
 
 
 ## A wall tile with a clear run of open ground to its left, so a walk east
@@ -33,7 +30,7 @@ func _wall_with_open_west() -> Vector2i:
 	var w := world()
 	for y in range(100, 220):
 		for x in range(100, 220):
-			if w.tile(x, y) != T_WALL():
+			if w.tile(x, y) != Config.T.WALL:
 				continue
 			var clear := true
 			for dx in range(1, 6):
@@ -43,10 +40,6 @@ func _wall_with_open_west() -> Vector2i:
 			if clear:
 				return Vector2i(x, y)
 	return Vector2i(-1, -1)
-
-
-func T_WALL() -> int:
-	return Config.T.WALL
 
 
 func test_walks_at_speed_in_the_open() -> void:
@@ -82,7 +75,7 @@ func test_stops_at_a_wall() -> void:
 func test_sprint_hovers_above_empty() -> void:
 	# The prototype gates sprinting at "stamina above 1", so a held sprint
 	# key never runs the bar to zero: it hovers just above empty and the
-	# player jogs. Only work (a refused harvest swing, Phase 2) winds you.
+	# player jogs. Only work (a refused harvest swing) winds you.
 	var p := _player_at_tile(6, 133)
 	p.intent.mx = 1.0
 	p.intent.sprint = true
@@ -92,8 +85,8 @@ func test_sprint_hovers_above_empty() -> void:
 
 
 func test_winded_latch_clears_at_half() -> void:
-	# Work drains to zero (Phase 2 does this through melee); the latch then
-	# holds until stamina is back to half of 110, not one swing of recovery.
+	# Work drains to zero; the latch then holds until stamina is back to
+	# half of 110, not one swing of recovery.
 	var p := _player_at_tile(6, 133)
 	p.stam = 0.0
 	p.stam_lock = Config.PLAYER.stam_chop_delay
@@ -118,3 +111,13 @@ func test_sneak_halves_speed() -> void:
 	_run(p, 1.0)
 	var dx := p.pos.x - (6 * 32 + 16)
 	ok(dx > 70.0 and dx < 90.0, "sneaked %.1f px in a second" % dx)
+
+
+func test_starts_by_the_camp_with_the_kit() -> void:
+	var p := sim.players[0]
+	var camp := Vector2(160 * 32, 160 * 32)
+	ok(p.pos.distance_to(camp) <= 30 * 32 + 32, "spawned %.0f px from the camp" % p.pos.distance_to(camp))
+	eq(p.weapon().id, "pipe", "holding the pipe")
+	ok(p.loadout.size() == 6, "six slots")
+	eq(p.mag.get("pistol", 0), 12, "the pistol starts loaded")
+	ok(p.count_res("ammoP") > 0, "and there is more 9mm in the pack")

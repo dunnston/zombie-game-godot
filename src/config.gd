@@ -78,6 +78,225 @@ const PLAYER := {
 ## zooms so that the viewport shows about that much world vertically.
 const CAMERA := {"follow": 7.5, "view_height": 580.0, "min_zoom": 0.9, "max_zoom": 2.6, "lead": 0.22, "lead_max": 170.0}
 
+# ---------------------------------------------------------------- resources --
+
+## Everything that stacks as a count. Phase 2 uses the ammunition and the
+## medical entries; Phase 3's inventory uses the rest. `wt` per unit.
+const RES := {
+	"wood":    {"name": "Wood",         "short": "WOOD", "color": "#a3763f", "wt": 1.0,  "stack": 50},
+	"sticks":  {"name": "Sticks",       "short": "STCK", "color": "#8a6a3c", "wt": 0.5,  "stack": 50},
+	"stone":   {"name": "Stone",        "short": "STNE", "color": "#8f8a80", "wt": 1.5,  "stack": 50},
+	"fiber":   {"name": "Fiber",        "short": "FIBR", "color": "#9aae5a", "wt": 0.3,  "stack": 50},
+	"scrap":   {"name": "Scrap",        "short": "SCRP", "color": "#9aa2ab", "wt": 1.0,  "stack": 50},
+	"cloth":   {"name": "Cloth",        "short": "CLTH", "color": "#c2a98a", "wt": 1.0,  "stack": 50},
+	"elec":    {"name": "Electronics",  "short": "ELEC", "color": "#59b8c4", "wt": 1.0,  "stack": 30},
+	"battery": {"name": "Batteries",    "short": "BATT", "color": "#8fd08a", "wt": 0.5,  "stack": 20},
+	"med":     {"name": "Medical",      "short": "MED",  "color": "#d9575f", "wt": 1.0,  "stack": 30},
+	"parts":   {"name": "Weapon Parts", "short": "PART", "color": "#c9a227", "wt": 1.0,  "stack": 20},
+	"mil":     {"name": "Military",     "short": "MIL",  "color": "#7fa14a", "wt": 1.0,  "stack": 20},
+	"fuel":    {"name": "Fuel",         "short": "FUEL", "color": "#d2762c", "wt": 1.0,  "stack": 20},
+	"rations": {"name": "Rations",      "short": "FOOD", "color": "#c4a86a", "wt": 1.0,  "stack": 20},
+	"arrow":   {"name": "Arrows",       "short": "ARRW", "color": "#b9a072", "wt": 0.15, "stack": 60},
+	"ammoP":   {"name": "9mm Rounds",   "short": "9MM",  "color": "#d8c98a", "wt": 0.2,  "stack": 120},
+	"ammoS":   {"name": "Shells",       "short": "SHEL", "color": "#c9584e", "wt": 0.3,  "stack": 60},
+	"ammoR":   {"name": "Rifle Rounds", "short": "RIFL", "color": "#b8a05a", "wt": 0.25, "stack": 90},
+}
+
+const CONSUMABLES := {
+	"bandage": {"id": "bandage", "name": "Bandage", "heal": 28.0, "time": 0.9, "color": "#d8cfc0"},
+	"medkit":  {"id": "medkit",  "name": "Medkit",  "heal": 80.0, "time": 1.6, "color": "#d9575f"},
+}
+
+# ------------------------------------------------------------------ weapons --
+
+## Melee: dmg / cd / range / arc / knock. Tools are deliberately poor weapons;
+## `axe`, `pick`, `knife`, `scythe`, `hammer` are what the harvest gates ask
+## for, `chop_mul` is how much better than a fist they are at scenery. The
+## stone tools come before the metal ones so a fresh game finds them first.
+## Guns: real magazines, reload time, spread (radians), bullet speed and life,
+## pellets, pierce, threat per shot and a noise radius. The bow is a gun with
+## a magazine of one and no muzzle flash; it keeps drawing while held.
+const WEAPONS := {
+	"fists":     {"id": "fists",     "name": "Fists",            "kind": "melee", "dmg": 9.0,  "cd": 0.42, "range": 34.0, "arc": 1.0,  "knock": 70.0,  "color": "#c8b89a"},
+	"pipe":      {"id": "pipe",      "name": "Steel Pipe",       "kind": "melee", "dmg": 24.0, "cd": 0.40, "range": 48.0, "arc": 1.15, "knock": 150.0, "color": "#9aa2ab"},
+	"machete":   {"id": "machete",   "name": "Machete",          "kind": "melee", "dmg": 40.0, "cd": 0.34, "range": 54.0, "arc": 1.0,  "knock": 110.0, "bleed": true, "chop_mul": 1.3, "color": "#cfd6dd"},
+	"axe":       {"id": "axe",       "name": "Hatchet",          "kind": "melee", "dmg": 30.0, "cd": 0.52, "range": 48.0, "arc": 0.9,  "knock": 130.0, "tool": true, "axe": true, "chop_mul": 2.4, "color": "#b08a5a"},
+	"pick":      {"id": "pick",      "name": "Stone Pickaxe",    "kind": "melee", "dmg": 26.0, "cd": 0.62, "range": 50.0, "arc": 0.9,  "knock": 150.0, "tool": true, "pick": true, "chop_mul": 2.2, "tool_mul": 2.4, "color": "#9a9088"},
+	"knife":     {"id": "knife",     "name": "Stone Knife",      "kind": "melee", "dmg": 19.0, "cd": 0.28, "range": 40.0, "arc": 0.8,  "knock": 60.0,  "bleed": true, "tool": true, "knife": true, "chop_mul": 1.5, "color": "#c2b8a6"},
+	"scythe":    {"id": "scythe",    "name": "Scythe",           "kind": "melee", "dmg": 24.0, "cd": 0.46, "range": 62.0, "arc": 1.6,  "knock": 80.0,  "bleed": true, "tool": true, "scythe": true, "chop_mul": 2.0, "tool_mul": 2.2, "color": "#b9b3a2"},
+	"hammer":    {"id": "hammer",    "name": "Stone Hammer",     "kind": "melee", "dmg": 36.0, "cd": 0.72, "range": 46.0, "arc": 1.2,  "knock": 240.0, "tool": true, "hammer": true, "chop_mul": 1.8, "structure_mul": 0.8, "color": "#8a8078"},
+	"fireaxe":   {"id": "fireaxe",   "name": "Fire Axe",         "kind": "melee", "dmg": 34.0, "cd": 0.46, "range": 52.0, "arc": 1.0,  "knock": 190.0, "tool": true, "axe": true, "chop_mul": 4.2, "color": "#c4463a"},
+	"steelpick": {"id": "steelpick", "name": "Steel Pickaxe",    "kind": "melee", "dmg": 30.0, "cd": 0.56, "range": 54.0, "arc": 0.9,  "knock": 210.0, "tool": true, "pick": true, "chop_mul": 4.4, "tool_mul": 2.4, "color": "#aeb6bd"},
+	"sledge":    {"id": "sledge",    "name": "Sledgehammer",     "kind": "melee", "dmg": 78.0, "cd": 0.86, "range": 60.0, "arc": 1.7,  "knock": 340.0, "shake": 5.0, "chop_mul": 1.6, "structure_mul": 1.0, "color": "#8d7a5e"},
+	"bow":       {"id": "bow",       "name": "Hunting Bow",      "kind": "gun", "dmg": 19.0, "cd": 0.85,  "mag": 1,  "reload": 0.55, "spread": 0.03,  "ammo": "arrow", "speed": 780.0,  "life": 0.85, "knock": 60.0,  "shake": 0.4, "pellets": 1, "pierce": 0, "threat": 0.15, "noise": 90.0,  "bow": true, "color": "#9a7a48"},
+	"pistol":    {"id": "pistol",    "name": "M9 Pistol",        "kind": "gun", "dmg": 27.0, "cd": 0.17,  "mag": 12, "reload": 1.15, "spread": 0.035, "ammo": "ammoP", "speed": 1150.0, "life": 0.55, "knock": 55.0,  "shake": 1.6, "pellets": 1, "pierce": 0, "threat": 1.0,  "noise": 420.0, "color": "#71787f"},
+	"smg":       {"id": "smg",       "name": "Scrap SMG",        "kind": "gun", "dmg": 17.0, "cd": 0.075, "mag": 30, "reload": 1.6,  "spread": 0.075, "ammo": "ammoP", "speed": 1100.0, "life": 0.5,  "knock": 40.0,  "shake": 1.2, "pellets": 1, "pierce": 0, "threat": 0.6,  "noise": 400.0, "color": "#6b7178"},
+	"shotgun":   {"id": "shotgun",   "name": "Pump Shotgun",     "kind": "gun", "dmg": 16.0, "cd": 0.75,  "mag": 6,  "reload": 0.5,  "spread": 0.20,  "ammo": "ammoS", "speed": 980.0,  "life": 0.30, "knock": 230.0, "shake": 6.5, "pellets": 8, "pierce": 0, "threat": 2.4,  "noise": 620.0, "shell_reload": true, "color": "#5e5148"},
+	"rifle":     {"id": "rifle",     "name": "Hunting Rifle",    "kind": "gun", "dmg": 78.0, "cd": 0.52,  "mag": 8,  "reload": 1.9,  "spread": 0.012, "ammo": "ammoR", "speed": 1700.0, "life": 0.9,  "knock": 120.0, "shake": 4.2, "pellets": 1, "pierce": 2, "threat": 2.0,  "noise": 700.0, "color": "#4c4136"},
+	"carbine":   {"id": "carbine",   "name": "Military Carbine", "kind": "gun", "dmg": 36.0, "cd": 0.105, "mag": 40, "reload": 2.3,  "spread": 0.045, "ammo": "ammoR", "speed": 1500.0, "life": 0.8,  "knock": 70.0,  "shake": 2.0, "pellets": 1, "pierce": 1, "threat": 1.1,  "noise": 560.0, "color": "#4a5340"},
+}
+
+## What each kind of scenery gives up and what it takes. `needs` is the tool
+## without which nothing happens; `boost` merely does it better. Small
+## scenery never has a `needs`: the tools are made from what it drops.
+const HARVEST := {
+	"wood":          {"res": "wood",  "min": 6, "max": 11, "bonus": "sticks", "bonus_min": 1, "bonus_max": 3, "needs": "axe", "xp": 4, "label": "WOOD"},
+	"fiber":         {"res": "fiber", "min": 2, "max": 4,  "bonus": "sticks", "bonus_min": 1, "bonus_max": 2, "boost": "scythe", "xp": 2, "label": "FIBER"},
+	"stone":         {"res": "stone", "min": 2, "max": 4,  "boost": "pick", "xp": 2, "label": "STONE"},
+	"boulder":       {"res": "stone", "min": 9, "max": 16, "needs": "pick", "xp": 5, "label": "STONE"},
+	"litter_sticks": {"res": "sticks", "min": 2, "max": 4, "xp": 1, "label": "STICKS"},
+	"litter_stone":  {"res": "stone",  "min": 1, "max": 3, "xp": 1, "label": "STONE"},
+	"litter_fiber":  {"res": "fiber",  "min": 2, "max": 4, "xp": 1, "label": "FIBER"},
+	"thicket":       {"res": "fiber", "min": 9, "max": 15, "bonus": "sticks", "bonus_min": 2, "bonus_max": 4, "needs": "scythe", "xp": 4, "label": "FIBER"},
+}
+
+const NEEDS_HINT := {
+	"axe": "You need a HATCHET to fell trees — bushes give fiber and sticks, rocks give stone",
+	"pick": "That boulder needs a STONE PICKAXE — loose rocks you can break by hand",
+	"scythe": "That thicket needs a SCYTHE — small bushes you can pull by hand",
+}
+
+## Phase 2 stand-in for the hotbar: what a new game holds, on keys 1-6, and
+## what it carries. Enough to fire every weapon at the playtest gate. Phase 3
+## replaces this with the pipe-and-two-bandages start and a real inventory.
+const PHASE2_KIT := {
+	"loadout": ["pipe", "axe", "bow", "pistol", "shotgun", "rifle"],
+	"res": {"arrow": 30, "ammoP": 60, "ammoS": 24, "ammoR": 16, "bandage": 4, "medkit": 1},
+}
+
+# ------------------------------------------------------------------ enemies --
+
+## Four tiers. `struct_mul` scales damage against player structures only:
+## walkers and runners threaten you, brutes are what breaches a wall.
+const ENEMIES := {
+	"walker":   {"id": "walker",   "name": "Walker",   "hp": 58.0,   "speed": 60.0,  "dmg": 13.0, "atk_cd": 1.0,  "atk_range": 26.0, "r": 12.0, "xp": 10,  "sense": 330.0, "knock_resist": 0.0,  "struct_mul": 0.5, "threat": 0.35, "body": "#5c6b45", "dark": "#3d4a2e"},
+	"runner":   {"id": "runner",   "name": "Runner",   "hp": 44.0,   "speed": 132.0, "dmg": 11.0, "atk_cd": 0.65, "atk_range": 25.0, "r": 11.0, "xp": 18,  "sense": 430.0, "knock_resist": 0.15, "struct_mul": 0.4, "threat": 0.5,  "body": "#7a5a3c", "dark": "#513a26"},
+	"brute":    {"id": "brute",    "name": "Brute",    "hp": 300.0,  "speed": 52.0,  "dmg": 34.0, "atk_cd": 1.35, "atk_range": 34.0, "r": 19.0, "xp": 55,  "sense": 380.0, "knock_resist": 0.75, "struct_mul": 2.2, "threat": 1.1,  "body": "#6b4b52", "dark": "#452f34"},
+	"behemoth": {"id": "behemoth", "name": "Behemoth", "hp": 1100.0, "speed": 46.0,  "dmg": 58.0, "atk_cd": 1.6,  "atk_range": 44.0, "r": 27.0, "xp": 200, "sense": 900.0, "knock_resist": 0.95, "struct_mul": 4.0, "threat": 2.5,  "body": "#7d4348", "dark": "#4a262b", "boss": true},
+}
+
+## The ambient spawner. A standing population per danger tier near each
+## living player, scaled by night and by the quiet field. The ring is off
+## screen; anything further than `cull` from every player is removed.
+##
+## count_radius reaches past the ring's outer edge. The prototype counted
+## within 950px of a ring that ran 880–1300, so most of what it spawned
+## never counted and a still player in tier 1 collected 26 enemies in 20
+## seconds against a target of 4 (measured here). See PROJECT.md §6.
+const SPAWN := {
+	"density": [0, 4, 10, 17, 24],
+	"mix": {
+		1: [["walker", 0.94], ["runner", 0.06]],
+		2: [["walker", 0.70], ["runner", 0.28], ["brute", 0.02]],
+		3: [["walker", 0.52], ["runner", 0.36], ["brute", 0.12]],
+		4: [["walker", 0.40], ["runner", 0.36], ["brute", 0.24]],
+	},
+	"max_enemies": 160,
+	"interval": 0.6,
+	"count_radius": 1400.0,
+	"ring_min": 880.0,
+	"ring_width": 420.0,
+	"cull": 2400.0,
+	"seed_count": 5,
+	"seed_radius": 1100.0,
+	"light_sense_bonus": 90.0,
+	"sneak_sense_mul": 0.55,
+}
+
+## How loud things are, as a radius. Guns carry their own in WEAPONS.
+const NOISE := {
+	"chop": 140.0,
+	"build": 190.0,
+	"turret": 520.0,
+	"generator": 300.0,
+	"pick_snap": 260.0,
+	"engine": 420.0,
+	"crash": 380.0,
+	"alert_time": 8.0,
+}
+
+## The quiet field: killing buys local, temporary calm. Raids ignore it.
+const QUIET := {
+	"cell": 256.0,
+	"per_kill": 1.0,
+	"max": 6.0,
+	"decay_per_sec": 6.0 / 270.0,
+	"suppress_at": 2.9,
+	"struct_quiet": 1.6,
+	"struct_radius": 400.0,
+	"floor": 0.3,
+	"kernel_reach": 1.7,
+}
+
+## Navigation: a local flow field around each living player, rebuilt when
+## they move a tile or the world changes. Enemies beyond it steer straight.
+const NAV := {
+	"radius_tiles": 40,
+	"rebuild_after_tiles": 1,
+	"max_age": 1.5,
+}
+
+# --------------------------------------------------------------- threat/raid --
+
+const THREAT := {
+	"max": 100.0,
+	"decay_per_sec": 0.12,
+	"kill_walk": 0.35,
+	"per_gunshot": 1.0,
+	"per_build": 1.0,
+	"per_craft": 0.4,
+	"per_loot": 0.45,
+	"generator_per_sec": 0.55,
+	"turret_per_shot": 0.06,
+	"post_raid_reset": 14.0,
+	"warn_at": [40.0, 70.0, 90.0],
+}
+
+const RAIDS := [
+	{"name": "SCATTERED HORDE", "waves": 2, "base": 8,  "growth": 3, "mix": {"walker": 1.0}, "reward": {"scrap": 30, "wood": 30, "parts": 2}, "xp": 120},
+	{"name": "RUNNING HORDE",   "waves": 3, "base": 11, "growth": 4, "mix": {"walker": 0.65, "runner": 0.35}, "reward": {"scrap": 45, "parts": 3, "elec": 10}, "xp": 220},
+	{"name": "HEAVY HORDE",     "waves": 3, "base": 14, "growth": 5, "mix": {"walker": 0.55, "runner": 0.3, "brute": 0.15}, "reward": {"scrap": 60, "parts": 5, "elec": 15, "mil": 3}, "xp": 360},
+	{"name": "SIEGE",           "waves": 4, "base": 18, "growth": 6, "mix": {"walker": 0.45, "runner": 0.33, "brute": 0.22}, "reward": {"scrap": 80, "parts": 7, "elec": 20, "mil": 6}, "xp": 520},
+	{"name": "BEHEMOTH SIEGE",  "waves": 4, "base": 22, "growth": 7, "mix": {"walker": 0.4, "runner": 0.32, "brute": 0.25, "behemoth": 0.03}, "reward": {"scrap": 110, "parts": 10, "elec": 28, "mil": 12}, "xp": 800},
+]
+
+const RAID := {
+	"warning_time": 12.0,
+	"spawn_interval": 0.22,
+	"ring_min": 520.0,
+	"ring_max": 800.0,
+	"relocate_min": 360.0,
+	"relocate_max": 560.0,
+	"hp_per_index": 0.06,
+	"stall_interval": 4.0,
+	"stall_limit": 12.0,
+	"max_seconds": 300.0,
+	"breakoff_time": 25.0,
+	"breakoff_radius": 900.0,
+	"inter_wave": 3.5,
+	"anchor_on_player_beyond": 1500.0,
+	"player_lure": 300.0,
+	"kill_xp_mul": 1.25,
+}
+
+
+## Raids past the authored list keep scaling instead of stopping.
+static func raid_spec(index: int) -> Dictionary:
+	if index < RAIDS.size():
+		return RAIDS[index]
+	var last: Dictionary = RAIDS[RAIDS.size() - 1]
+	var over := index - RAIDS.size() + 1
+	var spec := last.duplicate(true)
+	spec.name = "BEHEMOTH SIEGE +%d" % over
+	spec.base = last.base + over * 5
+	spec.growth = last.growth + over
+	spec.xp = roundi(last.xp * (1.0 + over * 0.35))
+	var reward := {}
+	for id in last.reward:
+		reward[id] = roundi(last.reward[id] * (1.0 + over * 0.3))
+	spec.reward = reward
+	return spec
+
 # ---------------------------------------------------------------- districts --
 
 ## Order matters: location_at_px returns the first match, so the small named
