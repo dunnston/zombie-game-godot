@@ -173,7 +173,10 @@ static func prop_in_front(sim: GameSim, p: PlayerSim, w: Dictionary) -> Dictiona
 	var prop := sim.world.prop_at_tile(floori(at.x / Config.TILE), floori(at.y / Config.TILE))
 	if prop.is_empty():
 		return {}
-	var rule: Dictionary = HARVEST.get(prop.harvest, {})
+	# Defensive: everything on the prop grid today is harvestable, but the
+	# grid is what fire walks to find scenery, and the moment anything without
+	# a `harvest` is indexed there this is the line that would have crashed.
+	var rule: Dictionary = HARVEST.get(prop.get("harvest", ""), {})
 	if rule.is_empty() or (rule.has("needs") and not w.get(rule.needs, false)):
 		return {}
 	return prop
@@ -196,7 +199,10 @@ static func chop_prop(sim: GameSim, p: PlayerSim, w: Dictionary, dmg: float) -> 
 	var prop := sim.world.prop_at_tile(floori(at.x / Config.TILE), floori(at.y / Config.TILE))
 	if prop.is_empty():
 		return false
-	var rule: Dictionary = HARVEST.get(prop.harvest, HARVEST.wood)
+	var harvest := String(prop.get("harvest", ""))
+	if harvest.is_empty():
+		return false                 # scenery with nothing to give is not a chop
+	var rule: Dictionary = HARVEST.get(harvest, HARVEST.wood)
 
 	if rule.has("needs") and not w.get(rule.needs, false):
 		if sim.time - p.needs_hint_at > 6.0:

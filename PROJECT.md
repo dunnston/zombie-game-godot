@@ -608,9 +608,9 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    and rarely enough to feel like something, and is the character sheet worth
    a tab or does it want to be a menu you stop for? And 4b adds the big one:
    **is night dark enough to matter and light enough to play in?** The curve
-   peaks at 0.82 alpha, which is the prototype's number and is very dark on a
-   real monitor; the torch is the only answer to it at the moment. It is the
-   most likely thing in this phase to need a feel pass.
+   peaks at 0.82 alpha, which is the prototype's number, and the tint is now
+   applied the way the prototype applied it — so this is the real curve
+   rather than the too-dark one the first cut of `LightView` produced.
 1. **Phase 4c — survivors and vehicles.** The roster capped by Charisma *and*
    bunks, four jobs, Rations upkeep from the shared stash, permanent death;
    about thirty cars, 62% locked, opened by a key, a lockpick or Hotwire.
@@ -741,10 +741,18 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 219  asserts: 3683  failures: 0   (9.9s)
-tests: 242  asserts: 3778  failures: 0   (--all, 18.8s)
+tests: 219  asserts: 3683  failures: 0
+tests: 246  asserts: 3788  failures: 0   (--all)
 SMOKE done checkpoints=30 failures=0 exit=0
 ```
+
+**On timings.** The ten-second agreement is about the edit loop staying quick,
+and the number is machine- and load-dependent: the identical commit measured
+9.9s and 12.1s on the same PC within one session. Compare a change against a
+baseline measured in the same sitting rather than against a figure written
+down here — the fast tier was 9.57s on `main` when Phase 4b started, and 4b
+added about 0.3s to it.
+
 
 Since PR #7 the runner fails a test on any engine error logged while it ran,
 so a method that aborts partway can no longer report as passing. Four

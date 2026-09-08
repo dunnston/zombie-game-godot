@@ -661,3 +661,62 @@ Numbers: 219 tests / 3683 assertions / 9.9s fast, 242 / 18.8s with `--all`,
 number and is *very* dark on a real monitor — the screenshots are close to
 unreadable away from the torch. That is the most likely thing here to need a
 feel pass, and it is one number in `Config.DARKNESS_KEYS`.
+
+## Review — Phase 4b Codex pass on PR #9 (2026-09-08)
+
+Four findings. Two P1s that were straightforwardly right, one P2 that was
+right and material, and one P2 that was right about the symptom and wrong
+about the cure.
+
+- [x] **P1 A burn sprayed blood sixty times a second.** `Damage.damage_enemy`
+      emits a `hit`, and the effects view answers each one with seven blood
+      particles and a damage number. Fire calls it every frame, so one enemy
+      surviving a 6.5s burn left about three thousand particles behind it and
+      a burning horde would have dropped the frame rate through the floor.
+      `damage_enemy` gained `no_fx` beside the existing `no_alert` — the two
+      are separate problems and now have separate switches. A burning enemy
+      is drawn from `burn_t` by `EnemyView` instead, which costs nothing.
+- [x] **P1 Standing in a fire made you invulnerable.** Fire went through
+      `damage_player`, which floors every accepted hit at 1 and grants
+      `invuln_after_hit`. So 16 dps became about 3, and — much worse — the
+      i-frames that stop a zombie hitting you twice made a bonfire the safest
+      place in the game. Fire now goes through `Damage.burn_player`, which
+      applies the exact amount, respects armour, and touches neither the
+      invulnerability window nor the healing interrupt. Three tests.
+- [x] **P2 The night tint was applied wrongly, and that is why night was so
+      dark.** An overlay leaves `pixel * (1 - a) + tint * a`; a
+      `CanvasModulate` can only multiply, and folding the tint into it gives
+      `pixel * ((1 - a) + tint * a)` — a different curve that leaves black
+      black and drags every dark colour well below where the overlay put it.
+      The multiply is now just the multiply, and the additive term is a
+      `DirectionalLight2D`, which in 2D adds a constant across the canvas and
+      is exactly the missing `tint * a`. Night is legible now.
+
+      **This corrects what the 4b review said.** It claimed the darkness was
+      the prototype's number and probably wanted a feel pass. It was a bug in
+      the light maths, not a tuning question.
+- [x] **P2 Hay and reeds cannot catch fire — kept, and documented.** The
+      observation is correct: both are in `Config.FLAMMABLE`, and the
+      generator appends both to `props` without a `prop_grid` entry, so
+      `prop_at_tile` can never return them. **The prototype does exactly the
+      same** — its `addScenery` does not touch `propGrid` either — so the
+      port is faithful and the table is aspirational in both.
+
+      Indexing them was tried and reverted. It works, but it puts
+      non-harvestable props in front of the melee chop check (which read
+      `prop.harvest` directly and would have crashed on a hay bale) and the
+      interact scan, and it moves the simulation enough to break four smoke
+      checkpoints. That is a gameplay change wanting its own playtest, not a
+      line in a review pass. `Config.FLAMMABLE` now says so, a test asserts
+      the gap rather than a capability the game does not have, and the two
+      `prop.harvest` reads in `combat.gd` are guarded anyway.
+
+Also worth recording: **the ten-second timing figures in this repo are not
+comparable across sittings.** The identical 4b commit measured 9.87s early in
+the session and 12.13s an hour later on the same machine. Every conclusion
+about the budget has to come from an A/B measured back to back, which is how
+the fire enemy-scan regression was found and how these fixes were confirmed
+to cost nothing.
+
+Numbers: 219 tests / 3683 assertions fast, 246 / 3788 with `--all`, 30 smoke
+checkpoints, zero failures.

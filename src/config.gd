@@ -333,6 +333,20 @@ const FIRE := {
 }
 
 ## Scenery that burns. Rock, boulder, silo and wreck do not.
+##
+## **`hay` and `reed` are in this list and cannot currently catch**, and the
+## same is true in the prototype this is ported from. Fire finds scenery by
+## tile through `World.prop_at_tile`, and both are appended straight to
+## `world.props` by the generator without a `prop_grid` entry — hay because
+## `_add_scenery` never indexed non-harvestable scenery, reeds because the
+## shoreline pass appends them directly. They are left in the table because
+## a hay bale *is* flammable and the list is the design, not the plumbing.
+##
+## Making them reachable is a one-line index pass, but it is a gameplay
+## change rather than a fix: it puts non-harvestable props in front of the
+## melee chop check and the interact scan, and measurably moves the
+## simulation (it broke four smoke checkpoints when tried). It wants its own
+## change and its own playtest, not a line in a review pass.
 const FLAMMABLE := ["tree", "pine", "bush", "thicket", "litter", "hay", "reed"]
 
 # ---------------------------------------------------------------- resources --

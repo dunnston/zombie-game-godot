@@ -89,10 +89,11 @@ func _burn_enemies(sim: GameSim, dt: float) -> void:
 			continue
 		still = true
 		e.burn_t -= dt
-		# `no_alert`: a burn ticks several times a second and must not keep
-		# resetting what the enemy was doing, or a burning walker would stand
-		# still being re-alerted instead of walking at you on fire.
-		Damage.damage_enemy(sim, e, F.burn_dps * dt, e.pos, 0.0, false, "fire", true)
+		# `no_alert` so a burn does not re-startle the enemy sixty times a
+		# second, and `no_fx` so it does not emit a hit event that often — the
+		# effects view answers each one with seven blood particles and a
+		# damage number. A burning enemy is drawn from `burn_t` by EnemyView.
+		Damage.damage_enemy(sim, e, F.burn_dps * dt, e.pos, 0.0, false, "fire", true, true)
 		if e.dead:
 			continue
 		e.burn_spread_t -= dt
@@ -148,7 +149,7 @@ func _hurt_anything_standing_in(sim: GameSim, f: Dictionary, dt: float) -> void:
 		if q.dead:
 			continue
 		if q.pos.distance_squared_to(f.pos) < r2:
-			Damage.damage_player(sim, q, dmg, f.pos, "fire")
+			Damage.burn_player(sim, q, dmg, f.pos)
 
 
 ## One spread roll from a point.

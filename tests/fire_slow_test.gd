@@ -259,3 +259,70 @@ func test_fire_spreads_along_a_treeline() -> void:
 		if caught > 1:
 			spread_in += 1
 	gt(spread_in, 3, "fire took more than one tree in %d of six treelines" % spread_in)
+
+# ------------------------------------------------------ what a burn costs --
+
+func test_a_burn_does_not_spray_blood_sixty_times_a_second() -> void:
+	# `Damage.damage_enemy` emits a `hit` for the effects view to answer with
+	# seven blood particles and a damage number. A burn ticks every frame, so
+	# without `no_fx` one enemy surviving 6.5s of fire would leave three
+	# thousand particles behind it and a burning horde would drop the frame
+	# rate through the floor.
+	var e := sim.enemies.spawn("brute", tile_centre(plot + Vector2i(3, 0)))
+	e.hp = 99999.0
+	sim.fire.ignite(e)
+	sim.events.clear()
+	_tick_fire(2.0)
+	eq(events_of(sim, "hit").size(), 0, "a burn is not a hit, cosmetically")
+	ok(e.hp < 99999.0, "but it is still doing damage")
+
+
+func test_standing_in_a_fire_does_not_make_you_invulnerable() -> void:
+	# `damage_player` grants invuln_after_hit on every accepted hit, which is
+	# what stops a zombie hitting you twice in a frame. Routing fire through
+	# it would make a bonfire the safest place in the game.
+	var prop := _plant("bush", plot.x + 1, plot.y)
+	p.pos = Vector2(prop.x, prop.y)
+	sim.fire.ignite_prop(sim, prop)
+	_tick_fire(1.0)
+	near(p.invuln, 0.0, 1e-9, "fire grants no i-frames")
+
+	# And a zombie can still reach you while you stand in it.
+	p.invuln = 0.0
+	var before := p.hp
+	var dealt := Damage.damage_player(sim, p, 20.0, p.pos + Vector2(20, 0))
+	gt(dealt, 0.0, "the bite landed")
+	ok(p.hp < before)
+
+
+func test_fire_deals_the_dps_it_advertises() -> void:
+	# Through `damage_player` every tick would be floored at 1 damage, turning
+	# 16 dps into 60 — and gated by i-frames, turning it into about 3.
+	var prop := _plant("bush", plot.x + 3, plot.y)
+	p.pos = Vector2(prop.x, prop.y)
+	p.hp = p.max_hp
+	sim.fire.ignite_prop(sim, prop)
+	var before := p.hp
+	_tick_fire(1.0)
+	var lost := before - p.hp
+	near(lost, Config.FIRE.prop_dps, 1.0, "one second in a fire costs about its dps")
+
+
+func test_hay_and_reeds_are_declared_flammable_but_cannot_be_reached() -> void:
+	# Honest documentation of a known gap rather than a claim the game does
+	# not deliver. Fire finds scenery by tile, and the generator appends hay
+	# and reeds to `props` without a `prop_grid` entry — so they are in
+	# `Config.FLAMMABLE` and can never catch. The prototype has exactly the
+	# same gap. If this test starts failing, someone has indexed them, and
+	# `Config.FLAMMABLE`'s comment plus this test should go.
+	for kind in ["hay", "reed"]:
+		var total := 0
+		var reachable := 0
+		for prop in sim.world.props:
+			if String(prop.get("kind", "")) != kind:
+				continue
+			total += 1
+			if prop.has("tx") and sim.world.prop_at_tile(int(prop.tx), int(prop.ty)) == prop:
+				reachable += 1
+		gt(total, 0, "the generator makes %s at all" % kind)
+		eq(reachable, 0, "%s is flammable on paper and unreachable in fact" % kind)

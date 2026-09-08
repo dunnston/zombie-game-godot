@@ -20,6 +20,9 @@ static var _cone: Texture2D
 
 var sim: GameSim
 var modulate_node: CanvasModulate
+## The additive half of the night tint. A DirectionalLight2D in 2D lights the
+## whole canvas evenly, which is exactly the constant term an overlay adds.
+var ambient: DirectionalLight2D
 var _pool: Array[PointLight2D] = []
 var _used := 0
 ## Muzzle flashes are events, not states: each one is a light with a life.
@@ -37,6 +40,12 @@ func _ready() -> void:
 	modulate_node = CanvasModulate.new()
 	modulate_node.color = Color.WHITE
 	add_child(modulate_node)
+	ambient = DirectionalLight2D.new()
+	ambient.blend_mode = Light2D.BLEND_MODE_ADD
+	ambient.shadow_enabled = false
+	ambient.energy = 0.0
+	ambient.visible = false
+	add_child(ambient)
 
 
 func on_event(ev: Dictionary) -> void:
@@ -57,15 +66,22 @@ func on_event(ev: Dictionary) -> void:
 func tick() -> void:
 	var dark: Dictionary = sim.clock.darkness()
 	var alpha: float = float(dark.alpha)
-	# A translucent overlay of `color` at `alpha` darkens a pixel to
-	# `pixel * (1 - alpha) + color * alpha`. CanvasModulate only multiplies,
-	# so fold the constant term in: the result is the same curve without a
-	# second full-screen draw.
 	var tint := Color(String(dark.color))
-	modulate_node.color = Color(
-		(1.0 - alpha) + tint.r * alpha,
-		(1.0 - alpha) + tint.g * alpha,
-		(1.0 - alpha) + tint.b * alpha)
+	# A translucent overlay of `color` at `alpha` leaves a pixel at
+	# `pixel * (1 - alpha) + color * alpha`. That is a multiply *and* an add,
+	# and a CanvasModulate can only do the multiply — folding the tint into it
+	# gives `pixel * ((1 - alpha) + color * alpha)`, which is a different
+	# curve: it leaves black pixels black instead of tinting them, and drags
+	# every dark colour far below where the overlay would have put it. Night
+	# came out much darker than the numbers say it should be.
+	#
+	# So the multiply is the multiply, and the additive term is a
+	# DirectionalLight2D — which in 2D adds a constant across the whole canvas
+	# and is exactly the `color * alpha` that was missing.
+	modulate_node.color = Color(1.0 - alpha, 1.0 - alpha, 1.0 - alpha)
+	ambient.color = tint
+	ambient.energy = alpha
+	ambient.visible = alpha > 0.001
 
 	_used = 0
 	# Nothing needs lighting in broad daylight, and a hundred idle lights are
