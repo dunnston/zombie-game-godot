@@ -1259,6 +1259,65 @@ func move_circle(pos: Vector2, d: Vector2, r: float) -> Vector2:
 	return Vector2(clampf(x, r + 1.0, lim), clampf(y, r + 1.0, lim))
 
 
+## What stops a round: everything that stops a foot except water and fences.
+## A river is a barrier you can shoot across; a farm fence is knee high.
+func bullet_blocks_px(px: float, py: float) -> bool:
+	var tx := floori(px / TILE)
+	var ty := floori(py / TILE)
+	if not is_blocked_tile(tx, ty):
+		return false
+	if tx < 0 or ty < 0 or tx >= W or ty >= W:
+		return true
+	return Config.SHOOT_OVER_BY_TILE[tiles[ty * W + tx]] == 0
+
+
+## Sight: nothing solid to feet between the two points. Trees and boulders
+## block it, so an enemy cannot track you through a building.
+func has_line_of_sight(a: Vector2, b: Vector2, step := 12.0) -> bool:
+	var d := b - a
+	var len := d.length()
+	if len < 1e-4:
+		return true
+	var n := ceili(len / step)
+	for i in range(1, n + 1):
+		var t := float(i) / n
+		if is_blocked_px(a.x + d.x * t, a.y + d.y * t):
+			return false
+	return true
+
+
+## The same rule bullets use, so a turret never locks onto something behind
+## a tree and empties its magazine into the trunk.
+func has_terrain_line_of_sight(a: Vector2, b: Vector2, step := 14.0) -> bool:
+	var d := b - a
+	var len := d.length()
+	if len < 1e-4:
+		return true
+	var n := ceili(len / step)
+	for i in range(1, n + 1):
+		var t := float(i) / n
+		if bullet_blocks_px(a.x + d.x * t, a.y + d.y * t):
+			return false
+	return true
+
+
+## An unblocked point on a ring around a centre, inside the map, or
+## Vector2.INF after `tries` misses.
+func find_open_spot(rng_: Rng, centre: Vector2, min_r: float, max_r: float, tries := 26) -> Vector2:
+	var lim := W * TILE - TILE * 2
+	for i in range(tries):
+		var a := rng_.frange(0.0, TAU)
+		var r := rng_.frange(min_r, max_r)
+		var x := centre.x + cos(a) * r
+		var y := centre.y + sin(a) * r
+		if x < TILE * 2 or y < TILE * 2 or x > lim or y > lim:
+			continue
+		if is_blocked_px(x, y):
+			continue
+		return Vector2(x, y)
+	return Vector2.INF
+
+
 ## Ejects an entity that has ended up inside geometry. Cheap no-op normally.
 func unstick(pos: Vector2, r: float) -> Vector2:
 	if not circle_hits_solid(pos.x, pos.y, r):
