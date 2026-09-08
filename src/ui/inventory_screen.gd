@@ -36,6 +36,9 @@ var mode := "pack"
 ## than the container itself, so the reach check happens every frame and
 ## walking away closes the screen.
 var store_tile := Vector2i(-1, -1)
+## The car whose boot is open, or 0. A car is not on a tile, so it needs its
+## own handle — and the reach check has to follow it, because it moves.
+var store_car := 0
 var craft_top := 0               # first visible recipe row
 var char_top := 0                # first visible perk row
 ## Which attribute's tree the character sheet is showing.
@@ -59,6 +62,7 @@ func toggle() -> void:
 		if mode == "store":
 			mode = "pack"
 		store_tile = Vector2i(-1, -1)
+		store_car = 0
 	else:
 		_cancel_drag()
 
@@ -66,6 +70,16 @@ func toggle() -> void:
 ## Walking up to a chest and pressing E opens it here.
 func open_store(tile: Vector2i) -> void:
 	store_tile = tile
+	store_car = 0
+	mode = "store"
+	visible = true
+
+
+## The boot of a car, in the same two-panel screen a chest uses. The boot is a
+## `Slots` for exactly this reason: one storage screen, not two.
+func open_boot(car_id: int) -> void:
+	store_car = car_id
+	store_tile = Vector2i(-1, -1)
 	mode = "store"
 	visible = true
 
@@ -73,6 +87,12 @@ func open_store(tile: Vector2i) -> void:
 ## The container being looked into, or null when there is none in reach —
 ## which is also how the screen knows to close itself.
 func store() -> Slots:
+	if store_car > 0:
+		var v := sim.cars.by_id(store_car)
+		if v.is_empty():
+			return null
+		var r: float = Config.CAR.enter_range
+		return v.trunk if player.pos.distance_squared_to(v.pos) <= r * r else null
 	if store_tile.x < 0:
 		return null
 	return sim.structs.reachable_store(player, store_tile.x, store_tile.y)
@@ -332,6 +352,10 @@ func _buttons() -> Array[Dictionary]:
 	if mode == "store":
 		out.append({"id": "deposit", "label": "DEPOSIT ALL", "rect": Rect2(panel.position.x + 24.0, y, 120.0, 24.0)})
 		out.append({"id": "withdraw", "label": "TAKE SUPPLIES", "rect": Rect2(panel.position.x + 152.0, y, 130.0, 24.0)})
+		# Refuelling belongs on the boot screen: it is the other thing you
+		# stopped the car to do, and it needs somewhere to live.
+		if store_car > 0:
+			out.append({"id": "refuel", "label": "REFUEL", "rect": Rect2(panel.position.x + 290.0, y, 90.0, 24.0)})
 	elif mode == "pack":
 		out.append({"id": "equip_best", "label": "EQUIP BEST", "rect": Rect2(panel.position.x + 24.0, y, 120.0, 24.0)})
 	return out
@@ -343,6 +367,8 @@ func _press_button(id: String) -> void:
 			sim.structs.deposit_all(sim, player, store())
 		"withdraw":
 			sim.structs.withdraw_supplies(sim, player, store())
+		"refuel":
+			sim.cars.refuel(sim, sim.cars.by_id(store_car), player)
 		"equip_best":
 			Equipment.equip_best(sim, player)
 
@@ -482,8 +508,14 @@ func _draw() -> void:
 			_draw_crew(font, panel)
 		"store":
 			var s := store()
-			draw_string(font, panel.position + Vector2(24, 60),
-				"%d / %d slots" % [s.used() if s != null else 0, s.size() if s != null else 0],
+			var label := "%d / %d slots" % [s.used() if s != null else 0, s.size() if s != null else 0]
+			if store_car > 0:
+				var v := sim.cars.by_id(store_car)
+				if not v.is_empty():
+					label = "Boot  %d / %d units  ·  fuel %d / %d" % [
+						Vehicles.trunk_load(v), int(Config.CAR.trunk_cap),
+						roundi(v.fuel), int(Config.CAR.fuel_max)]
+			draw_string(font, panel.position + Vector2(24, 60), label,
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
 		_:
 			var dr := player.armor_dr

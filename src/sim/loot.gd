@@ -93,6 +93,11 @@ static func roll_container(sim: GameSim, c: Dictionary, loot_mul := 1.0, rare_mu
 		totals[e.id] = totals.get(e.id, 0) + n
 	for id in order:
 		out.append({"id": id, "n": totals[id]})
+	# Guaranteed contents, on top of whatever the table rolled: a car key is
+	# planted in a specific container so the car it opens is always findable,
+	# rather than left to a weighted roll that might never produce it.
+	for e in c.get("extra", []):
+		out.append({"id": String(e.id), "n": int(e.n)})
 	return out
 
 
@@ -118,6 +123,21 @@ static func _weighted_pick(sim: GameSim, table: Array) -> Dictionary:
 static func give_entry(sim: GameSim, p: PlayerSim, entry: Dictionary) -> Dictionary:
 	var id: String = entry.id
 	var n: int = entry.get("n", 1)
+
+	# A car key weighs nothing, takes no slot, and cannot be dropped — it is a
+	# fact you have learned rather than a thing you carry. That is why it is
+	# not a resource: a key you could accidentally leave in a chest would make
+	# "whose car is this?" unanswerable again.
+	if id.begins_with("key:"):
+		var key := id.substr(4)
+		if not p.car_keys.has(key):
+			p.car_keys.append(key)
+		var which := ""
+		for v in sim.cars.list:
+			if v.key_id == key:
+				which = " — it fits a car nearby"
+				break
+		return {"text": "Car key%s" % which, "color": "#d0c46a", "major": true}
 
 	if id.begins_with("weapon:"):
 		var wid := id.substr(7)

@@ -377,9 +377,6 @@ func test_a_crew_survives_a_save_and_is_re_derived_not_stored() -> void:
 	eq(int(d.rescues.size()), sim.crew.rescues.size())
 
 
-func test_the_version_moved_with_the_crew() -> void:
-	eq(SaveGame.VERSION, 4)
-
 
 # ------------------------------------------------- what the review found --
 

@@ -189,8 +189,7 @@ const PERKS := [
 	{"id": "fireControl", "attr": "int", "req": 5, "max": 2, "name": "Fire Control",
 		"desc": "+35% turret damage per rank, and half that in reach."},
 	{"id": "hotwire", "attr": "int", "req": 5, "max": 2, "name": "Hotwire",
-		"desc": "Start any locked car without a key. Rank 2 does it twice as fast.",
-		"needs": "cars"},
+		"desc": "Start any locked car without a key. Rank 2 does it twice as fast."},
 
 	# ------------------------------------------------------------------ luck --
 	{"id": "scavengersLuck", "attr": "lck", "req": 2, "max": 3, "name": "Scavenger's Luck",
@@ -984,6 +983,55 @@ const BUILDER := {
 ## this is the same rule again): every walk to a thing has a give-up timer, and
 ## "no progress for `give_up_after`" drops the target and picks another.
 const SURVIVOR_PROGRESS := 900.0    # squared-distance closed to count as progress
+
+# ----------------------------------------------------------------- vehicles --
+
+## Deliberately arcade: throttle, reverse, and steering that only bites when
+## you are actually moving. Nobody wants to parallel-park during a horde.
+const CAR := {
+	"accel": 340.0,
+	"reverse_accel": 180.0,
+	"max_speed": 430.0,
+	"max_reverse": 150.0,
+	"brake": 520.0,
+	"drag": 1.1,
+	"steer": 2.5,             # radians/sec at speed
+	"steer_at_speed": 170.0,  # speed at which steering is fully effective
+	"r": 20.0,
+
+	"max_hp": 420.0,
+	"fuel_max": 60.0,
+	"burn_per_sec": 0.55,     # idling
+	"burn_per_speed": 0.004,  # plus this per unit of speed
+	"trunk_cap": 400,      # units, not slots — a boot holds a haul by bulk
+	"trunk_slots": 24,
+
+	"ram_damage": 46.0,       # to an enemy you hit at speed
+	"ram_self_damage": 3.0,
+	"ram_speed": 60.0,        # below this you are nudging, not running over
+	"crash_speed": 150.0,     # above this, hitting something hurts
+	"crash_damage_per": 0.14,
+	"noise_radius": 640.0,
+	"noise_every": 0.5,
+	"threat_per_sec": 0.5,
+	"quiet_speed": 30.0,      # under this, an engine draws nothing
+
+	"enter_range": 74.0,
+	"exit_range": 34.0,
+	"locked_chance": 0.62,
+	## Most abandoned cars are close to empty; a full tank is a find.
+	"full_tank_chance": 0.25,
+	"pick_base_chance": 0.34, # before Perception
+	"pick_per_perception": 0.07,
+	"pick_min": 0.15,
+	"pick_max": 0.92,
+	"pick_time": 1.6,
+	"hotwire_time": 3.2,
+	## How far from a locked car its key may be hidden.
+	"key_range": 520.0,
+	"salvage_scrap": [14, 27],
+	"salvage_parts_chance": 0.45,
+}
 
 # -------------------------------------------------------------- loot tables --
 

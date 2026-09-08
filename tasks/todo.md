@@ -228,9 +228,14 @@ Split from vehicles: two systems in one PR is one review of neither.
 
 ### 4c-vehicles — cars
 
-- [ ] ~30 cars, 62 percent locked; key, lockpick or Hotwire
-- [ ] Arcade handling, fuel, roadkill, a 400-unit boot
-- [ ] Take the `needs` gate off Hotwire once they exist
+- [x] ~30 cars, 62 percent locked; key, lockpick or Hotwire
+- [x] Arcade handling, fuel, roadkill, a 400-unit boot
+- [x] A parked car blocks its tiles, a driven one does not, and claiming asks
+      both collision maps
+- [x] A car key is learned rather than carried
+- [x] `SaveGame` v5 stores only what a run changed about a car
+- [x] The `needs` gate comes off Hotwire; only Sixth Sense is left
+- [x] 33 tests; smoke finds a car, drives it and parks it
 
 ### 4d — the front door
 
@@ -834,4 +839,93 @@ behaviour — a single bill spending a whole Ration, and debt reaching exactly
 zero. `debt` is a running fraction now, not a shortage, and the tests say so.
 
 Numbers: 249 tests / 3934 assertions fast, 279 / 4047 with `--all`, 33 smoke
+checkpoints, zero failures.
+
+## Review — Phase 4c, vehicles (2026-09-08)
+
+The second half of 4c, on its own branch as planned.
+
+Two bugs found by writing the tests rather than by running the game, both of
+the same shape — **a thing that exists in two places and was only asked about
+in one**:
+
+- **Claiming a parked tile only asked the terrain bitmap.** A wall lives in
+  `Structures`, not in `world.blocked` (invariant 2), so a car could park
+  inside your own gate. `is_blocked_tile(..., structs)` asks both.
+- **The driver was drawn a frame behind their own car.** Players tick before
+  cars, so copying the car's position in the player tick copied last frame's.
+  The car sets it at the end of its own tick now: the car owns where its
+  driver is.
+
+One decision worth recording. **A car key is learned, not carried** — no
+weight, no slot, undroppable, held as a plain id on the player. The
+alternative is a resource you could leave in a chest, and the whole reason
+keys are planted in the first place is that "whose car is this?" should always
+have a findable answer.
+
+And one performance note, because it is the third time this has come up.
+`plant_keys` scanned all six hundred containers for each locked car, and it
+runs on every `GameSim.start` — which is every test. Five milliseconds each,
+about 1.4 seconds across the suite, and `sim.start` went from 0.38ms to
+7.33ms. Bucketing the containers on a coarse grid took it to 0.54ms and
+`start` back to 1.39ms. Worth remembering that anything hung off `start` is
+paid for once per test, not once per run.
+
+Measured back to back: `main` 10.13s, this branch 12.58s. Vehicles cost about
+2.45s, of which roughly 1.6s is the test file itself (it needs a world of its
+own — driving writes to `world.blocked`, so these tests would otherwise leave
+the shared world full of holes for every file after them).
+
+Numbers: 281 tests / 4227 assertions fast, 311 / 4340 with `--all`, 36 smoke
+checkpoints, zero failures.
+
+**Phase 4 is now one PR from done.** 4d is the title screen, save slots,
+autosave, rebindable keys, the pause menu, the minimap — which is the last
+thing Sixth Sense is waiting on — and audio.
+
+## Review — Phase 4c vehicles Codex pass on PR #11 (2026-09-08)
+
+Eight findings, four of them P1, and **all eight real**. The honest summary is
+that I built the vehicle system and wired only its front door: the keys could
+be planted but not picked up, the boot could be filled but not opened, and the
+one thing a car is guaranteed to be parked next to — a person — lost the E key
+to it.
+
+- [x] **P1 The key path was entirely dead.** `roll_container` only rolls
+      `Config.LOOT[c.table]` and never read `extra`, so every planted key sat
+      on a container that could be searched empty. My test asserted the marker
+      was *placed*; it never searched the container. That is the same mistake
+      as the survivor bullet owner two PRs ago — asserting the setup rather
+      than the path. The new test searches the container and unlocks the car.
+- [x] **P1 A stripped car came back on load.** `_car_record` omits a salvaged
+      car and the loader only overlays records onto a freshly generated fleet,
+      so salvage → save → reload was an endless scrap mine. Anything the save
+      does not mention is now removed.
+- [x] **P1 The boot and refuelling had no caller but a test.** Four hundred
+      units of storage and a refuel function that no key reached. Tap E drives,
+      **hold E opens the boot** — the same tap/hold split a container uses —
+      and the boot became a `Slots` so the existing two-panel store screen
+      opens it, with REFUEL as a button on it. One storage UI, not two.
+- [x] **P1 A car outranked a dying survivor.** The vehicle check returned
+      before the person check, so somebody bleeding out beside a parked car
+      could not be helped without walking away from it first. "People come
+      before things" is a comment I wrote in the survivors PR and broke in the
+      next one; the ordering now matches the comment.
+- [x] **P2 Every car was drawn twice**, and driving one left a phantom at its
+      spawn point, because `PropRenderer` still bucketed `vehicle_spawns`.
+- [x] **P2 A key loot result had no `color`**, which `grant_loot` reads
+      unconditionally — harmless while the key path was dead, and a crash the
+      moment it was fixed.
+- [x] **P2 `pick_time` was a number nothing read.** Picking resolved on the
+      interaction frame. It is a held action now, like hotwiring and healing,
+      and can be interrupted.
+- [x] **P2 An idling engine burned no fuel**, because the burn was gated on
+      moving. `burn_per_sec` is explicitly the idle rate.
+
+The pattern across the P1s is worth naming: **four of them are a feature built
+and not connected.** The tests all passed because they called the functions
+directly. What would have caught them earlier is asking, for each new function,
+*which key press reaches this* — and writing that test instead.
+
+Numbers: 288 tests / 4249 assertions fast, 318 / 4362 with `--all`, 36 smoke
 checkpoints, zero failures.
