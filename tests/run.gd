@@ -11,6 +11,30 @@ extends SceneTree
 ## agreement is that `tools\test` stays under ten seconds — the slow tier
 ## runs with `tools\test --all`, once per branch, beside the smoke run.
 
+## Any engine-level error raised while a test runs. A GDScript runtime error
+## inside a test method aborts that method and returns to this loop: the test
+## then reports as passing on however few assertions it reached before the
+## abort. Four methods in building_test.gd sat like that. An error the engine
+## logged during a test is a failed test, so the counts in the summary are
+## counts of tests that actually ran to the end.
+##
+## Keep `_log_error` cheap and format-free: it runs inside the engine's own
+## error path, and an error raised in here would recurse.
+class ErrorSpy extends Logger:
+	var caught := []
+
+	func _log_error(function: String, file: String, line: int, code: String, rationale: String,
+			_editor_notify: bool, error_type: int, _backtraces: Array) -> void:
+		if error_type == Logger.ERROR_TYPE_WARNING:
+			return
+		# Script errors carry the message in `code` and leave `rationale` empty;
+		# push_error does the reverse.
+		caught.append([file, line, function, code if rationale.is_empty() else rationale])
+
+	func _log_message(_message: String, _error: bool) -> void:
+		pass
+
+
 func _init() -> void:
 	var filter := ""
 	var run_all := false
@@ -35,6 +59,7 @@ func _init() -> void:
 	var total_asserts := 0
 	var failures: Array[String] = []
 	var t0 := Time.get_ticks_msec()
+	var spy := ErrorSpy.new()
 	for path in files:
 		var script: GDScript = load(path)
 		if script == null:
@@ -47,13 +72,18 @@ func _init() -> void:
 		methods.sort()
 		for name in methods:
 			var case = script.new()
+			spy.caught.clear()
+			OS.add_logger(spy)
 			case.before_each()
 			case.call(name)
 			case.after_each()
+			OS.remove_logger(spy)
 			total_tests += 1
 			total_asserts += case._asserts
 			for f in case._failures:
 				failures.append("%s::%s  %s" % [path.get_file(), name, f])
+			for e in spy.caught:
+				failures.append("%s::%s  engine error in %s (%s:%d): %s" % [path.get_file(), name, e[2], String(e[0]).get_file(), e[1], e[3]])
 	var ms := Time.get_ticks_msec() - t0
 	for f in failures:
 		printerr("FAIL " + f)

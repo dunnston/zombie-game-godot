@@ -116,7 +116,7 @@ that will not fit is ever destroyed: it lands on the ground.
 | --- | --- |
 | Phase | 3 of 5 — something to keep, complete (three PRs open: 3a, 3b, 3c) |
 | Playable | The whole loop. **E** searches and uses, **Tab** the pack, **C** crafting, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
-| Unit tests | 165 tests, 1901 assertions, 9.0s (`tools\test.cmd`). `--all` adds the compound raid harness and the save round trips: 175 tests, 16.6s |
+| Unit tests | 165 tests, 1923 assertions, 8.9s (`tools\test.cmd`). `--all` adds the compound raid harness and the save round trips: 175 tests, 16.0s |
 | Smoke | 24 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, a chest filled, a save reloaded, a walker shot, a raid |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
 | Save format | **v1** — tile-derived container identity, world fingerprint, slots under `user://saves/` |
@@ -336,7 +336,9 @@ Threat meter with tier, raid banner, notices, hurt vignette, death), and
 - **Headless test runner** (`tests/run.gd`). Discovers `tests/**/*_test.gd`,
   runs every `test_*` method on a `TestCase` subclass, records every failed
   assertion with file and line, prints a summary, exits non-zero on failure.
-  Optional substring filter: `tools\test.cmd world`.
+  Optional substring filter: `tools\test.cmd world`. It also installs an
+  `OS.add_logger` spy around every test method, so any error the engine logs
+  during a test is a failure of that test.
 - **`TestCase`** (`tests/test_case.gd`): `ok`, `eq`, `ne`, `near`, `gt`, `has`,
   `before_each`, `after_each`. Failures accumulate rather than abort. Test
   files use `extends "res://tests/test_case.gd"` by path so they never depend
@@ -441,6 +443,7 @@ Phases 1–4 respecting it.
 | 2026-09-08 | The structure map is passed to collision, never read from a global | The prototype reached for `G.structures` from inside `solidTile`. Here every test shares one generated `World` — a wall built in one simulation would exist in the next — so `is_blocked_tile(tx, ty, structs)` takes it as an argument and the world stays a pure generated artefact. It also makes invariant 3 impossible to get wrong: bullets simply do not pass it. | Yes, but it is a signature change |
 | 2026-09-08 | A click in build mode becomes an `Intent` field, not a call into the sim | `build_action` / `build_type` / `build_tile` go through the same door as movement and firing, so a guest's build command will run identical code and the UI stays a view. | No reason to |
 | 2026-09-08 | The pump-action interrupt only fires with a round in the tube | Found by the compound harness on its first run: a defender holding the trigger on an empty shotgun cancelled its shell-at-a-time reload every frame and never fired again — 900 shells, two minutes, no kills, and the siege ran to the 300s backstop. Firing interrupts a reload because there is something to fire; an empty gun has nothing to interrupt it with. | Yes, one condition |
+| 2026-09-08 | The runner fails a test on any engine error logged while it ran | `TestCase` records failures instead of throwing, but a GDScript *runtime* error aborts the method and hands control straight back to the runner, which then counted the test as passed on however few assertions it had reached. Four `building_test.gd` methods sat like that. An `OS.add_logger` spy around each method closes it in twelve lines; the alternative, an end-of-method marker in all 165 tests, is bigger and leaks the moment someone forgets one. | Yes |
 | 2026-09-08 | The compound raid harness is a `_slow_test.gd`, run by `tools\test --all` | It is 3.5s of simulated siege on its own and took the suite past the ten-second agreement. Splitting the tier keeps the working agreement honest instead of quietly widening it; `--all` runs once per branch beside the smoke run. | Yes |
 | 2026-09-08 | One `Slots` container, and the pack keeps the Phase 2 resource API | `count_res` / `add_res` / `take_res` now answer for the bag rather than a flat map, so reloading, chopping and healing did not change at all when the inventory landed underneath them. The stash and car boots stay plain id→count maps with three functions of their own: the prototype proved one API can serve both shapes. | Yes |
 | 2026-09-08 | Weight capacity is netted across the pack and the hotbar | The bar shows both, so every capacity check has to subtract the hotbar or loot keeps fitting after the bar reads full. `pack_allowance()` is the one expression that does it. | Yes |
@@ -566,6 +569,13 @@ summarised in `tasks/port-inventory.md`.
   := Slots.new(...)` at the top of `PlayerSim` failed with "nonexistent
   function 'new' in base GDScript" — the other class was not ready yet.
   Build cross-class objects in `_init`. (2026-09-08)
+- **A green suite can be lying about how much it ran.** Four `building_test.gd`
+  methods aborted on a runtime error partway through: a renamed `NavField`
+  method, and three that read a field off the empty `Dictionary` that
+  `Structures.at_tile()` returns when a build had silently failed for want of
+  materials. All four reported as passing, on a fraction of their assertions.
+  Assert that a `place()` came back non-empty before using what it returned.
+  (2026-09-08)
 - **The unit tests never load the UI.** Two parse errors in the pack screen
   passed a green `tools\test` and only surfaced when the smoke run tried to
   boot the scene. A UI change is not verified until the smoke run has drawn
