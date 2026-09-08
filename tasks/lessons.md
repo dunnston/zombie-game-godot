@@ -12,3 +12,12 @@ Distilled into `PROJECT.md` §8. Append here first.
   project before editing that file by hand.
 - A bash heredoc holding a large markdown file tripped the shell parser once.
   Use the Write tool for documents; keep heredocs for short scripts.
+- Checksum a ported system against the original when both are deterministic.
+  One number proved the whole map; a mismatch would have localised the bug.
+- `for x in [literal array]` leaves x a Variant; `var y := x.a + 1` then
+  fails to parse and takes every dependent script down. Type loop variables.
+- A smoke run must fail when it cannot find `smoke_run` on the scene; a
+  script that failed to compile looks exactly like a scene with nothing to
+  check.
+- Comments in the prototype are claims. The sprint-winded comment described
+  code that did not exist. Port the code, flag the gap.

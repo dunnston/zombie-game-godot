@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-08, Phase 0: harness, placeholder scene, this document
+- **Last updated:** 2026-09-08, Phase 1: the world, the player, the camera — walkable
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -80,15 +80,19 @@ These settle arguments. When a decision is close, the pillar wins.
 
 ## 3. Where we are right now
 
-**Status: Phase 0 complete. No game yet.** The test harness, the smoke path
-and this document exist. The main scene is a placeholder checkerboard.
+**Status: Phase 1 built, awaiting the owner's walk.** The whole map exists
+and is the prototype's map to the tile (verified by checksum against the
+browser build). The player walks, sprints, sneaks, slides along walls and
+runs out of breath; the camera leads toward the cursor; the HUD names the
+district and shows its danger. Nothing to fight, pick up or build yet.
 
 | | |
 | --- | --- |
-| Phase | 0 of 5 — harness |
-| Playable | No |
-| Unit tests | 2 tests, 7 assertions (`tools\test.cmd`, ~3s including the import pass) |
-| Smoke | 1 checkpoint (`tools\smoke.cmd`, ~5s, windowed) |
+| Phase | 1 of 5 — a place to stand (PR open, playtest gate pending) |
+| Playable | Walkable. Open the project in Godot and press Play. |
+| Unit tests | 19 tests, 80 assertions, ~1.1s (`tools\test.cmd`, ~4s with the import pass) |
+| Smoke | 10 checkpoints: walk, sprint, seven districts (`tools\smoke.cmd`, ~8s) |
+| World build | ~320ms generation, ~80ms terrain, at boot |
 | Save format | none yet |
 
 ### Port status by system
@@ -99,10 +103,10 @@ The spec for each row is in `tasks/port-inventory.md`.
 
 | System | Phase | Status | Notes |
 | --- | --- | --- | --- |
-| World generation, districts, danger field | 1 | — | |
-| Tile collision (one bitmap) | 1 | — | |
-| Player movement, stamina, camera | 1 | — | |
-| Intent (input → sim boundary) | 1 | — | |
+| World generation, districts, danger field | 1 | ported | Bit-identical to the prototype: same RNG, same order |
+| Tile collision (one bitmap) | 1 | ported | `World.blocked`; structures map comes in Phase 3 |
+| Player movement, stamina, camera | 1 | ported | Winded latch present; sprint alone never trips it (as in the prototype) |
+| Intent (input → sim boundary) | 1 | ported | `LocalInput.gather` is the only reader of `Input` for the sim |
 | Enemies, spawning, chase | 2 | — | |
 | Noise | 2 | — | |
 | Quiet field / pressure | 2 | — | |
@@ -130,7 +134,42 @@ The spec for each row is in `tasks/port-inventory.md`.
 
 ## 4. What is built
 
-Nothing player-facing. Infrastructure only:
+### The game (Phase 1)
+
+- **`Config`** — tile size, terrain palette, solid/shoot-over tables, the
+  player's numbers, camera, the 18 districts, container kinds, furnishing
+  tables. Content only; no logic.
+- **`Rng`** — Mulberry32, bit-for-bit the prototype's, so seed 20240917
+  is the same town in both builds. Tested against values from Node.
+- **`World`** — the generator, ported function-for-function: terrain noise,
+  the Marrow river with two bridges, four lakes, the road grid, every
+  building with doors, partitions and furniture, cars, wrecks, woodland,
+  boulders, thickets, litter, the starter cache, reeds, the danger field
+  and the spawn tiles. Plus the accessors and the circle-vs-tile movement
+  (`move_circle`, `unstick`, `circle_hits_solid`). 644 containers, 10,916
+  props, 72 cars, 3,267 spawn tiles — the prototype's counts exactly.
+- **`PlayerSim`** — position, velocity, aim, stamina with the regen delay
+  and the winded latch, sprint and sneak multipliers. Reads only `Intent`.
+- **`GameSim`** — owns the world and the players; `tick(dt)`; spawn choice.
+- **`TileArt`** + **`TerrainRenderer`** — a 32px atlas generated from
+  rectangles at boot (five variants per terrain, 16 water-lip masks, 16
+  fence masks, bridge parapets, road dashes, three wall faces, a shadow),
+  laid into three `TileMapLayer`s: ground, wall shadow offset (3,5), walls.
+- **`PropRenderer`** — trees, pines, bushes, rocks, boulders, thickets,
+  litter, reeds, hay, silos, wrecks, containers and parked cars drawn with
+  canvas primitives from 256px buckets, y-sorted, split into a behind-player
+  and an in-front-of-player instance.
+- **`PlayerView`**, **`Hud`** — the survivor with a seat-coloured ground
+  ring and a weapon pointing at the cursor; district name, danger pips, HP
+  and stamina bars, an fps/tile corner.
+- **`Bindings`** autoload — default keys registered in code (WASD/arrows,
+  Shift sprint, Ctrl sneak, E, R, Tab, C, B, M, Esc, mouse fire/aim).
+- **`LocalInput`** — the one reader of the keyboard for the simulation.
+- **`scenes/main.gd`** — builds all of the above, gathers intent in
+  `_physics_process`, ticks the sim, lerps the camera in `_process`, and
+  exposes `smoke_run` / `smoke_state` / `smoke_teleport`.
+
+### Infrastructure (Phase 0)
 
 - **Headless test runner** (`tests/run.gd`). Discovers `tests/**/*_test.gd`,
   runs every `test_*` method on a `TestCase` subclass, records every failed
@@ -222,6 +261,10 @@ Phases 1–4 respecting it.
 | 2026-09-08 | Multiplayer is Phase 5, last | It is the largest rebuild and depends on the sim/view split holding through Phases 1–4. | n/a |
 | 2026-09-08 | Playtest gate after Phases 1, 2 and 3 | The prototype's roadmap was blocked on the owner playing it. Do not let that happen again. | n/a |
 | 2026-09-08 | Smoke output to `.smoke/` in the project, gitignored | `user://` is buried in AppData; a project-relative path is one Read away. | Yes |
+| 2026-09-08 | The world generator is the one thing translated line-for-line, RNG included | The map is authored content, not architecture. Keeping it bit-identical means every number in the spec still points at the same tile, and a checksum against the browser build proves the port instead of a screenshot opinion. | Yes, per district |
+| 2026-09-08 | Terrain baked into a TileMapLayer atlas; props drawn with canvas primitives per frame | Tiles never change shape, so bake them once and let the engine cull. Props are ~11k dictionaries that get harvested, burned and rebuilt; drawing the visible few hundred from buckets each frame is simpler than 11k nodes and is what the prototype did. Revisit if a frame ever costs more than 2ms here. | Yes |
+| 2026-09-08 | Sim ticks in `_physics_process` at 60Hz; view redraws in `_process` | Matches the prototype's fixed timestep, and `is_action_just_pressed` is per-physics-frame there, which is invariant 5 (edges consumed exactly once) for free. No render interpolation yet. | Yes |
+| 2026-09-08 | Sprinting alone never winds you | Ported as found: sprint stops at "stamina above 1", so the bar hovers just above empty and only refused work trips the latch. The prototype's comment claimed otherwise; the code did this. Flagged for the owner's walk. | Yes, one condition |
 
 ---
 
@@ -232,7 +275,7 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 | Phase | Delivers | Gate |
 | --- | --- | --- |
 | 0 | Harness, smoke path, this document | ✅ 2026-09-08 |
-| 1 | World, tiles, collision, player, camera | Owner walks the map |
+| 1 | World, tiles, collision, player, camera | Built 2026-09-08 — **owner walks the map** |
 | 2 | Enemies, combat, noise, quiet field, navigation | Owner fights |
 | 3 | Items, inventory, loot, crafting, building, raids, saves | Owner builds and holds a base |
 | 4 | Progression, day/night, survivors, vehicles, fire, menus, audio | Owner plays a full session |
@@ -240,11 +283,21 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 
 ### Next up
 
-1. **Phase 1.** `config.gd` seeded from the prototype's world/player numbers;
-   `sim/world.gd` generating districts into a tile bitmap with a headless
-   determinism test; a `TileMapLayer` drawing it; a player that moves and a
-   camera that follows; a smoke checkpoint that walks the player and
-   photographs three districts.
+0. **The owner walks the map** (the Phase 1 gate). Questions to answer by
+   feel, not by number: is 176px/s the right walking pace at this zoom; does
+   the camera lead feel like aiming or like drift; does sprinting to empty
+   and jogging on feel right, or should it wind you; is the world readable
+   at a glance — can you tell a road from a lot, a field from dirt, a
+   container from a wall — and is the prototype's zoom (about 32 tiles
+   across) too close or too far.
+1. **Phase 2.** Enemies from the spec's tables, spawning and the chase;
+   noise; the quiet field; melee, the bow, guns and terrain-only bullets;
+   damage routing; navigation (the flow field the prototype never had);
+   the raid harness reproducing the prototype's reference figures.
+2. **Render interpolation.** The sim runs at 60Hz and the view at the
+   monitor's rate; on a 144Hz screen movement will judder until positions
+   are interpolated between physics frames. Cheap, and worth doing before
+   enemies move.
 
 ### Deliberately not building
 
@@ -276,6 +329,22 @@ summarised in `tasks/port-inventory.md`.
 
 ### New in Godot
 
+- **Checksum the port against the original.** Summing every tile and every
+  collision byte in both builds and comparing the two numbers proved the
+  world generator in one line, and the first mismatch would have said
+  exactly where to look. Do this for every system that has a prototype
+  counterpart with deterministic output: loot tables, raid schedules, the
+  XP curve. (2026-09-08)
+- **Type your loop variables.** `for off in [Vector2i(...)]` leaves `off`
+  a Variant, and the first `var x := a + off.x` is a parse error that takes
+  the whole dependent script chain down with it. `for off: Vector2i in`
+  costs nothing. (2026-09-08)
+- **A smoke run that cannot find its scene must fail, not pass.** A script
+  that fails to compile has no methods, so "no smoke_run here" looked like
+  "nothing to check" and exited 0. It now fails. (2026-09-08)
+- **The prototype's comments are claims; its code is the spec.** The
+  sprint-winds-you comment described behaviour the code never had. Port
+  what runs, then flag the gap for the owner. (2026-09-08)
 - **The class_name cache is not the file system.** A script added by hand is
   invisible to `--headless` until an import pass runs. (2026-09-08)
 - **Rewriting `project.godot` while the editor is open loses.** The editor
@@ -295,9 +364,14 @@ summarised in `tasks/port-inventory.md`.
 Both must report **zero failures**. Current expected output:
 
 ```
-tests: 2  asserts: 7  failures: 0
-SMOKE done checkpoints=1 exit=0
+tests: 19  asserts: 80  failures: 0
+SMOKE done checkpoints=10 failures=0 exit=0
 ```
+
+The smoke PNGs in `.smoke/` are the proof for anything visual: read them.
+`00_spawn` and `01_walked_east` should show the survivor on the highway
+west of the camp; `03`–`09` are the suburbs, Market Row, downtown, the
+farms, the lake lodge, the forest and the junkyard.
 
 `tools\smoke.cmd` opens a window for a few seconds; that is expected. The
 Godot MCP's `run_project` / `get_debug_output` are the alternative when a
@@ -320,4 +394,5 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 
 | Date | What |
 | --- | --- |
+| 2026-09-08 | Phase 1: `Config`, `Rng`, `World` (the generator, bit-identical to the prototype), `PlayerSim`, `GameSim`, `Intent`; terrain atlas + TileMapLayers, prop renderer, player view, HUD; bindings autoload and `LocalInput`; 19 headless tests; smoke run walks, sprints and photographs seven districts |
 | 2026-09-08 | Phase 0: project created on Godot 4.7.2; headless test runner and `TestCase`; smoke autoload with screenshot + state checkpoints; placeholder scene; this document; `tasks/port-inventory.md` as the spec |

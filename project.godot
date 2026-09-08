@@ -17,6 +17,7 @@ config/icon="res://icon.svg"
 
 [autoload]
 
+Bindings="*res://src/core/bindings.gd"
 Smoke="*res://src/debug/smoke.gd"
 
 [display]

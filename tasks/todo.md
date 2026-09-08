@@ -24,18 +24,18 @@ Godot 4.7.2 · GDScript · 2D · headless tests via
 - [x] Smoke path: `tools/smoke.cmd` launches the real game with a `--smoke` arg; a `Debug` autoload
       drives scripted input, snapshots game state as JSON to `user://smoke/`, and saves a viewport
       PNG per checkpoint so Claude can read what the player would see
-- [ ] Verify the Godot MCP (`run_project`, `get_debug_output`) works after the desktop app restart
+- [x] Verify the Godot MCP (`run_project`, `get_debug_output`) works after the desktop app restart
 - [x] Seed `PROJECT.md` (§1 vision, §2 pillars, §5 architecture, §6 decision log, §8 lessons
       carried from the prototype, plus new §0 "porting from")
 - [x] First commit and push to `dunnston/zombie-game-godot`
 
 ## Phase 1 — a place to stand
 
-- [ ] `config.gd` with world, player and camera tunables ported from `config.js`
-- [ ] World generation: districts, tiles, the single collision bitmap invariant, danger field
-- [ ] TileMapLayer rendering with code-generated tile textures (no art yet)
-- [ ] Player: movement, stamina, camera follow, the `Intent` struct (sim never reads input)
-- [ ] Headless tests: world gen determinism, every container reachable, collision
+- [x] `config.gd` with world, player and camera tunables ported from `config.js`
+- [x] World generation: districts, tiles, the single collision bitmap invariant, danger field
+- [x] TileMapLayer rendering with code-generated tile textures (no art yet)
+- [x] Player: movement, stamina, camera follow, the `Intent` struct (sim never reads input)
+- [x] Headless tests: world gen determinism, every container reachable, collision
 - [ ] **Playtest gate:** owner walks the map
 
 ## Phase 2 — something to fear
@@ -81,3 +81,19 @@ Godot 4.7.2 · GDScript · 2D · headless tests via
 ## Review
 
 (filled in as phases land)
+
+## Review — Phase 1 (2026-09-08)
+
+- The world generator was translated line-for-line including the RNG, and a
+  checksum of every tile and collision byte matches the browser build
+  exactly (tiles 33948680, blocked 1860160, 10916 props, 644 containers,
+  72 cars, 3267 spawn tiles). That is the whole verification of the map.
+- Everything else was rebuilt against the spec: sim classes are RefCounted
+  and headless-tested; nodes only draw.
+- Found while porting: the prototype's "sprinting winds you" comment was
+  never true in code (sprint stops at stamina > 1). Ported as the code
+  does it; flagged in PROJECT.md §6 for the owner's walk.
+- Three containers sit in corners reachable only diagonally. The player's
+  76px interact range covers that, so the test counts eight neighbours.
+- Not done: render interpolation between physics frames (judder on
+  high-refresh monitors). Listed in §7.
