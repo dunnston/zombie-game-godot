@@ -97,3 +97,8 @@ Distilled into `PROJECT.md` §8. Append here first.
   tile; the scene decides that means a panel. That keeps the storage rule
   (reach-checked, every frame, by tile) in the sim where a guest's command
   will meet it too.
+- `start()` is the front half of loading, not just of a new game. Anything a
+  run accumulates and a save does not carry has to be cleared there, or it
+  survives the load: a raid mid-wave, bullets in the air, the quiet field.
+- A view that caches the world's own dictionaries has to be rebuilt when the
+  world object is replaced. The prop renderers bucket them by tile.

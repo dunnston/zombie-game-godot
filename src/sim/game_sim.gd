@@ -81,6 +81,24 @@ func start(world_: World, run_seed: int = 1) -> void:
 	backpacks.clear()
 	stash = null
 	structs = Structures.new()
+	# Everything a run accumulates and a save does not carry. `start` is also
+	# the front half of loading into a live game (SaveGame.apply), so any
+	# runtime field left standing here survives the load: a raid that was
+	# under way would go on spawning waves into the restored snapshot, and
+	# bullets already in the air would arrive at the restored player.
+	raid = null
+	raids_done = 0
+	bullets.clear()
+	enemies.list.clear()
+	enemies.corpses.clear()
+	enemies.rebuild_spatial()
+	quiet = QuietField.new()
+	threat = Threat.new()
+	world_version += 1                # any cached flow field is about a dead world
+	_nav.clear()
+	events.clear()
+	for k in stats:
+		stats[k] = 0 if stats[k] is int else 0.0
 	var p := PlayerSim.new()
 	p.seat = 0
 	p.display_name = Config.PLAYER.names[0]

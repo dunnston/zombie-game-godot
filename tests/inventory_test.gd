@@ -246,3 +246,51 @@ func test_dropping_a_stack_empties_the_cell_you_clicked() -> void:
 	ok(p.bag.at(5).is_empty(), "and the one you clicked is gone")
 	eq(sim.pickups.size(), 1)
 	eq(sim.pickups[0].n, 12)
+
+
+# ------------------------------------------------ the Codex review, PR #5 --
+
+func _chest_beside(tile_offset := 2) -> Dictionary:
+	for id in ["wood", "sticks"]:
+		p.bag.add(id, 200)
+	var tx := floori(p.pos.x / Config.TILE) + tile_offset
+	var ty := floori(p.pos.y / Config.TILE)
+	var s := sim.structs.place(sim, "chest", tx, ty, p)
+	p.bag.clear_all()
+	return s
+
+
+func test_a_chest_cannot_hand_you_more_than_you_can_lift() -> void:
+	var chest := _chest_beside()
+	ok(not chest.is_empty(), "there is a chest to take from")
+	chest.store.add("stone", 50)
+	p.hotbar.clear_all()
+	p.carry_cap = 200.0
+	p.bag.add_capped("stone", 400, p.pack_allowance())   # 133 units, 199.5
+	var carried := p.carried_weight()
+	var free := p.bag.first_empty()
+	ok(free >= 0)
+	# Dragging the chest's fifty stone into an empty pack slot must not put
+	# 75 units of weight on someone with half a unit of room.
+	Equipment.move_stack(sim, p, "store", 0, "bag", free, Vector2i(chest.tx, chest.ty))
+	ok(p.carried_weight() <= p.carry_cap + 0.01,
+		"carrying %.1f of %.0f" % [p.carried_weight(), p.carry_cap])
+	ok(not p.overloaded())
+	eq(chest.store.count("stone"), 50, "nothing moved: there was no room for even one")
+
+	# With room for a few, it takes a few and leaves the rest in the chest.
+	p.bag.take("stone", 10)
+	Equipment.move_stack(sim, p, "store", 0, "bag", p.bag.first_empty(), Vector2i(chest.tx, chest.ty))
+	ok(not p.overloaded(), "carrying %.1f" % p.carried_weight())
+	gt(50, chest.store.count("stone"), "some came out")
+	gt(chest.store.count("stone"), 0, "and the rest stayed put")
+
+
+func test_putting_things_into_a_chest_is_never_refused_for_weight() -> void:
+	var chest := _chest_beside()
+	p.carry_cap = 200.0
+	p.bag.add("stone", 40)
+	var before := p.carried_weight()
+	ok(Equipment.move_stack(sim, p, "bag", 0, "store", 0, Vector2i(chest.tx, chest.ty)))
+	ok(p.carried_weight() < before, "the weight left you")
+	eq(chest.store.count("stone"), 40)

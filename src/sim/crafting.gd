@@ -50,16 +50,31 @@ static func status(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> Dic
 	if r.has("tool") and not has_tool(p, r.tool):
 		return {"ok": false, "reason": "Needs a %s" % Config.WEAPONS[r.tool].name}
 	# Duplicates are allowed: gear and guns are ordinary items you can carry,
-	# drop, stash or hand to the next respawn. What limits you is space.
-	if r.give.has("weapon") and p.bag.first_empty() < 0 and p.hotbar.first_empty() < 0:
-		return {"ok": false, "reason": "No room for it"}
-	if r.give.has("gear") and p.bag.first_empty() < 0:
-		return {"ok": false, "reason": "No room in your pack"}
+	# drop, stash or hand to the next respawn. What limits you is space — and
+	# space means weight as well as slots, or standing at the cap beside a
+	# full stash would let you craft a rifle you cannot lift.
+	if r.give.has("weapon"):
+		if p.bag.first_empty() < 0 and p.hotbar.first_empty() < 0:
+			return {"ok": false, "reason": "No room for it"}
+		if not _can_lift(p, r.give.weapon):
+			return {"ok": false, "reason": "Too heavy to carry"}
+	if r.give.has("gear"):
+		if p.bag.first_empty() < 0:
+			return {"ok": false, "reason": "No room in your pack"}
+		if not _can_lift(p, r.give.gear):
+			return {"ok": false, "reason": "Too heavy to carry"}
 	if r.give.has("item") and not _room_for(p, r.give.item, r.give.n):
 		return {"ok": false, "reason": "No room in your pack"}
 	if not p.can_afford(sim, r.cost):
 		return {"ok": false, "reason": "Missing materials"}
 	return {"ok": true, "reason": ""}
+
+
+## Whether one more of `id` fits inside the carry cap. Weapons and gear go
+## into a slot rather than a stack, so they never meet `add_capped` and have
+## to be weighed here.
+static func _can_lift(p: PlayerSim, id: String) -> bool:
+	return p.carried_weight() + Items.weight_of(id) <= p.carry_cap + 1e-9
 
 
 ## Whether the pack can take `n` of `id`, by slot space and by weight.

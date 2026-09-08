@@ -142,7 +142,17 @@ func _load_slot(slot: int) -> void:
 	inventory.player = p
 	build_bar.player = p
 	inventory.visible = false
-	build_bar.open = false
+	# Through `toggle`, not the flag: a Control keeps what it last drew, and
+	# the scene stops redrawing a closed bar.
+	if build_bar.open:
+		build_bar.toggle()
+	# The world is a new object. The terrain layers and the prop renderers
+	# both cached the old one — the props by bucketing its dictionaries, so
+	# without this the view goes on drawing a container the restored world
+	# says is still full.
+	terrain.build(sim.world)
+	props_below.rebuild()
+	props_above.rebuild()
 	camera.position = p.pos
 	sim.notify("Loaded", "#b7e08a", true)
 
@@ -412,6 +422,12 @@ func smoke_run(smoke: Node) -> void:
 
 	# Crafting: the tab of the pack, not a screen of its own. Make a hatchet
 	# out of what the ground gives up.
+	#
+	# The pack is emptied first because the build section stuffed it with
+	# four hundred units of material to have something to build with, and a
+	# survivor carrying half a quarry cannot pick up a hatchet either — the
+	# weight rule applies to a crafted weapon like everything else.
+	p.bag.clear_all()
 	for entry in [["sticks", 20], ["stone", 20], ["fiber", 20]]:
 		p.bag.add(entry[0], entry[1])
 	await smoke.tap("crafting")
@@ -428,6 +444,8 @@ func smoke_run(smoke: Node) -> void:
 	await smoke.frames(2)
 
 	# A chest, and the two-panel screen that opens when you press E at it.
+	for entry in [["wood", 30], ["sticks", 20], ["stone", 40]]:
+		p.bag.add(entry[0], entry[1])
 	var chest_tile := Vector2i(-1, -1)
 	for i in range(2, 6):
 		var t := Vector2i(int(p.pos.x / 32) + i, int(p.pos.y / 32))

@@ -403,3 +403,31 @@ holding it over the repaired wall bills nothing more.
 - Not done: autosave and the save-slot UI. Both are the title screen's
   business (Phase 4); the format, the slots on disk and the refusal
   messages are here, and `F5` / `F9` reach slot 0 so it can be played.
+
+## Review — Phase 3c Codex pass (2026-09-08)
+
+Five items on PR #5, all addressed.
+
+- [x] **P1** Loading into a live game left the run's transient state
+      standing: a raid that had started went on spawning waves into the
+      restored snapshot, and bullets already in the air arrived at the
+      restored player. `GameSim.start` — the front half of a load — now
+      clears the raid, the horde, the corpses, the bullets, the quiet
+      field, Threat, the cached flow fields and the stats.
+- [x] Both prop renderers bucket the *world's own dictionaries*, so after a
+      load they were drawing the old world's containers. The scene rebuilds
+      the terrain and both renderers.
+- [x] Loading with build mode open set `open = false` and left the Control
+      painted — the same stale-Control bug the bar's own `toggle` fixes. It
+      goes through `toggle`.
+- [x] Dragging out of a chest ignored carry weight, which was the one move
+      that can add weight to a player. It is capped now, and takes a
+      partial stack rather than refusing outright when some of it fits.
+- [x] A crafted weapon or gear piece checked for a free slot but not for
+      weight, so at the cap beside a full stash you could make a rifle you
+      could not lift. Both are weighed.
+
+The P1 and both weight holes have tests that fail against the pre-fix
+`src/`. The smoke run found the last one for free: its player is carrying
+four hundred units of building material by that point and could no longer
+craft a hatchet, which is exactly right.

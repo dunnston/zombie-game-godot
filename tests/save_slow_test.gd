@@ -157,3 +157,40 @@ func test_a_file_round_trips_through_the_disk() -> void:
 	ok(r.ok, r.reason)
 	eq(out.players[0].bag.count("wood"), 33)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.slot_path(7)))
+
+
+# ------------------------------------------------ the Codex review, PR #5 --
+
+func test_loading_ends_the_raid_you_loaded_out_of() -> void:
+	# Save quietly, let a raid start, then load the quiet save into the same
+	# live simulation. The raid must not carry over and go on spawning waves
+	# into the restored snapshot.
+	var data := SaveGame.to_dict(sim)
+	sim.raids_done = 0
+	sim.threat.value = 100.0
+	sim.tick(1.0 / 60.0)
+	ok(sim.raid != null, "a raid is under way")
+	sim.raid.timer = 0.05
+	run(sim, 3.0)
+	gt(sim.enemies.alive_count(), 0, "with raiders on the ground")
+
+	ok(SaveGame.apply(sim, data).ok)
+	ok(sim.raid == null, "the raid did not survive the load")
+	eq(sim.enemies.alive_count(), 0, "and neither did its horde")
+	run(sim, 2.0)
+	ok(sim.raid == null, "and it does not restart itself")
+
+
+func test_loading_clears_what_was_in_the_air() -> void:
+	sim.give_test_kit(p)
+	var data := SaveGame.to_dict(sim)
+	p.select_slot(p.hotbar_index("rifle"))
+	p.intent.aim = p.pos + Vector2(400, 0)
+	Combat.fire_gun(sim, p, p.weapon())
+	gt(sim.bullets.size(), 0, "a round is in flight")
+	sim.threat.value = 55.0
+	sim.stats.kills = 9
+	ok(SaveGame.apply(sim, data).ok)
+	eq(sim.bullets.size(), 0, "it is not still coming for the restored player")
+	near(sim.threat.value, 0.0, 0.01, "and Threat is the saved game's, not the run's")
+	eq(sim.stats.kills, 0)

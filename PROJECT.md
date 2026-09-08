@@ -671,11 +671,28 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 ## 10. Session protocol
 
 1. Read this file, then `tasks/todo.md`.
-2. Branch. Work. `tools\test.cmd` before every commit.
-3. Before finishing: update §3 (status table and numbers), §7, §11; add a §6
+2. **Branch from an up-to-date `main`:**
+   `git fetch origin && git checkout -b <name> origin/main`.
+3. Work. `tools\test.cmd` before every commit.
+4. Before finishing: update §3 (status table and numbers), §7, §11; add a §6
    row for any choice a future session might reverse without knowing why;
    add lessons to §8 and `tasks/lessons.md`.
-4. PR, review, merge.
+5. `tools\test.cmd --all` and `tools\smoke.cmd` once, and read the PNGs.
+6. **`gh pr create --base main`.** Then check nothing has drifted:
+   `gh pr list --json number,baseRefName` — every open PR must say `main`.
+
+### `main` is the only merge target
+
+A branch cut from another open branch produces a PR that merges into that
+branch, and the work never reaches `main`. It has happened here once:
+`phase-2-combat` was cut from `phase-1-world` while PR #1 was open, PR #2
+merged Phase 2 into `phase-1-world`, PR #1 had already merged, and `main`
+sat on Phase 1 while Phases 3a, 3b and 3c stacked on the wrong branch.
+Untangling it cost a fourth PR (#6) and a retarget of three others.
+
+Stack a branch only when the work genuinely cannot compile without a parent
+that is still open — say so in the PR body, and retarget to `main` the
+moment the parent merges.
 
 ---
 

@@ -187,6 +187,31 @@ static func move_stack(sim: GameSim, p: PlayerSim, from_cont: String, from_index
 	var to := container(p, to_cont, store)
 	if from == null or to == null:
 		return false
+	# Weight is the capacity rule, and taking out of a chest is the one move
+	# that can add weight to a player — everything else here shuffles what
+	# they already carry. Without this you could stand at the cap and drag an
+	# arbitrarily heavy stack out of a locker, which is the hole every capped
+	# path (pickups, TAKE SUPPLIES, crafting) exists to close.
+	if from_cont == "store" and to_cont != "store":
+		var s := from.at(from_index)
+		if not s.is_empty():
+			var dest := to.at(to_index)
+			var per := Items.weight_of(s.id)
+			var spare := p.carry_cap - p.carried_weight()
+			if not dest.is_empty() and dest.id != s.id:
+				# A swap hands the other stack back, so it pays for itself.
+				spare += Items.weight_of(dest.id) * dest.n
+				if per * s.n > spare + 1e-9:
+					sim.notify("Too heavy to carry", "#c96a5a")
+					return false
+			elif per > 0.0:
+				var fits := floori(spare / per + 1e-9)
+				if fits <= 0:
+					sim.notify("Too heavy to carry", "#c96a5a")
+					return false
+				if fits < s.n:
+					# Take what you can lift and leave the rest in the chest.
+					return from.move_amount(from_index, to_index, fits, to)
 	return from.move(from_index, to_index) if from == to else from.move(from_index, to_index, to)
 
 
