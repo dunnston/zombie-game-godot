@@ -224,6 +224,7 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 	for e in list:
 		if e.dead:
 			continue
+		e.prev_pos = e.pos
 
 		# The person this one would go for: the nearest who is up and about.
 		var p := sim.nearest_player(e.pos)

@@ -6,8 +6,16 @@ class_name Damage
 
 
 ## `source` is the PlayerSim for a player's own hit, or a tag ("turret",
-## "trap") for anything automated. `no_alert` is for damage over time.
-static func damage_enemy(sim: GameSim, e: EnemySim, dmg: float, from: Vector2, knock := 0.0, crit := false, source: Variant = null, no_alert := false) -> float:
+## "trap") for anything automated.
+##
+## `no_alert` and `no_fx` are both for damage over time, and they are separate
+## because they solve separate problems. A burn ticks sixty times a second:
+## `no_alert` stops it re-startling the enemy on every tick, and `no_fx` stops
+## it emitting a `hit` event on every tick — which the effects view answers
+## with seven blood particles and a damage number, so one enemy surviving a
+## 6.5-second burn would otherwise leave three thousand particles behind it
+## and a burning horde would drop the frame rate through the floor.
+static func damage_enemy(sim: GameSim, e: EnemySim, dmg: float, from: Vector2, knock := 0.0, crit := false, source: Variant = null, no_alert := false, no_fx := false) -> float:
 	if e.dead or dmg <= 0.0:
 		return 0.0
 	e.hp -= dmg
@@ -22,7 +30,8 @@ static func damage_enemy(sim: GameSim, e: EnemySim, dmg: float, from: Vector2, k
 	var dir := dv / len if len > 0.0 else Vector2.RIGHT
 	if knock > 0.0:
 		e.vel += dir * knock * (1.0 - e.knock_resist)
-	sim.emit({"t": "hit", "x": e.pos.x, "y": e.pos.y, "dx": dir.x, "dy": dir.y, "dmg": dmg, "crit": crit, "r": e.r})
+	if not no_fx:
+		sim.emit({"t": "hit", "x": e.pos.x, "y": e.pos.y, "dx": dir.x, "dy": dir.y, "dmg": dmg, "crit": crit, "r": e.r})
 
 	if e.hp <= 0.0:
 		kill_enemy(sim, e, source)
@@ -119,6 +128,41 @@ static func kill_player(sim: GameSim, p: PlayerSim) -> void:
 	# completely toothless.
 	var pack := Loot.drop_backpack(sim, p)
 	sim.notify("YOU DIED" if pack.is_empty() else "YOU DIED — your pack is where you fell", "#e05a4a", true)
+
+
+## Damage over time on a player: fire, and whatever else ticks every frame.
+##
+## It cannot go through `damage_player`, which is built for discrete hits and
+## does two things that are wrong here. It floors every accepted hit at 1,
+## which would turn 16 dps into 60 — and it grants `invuln_after_hit`, which
+## would make standing in a fire the safest place in the game, because those
+## same i-frames are what stop a zombie hitting you. Fire is a cost, not a
+## shield.
+##
+## So this applies the exact amount, respects armour, and touches neither the
+## invulnerability window nor the healing interrupt.
+static func burn_player(sim: GameSim, p: PlayerSim, amount: float, from: Vector2) -> float:
+	if p == null or p.dead or p.god_mode or amount <= 0.0:
+		return 0.0
+	var dealt := amount * (1.0 - p.armor_dr)
+	p.hp -= dealt
+	p.last_hurt = 0.0
+	sim.stats.damage_taken += dealt
+	# One flash per burn tick would strobe; the view reads `hurt_flash` as a
+	# level, so nudging it keeps the player tinted while they stand in it.
+	p.hurt_flash = maxf(p.hurt_flash, 0.18)
+
+	if p.hp <= 0.0 and p.second_wind and p.second_wind_cd <= 0.0:
+		p.hp = 1.0
+		p.second_wind_cd = Config.SECOND_WIND_CD
+		sim.notify("SECOND WIND", "#ffe08a", true)
+		sim.emit({"t": "second_wind", "x": p.pos.x, "y": p.pos.y})
+		return dealt
+	if p.hp <= 0.0:
+		sim.emit({"t": "player_hit", "seat": p.seat, "x": p.pos.x, "y": p.pos.y,
+			"dx": 0.0, "dy": -1.0, "dmg": dealt, "label": "fire"})
+		kill_player(sim, p)
+	return dealt
 
 
 static func heal_player(sim: GameSim, p: PlayerSim, amount: float) -> float:

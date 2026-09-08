@@ -14,6 +14,7 @@ var enemy_view: EnemyView
 var pickup_view: PickupView
 var structure_view: StructureView
 var fx: FxView
+var lights: LightView
 var player_view: PlayerView
 var camera: Camera2D
 var hud: Hud
@@ -48,6 +49,10 @@ func _ready() -> void:
 	add_child(props_above)
 	fx = FxView.new(sim)
 	add_child(fx)
+	# Last of the world nodes: its CanvasModulate darkens the whole canvas and
+	# its lights add back on top of that.
+	lights = LightView.new(sim)
+	add_child(lights)
 
 	camera = Camera2D.new()
 	var C := Config.CAMERA
@@ -174,9 +179,11 @@ func _process(dt: float) -> void:
 		elif ev.t == "open_store":
 			inventory.open_store(Vector2i(ev.tx, ev.ty))
 		fx.on_event(ev)
+		lights.on_event(ev)
 		hud.on_event(ev)
 	sim.events.clear()
 	fx.tick(dt)
+	lights.tick()
 	hud.tick(dt)
 	shake = maxf(0.0, shake - dt * 22.0)
 	_update_camera(dt)
@@ -200,10 +207,14 @@ func _update_camera(dt: float) -> void:
 	var p := sim.players[0]
 	var C := Config.CAMERA
 	var mouse := get_global_mouse_position()
+	# The camera follows where the player is *drawn*, not where the last
+	# physics step left them — otherwise the world judders under a smooth
+	# player instead of the player juddering across a smooth world.
+	var at := Util.render_pos(p.prev_pos, p.pos)
 	var lead := Vector2(
-		clampf((mouse.x - p.pos.x) * C.lead, -C.lead_max, C.lead_max),
-		clampf((mouse.y - p.pos.y) * C.lead, -C.lead_max, C.lead_max))
-	camera.position = camera.position.lerp(p.pos + lead, Util.smooth(C.follow, dt))
+		clampf((mouse.x - at.x) * C.lead, -C.lead_max, C.lead_max),
+		clampf((mouse.y - at.y) * C.lead, -C.lead_max, C.lead_max))
+	camera.position = camera.position.lerp(at + lead, Util.smooth(C.follow, dt))
 	if shake > 0.0:
 		camera.offset = Vector2(_shake_rng.randf_range(-shake, shake), _shake_rng.randf_range(-shake, shake))
 	else:
@@ -587,3 +598,46 @@ func smoke_run(smoke: Node) -> void:
 		sim.raid.force_end(sim)
 	await smoke.frames(5)
 	await smoke.checkpoint("raid_over")
+
+	# Night, and the light you carry into it. The clock is wound forward
+	# rather than waited out: a day is nine minutes and the smoke run is not.
+	sim.clock.t = 0.60
+	sim.clock.phase = "day"
+	await smoke.frames(4)
+	await smoke.checkpoint("dusk")
+	sim.clock.t = 0.82
+	await smoke.frames(4)
+	if not sim.clock.is_dark():
+		smoke.fail("0.82 through the day is not dark (alpha %.2f)" % sim.clock.darkness().alpha)
+	var night := sim.night_factors()
+	if night.density <= 1.5 or night.threat <= 1.5:
+		smoke.fail("night is not worth anything: %s" % str(night))
+	await smoke.checkpoint("night")
+
+	# A torch in the off-hand, lit. This is what Phase 3a's light fields were
+	# put there for and the first time anything has read them.
+	p.bag.add("gear:torch", 1)
+	p.equip["offhand"] = "torch"
+	Equipment.after_equip_change(p)
+	Equipment.toggle_light(sim, p)
+	await smoke.frames(4)
+	if not p.lit:
+		smoke.fail("the torch did not light")
+	await smoke.checkpoint("torch_lit")
+
+	# Fire: light the scenery and watch it burn. Planted rather than found,
+	# so the checkpoint does not depend on what the generator put nearby.
+	var ftx := floori(p.pos.x / 32) + 2
+	var fty := floori(p.pos.y / 32)
+	for i in range(4):
+		var prop := {"kind": "pine", "tx": ftx + i, "ty": fty,
+			"x": (ftx + i) * 32 + 16.0, "y": fty * 32 + 16.0, "hp": 40.0, "solid": false}
+		sim.world.props.append(prop)
+		sim.world.prop_grid[fty * Config.WORLD_TILES + ftx + i] = prop
+		sim.fire.ignite_prop(sim, prop)
+	props_above.rebuild()
+	props_below.rebuild()
+	await smoke.frames(6)
+	if sim.fire.list.size() < 4:
+		smoke.fail("the treeline did not catch: %d alight" % sim.fire.list.size())
+	await smoke.checkpoint("fire")

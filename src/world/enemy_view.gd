@@ -43,11 +43,17 @@ func _draw() -> void:
 
 
 func _draw_enemy(e: EnemySim) -> void:
-	var c := e.pos
+	var c := Util.render_pos(e.prev_pos, e.pos)
 	var body := Color(e.def.body)
 	var dark := Color(e.def.dark)
 	if e.flash > 0.0:
 		body = body.lerp(Color.WHITE, 0.7)
+	# Alight. Read straight off the burn timer rather than from events: a burn
+	# ticks sixty times a second and one particle per tick is thousands of
+	# them per corpse, which is exactly what the damage path no longer emits.
+	if e.burn_t > 0.0:
+		body = body.lerp(Color("#ff7a2a"), 0.45 + 0.2 * sin(e.anim * 3.0))
+		dark = dark.lerp(Color("#8a2a10"), 0.5)
 	var dir := Vector2.from_angle(e.angle)
 	var side := dir.orthogonal()
 	var bob := sin(e.anim) * 1.5

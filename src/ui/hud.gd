@@ -102,6 +102,25 @@ func _draw() -> void:
 		draw_line(Vector2(wx, ty - 10), Vector2(wx, ty + 2), Color(1, 1, 1, 0.4), 1.0)
 	draw_string(font, Vector2(tx + 52, ty + 14), sim.threat.label(), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, tcol)
 
+	# The clock, under the Threat meter. Night is the other thing driving how
+	# dangerous the next few minutes are, so the two belong together.
+	var dark: float = float(sim.clock.darkness().alpha)
+	var pcol := Color("#d0c46a")
+	if sim.clock.phase == "dusk":
+		pcol = Color("#d98a4a")
+	elif sim.clock.phase == "night":
+		pcol = Color("#8f9ad0")
+	draw_string(font, Vector2(tx, ty + 34), "DAY %d" % sim.clock.day, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#ebe6d6"))
+	draw_string(font, Vector2(tx + 52, ty + 34), "%s  %s" % [sim.clock.clock_string(), sim.clock.phase_name()],
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, pcol)
+	# A thin bar of the day, so you can see how long is left of the light.
+	var cb := Rect2(tx + 52, ty + 40, 168, 4)
+	draw_rect(cb, Color(0, 0, 0, 0.55))
+	draw_rect(Rect2(cb.position, Vector2(cb.size.x * sim.clock.t, cb.size.y)), pcol)
+	if sim.clock.is_dark() and not p.lit:
+		draw_string(font, Vector2(tx, ty + 56), "dark — T for a light", HORIZONTAL_ALIGNMENT_LEFT, -1, 10,
+			Color(1, 1, 1, 0.25 + 0.25 * dark))
+
 	# The hotbar: six slots, and the selected one is what you are holding.
 	var slot_w := 74.0
 	var n_slots := p.hotbar.size()

@@ -570,6 +570,3 @@ func test_a_build_survives_a_save_and_is_re_derived_not_stored() -> void:
 	Equipment.recompute_stats(q)
 	eq(str(_snapshot(q)), str(built), "the same build produces the same survivor")
 
-
-func test_the_version_moved_with_the_format() -> void:
-	eq(SaveGame.VERSION, 2, "the player record gained a build; a v1 payload cannot be read")

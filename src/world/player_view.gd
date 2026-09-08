@@ -11,7 +11,9 @@ func _init(player: PlayerSim) -> void:
 
 
 func _draw() -> void:
-	var c := p.pos
+	# Interpolated, not raw: the sim steps at 60Hz and this draws at the
+	# monitor's rate. See Util.render_pos.
+	var c := Util.render_pos(p.prev_pos, p.pos)
 	var ring := Color(Config.PLAYER.colors[p.seat])
 	if p.dead:
 		var pool := Color("#4a1010", 0.6)
