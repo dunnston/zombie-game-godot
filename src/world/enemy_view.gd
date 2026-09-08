@@ -43,7 +43,7 @@ func _draw() -> void:
 
 
 func _draw_enemy(e: EnemySim) -> void:
-	var c := e.pos
+	var c := Util.render_pos(e.prev_pos, e.pos)
 	var body := Color(e.def.body)
 	var dark := Color(e.def.dark)
 	if e.flash > 0.0:

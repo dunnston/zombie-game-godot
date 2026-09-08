@@ -7,6 +7,9 @@ var seat := 0
 var display_name := "Survivor"
 
 var pos := Vector2.ZERO
+## Where `pos` was at the top of this tick. Presentation only: the views lerp
+## between the two so movement is smooth on a monitor faster than 60Hz.
+var prev_pos := Vector2.ZERO
 var vel := Vector2.ZERO
 var r: float = Config.PLAYER.r
 var angle := 0.0
@@ -307,6 +310,8 @@ func _finish_use(sim: GameSim) -> void:
 func tick(sim: GameSim, dt: float) -> void:
 	var it := intent
 	var world := sim.world
+	# Where the view should draw from until the next step lands.
+	prev_pos = pos
 	last_hurt += dt
 
 	if dead:

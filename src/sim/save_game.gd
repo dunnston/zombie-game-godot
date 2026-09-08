@@ -1,6 +1,6 @@
 class_name SaveGame
 extends RefCounted
-## Saving and loading. Payload version 2.
+## Saving and loading. Payload version 3.
 ##
 ## **Containers are identified by tile position, never by ordinal index**
 ## (invariant 7). The prototype keyed them by their position in an array,
@@ -13,7 +13,7 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 2
+const VERSION := 3
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
@@ -76,6 +76,12 @@ static func to_dict(sim: GameSim) -> Dictionary:
 		"world_seed": sim.world.world_seed,
 		"run_seed": sim.run_seed,
 		"time": sim.time,
+		# Two numbers are the whole clock; everything else about the sky is
+		# derived from them, so nothing can come back out of step. Fires are
+		# deliberately not saved: they burn out in seconds and a prop that
+		# burned away is already in `chopped`.
+		"day_t": sim.clock.t,
+		"day": sim.clock.day,
 		"raids_done": sim.raids_done,
 		"threat": sim.threat.value,
 		"bench_tier": sim.structs.bench_tier,
@@ -131,6 +137,11 @@ static func apply(sim: GameSim, data: Dictionary) -> Dictionary:
 
 	sim.start(world, int(data.get("run_seed", 1)))
 	sim.time = float(data.get("time", 0.0))
+	sim.clock.t = clampf(float(data.get("day_t", Config.DAY_START)), 0.0, 0.999999)
+	sim.clock.day = maxi(1, int(data.get("day", 1)))
+	# Set directly rather than through tick(), so loading into dusk does not
+	# announce dusk again at the player who was already standing in it.
+	sim.clock.phase = String(DayNight.phase_at(sim.clock.t).id)
 	sim.raids_done = int(data.get("raids_done", 0))
 	sim.threat.value = float(data.get("threat", 0.0))
 	sim.threat.tier = Threat.tier_of(sim.threat.value)

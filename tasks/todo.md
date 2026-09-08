@@ -196,12 +196,20 @@ level and a kill count, so 4d is last. Each bumps `SaveGame.VERSION`.
 
 ### 4b — day, night, light, fire, interpolation
 
-- [ ] Day cycle at 540s; night scales density, sense, speed and Threat gain
-- [ ] Real `CanvasModulate` + `PointLight2D` for the torch, flashlight,
-      floodlight and muzzle flashes
-- [ ] `Fire` — burning enemies and scenery, spread, the 140 ceiling, never
-      player structures
-- [ ] Render interpolation: a previous position per entity, lerped in the views
+- [x] Day cycle at 540s; night scales density, sense, speed and Threat gain —
+      all four already had callers reading a stub that said noon
+- [x] Real `CanvasModulate` + `PointLight2D` for the torch, the flashlight's
+      puddle and cone, floodlights, muzzle flashes and fires; pooled, not
+      created per frame
+- [x] `Fire` — burning enemies and scenery, spread, the 140 ceiling, the
+      wildfire warning, never player structures
+- [x] Render interpolation: `prev_pos` per entity, lerped in the views and
+      followed by the camera, with a snap threshold so a teleport is a
+      teleport
+- [x] HUD: day, 24h clock, phase, a bar of the day, and a hint when it is
+      dark and you are carrying nothing lit
+- [x] `SaveGame` v3 carries the clock; fires are deliberately not saved
+- [x] 23 new tests; the fire spread trials in the slow tier
 
 ### 4c — survivors and vehicles
 
@@ -599,3 +607,57 @@ that had never run, and `test_repair_all_is_the_plan_it_printed` asserted a
 four-wood repair bill that 4a's Intelligence-2 discount rounds to three. The
 test now derives the unit cost instead of hardcoding it, so the next
 build-cost modifier does not break it again.
+
+## Review — Phase 4b (2026-09-08)
+
+The dark, and what happens in it.
+
+Most of the day/night work turned out to be *deleting a stub*. The spawner's
+density, the sense radius, walk speed and `Threat.add` have all been calling
+`sim.night_factors()` since Phase 2, against a function that returned
+`{1.0, 1.0, 1.0, 1.0}` under a comment saying day/night arrives in Phase 4.
+Building the clock was the whole change; nothing else had to move. That is
+what a seam cut in advance is worth.
+
+Lights were the opposite of a port. The prototype painted a translucent
+rectangle over the finished frame and punched holes in it. Godot has real
+2D lights, so this is a `CanvasModulate` multiplying the canvas down and
+pooled `PointLight2D`s adding light back — which means two torches now
+overlap correctly instead of each cutting its own hole. The overlay's
+darkening curve is folded into the multiply so the look matches without a
+second full-screen draw. The torch and flashlight have had `radius`,
+`strength`, `warm` and cone fields sitting in `GEAR` since 3a with nothing
+reading them; this is what they were for.
+
+Three things worth recording:
+
+- **Fire cost the whole test budget before it did anything.** `Fire.tick`
+  scanned every enemy every tick to find out that nothing was burning, and
+  that pass alone pushed `tools\test.cmd` from 9.6s to 10.9s across the
+  existing suite. It now skips the scan unless something has been lit. That
+  is a real optimisation, not a test trick — it was costing every frame of
+  every run, not just the tests.
+- **The ten-second budget was already nearly spent.** Measured on `main`
+  before any of this: 9.57s. Phase 4b had about 0.4s of headroom to work
+  with, which is why the fire spread trials went to the slow tier and the
+  enemy scan had to go. Worth a decision before 4c: either something existing
+  gets faster, or the fast tier's contract changes.
+- **Interpolation needs a snap.** Lerping between the previous and current
+  position is right for walking and wrong for a respawn, a load, or an entity
+  drawn before its first tick — all of which would slide in from across the
+  map or from the origin. Anything further than one step's worth of movement
+  is a teleport and is drawn where it is.
+
+The spread test was brittle first time round. It rolled a 16% chance on a
+fixed seed, so it did not test "fire spreads", it tested "seed 1 spreads" —
+and it flipped to failing the moment the RNG stream shifted under it. It now
+runs the same treeline on six streams and asserts on the behaviour, which is
+also why it is slow enough to live in the slow tier.
+
+Numbers: 219 tests / 3683 assertions / 9.9s fast, 242 / 18.8s with `--all`,
+30 smoke checkpoints, zero failures.
+
+**For the play gate:** night peaks at 0.82 darkness, which is the prototype's
+number and is *very* dark on a real monitor — the screenshots are close to
+unreadable away from the torch. That is the most likely thing here to need a
+feel pass, and it is one number in `Config.DARKNESS_KEYS`.

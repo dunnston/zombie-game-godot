@@ -8,6 +8,9 @@ var id := 0                      # stable identity for the wire; the array index
 var type := "walker"
 var def: Dictionary
 var pos := Vector2.ZERO
+## Where `pos` was at the top of this tick. Presentation only — see
+## `Util.render_pos`.
+var prev_pos := Vector2.ZERO
 var vel := Vector2.ZERO
 var angle := 0.0
 var hp := 0.0
@@ -30,6 +33,12 @@ var atk_cd := 0.0
 var windup := 0.0                # committed to a swing that lands when this hits zero
 var anim := 0.0
 var slow_t := 0.0
+
+# Alight. `burn_t` counts the fire down and `burn_spread_t` is when it next
+# tries to take something with it. Both live here rather than in a list, so a
+# dead enemy takes its fire with it and nothing has to be reaped.
+var burn_t := 0.0
+var burn_spread_t := 0.0
 var stuck_t := 0.0
 var last_pos := Vector2.ZERO
 var wander_a := 0.0
@@ -58,6 +67,7 @@ func _init(type_: String, at: Vector2, hp_mul := 1.0) -> void:
 	type = type_
 	def = Config.ENEMIES[type_]
 	pos = at
+	prev_pos = at
 	last_pos = at
 	hp = def.hp * hp_mul
 	max_hp = hp

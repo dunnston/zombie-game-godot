@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-08, Phase 4a: XP, levels, six attributes and twenty-eight perks
+- **Last updated:** 2026-09-08, Phase 4b: the day cycle, real 2D lights, fire, render interpolation
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -80,7 +80,17 @@ These settle arguments. When a decision is close, the pillar wins.
 
 ## 3. Where we are right now
 
-**Status: Phase 4a — the loop now pays out.** Kills, containers, harvests,
+**Status: Phase 4b — it gets dark now.** A day is nine minutes: dawn, day,
+dusk, night, and a curve of darkness that creeps rather than snaps. Night is
+the pressure valve — more of them out there, noticing you sooner, moving a
+little faster, and Threat climbing at nearly twice the rate. The dark is a
+real `CanvasModulate` and the torch, flashlight, floodlight, muzzle flash and
+fire are real `PointLight2D`s, so two lights overlap properly instead of
+cutting holes in an overlay. Fire spreads through scenery and enemies, burns
+whoever stands in it, and **never touches anything the player built**. And
+the view interpolates between physics steps, so movement is smooth above 60Hz.
+
+**Phase 4a — the loop pays out.** Kills, containers, harvests,
 crafts, builds and raid payouts all pay XP into levels; a level hands you
 skill points; `K` opens the character sheet, a fourth tab of the pack, where
 a point buys a rank in one of six attributes or one of twenty-eight perks.
@@ -122,12 +132,12 @@ that will not fit is ever destroyed: it lands on the ground.
 
 | | |
 | --- | --- |
-| Phase | 4 of 5 — 4a (progression) done; 4b light and fire, 4c survivors and vehicles, 4d menus and audio to come |
-| Playable | The whole loop, and it levels you. **E** searches and uses, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
-| Unit tests | 199 tests, 2434 assertions, 9.8s (`tools\test.cmd`). `--all` adds the compound raid harness and the save round trips: 209 tests, 17.6s |
-| Smoke | 26 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid |
+| Phase | 4 of 5 — 4a (progression) and 4b (day, night, fire) done; 4c survivors and vehicles, 4d menus and audio to come |
+| Playable | The whole loop, it levels you, and it gets dark. **E** searches and uses, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
+| Unit tests | 219 tests, 3683 assertions, 9.9s (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips and the fire spread trials: 242 tests, 18.8s |
+| Smoke | 30 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
-| Save format | **v2** — the build (level, points, attributes, perks) beside v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored. |
+| Save format | **v3** — the clock (day and fraction) on top of v2's build; **v2** — the build (level, points, attributes, perks) beside v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored. |
 
 ### Port status by system
 
@@ -159,10 +169,10 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Storage tiers | 3b | ported | Stash 48 / locker 32 / chest 16; the two-panel screen is 3c |
 | Save / load | 3c | ported | v1: container identity by tile, world fingerprint, refusals with a reason |
 | Progression, SPECIAL, perks | 4a | ported | `recompute_stats` is the whole build: base -> attributes -> perks -> gear, on one pure pass |
-| Day/night and light | 4 | — | Real 2D lights this time |
+| Day/night and light | 4b | ported | Real 2D lights, as promised: `CanvasModulate` plus `PointLight2D`, not an overlay |
 | Survivors, jobs, bunks | 4 | — | |
 | Vehicles | 4 | — | |
-| Fire | 4 | — | |
+| Fire | 4b | ported | Spreads through scenery and enemies; cannot reach a player structure, by design |
 | Title screen, save slots, keybinds | 4 | — | |
 | Audio | 4 | — | |
 | Online co-op | 5 | — | Last |
@@ -170,6 +180,48 @@ The spec for each row is in `tasks/port-inventory.md`.
 ---
 
 ## 4. What is built
+
+### The dark, and what is in it (Phase 4b)
+
+- **`DayNight`** — two numbers are the whole clock: `t`, the fraction of the
+  day elapsed, and `day`. Everything else is derived, so a save stores those
+  two and nothing can come back out of step. A day is 540s; dawn, day, dusk
+  and night tile it without a gap; and the darkness is a ramp along
+  `Config.DARKNESS_KEYS` rather than a step per phase, because dusk has to
+  creep in. Each crossing announces itself exactly once.
+- **The four multipliers already had callers.** The spawner's density, the
+  sense radius, walk speed and `Threat.add` have all been reading
+  `sim.night_factors()` since Phase 2, against a stub that always said noon.
+  Turning the sky dark was the only thing that had to change.
+- **Real 2D lights.** The prototype painted a translucent rectangle over the
+  finished frame. This uses a `CanvasModulate` that multiplies the canvas down
+  and `PointLight2D`s that add light back — so two torches overlap correctly
+  instead of each cutting its own hole in an overlay. The torch, the
+  flashlight (a puddle *and* a cone, which is what the batteries buy), powered
+  floodlights, muzzle flashes and every fire are lights. Pooled and reassigned
+  each frame, because 140 fires flickering in and out would otherwise be 140
+  node allocations a second.
+- **`Fire`** — a crowd weapon with a real cost. Burning enemies take 9 dps for
+  6.5s and try to take their neighbours and the scenery with them; burning
+  scenery lives ~7s, hurts anything standing in it (you included) and spreads
+  at 16% a tick to what is within 1.6 tiles. A ceiling of 140 refuses rather
+  than slows. A burnt prop leaves by the same door chopping uses, so a burnt
+  treeline is still burnt after a save and load.
+  - **Nothing in `fire.gd` can reach `sim.structs`.** That is a decision
+    carried from the prototype, not an oversight, and there are two tests on
+    it: a cheap one that no structure definition can even read as flammable,
+    and a compound ringed with fire that takes zero damage.
+  - Fire skips its enemy scan entirely when nothing is alight. Without that,
+    every tick of every run paid for a full pass over the enemy list to
+    discover that nothing was on fire — which put the test suite over its
+    ten-second budget on its own.
+- **Render interpolation.** The sim steps at 60Hz and the view draws at the
+  monitor's rate, so two or three frames in a row used to show the identical
+  position and then jump. Every entity captures where it was at the top of its
+  tick and `Util.render_pos` blends. A gap larger than anything can walk in
+  one step is treated as a teleport and snaps, so a respawn or a load does not
+  slide in from across the map. The camera follows the *drawn* position, or
+  the world juddered under a smooth player instead.
 
 ### What you become (Phase 4a)
 
@@ -554,22 +606,18 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    dead; does a raid with nothing to defend feel like anything.
    Phase 4a adds two more: does a level arrive often enough to feel earned
    and rarely enough to feel like something, and is the character sheet worth
-   a tab or does it want to be a menu you stop for?
-1. **Phase 4b — day, night, light, fire, and render interpolation.** The day
-   is 540s; night multiplies enemy density, sense, speed and Threat gain by
-   the darkness. Where the prototype dimmed the canvas with an alpha, this
-   gets a real `CanvasModulate` and `PointLight2D`s — the torch and flashlight
-   have been in the off-hand since 3a with nothing to light. Fire is new.
-   Interpolation rides along because it is the same rendering pass: the sim
-   runs at 60Hz and the view at the monitor's rate, so on a 144Hz screen
-   movement judders until every entity captures a previous position at the top
-   of its tick.
-2. **Phase 4c — survivors and vehicles.** The roster capped by Charisma *and*
+   a tab or does it want to be a menu you stop for? And 4b adds the big one:
+   **is night dark enough to matter and light enough to play in?** The curve
+   peaks at 0.82 alpha, which is the prototype's number and is very dark on a
+   real monitor; the torch is the only answer to it at the moment. It is the
+   most likely thing in this phase to need a feel pass.
+1. **Phase 4c — survivors and vehicles.** The roster capped by Charisma *and*
    bunks, four jobs, Rations upkeep from the shared stash, permanent death;
-   about thirty cars, 62% locked, opened by a key, a lockpick or Hotwire. Both
-   read stats 4a already produces. The Bunk and the Watchtower are buildable
-   today and have nothing to put in them.
-3. **Phase 4d — the front door.** Title screen, save slots with an index,
+   about thirty cars, 62% locked, opened by a key, a lockpick or Hotwire.
+   Both read stats 4a already produces, and Hotwire is refused until they
+   exist. The Bunk and the Watchtower are buildable today and have nothing to
+   put in them.
+2. **Phase 4d — the front door.** Title screen, save slots with an index,
    autosave, full key rebinding over `src/core/bindings.gd`, a pause menu that
    saves before it quits, the minimap (which is what Sixth Sense is waiting
    for), and synthesised audio with per-kind rate limits.
@@ -693,9 +741,9 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 199  asserts: 2434  failures: 0   (9.8s)
-tests: 209  asserts: 2491  failures: 0   (--all, 17.6s)
-SMOKE done checkpoints=26 failures=0 exit=0
+tests: 219  asserts: 3683  failures: 0   (9.9s)
+tests: 242  asserts: 3778  failures: 0   (--all, 18.8s)
+SMOKE done checkpoints=30 failures=0 exit=0
 ```
 
 Since PR #7 the runner fails a test on any engine error logged while it ran,
@@ -791,6 +839,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-08 | Phase 4b: `DAY_LENGTH`, `PHASES`, `DARKNESS_KEYS`, `NIGHT`, `FIRE` and `FLAMMABLE` in `Config`; `DayNight` (the clock, the darkness ramp, the four multipliers four callers had been reading against a stub since Phase 2, the 24h HUD string) and `Fire` (burning enemies and scenery, spread, the 140 ceiling, the wildfire warning, and no path to `sim.structs`); `LightView` — a `CanvasModulate` for the dark and pooled `PointLight2D`s for the torch, the flashlight's puddle and cone, floodlights, muzzle flashes and every fire; render interpolation via `prev_pos` and `Util.render_pos`, with a snap threshold so a respawn does not smear; the HUD gains a day, a clock, a phase and a light hint; `SaveGame` v3 carries the clock; 23 new tests (219 fast, 242 with `--all`); smoke reaches dusk, night, a lit torch and a burning treeline. Fire skips its enemy scan when nothing is alight — without it the suite went over ten seconds on the cost of discovering nothing was on fire |
 | 2026-09-08 | Phase 4a: `ATTRS`, `PERKS`, `STAT_BASE` and the XP curve in `Config`; `Perks` (the pure base → attributes → perks → gear rebuild, and the two `{ok, reason}` gate checks) and `Progression` (one `add_xp` for all nine award sites, `raise_attribute`, `buy_perk`); every derived stat on `PlayerSim` now comes from the recompute instead of a literal; a CHAR tab on the pack screen and a level/XP bar on the HUD; build cost, structure health, turret power, trap damage, ammunition yield, loot rarity, double drops, Adrenaline and Second Wind wired to their consumers; base-wide numbers read `sim.host()`; salvage refunds a share of what you paid so Engineer is not a wood mine; `SaveGame` v2 stores the build and no derived stat; 32 new tests (197 fast, 207 with `--all`); smoke opens the sheet and spends a point. Fixed in passing: the smoke's REPAIR step aimed once and waited a fixed six frames instead of settling the cursor, which made it fail the moment the player stood a few pixels elsewhere |
 | 2026-09-08 | Phase 3c: `RECIPES` in `Config`; `Crafting` (bench tier from the workbench beside you, the Stone Hammer lift, tool gates, room checked against the container the craft will use, overflow to stash then ground); the pack screen grows a CRAFT tab and a STORE mode with DEPOSIT ALL and TAKE SUPPLIES; `SaveGame` v1 — containers by tile, chopped props by tile, structures, stores, worn gear and magazines, behind a world fingerprint taken at generation; `F5` / `F9`; 22 new tests (159 fast, 167 with `--all`); smoke crafts a hatchet, fills a chest, saves and reloads |
 | 2026-09-08 | Phase 3b review pass (PR #4): the shared stash is cleared with its last door; salvaging a workbench recomputes the bench tier; REPAIR sweeps while held |

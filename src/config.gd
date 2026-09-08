@@ -245,6 +245,96 @@ const ADRENALINE_SPEED := 1.15
 ## Second Wind cannot save you again until this many seconds have passed.
 const SECOND_WIND_CD := 120.0
 
+# ---------------------------------------------------------------- day/night --
+
+## One full day in seconds. Roughly nine minutes: long enough to plan a run
+## around, short enough that night is a thing that happens to you often.
+const DAY_LENGTH := 540.0
+
+## A new run starts mid-morning, so the first thing you get is a full working
+## day rather than a scramble.
+const DAY_START := 0.16
+
+## Fractions of a day. Night is the shortest phase and by far the loudest.
+## These name the phase for the HUD and the notices; the *darkness* is the
+## curve below, which crosses the boundaries smoothly.
+const PHASES := [
+	{"id": "dawn",  "name": "DAWN",  "from": 0.00, "to": 0.12},
+	{"id": "day",   "name": "DAY",   "from": 0.12, "to": 0.58},
+	{"id": "dusk",  "name": "DUSK",  "from": 0.58, "to": 0.72},
+	{"id": "night", "name": "NIGHT", "from": 0.72, "to": 1.00},
+]
+
+## How dark the world is through the day, sampled as a ramp rather than
+## stepped per phase — dusk has to creep in, not snap. `a` is the darkness
+## alpha and `c` is what the dark is tinted.
+const DARKNESS_KEYS := [
+	{"t": 0.00, "a": 0.62, "c": "#101a3a"},
+	{"t": 0.10, "a": 0.22, "c": "#2a3358"},
+	{"t": 0.16, "a": 0.00, "c": "#0a0c09"},
+	{"t": 0.56, "a": 0.00, "c": "#0a0c09"},
+	{"t": 0.66, "a": 0.30, "c": "#3a2740"},
+	{"t": 0.74, "a": 0.62, "c": "#161436"},
+	{"t": 0.82, "a": 0.82, "c": "#070c1c"},
+	{"t": 0.96, "a": 0.78, "c": "#080f24"},
+	{"t": 1.00, "a": 0.62, "c": "#101a3a"},
+]
+
+## Full night for the purpose of the multipliers below. The curve peaks a
+## little above this, so `k` is clamped and the small hours are not worse
+## than the rest of the night.
+const DARKNESS_FULL := 0.8
+
+## What the dark is worth to everything else. `k` is darkness over
+## DARKNESS_FULL, clamped to 0..1: more of them out there, noticing you
+## sooner, moving a little faster, and Threat climbing at nearly twice the
+## rate. Night is the pressure valve of the whole game.
+const NIGHT := {
+	"density": 0.85,
+	"sense": 0.55,
+	"speed": 0.10,
+	"threat": 0.9,
+}
+
+## Above this darkness a light is worth carrying — what the HUD hint and the
+## torch prompt read.
+const DARK_ENOUGH := 0.35
+
+# --------------------------------------------------------------------- fire --
+
+## Fire is what a fire arrow leaves behind: a crowd weapon with a real cost.
+## It clears a horde, it can take the treeline you were going to chop, and it
+## burns whoever is standing in it — you included.
+##
+## **Nothing here can reach a player structure.** That is a decision carried
+## from the prototype, not an oversight: losing your base to your own tower
+## would be the kind of surprise that ends a run. A test asserts it stays so.
+const FIRE := {
+	# On an enemy.
+	"burn_time": 6.5,
+	"burn_dps": 9.0,
+	# How often a burning thing tries to set light to what is around it.
+	"spread_every": 0.6,
+	"to_enemy_radius": 42.0,
+	"to_enemy_chance": 0.45,
+	"to_prop_radius": 46.0,
+	"to_prop_chance": 0.22,
+	# A burning piece of scenery.
+	"prop_life": 7.0,
+	"prop_spread_radius": TILE * 1.6,
+	"prop_spread_chance": 0.16,
+	"prop_dps": 16.0,
+	"prop_hurt_radius": 26.0,
+	# A ceiling, because the forest is thousands of pines and a fire that
+	# could take all of them at once would take the frame rate with it.
+	"max_fires": 140,
+	# Says so, once, when a fire you started is getting away from you.
+	"wildfire_warn_at": 25,
+}
+
+## Scenery that burns. Rock, boulder, silo and wreck do not.
+const FLAMMABLE := ["tree", "pine", "bush", "thicket", "litter", "hay", "reed"]
+
 # ---------------------------------------------------------------- resources --
 
 ## Everything that stacks as a count. Phase 2 uses the ammunition and the

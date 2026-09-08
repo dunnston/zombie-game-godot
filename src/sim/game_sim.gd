@@ -10,6 +10,8 @@ var enemies := Enemies.new()
 var bullets: Array[Dictionary] = []
 var quiet := QuietField.new()
 var threat := Threat.new()
+var clock := DayNight.new()
+var fire := Fire.new()
 var raid: Raid = null
 var raids_done := 0
 var time := 0.0
@@ -94,6 +96,8 @@ func start(world_: World, run_seed: int = 1) -> void:
 	enemies.rebuild_spatial()
 	quiet = QuietField.new()
 	threat = Threat.new()
+	clock = DayNight.new()
+	fire.reset()
 	world_version += 1                # any cached flow field is about a dead world
 	_nav.clear()
 	events.clear()
@@ -200,9 +204,10 @@ func living_players() -> Array[PlayerSim]:
 	return out
 
 
-## Day/night arrives in Phase 4; until then it is always day.
+## What the dark is worth, off the clock. Four callers had been reading this
+## since Phase 2 against a stub that always said noon.
 func night_factors() -> Dictionary:
-	return {"density": 1.0, "sense": 1.0, "speed": 1.0, "threat": 1.0}
+	return clock.factors()
 
 
 ## Where a raid aims. With structures (Phase 3) it is their centre; without
@@ -262,12 +267,19 @@ func notify(text: String, color := "#ebe6d6", important := false) -> void:
 
 func tick(dt: float) -> void:
 	time += dt
+	# The clock first: everything below it that asks about the dark — the
+	# spawner, the sense check, walk speed, Threat — should be asking about
+	# this tick and not the last one.
+	clock.tick(self, dt)
 	enemies.rebuild_spatial()
 	for p in players:
 		p.tick(self, dt)
 	enemies.tick_ai(self, dt)
 	Combat.tick_bullets(self, dt)
 	structs.tick(self, dt)
+	# After the structures and before the spawner: fire kills, and a kill
+	# should deposit its quiet before the refill check reads the field.
+	fire.tick(self, dt)
 	Loot.update_pickups(self, dt)
 	# Quiet decays before the spawner reads it, so a lull always ends on time.
 	quiet.tick(dt)
