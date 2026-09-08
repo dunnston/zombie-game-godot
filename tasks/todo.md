@@ -80,12 +80,91 @@ Branch `phase-2-combat`, off `phase-1-world` (its PR is still open).
 
 ## Phase 3 — something to keep
 
-- [ ] Items registry, slot inventory, equipment, hotbar, drag/drop
-- [ ] Loot: containers, searchable furniture, tiered storage
-- [ ] Building: destructible structure map, walls, towers, turrets, repair
-- [ ] Threat and raids, break-off logic
-- [ ] Crafting inside the inventory screen (the playtest finding)
-- [ ] Save/load with stable container IDs (fixes prototype invariant 7)
+Three branches off `main`, each its own PR, because one review of this much
+is no review at all. 3a is the spine: nothing in 3b or 3c can be built until
+an item can be held, carried and dropped.
+
+### 3a — what you carry (`phase-3-inventory`)
+
+- [x] `config.gd`: `GEAR` (15 armour pieces, three tiers across five slots,
+      plus the torch and flashlight in the off-hand), `GEAR_SLOTS`,
+      `ARMOR_SLOTS`, `MAX_GEAR_DR` 0.72, `lockpick` in `CONSUMABLES`,
+      the ~30 `LOOT` tables, search time, pickup range, carry cap 200
+- [x] `src/sim/items.gd`: one registry over `RES` + `WEAPONS` + `GEAR` +
+      `CONSUMABLES` (`kind` is what the UI switches on), and `Slots` — the
+      slot container with add / take / count / weight / move / split /
+      entries. The stash and car boots stay plain id→count maps; one
+      resource API serves both
+- [x] `PlayerSim`: `bag` (30 slots), `hotbar` (6), `equip` (6), weight
+      capacity over pack **and** hotbar together. `count_res` / `add_res` /
+      `take_res` keep their names and delegate to the bag, so combat,
+      reloads and healing are untouched. `weapon()` reads the hotbar
+- [x] `src/sim/loot.gd`: the weighted roll, the prefixed entry grammar
+      (`weapon:` / `gear:` / `item:` / bare resource) with pickup decode
+      beside it so the two cannot drift, ground pickups with the magnet and
+      the dropper hold-off, `stash_or_drop`, `spill_store`, the death
+      backpack, enemy drops. Nothing that will not fit is ever destroyed
+- [x] `src/sim/interact.gd`: what `E` is offering — recover pack, search a
+      container (a held channel, aborts on release or drift), gather litter
+      by hand. `Intent` gains `interact_held`
+- [x] `src/sim/equipment.gd`: equip / unequip / equip-best / move between
+      containers / drop, each ending in `recompute_stats()` — which arrives
+      now as the one place `armor_dr` is written (invariant 4)
+- [x] View: the inventory screen on Tab (pack grid, hotbar, body slots,
+      weight bar, drag and drop, ctrl+click to drop), pickups on the
+      ground, the hotbar on the HUD, the interact prompt and search ring
+- [x] Tests: slot moves and merges, weight cap netting off the hotbar, every
+      loot table rolls only known ids, overflow lands on the ground, the
+      magnet does not hand back your own drop, the death backpack round
+      trips, worn DR sums and caps, searching a container empties it once
+- [x] Smoke: search a container, drop and recover something, open the pack
+
+### 3b — what you build (`phase-3-building`)
+
+- [ ] `config.gd`: `STRUCTURES` (walls, gate, spike, bench, three stores,
+      bedroll, bunk, watchtower, generator, turret, floodlight),
+      `BUILD_ORDER`, `ARMAMENTS`, `STASH_SLOTS` 48
+- [ ] `src/sim/structures.gd`: the destructible structure map — tile keyed,
+      separate from the terrain bitmap (invariant 2). Place with the full
+      refusal list, damage, destroy, repair, `plan_repair_all` (the label is
+      the plan), demolish (spills its store), power, generators, gates
+- [ ] `World.is_blocked_tile` consults the structure map; `world_version`
+      bumps on every change so flow fields rebuild. Bullets stay terrain
+      only (invariant 3) — you can shoot over your own barricade
+- [ ] Enemies: the blocker in front, the adjacent-structure attack,
+      `struct_mul` damage, so a horde breaks on the perimeter
+- [ ] Turrets (powered, stash-fed, sight-checked) and spike traps
+- [ ] Raids: `base_centre` and `structure_hp_total` become real,
+      `raid_target` is the nearest structure, break-off measured against it
+- [ ] View: structures drawn with damage state, build mode on `B` with the
+      wrapping build bar, the ghost, repair and demolish tools
+- [ ] Tests: placement refusals, a wall makes the flow field go round, a
+      brute breaches one, turret kills, trap damage and wear, repair cost
+      and plan, demolish spills a full chest, generator fuel and power, a
+      raid aims at the base. Raid harness gets its compound figures
+- [ ] Smoke: build a wall, let something break it, repair it
+
+### 3c — what you make and what you keep (`phase-3-craft-save`)
+
+- [ ] `config.gd`: `RECIPES` (bench 0/1/2), `BENCH_UPGRADE_COST`
+- [ ] `src/sim/crafting.gd`: bench tier from a nearby workbench, the Stone
+      Hammer lift (never a gun), tool requirements, room checked against the
+      container the craft will actually use, overflow to stash then ground
+- [ ] Crafting inside the inventory screen — the playtest finding, not a
+      separate menu. Storage as the two-panel screen (contents, then pack
+      and hotbar) with DEPOSIT ALL and TAKE AMMO
+- [ ] `src/sim/save.gd`: payload v1. **Containers are identified by tile
+      position, never ordinal index** (invariant 7) and chopped props by
+      tile key, replayed against a world rebuilt from the seed. A world
+      fingerprint test fails the build when generation changes without a
+      version bump. A save that will not load says which and why
+- [ ] Save slots under `user://saves/`, autosave once a slot exists
+- [ ] Tests: every recipe's ids resolve, bench and hammer gates, craft
+      overflow, a save round trips (looted containers by tile, felled
+      props, structures, stash, worn gear, magazines), a bumped world
+      fingerprint refuses to load
+- [ ] Smoke: craft a hatchet, save, reload, still there
+
 - [ ] **Playtest gate:** owner builds and holds a base
 
 ## Phase 4 — a world that pushes back
@@ -175,3 +254,65 @@ Verification: 75 tests, 377 asserts, 0 failures. The four new assertions
 were run against the pre-fix `src/` first and all four failed — the ignored
 horde was paying 60 XP for zero kills. Raid harness unchanged (raid 1
 repelled in 18s for 19 kills; raid 3 scatters at 97s against 93s before).
+
+## Review — Phase 3a (2026-09-08)
+
+- The starting kit is now the real one: a pipe and two bandages. The
+  six-weapon kit lives on as `Config.TEST_KIT`, asked for by name by the
+  combat tests, the raid harness and the smoke run's fight. Nothing else
+  in the game hands it out.
+- `count_res` / `add_res` / `take_res` kept their names and now answer for
+  the pack, so combat, reloading, chopping and healing needed no changes
+  when the inventory landed underneath them. Only healing moved, to
+  `count_carried` / `take_carried`, because a bandage on the hotbar is one
+  you can see going down.
+- 30 new tests. The ones worth keeping honest: every entry in all 30 loot
+  tables resolves to a real item and every container archetype has a table
+  (1154 assertions total, most of them from that sweep); a full tier-3 set
+  is 0.70 DR and 40 damage becomes 28.8 in a plate carrier; a pack full by
+  weight takes nothing more; a dropped stack stays on the ground while you
+  stand on it and comes back when you walk off and return.
+- Three bugs the tests caught before the game did: the weight allowance
+  ignored the hotbar (so loot kept fitting after the bar read full), the
+  death drop left the off-hand light lit with no light in it, and a
+  harvest into a full pack destroyed the wood instead of dropping it.
+- Two things only the smoke run could catch: the pack screen had a parse
+  error the headless tests never load, and `Input.action_press` does not
+  fire `_unhandled_input`, so Tab could not open the panel under script.
+  Both are in §8 of `PROJECT.md`.
+- Stand-ins, all flagged: `stash_or_drop` has nowhere to put anything until
+  3b builds a Supply Stash (it drops), the flashlight and torch keep their
+  charge but the world is never dark until Phase 4, and `recompute_stats`
+  produces exactly one number until Phase 4 gives it attributes and perks.
+- Not done: render interpolation, still in §7.
+
+## Review — Phase 3a Codex pass (2026-09-08)
+
+Seven items on PR #3, all addressed. Each has a test that fails against the
+pre-fix `src/` and passes after.
+
+- [x] **P1** A raid payout went in through the uncapped `add_res`, so it
+      could push you past the carry cap, or vanish into a full grid while
+      the salvage notice reported the whole reward. Paid through
+      `give_res_or_drop` now: what does not fit is at your feet.
+- [x] Weight is the cap for equipment too. A six-unit rifle fitted into a
+      free grid slot at 199.5/200 carried. `_give_item` checks the budget
+      and the gun stays on the ground.
+- [x] A duplicate gun's spare ammunition was destroyed when the pack could
+      not hold it. It spills. Deliberately not returned as `overflow`: the
+      pile it came from is a *gun*, and rewriting it into ammunition is the
+      exact drift the one-file entry grammar exists to prevent — the
+      pickup loop now also refuses an overflow whose entry is not the
+      pile's own.
+- [x] Two rolls of the same weapon in one container aggregated into
+      `{id, n: 2}` and handed over one. `roll_container` never aggregates
+      anything whose stack limit is 1.
+- [x] The magazine map stayed on the corpse: a replacement gun inherited
+      the dead one's rounds, and the pack's saved value could never be
+      restored. Cleared for everything that went into the pack.
+- [x] A light's charge is now kept per light id. A half-burned torch,
+      swapped for a flashlight and back, was full again — free fuel.
+- [x] `drop_stack` called `take(id, n)`, which drains matching stacks from
+      the start of the grid: ctrl+dropping the second stack of scrap
+      emptied the first and left the clicked cell full. It empties the
+      slot that was clicked.

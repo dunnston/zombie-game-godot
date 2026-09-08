@@ -35,6 +35,23 @@ func on_event(ev: Dictionary) -> void:
 		"harvest":
 			_debris(Vector2(ev.x, ev.y), 14, Color("#3f5226") if ev.res == "wood" else Color("#6a6660"))
 			_text(Vector2(ev.x, ev.y - 20), "%s +%d" % [ev.label, ev.n], Color(Config.RES[ev.res].color), 12, 1.0)
+		"float":
+			_text(Vector2(ev.x, ev.y), ev.text, Color(ev.color), 12, 0.7)
+		"ring":
+			particles.append({"kind": "ring", "pos": Vector2(ev.x, ev.y), "life": 0.45, "max": 0.45,
+				"r0": float(ev.r0), "r1": float(ev.r1), "color": Color(ev.color)})
+		"loot":
+			# What came out of the container, stacked upward so the whole
+			# haul is readable in one glance.
+			var ly: float = ev.y - 12.0
+			for line in ev.lines:
+				_text(Vector2(ev.x, ly), line.text, Color(line.color), 12, 1.1)
+				ly -= 15.0
+			particles.append({"kind": "ring", "pos": Vector2(ev.x, ev.y), "life": 0.4, "max": 0.4,
+				"r0": 4.0, "r1": 34.0, "color": Color("#ffe08a") if ev.major else Color("#c9a227")})
+		"picked_up":
+			particles.append({"kind": "ring", "pos": Vector2(ev.x, ev.y), "life": 0.22, "max": 0.22,
+				"r0": 2.0, "r1": 14.0, "color": Color("#d8e8c0")})
 		"heal":
 			_text(Vector2(ev.x, ev.y - 24), "+%d" % roundi(ev.amount), Color("#7ce08a"), 13)
 			particles.append({"kind": "ring", "pos": Vector2(ev.x, ev.y), "life": 0.4, "max": 0.4, "r0": 6.0, "r1": 40.0, "color": Color("#7ce08a")})

@@ -13,6 +13,7 @@ const KEYS := {
 	"interact": [KEY_E],
 	"reload": [KEY_R],
 	"use_heal": [KEY_Q],
+	"light": [KEY_T],
 	"slot1": [KEY_1], "slot2": [KEY_2], "slot3": [KEY_3],
 	"slot4": [KEY_4], "slot5": [KEY_5], "slot6": [KEY_6],
 	"inventory": [KEY_TAB],

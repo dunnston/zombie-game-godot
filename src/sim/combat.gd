@@ -220,11 +220,11 @@ static func chop_prop(sim: GameSim, p: PlayerSim, w: Dictionary, dmg: float) -> 
 		sim.world.remove_prop(prop)
 		if prop.solid:
 			sim.world_version += 1       # the flow fields have a new way through
-		p.add_res(rule.res, n)
+		Loot.give_res_or_drop(sim, p, rule.res, n, p.pos)
 		sim.emit({"t": "harvest", "x": prop.x, "y": prop.y, "res": rule.res, "n": n, "label": rule.label})
 		if rule.has("bonus") and sim.rng.chance(0.8):
 			var bonus: int = rule.bonus_min + roundi(sim.rng.next() * (rule.bonus_max - rule.bonus_min))
-			p.add_res(rule.bonus, bonus)
+			Loot.give_res_or_drop(sim, p, rule.bonus, bonus, p.pos)
 		p.xp += rule.get("xp", 2)
 	return true
 

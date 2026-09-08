@@ -105,7 +105,71 @@ const RES := {
 const CONSUMABLES := {
 	"bandage": {"id": "bandage", "name": "Bandage", "heal": 28.0, "time": 0.9, "color": "#d8cfc0"},
 	"medkit":  {"id": "medkit",  "name": "Medkit",  "heal": 80.0, "time": 1.6, "color": "#d9575f"},
+	# Not a healing item — it opens car doors (Phase 4). It lives here so it
+	# rides along in the same inventory the rest of the small stuff uses.
+	"lockpick": {"id": "lockpick", "name": "Lockpick", "heal": 0.0, "time": 0.0, "color": "#9aa2ab", "tool": true},
 }
+
+# --------------------------------------------------------------------- gear --
+
+const GEAR_SLOTS := ["head", "body", "hands", "legs", "feet", "offhand"]
+const GEAR_SLOT_NAMES := {"head": "Head", "body": "Body", "hands": "Hands", "legs": "Legs", "feet": "Feet", "offhand": "Off-hand"}
+
+## The five slots that carry damage reduction. Every armour rule — three tiers
+## per slot, a full set under the cap, the body the biggest single
+## contributor — is about these and not about the off-hand, which holds a
+## light and protects nothing.
+const ARMOR_SLOTS := ["head", "body", "hands", "legs", "feet"]
+
+## Fifteen armour pieces, three tiers across five slots, plus the two lights.
+## A full tier-1 set is 0.23 DR, a full tier-3 set 0.70, against a hard cap of
+## 0.72: scavenging can make you tough, never immune.
+##
+## `light` is what Phase 4's renderer punches out of the darkness and `burn`
+## is how many seconds of being lit the thing holds. The torch is the first
+## night's answer — sticks and fiber — and burns itself away. The flashlight
+## is brighter and reaches much further because it is a cone rather than a
+## puddle, and it eats batteries, which you find before you can make them.
+const GEAR := {
+	"hardHat":     {"id": "hardHat",     "name": "Hard Hat",        "slot": "head",  "dr": 0.05, "wt": 3.0,  "tier": 1, "color": "#c9a227"},
+	"riotHelm":    {"id": "riotHelm",    "name": "Riot Helmet",     "slot": "head",  "dr": 0.10, "wt": 5.0,  "tier": 2, "color": "#4d5866"},
+	"milHelm":     {"id": "milHelm",     "name": "Combat Helmet",   "slot": "head",  "dr": 0.15, "wt": 6.0,  "tier": 3, "color": "#5b6640"},
+	"lightVest":   {"id": "lightVest",   "name": "Padded Vest",     "slot": "body",  "dr": 0.10, "wt": 6.0,  "tier": 1, "color": "#6f7a52"},
+	"heavyVest":   {"id": "heavyVest",   "name": "Riot Armor",      "slot": "body",  "dr": 0.20, "wt": 11.0, "tier": 2, "color": "#4d5866"},
+	"milVest":     {"id": "milVest",     "name": "Plate Carrier",   "slot": "body",  "dr": 0.28, "wt": 14.0, "tier": 3, "color": "#5b6640"},
+	"workGloves":  {"id": "workGloves",  "name": "Work Gloves",     "slot": "hands", "dr": 0.02, "wt": 1.0,  "tier": 1, "color": "#a3763f"},
+	"tacGloves":   {"id": "tacGloves",   "name": "Tactical Gloves", "slot": "hands", "dr": 0.04, "wt": 2.0,  "tier": 2, "color": "#4d5866"},
+	"armGuards":   {"id": "armGuards",   "name": "Arm Guards",      "slot": "hands", "dr": 0.07, "wt": 4.0,  "tier": 3, "color": "#5b6640"},
+	"denimPants":  {"id": "denimPants",  "name": "Work Trousers",   "slot": "legs",  "dr": 0.04, "wt": 2.0,  "tier": 1, "color": "#4a5a72"},
+	"paddedLegs":  {"id": "paddedLegs",  "name": "Padded Leggings", "slot": "legs",  "dr": 0.08, "wt": 5.0,  "tier": 2, "color": "#6f7a52"},
+	"milGreaves":  {"id": "milGreaves",  "name": "Combat Trousers", "slot": "legs",  "dr": 0.12, "wt": 7.0,  "tier": 3, "color": "#5b6640"},
+	"workBoots":   {"id": "workBoots",   "name": "Work Boots",      "slot": "feet",  "dr": 0.02, "wt": 3.0,  "tier": 1, "color": "#6b4a2f"},
+	"combatBoots": {"id": "combatBoots", "name": "Combat Boots",    "slot": "feet",  "dr": 0.05, "wt": 4.0,  "tier": 2, "color": "#3f4a38"},
+	"milBoots":    {"id": "milBoots",    "name": "Assault Boots",   "slot": "feet",  "dr": 0.08, "wt": 5.0,  "tier": 3, "color": "#5b6640"},
+	"torch": {
+		"id": "torch", "name": "Torch", "slot": "offhand", "dr": 0.0, "wt": 2.0, "tier": 1,
+		"color": "#e0913a", "light": {"radius": 200.0, "strength": 0.80, "warm": "#ffb45a"},
+		"burn": 210.0, "consumed": true,
+	},
+	"flashlight": {
+		"id": "flashlight", "name": "Flashlight", "slot": "offhand", "dr": 0.0, "wt": 2.0, "tier": 2,
+		"color": "#d8d2c0",
+		"light": {"radius": 140.0, "strength": 0.72, "warm": "#fff6cd", "cone_len": 460.0, "cone_spread": 0.34, "cone_strength": 0.86},
+		"burn": 300.0, "battery": "battery",
+	},
+}
+
+## No amount of scavenging should make you immune.
+const MAX_GEAR_DR := 0.72
+
+## A lit player is noticed this much further out — the cost of seeing at night.
+const LIT_SENSE_BONUS := 90.0
+
+## Weapons and consumables carry no weight of their own in the tables, so the
+## item registry gives them these. A gun is six units; a bandage is half one.
+const WEAPON_WT := 6.0
+const CONSUMABLE_WT := 0.5
+const CONSUMABLE_STACK := 10
 
 # ------------------------------------------------------------------ weapons --
 
@@ -156,12 +220,20 @@ const NEEDS_HINT := {
 	"scythe": "That thicket needs a SCYTHE — small bushes you can pull by hand",
 }
 
-## Phase 2 stand-in for the hotbar: what a new game holds, on keys 1-6, and
-## what it carries. Enough to fire every weapon at the playtest gate. Phase 3
-## replaces this with the pipe-and-two-bandages start and a real inventory.
-const PHASE2_KIT := {
-	"loadout": ["pipe", "axe", "bow", "pistol", "shotgun", "rifle"],
-	"res": {"arrow": 30, "ammoP": 60, "ammoS": 24, "ammoR": 16, "bandage": 4, "medkit": 1},
+## What a new survivor wakes up with: a pipe in the first hotbar slot and a
+## couple of bandages beside it. Everything else is out there to be found.
+## `weapon` is also what a death drop leaves you, so a respawn is never
+## completely toothless.
+const START_KIT := {
+	"weapon": "pipe",
+	"hotbar": [["pipe", 1], ["bandage", 2]],
+}
+
+## The six-weapon test kit. Not what a game starts with — the smoke run and
+## the combat tests ask for it by name so they can fire everything.
+const TEST_KIT := {
+	"hotbar": [["pipe", 1], ["axe", 1], ["bow", 1], ["pistol", 1], ["shotgun", 1], ["rifle", 1]],
+	"bag": [["arrow", 30], ["ammoP", 60], ["ammoS", 24], ["ammoR", 16], ["bandage", 4], ["medkit", 1]],
 }
 
 # ------------------------------------------------------------------ enemies --
@@ -330,9 +402,157 @@ const LOCATIONS := [
 	{"id": "mall",       "name": "GALLERIA MALL",       "tier": 3, "rect": Rect2i(240, 216, 80, 54), "desc": "Shops, a drugstore and an outfitters. Everyone came here."},
 ]
 
+# -------------------------------------------------------------- loot tables --
+
+## Each entry is `{id, min, max, w}`. `id` is a resource, or a prefixed
+## `weapon:` / `gear:` / `item:` id — the same grammar a ground pickup is
+## decoded with, so the two can never drift apart.
+##
+## Every table reads true to the thing you are opening: a fridge holds food, a
+## wardrobe holds clothes, a gun safe holds guns. That is what makes a
+## building's exterior worth reading before you go in.
+const LOOT := {
+	"cabinet": [
+		{"id": "rations", "min": 2, "max": 5, "w": 18}, {"id": "cloth", "min": 3, "max": 8, "w": 30},
+		{"id": "wood", "min": 4, "max": 10, "w": 28}, {"id": "scrap", "min": 2, "max": 6, "w": 24},
+		{"id": "med", "min": 1, "max": 2, "w": 10}, {"id": "item:bandage", "min": 1, "max": 2, "w": 8},
+	],
+	"kitchen": [
+		{"id": "rations", "min": 3, "max": 8, "w": 34}, {"id": "cloth", "min": 2, "max": 6, "w": 26},
+		{"id": "scrap", "min": 3, "max": 8, "w": 30}, {"id": "med", "min": 1, "max": 3, "w": 14},
+		{"id": "elec", "min": 1, "max": 2, "w": 10}, {"id": "item:bandage", "min": 1, "max": 1, "w": 10},
+	],
+	"toolbox": [
+		{"id": "scrap", "min": 6, "max": 14, "w": 34}, {"id": "wood", "min": 8, "max": 18, "w": 30},
+		{"id": "battery", "min": 1, "max": 2, "w": 12}, {"id": "parts", "min": 1, "max": 2, "w": 16},
+		{"id": "elec", "min": 1, "max": 3, "w": 12},
+		{"id": "weapon:pipe", "min": 1, "max": 1, "w": 6}, {"id": "weapon:axe", "min": 1, "max": 1, "w": 5},
+	],
+	"shelf": [
+		{"id": "rations", "min": 4, "max": 10, "w": 32}, {"id": "cloth", "min": 4, "max": 10, "w": 28},
+		{"id": "med", "min": 2, "max": 5, "w": 24}, {"id": "scrap", "min": 3, "max": 7, "w": 22},
+		{"id": "item:bandage", "min": 1, "max": 3, "w": 16}, {"id": "elec", "min": 1, "max": 3, "w": 10},
+	],
+	"pharmacy": [
+		{"id": "med", "min": 5, "max": 12, "w": 40}, {"id": "item:medkit", "min": 1, "max": 2, "w": 24},
+		{"id": "item:bandage", "min": 2, "max": 4, "w": 24}, {"id": "cloth", "min": 3, "max": 7, "w": 12},
+	],
+	"electronics": [
+		{"id": "elec", "min": 5, "max": 12, "w": 40}, {"id": "battery", "min": 1, "max": 4, "w": 22},
+		{"id": "parts", "min": 1, "max": 3, "w": 24}, {"id": "scrap", "min": 6, "max": 14, "w": 26},
+		{"id": "fuel", "min": 5, "max": 12, "w": 10},
+	],
+	"carTrunk": [
+		{"id": "scrap", "min": 4, "max": 10, "w": 34}, {"id": "fuel", "min": 4, "max": 12, "w": 26},
+		{"id": "battery", "min": 1, "max": 2, "w": 14}, {"id": "parts", "min": 1, "max": 1, "w": 14},
+		{"id": "cloth", "min": 2, "max": 5, "w": 16}, {"id": "elec", "min": 1, "max": 2, "w": 10},
+	],
+	"policeLocker": [
+		{"id": "ammoP", "min": 14, "max": 30, "w": 30}, {"id": "ammoS", "min": 6, "max": 14, "w": 20},
+		{"id": "parts", "min": 2, "max": 4, "w": 16}, {"id": "gear:lightVest", "min": 1, "max": 1, "w": 8},
+		{"id": "gear:heavyVest", "min": 1, "max": 1, "w": 5}, {"id": "med", "min": 2, "max": 5, "w": 10},
+		{"id": "gear:riotHelm", "min": 1, "max": 1, "w": 7}, {"id": "gear:tacGloves", "min": 1, "max": 1, "w": 7},
+		{"id": "gear:combatBoots", "min": 1, "max": 1, "w": 6}, {"id": "gear:paddedLegs", "min": 1, "max": 1, "w": 6},
+	],
+	"gunSafe": [
+		{"id": "weapon:pistol", "min": 1, "max": 1, "w": 22}, {"id": "weapon:shotgun", "min": 1, "max": 1, "w": 16},
+		{"id": "weapon:rifle", "min": 1, "max": 1, "w": 8}, {"id": "ammoP", "min": 20, "max": 40, "w": 22},
+		{"id": "ammoS", "min": 10, "max": 20, "w": 18}, {"id": "parts", "min": 3, "max": 6, "w": 14},
+	],
+	"militaryCrate": [
+		{"id": "rations", "min": 6, "max": 14, "w": 14}, {"id": "mil", "min": 4, "max": 10, "w": 32},
+		{"id": "ammoR", "min": 12, "max": 26, "w": 24}, {"id": "parts", "min": 3, "max": 7, "w": 18},
+		{"id": "elec", "min": 5, "max": 12, "w": 12}, {"id": "weapon:carbine", "min": 1, "max": 1, "w": 4},
+		{"id": "gear:milVest", "min": 1, "max": 1, "w": 5}, {"id": "item:medkit", "min": 1, "max": 2, "w": 5},
+	],
+	"hospitalCrate": [
+		{"id": "rations", "min": 3, "max": 8, "w": 12}, {"id": "med", "min": 8, "max": 16, "w": 36},
+		{"id": "item:medkit", "min": 1, "max": 3, "w": 26}, {"id": "elec", "min": 3, "max": 8, "w": 16},
+		{"id": "parts", "min": 1, "max": 3, "w": 12}, {"id": "mil", "min": 1, "max": 3, "w": 10},
+	],
+	"fuelPump": [{"id": "fuel", "min": 12, "max": 26, "w": 100}],
+	"fuelDrum": [{"id": "fuel", "min": 8, "max": 18, "w": 70}, {"id": "scrap", "min": 2, "max": 6, "w": 30}],
+	"logPile": [
+		{"id": "wood", "min": 12, "max": 24, "w": 64}, {"id": "arrow", "min": 4, "max": 10, "w": 8},
+		{"id": "scrap", "min": 1, "max": 3, "w": 14}, {"id": "cloth", "min": 1, "max": 3, "w": 12},
+		{"id": "parts", "min": 1, "max": 1, "w": 10},
+	],
+	"crate": [
+		{"id": "wood", "min": 8, "max": 18, "w": 30}, {"id": "scrap", "min": 8, "max": 18, "w": 30},
+		{"id": "elec", "min": 2, "max": 6, "w": 16}, {"id": "parts", "min": 1, "max": 3, "w": 12},
+		{"id": "cloth", "min": 4, "max": 10, "w": 12},
+	],
+	"bookshelf": [
+		{"id": "cloth", "min": 3, "max": 8, "w": 34},      # paper and dust jackets
+		{"id": "elec", "min": 1, "max": 3, "w": 16},       # an old radio, a calculator
+		{"id": "rations", "min": 1, "max": 3, "w": 14},    # someone's hidden snacks
+		{"id": "med", "min": 1, "max": 2, "w": 12}, {"id": "parts", "min": 1, "max": 1, "w": 8},
+		{"id": "item:bandage", "min": 1, "max": 2, "w": 16},
+	],
+	"dresser": [
+		{"id": "cloth", "min": 5, "max": 12, "w": 46}, {"id": "item:bandage", "min": 1, "max": 3, "w": 20},
+		{"id": "med", "min": 1, "max": 3, "w": 14}, {"id": "scrap", "min": 1, "max": 4, "w": 12},
+		{"id": "ammoP", "min": 3, "max": 8, "w": 8},       # a bedside pistol's spare rounds
+	],
+	"wardrobe": [
+		{"id": "cloth", "min": 8, "max": 16, "w": 46}, {"id": "item:bandage", "min": 1, "max": 3, "w": 16},
+		{"id": "gear:lightVest", "min": 1, "max": 1, "w": 5}, {"id": "gear:denimPants", "min": 1, "max": 1, "w": 12},
+		{"id": "gear:workBoots", "min": 1, "max": 1, "w": 10}, {"id": "gear:hardHat", "min": 1, "max": 1, "w": 6},
+		{"id": "gear:workGloves", "min": 1, "max": 1, "w": 10}, {"id": "scrap", "min": 1, "max": 3, "w": 10},
+		{"id": "rations", "min": 1, "max": 3, "w": 8},
+	],
+	"desk": [
+		{"id": "elec", "min": 2, "max": 6, "w": 34}, {"id": "battery", "min": 1, "max": 2, "w": 14},
+		{"id": "parts", "min": 1, "max": 2, "w": 20}, {"id": "cloth", "min": 2, "max": 5, "w": 18},
+		{"id": "scrap", "min": 2, "max": 6, "w": 16}, {"id": "ammoP", "min": 4, "max": 10, "w": 12},
+	],
+	"filing": [
+		{"id": "cloth", "min": 4, "max": 10, "w": 34}, {"id": "battery", "min": 1, "max": 1, "w": 10},
+		{"id": "elec", "min": 1, "max": 3, "w": 18}, {"id": "parts", "min": 1, "max": 2, "w": 16},
+		{"id": "ammoP", "min": 5, "max": 12, "w": 18}, {"id": "med", "min": 1, "max": 3, "w": 14},
+	],
+	"fridge": [
+		{"id": "rations", "min": 6, "max": 14, "w": 58}, {"id": "med", "min": 1, "max": 3, "w": 20},
+		{"id": "cloth", "min": 1, "max": 3, "w": 12}, {"id": "fuel", "min": 1, "max": 3, "w": 10},
+	],
+	"nightstand": [
+		{"id": "med", "min": 2, "max": 5, "w": 30}, {"id": "battery", "min": 1, "max": 2, "w": 16},
+		{"id": "item:bandage", "min": 1, "max": 2, "w": 22}, {"id": "ammoP", "min": 4, "max": 10, "w": 20},
+		{"id": "cloth", "min": 1, "max": 4, "w": 16}, {"id": "elec", "min": 1, "max": 2, "w": 12},
+	],
+	"vanity": [
+		{"id": "med", "min": 3, "max": 7, "w": 44}, {"id": "item:bandage", "min": 1, "max": 3, "w": 26},
+		{"id": "cloth", "min": 2, "max": 6, "w": 22}, {"id": "item:medkit", "min": 1, "max": 1, "w": 8},
+	],
+	"footlocker": [
+		{"id": "mil", "min": 3, "max": 8, "w": 28}, {"id": "arrow", "min": 8, "max": 20, "w": 8},
+		{"id": "ammoR", "min": 8, "max": 18, "w": 20}, {"id": "gear:milVest", "min": 1, "max": 1, "w": 6},
+		{"id": "gear:milHelm", "min": 1, "max": 1, "w": 6}, {"id": "gear:armGuards", "min": 1, "max": 1, "w": 6},
+		{"id": "gear:milGreaves", "min": 1, "max": 1, "w": 6}, {"id": "gear:milBoots", "min": 1, "max": 1, "w": 6},
+		{"id": "parts", "min": 2, "max": 5, "w": 14}, {"id": "item:medkit", "min": 1, "max": 2, "w": 8},
+		{"id": "rations", "min": 3, "max": 8, "w": 6},
+	],
+	"vending": [
+		{"id": "rations", "min": 5, "max": 12, "w": 62}, {"id": "scrap", "min": 2, "max": 5, "w": 22},
+		{"id": "elec", "min": 1, "max": 2, "w": 16},
+	],
+	"toolrack": [
+		{"id": "parts", "min": 2, "max": 5, "w": 34}, {"id": "weapon:bow", "min": 1, "max": 1, "w": 6},
+		{"id": "arrow", "min": 6, "max": 16, "w": 10}, {"id": "scrap", "min": 6, "max": 14, "w": 32},
+		{"id": "wood", "min": 5, "max": 12, "w": 22}, {"id": "weapon:pipe", "min": 1, "max": 1, "w": 6},
+		{"id": "weapon:machete", "min": 1, "max": 1, "w": 4}, {"id": "weapon:axe", "min": 1, "max": 1, "w": 8},
+		{"id": "weapon:fireaxe", "min": 1, "max": 1, "w": 3},
+	],
+	"displaycase": [
+		{"id": "elec", "min": 4, "max": 10, "w": 34}, {"id": "battery", "min": 1, "max": 3, "w": 16},
+		{"id": "parts", "min": 2, "max": 5, "w": 26}, {"id": "weapon:pistol", "min": 1, "max": 1, "w": 10},
+		{"id": "ammoP", "min": 10, "max": 22, "w": 18}, {"id": "scrap", "min": 3, "max": 8, "w": 14},
+	],
+}
+
 # --------------------------------------------------------------- containers --
 
-## Searchable furniture. `table` and `rolls` are consumed by loot (Phase 3);
+## Searchable furniture. `table` and `rolls` say what searching one gives up;
 ## the world generator only needs the kind to exist.
 const CONTAINERS := {
 	"cabinet":       {"table": "cabinet",       "rolls": [1, 2], "sprite": "cabinet",     "label": "Cabinet"},

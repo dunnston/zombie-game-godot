@@ -38,6 +38,9 @@ static func kill_enemy(sim: GameSim, e: EnemySim, source: Variant = null) -> voi
 	if sim.enemies.corpses.size() > 90:
 		sim.enemies.corpses.pop_front()
 	sim.emit({"t": "kill", "x": e.pos.x, "y": e.pos.y, "type": e.type, "boss": e.def.get("boss", false)})
+	# A body is worth searching. Small drops, but enough of them to keep a
+	# gun fed between containers.
+	Loot.enemy_drop(sim, e)
 
 	# Kill XP to the killer; automated kills pay everyone present. In solo
 	# both rules are the same rule. Phase 4 turns XP into levels.
@@ -98,9 +101,14 @@ static func kill_player(sim: GameSim, p: PlayerSim) -> void:
 	p.reloading = {}
 	p.using = {}
 	p.swing = {}
+	p.searching = {}
 	sim.stats.deaths += 1
 	sim.emit({"t": "player_died", "seat": p.seat, "x": p.pos.x, "y": p.pos.y})
-	sim.notify("YOU DIED", "#e05a4a", true)
+	# Everything you were carrying stays where you fell, in a pack you can
+	# walk back to. You keep the starting weapon, so a respawn is never
+	# completely toothless.
+	var pack := Loot.drop_backpack(sim, p)
+	sim.notify("YOU DIED" if pack.is_empty() else "YOU DIED — your pack is where you fell", "#e05a4a", true)
 
 
 static func heal_player(sim: GameSim, p: PlayerSim, amount: float) -> float:
@@ -123,6 +131,6 @@ static func respawn_player(sim: GameSim, p: PlayerSim) -> void:
 	p.invuln = 2.2
 	p.reloading = {}
 	p.using = {}
-	p.slot = clampi(p.slot, 0, maxi(0, p.loadout.size() - 1))
+	p.slot = clampi(p.slot, 0, maxi(0, p.hotbar.size() - 1))
 	sim.emit({"t": "respawn", "seat": p.seat, "x": p.pos.x, "y": p.pos.y})
 	sim.notify("Respawned somewhere in the wild", "#9fd0ff", true)

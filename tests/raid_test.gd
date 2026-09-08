@@ -12,6 +12,7 @@ func before_each() -> void:
 	plot = tile_centre(clear_plot(12))
 	p.pos = plot
 	p.intent.aim = plot + Vector2.RIGHT
+	sim.give_test_kit(p)
 	sim.view_radius = 600.0
 
 
@@ -138,7 +139,7 @@ func test_the_raid_xp_bonus_is_only_for_raiders() -> void:
 func _play_raid(index: int, weapon := "rifle", max_seconds := 300.0) -> Dictionary:
 	sim.raids_done = index
 	p.god_mode = true
-	p.select_slot(p.loadout.find(weapon))
+	p.select_slot(p.hotbar_index(weapon))
 	p.add_res(Config.WEAPONS[weapon].ammo, 400)
 	sim.threat.value = 100.0
 	run(sim, Config.RAID.warning_time + 0.2)

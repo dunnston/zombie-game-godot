@@ -14,7 +14,21 @@ var raid: Raid = null
 var raids_done := 0
 var time := 0.0
 var rng: Rng
-var stats := {"kills": 0, "deaths": 0, "damage_dealt": 0.0, "damage_taken": 0.0}
+var stats := {"kills": 0, "deaths": 0, "damage_dealt": 0.0, "damage_taken": 0.0, "looted": 0}
+
+## Piles on the ground, and the packs the dead leave behind.
+var pickups: Array[Dictionary] = []
+var backpacks: Array[Dictionary] = []
+var pickup_seq := 0
+
+## Loot rolls draw from their own stream, so how much you search cannot shift
+## the world's or the spawner's numbers.
+var loot_rng: Rng
+
+## The base's one shared pile. A Supply Stash (Phase 3b) is a door into it,
+## not a pile of its own; until one is built there is nowhere to overflow to
+## and everything falls on the ground.
+var stash: Slots = null
 
 ## The view drains these every frame: shots, hits, kills, notices, shakes.
 ## Co-op sends the same list to guests.
@@ -45,8 +59,11 @@ func new_game(world_seed: int = 20240917, run_seed: int = 1) -> void:
 func start(world_: World, run_seed: int = 1) -> void:
 	world = world_
 	rng = Rng.new(run_seed)
+	loot_rng = Rng.new(run_seed * 2654435761 + 0xC0FFEE)
 	time = 0.0
 	players.clear()
+	pickups.clear()
+	backpacks.clear()
 	var p := PlayerSim.new()
 	p.seat = 0
 	p.display_name = Config.PLAYER.names[0]
@@ -62,16 +79,30 @@ func start(world_: World, run_seed: int = 1) -> void:
 	notify("You wake up on the roadside. Find shelter before dark.", "#d8e8c0", true)
 
 
-## The Phase 2 loadout. Phase 3 replaces this with the real start.
+## What a new survivor wakes up holding: a pipe and a couple of bandages.
+## Everything else is out there.
 func give_kit(p: PlayerSim) -> void:
-	p.loadout.assign(Config.PHASE2_KIT.loadout)
-	for id in Config.PHASE2_KIT.res:
-		p.add_res(id, Config.PHASE2_KIT.res[id])
-	for id in p.loadout:
-		var w: Dictionary = Config.WEAPONS[id]
+	for entry in Config.START_KIT.hotbar:
+		p.hotbar.add(entry[0], entry[1])
+	Equipment.recompute_stats(p)
+
+
+## The six-weapon test kit, loaded and carrying ammunition. Not a thing a game
+## ever starts with — the smoke run and the combat tests ask for it by name.
+func give_test_kit(p: PlayerSim) -> void:
+	p.hotbar.clear_all()
+	p.bag.clear_all()
+	for entry in Config.TEST_KIT.hotbar:
+		p.hotbar.add(entry[0], entry[1])
+	for entry in Config.TEST_KIT.bag:
+		p.bag.add(entry[0], entry[1])
+	for i in range(p.hotbar.size()):
+		var id := p.hotbar.id_at(i)
+		var w: Dictionary = Config.WEAPONS.get(id, {})
 		if w.has("mag"):
 			p.mag[id] = w.mag
 			p.take_res(w.ammo, w.mag)
+	Equipment.recompute_stats(p)
 
 
 ## A random open tile in tier-1 land. With `near`, only tiles within
@@ -190,6 +221,7 @@ func tick(dt: float) -> void:
 		p.tick(self, dt)
 	enemies.tick_ai(self, dt)
 	Combat.tick_bullets(self, dt)
+	Loot.update_pickups(self, dt)
 	# Quiet decays before the spawner reads it, so a lull always ends on time.
 	quiet.tick(dt)
 	enemies.tick_spawning(self, dt)
