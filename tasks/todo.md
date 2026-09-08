@@ -27,7 +27,7 @@ Godot 4.7.2 · GDScript · 2D · headless tests via
 - [ ] Verify the Godot MCP (`run_project`, `get_debug_output`) works after the desktop app restart
 - [x] Seed `PROJECT.md` (§1 vision, §2 pillars, §5 architecture, §6 decision log, §8 lessons
       carried from the prototype, plus new §0 "porting from")
-- [ ] First commit and push to `dunnston/zombie-game-godot`
+- [x] First commit and push to `dunnston/zombie-game-godot`
 
 ## Phase 1 — a place to stand
 
