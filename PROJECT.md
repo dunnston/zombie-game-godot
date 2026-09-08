@@ -124,7 +124,7 @@ that will not fit is ever destroyed: it lands on the ground.
 | --- | --- |
 | Phase | 4 of 5 — 4a (progression) done; 4b light and fire, 4c survivors and vehicles, 4d menus and audio to come |
 | Playable | The whole loop, and it levels you. **E** searches and uses, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
-| Unit tests | 197 tests, 2393 assertions, 9.4s (`tools\test.cmd`). `--all` adds the compound raid harness and the save round trips: 207 tests, 16.2s |
+| Unit tests | 199 tests, 2434 assertions, 9.8s (`tools\test.cmd`). `--all` adds the compound raid harness and the save round trips: 209 tests, 17.6s |
 | Smoke | 26 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
 | Save format | **v2** — the build (level, points, attributes, perks) beside v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored. |
@@ -203,10 +203,21 @@ The spec for each row is in `tasks/port-inventory.md`.
   drops, Adrenaline, Second Wind and the rest are wired to their consumers.
   Base-wide numbers (wall strength, turret reach) come from `sim.host()`, not
   from whoever is standing next to the thing.
-  - Two exceptions, both honest: **Sixth Sense** needs a minimap, which is
-    Phase 4d, and the five survivor stats (`survivor_cap`, `upkeep_mul` and
-    friends) are produced here but not read until Phase 4c. They are computed
-    now because a perk you can buy that quietly does nothing is worse.
+  - **A perk whose system does not exist yet carries a `needs` field and
+    cannot be bought.** It stays visible so the tree matches the spec and can
+    be planned around, and its row says what it is waiting on — a point spent
+    on nothing is worse than a row that explains itself. Two carry it today:
+    **Sixth Sense** (the minimap, 4d) and **Hotwire** (cars, 4c). The field
+    comes off as each system lands.
+  - The five survivor stats (`survivor_cap`, `upkeep_mul` and friends) are
+    produced here and not read until 4c, but the perks that write them —
+    Recruiter, Inspiring Presence, Quartermaster, Natural Leader — are not
+    gated, because 4c reads what they set the moment it exists.
+- **Two perk descriptions were rewritten to match what they do.** Fire Control
+  gives range half the bonus damage gets, and Fortune Favours is a 35% chance
+  rather than a certainty. Both are the prototype's own numbers, and in the
+  prototype both descriptions overstate them; the behaviour is ported
+  faithfully and the wording corrected.
 - **Salvage refunds a share of what you paid, not of the list price.** Without
   that, Engineer 3 builds a wall for 0.47 and salvages it for 0.55, and a wall
   put up and taken down again is free material. There is a test that turns 400
@@ -682,8 +693,8 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 197  asserts: 2393  failures: 0   (9.4s)
-tests: 207  asserts: 2450  failures: 0   (--all, 16.2s)
+tests: 199  asserts: 2434  failures: 0   (9.8s)
+tests: 209  asserts: 2491  failures: 0   (--all, 17.6s)
 SMOKE done checkpoints=26 failures=0 exit=0
 ```
 

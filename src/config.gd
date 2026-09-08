@@ -128,6 +128,11 @@ const ATTRS := {
 ## The table is data only. What each one *does* is the match in
 ## `Perks._apply_perk`, which runs during the recompute and never on
 ## purchase — a test asserts every id here has a branch there.
+##
+## `needs` names a system that has not been built yet. Such a perk stays
+## visible so the tree matches the spec and can be planned around, but it
+## cannot be bought: a point spent on nothing is worse than a row that says
+## why it is waiting. The field comes off as each system lands.
 const PERKS := [
 	# ------------------------------------------------------------ strength --
 	{"id": "packMule", "attr": "str", "req": 2, "max": 3, "name": "Pack Mule",
@@ -147,7 +152,8 @@ const PERKS := [
 	{"id": "eagleEye", "attr": "per", "req": 4, "max": 3, "name": "Eagle Eye",
 		"desc": "-22% weapon spread and +12% bullet range per rank."},
 	{"id": "sixthSense", "attr": "per", "req": 6, "max": 1, "name": "Sixth Sense",
-		"desc": "Enemies show on the minimap much further out, even unaware ones."},
+		"desc": "Enemies show on the minimap much further out, even unaware ones.",
+		"needs": "the minimap"},
 
 	# --------------------------------------------------------- constitution --
 	{"id": "thickSkin", "attr": "con", "req": 2, "max": 4, "name": "Thick Skin",
@@ -181,9 +187,10 @@ const PERKS := [
 	{"id": "gunsmith", "attr": "int", "req": 4, "max": 2, "name": "Gunsmith",
 		"desc": "Crafted ammo yields +60% per rank."},
 	{"id": "fireControl", "attr": "int", "req": 5, "max": 2, "name": "Fire Control",
-		"desc": "+35% turret damage and range per rank."},
+		"desc": "+35% turret damage per rank, and half that in reach."},
 	{"id": "hotwire", "attr": "int", "req": 5, "max": 2, "name": "Hotwire",
-		"desc": "Start any locked car without a key. Rank 2 does it twice as fast."},
+		"desc": "Start any locked car without a key. Rank 2 does it twice as fast.",
+		"needs": "cars"},
 
 	# ------------------------------------------------------------------ luck --
 	{"id": "scavengersLuck", "attr": "lck", "req": 2, "max": 3, "name": "Scavenger's Luck",
@@ -195,7 +202,7 @@ const PERKS := [
 	{"id": "lowProfile", "attr": "lck", "req": 5, "max": 2, "name": "Low Profile",
 		"desc": "-30% Threat generated and quieter gunfire per rank."},
 	{"id": "fortune", "attr": "lck", "req": 7, "max": 1, "name": "Fortune Favours",
-		"desc": "Enemies drop twice as much, and containers can pay out twice."},
+		"desc": "A 35% chance that a body or a container pays out twice."},
 ]
 
 ## Every modifier the game reads, at its untouched base value — before any

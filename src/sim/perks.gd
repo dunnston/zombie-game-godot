@@ -3,7 +3,7 @@ extends RefCounted
 ## Attributes and perks, and the one pure pass that turns them into stats.
 ##
 ## A skill point buys either a rank in one of the six attributes or a rank in
-## one of the twenty-seven perks. Perks are gated on the rank of their parent
+## one of the twenty-eight perks. Perks are gated on the rank of their parent
 ## attribute, so investing in an attribute is what opens its tree.
 ##
 ## **Nothing is mutated on purchase.** Buying writes a number into `p.attrs`
@@ -204,6 +204,12 @@ static func can_raise_attr(p: PlayerSim, id: String) -> Dictionary:
 ## which is a plan — from "you cannot afford it right now", which is a wait.
 static func perk_status(p: PlayerSim, perk: Dictionary) -> Dictionary:
 	var rank: int = int(p.perks.get(perk.id, 0))
+	# A perk whose system has not been built yet is shown and refused. Taking
+	# it out of the tree would hide what is coming; leaving it buyable would
+	# charge a point for nothing.
+	var needs: String = perk.get("needs", "")
+	if not needs.is_empty():
+		return {"ok": false, "reason": "Waiting on %s" % needs, "rank": rank, "locked": true}
 	if rank >= int(perk.max):
 		return {"ok": false, "reason": "Fully learned", "rank": rank, "locked": false}
 	if int(p.attrs.get(perk.attr, 0)) < int(perk.req):

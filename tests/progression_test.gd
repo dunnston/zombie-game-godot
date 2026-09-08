@@ -194,6 +194,26 @@ func test_a_starting_survivor_is_one_rank_above_the_baseline() -> void:
 
 # ------------------------------------------------------------------ spending --
 
+func test_a_perk_whose_system_is_not_built_yet_cannot_take_your_point() -> void:
+	# Sixth Sense wants a minimap and Hotwire wants cars; neither exists yet.
+	# They stay in the tree so it matches the spec and can be planned around,
+	# but a point must never buy nothing.
+	var waiting := 0
+	for k in Config.PERKS:
+		if String(k.get("needs", "")).is_empty():
+			continue
+		waiting += 1
+		p.skill_points = 20
+		p.attrs[k.attr] = Config.ATTR_MAX
+		var st := Perks.perk_status(p, k)
+		ok(not st.ok, k.id)
+		ok(st.reason.begins_with("Waiting on"), "%s says %s" % [k.id, st.reason])
+		ok(not Progression.buy_perk(sim, p, String(k.id)), k.id)
+		eq(p.skill_points, 20, "%s refused and charged nothing" % k.id)
+		eq(int(p.perks.get(k.id, 0)), 0)
+	gt(waiting, 0, "there is at least one perk waiting on a later phase")
+
+
 func test_a_perk_gated_above_your_rank_is_refused_with_a_reason() -> void:
 	p.skill_points = 5
 	# Demolisher needs Strength 5 and everyone starts at 2.
@@ -304,6 +324,37 @@ func test_engineer_makes_a_wall_cheaper_to_put_up() -> void:
 	var paid := before - p.count_res("wood")
 	ok(paid < list_price, "Engineer 3 pays %d of %d" % [paid, list_price])
 	eq(paid, ceili(list_price * p.build_cost_mul), "and pays exactly what it was quoted")
+
+
+func test_the_build_card_quotes_what_placing_it_will_charge() -> void:
+	# The bill a prompt prints and the bill it charges have to be the same
+	# number. The repair prompt learned this; the build cards had not, so a
+	# player with Engineer saw a red "WOOD 16" and then built for eleven.
+	p.attrs["int"] = 8
+	p.perks["engineer"] = 3
+	Perks.recompute_stats(p)
+	p.bag = Slots.new(200)
+	p.carry_cap = 1000000.0
+
+	var list_price: int = Config.STRUCTURES.woodWall.cost.wood
+	var quoted: int = sim.structs.cost_of("woodWall", p).wood
+	ok(quoted < list_price, "Engineer quotes %d against a list price of %d" % [quoted, list_price])
+
+	# Exactly the quoted price in the pack. The card is what the player reads
+	# before clicking, so it is the thing that has to agree.
+	p.bag.add("wood", quoted)
+	var bar := BuildBar.new(sim)
+	var card := bar.card_info("woodWall")
+	eq(int(card.cost.wood), quoted, "the card prints the discounted bill")
+	ok(card.afford, "and does not call it unaffordable when it is affordable")
+
+	var plot := clear_plot(6)
+	p.pos = tile_centre(plot)
+	var s := sim.structs.place(sim, "woodWall", plot.x + 2, plot.y, p)
+	ok(not s.is_empty(), "and placing it succeeds")
+	eq(p.count_res("wood"), 0, "having charged exactly what it quoted")
+	eq(int(card.hp), int(s.max_hp), "and the strength it promised is what went up")
+	bar.free()
 
 
 func test_salvage_refunds_what_you_paid_not_the_list_price() -> void:

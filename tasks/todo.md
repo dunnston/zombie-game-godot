@@ -557,3 +557,45 @@ Numbers: 197 tests / 2393 assertions / 9.4s fast, 207 / 16.2s with `--all`,
 26 smoke checkpoints. The compound harness moved a little because the player
 it plays with is a slightly different player now: index 1 is 60s (was 57),
 index 3 is 124s (was 126). Both still inside the prototype's ranges.
+
+## Review — Phase 4a Codex pass on PR #8 (2026-09-08)
+
+Four findings. Two were real, two were the port being faithful to a prototype
+whose own wording overstates it.
+
+- [x] **The build cards quoted the list price.** Placement and spending went
+      through `cost_of()` with the build discount, but `BuildBar._draw()`
+      checked affordability against `def.cost` and printed that — so a player
+      with Engineer saw a red "WOOD 16" and then put the wall up for eleven.
+      Exactly the quote-must-match-charge rule 4a already applied to the
+      repair prompt, missed one screen over. The structure health on the card
+      was unscaled too, which Codex did not flag and which the prototype does
+      scale. Both fixed by pulling the card's numbers out of `_draw()` into
+      `card_info()` — one source for what is drawn and what is asserted, the
+      same reason `InventoryScreen._cells()` exists. The test fails against
+      the old code with "expected 7, got 16".
+- [x] **Hotwire could take a point and do nothing.** Fair, and my disclosure
+      had missed it — I had listed Sixth Sense and the survivor stats and not
+      this. Rather than disclose harder, a perk waiting on a system it does
+      not have now carries `needs` in the table, is refused by `perk_status`
+      with "Waiting on cars", and stays visible so the tree still matches the
+      spec. Sixth Sense carries it too.
+- [x] **Fire Control's range.** Codex read the description ("+35% damage and
+      range") against the code (range gets half). The code is the prototype's
+      — `def.range * (1 + (turretMul - 1) * 0.5)` — and there is a design
+      reason for it: a turret that reached across the compound stops the walls
+      mattering. Behaviour kept, description corrected.
+- [x] **Fortune Favours.** Same shape: "enemies drop twice as much" against a
+      35% roll. The prototype rolls 35% too. Description corrected.
+
+The two description fixes are wording-only and deliberate divergences from
+`port-inventory.md`'s text, not from its behaviour.
+
+Numbers after the pass, on top of PR #7's merge: 199 tests / 2434 assertions /
+9.8s fast, 209 / 17.6s with `--all`, 26 smoke checkpoints, zero failures.
+
+Merging `main` also meant reconciling with #7: it restored four assertions
+that had never run, and `test_repair_all_is_the_plan_it_printed` asserted a
+four-wood repair bill that 4a's Intelligence-2 discount rounds to three. The
+test now derives the unit cost instead of hardcoding it, so the next
+build-cost modifier does not break it again.
