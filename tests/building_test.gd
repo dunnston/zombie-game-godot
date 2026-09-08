@@ -121,8 +121,8 @@ func test_a_wall_makes_the_flow_field_go_round() -> void:
 	for dy in range(-1, 2):
 		_build("woodWall", plot.x + 2, plot.y + dy)
 	var nf := sim.nav_for(p)
-	var through: int = nf.distance_at(Vector2i(plot.x + 2, plot.y))
-	var beside: int = nf.distance_at(Vector2i(plot.x + 3, plot.y))
+	var through: int = nf.dist_at_tile(plot.x + 2, plot.y)
+	var beside: int = nf.dist_at_tile(plot.x + 3, plot.y)
 	eq(through, -1, "the wall tile itself is not walkable")
 	gt(beside, 3, "and the way in from behind it is %d tiles, not the 3 a straight line would be" % beside)
 
@@ -274,20 +274,32 @@ func test_a_scratch_still_costs_one_of_the_main_material() -> void:
 
 
 func test_repair_all_is_the_plan_it_printed() -> void:
-	_stock(60)
+	# Four walls at 16 wood each: a 60-unit pack paid for three, and the
+	# fourth came back empty for want of materials.
+	_stock()
+	var walls: Array[Dictionary] = []
 	for i in range(4):
 		var w := _build("woodWall", plot.x + 2, plot.y - 1 + i)
+		ok(not w.is_empty(), "wall %d went up" % i)
 		sim.structs.damage(sim, w, w.max_hp * 0.5)
-	# Four walls at 4 wood each, with only 10 wood in the pack: two get done
-	# and the plan says so before the button is pressed.
+		walls.append(w)
+	# Ten wood in the pack against four identical bills. What the test is
+	# about is that the plan and the sweep agree and that the shortfall is
+	# skipped rather than part-paid — not what a wall happens to cost, which
+	# moves with every build-cost modifier the player has. So derive it.
 	p.bag.clear_all()
 	p.bag.add("wood", 10)
+	var unit: int = Structures.repair_cost(walls[0], p.build_cost_mul).wood
+	var affordable: int = 10 / unit
+	gt(affordable, 0, "ten wood pays for at least one wall at %d each" % unit)
+	ok(affordable < 4, "and not for all four")
+
 	var plan := sim.structs.plan_repair_all(sim, p)
 	eq(plan.pieces.size(), 4)
-	eq(plan.repairable, 2, "10 wood pays for two")
-	eq(plan.skipped, 2)
-	eq(sim.structs.repair_all(sim, p), 2, "and the sweep does exactly that")
-	eq(p.count_res("wood"), 2)
+	eq(plan.repairable, affordable, "10 wood pays for %d at %d each" % [affordable, unit])
+	eq(plan.skipped, 4 - affordable)
+	eq(sim.structs.repair_all(sim, p), affordable, "and the sweep does exactly that")
+	eq(p.count_res("wood"), 10 - affordable * unit, "the remainder is not part-spent")
 
 
 func test_demolishing_a_full_chest_never_eats_what_is_in_it() -> void:
@@ -323,11 +335,21 @@ func test_only_the_last_stash_standing_spills() -> void:
 	_stock()
 	var a := _build("stash", plot.x + 2, plot.y)
 	var b := _build("stash", plot.x + 3, plot.y)
-	sim.stash.add("wood", 30)
+	ok(not a.is_empty() and not b.is_empty(), "both doors into the pile went up")
+	# The last door takes `sim.stash` with it, so hold the pile itself.
+	var pile := sim.stash
+	pile.add("wood", 30)
 	sim.structs.damage(sim, a, 9999.0)
-	eq(sim.stash.count("wood"), 30, "the pile is still there while a door into it stands")
+	eq(sim.stash, pile, "the pile is still there while a door into it stands")
+	eq(pile.count("wood"), 30, "and nothing has spilled out of it")
 	sim.structs.damage(sim, b, 9999.0)
-	eq(sim.stash.count("wood"), 0, "the last one spills it")
+	eq(pile.count("wood"), 0, "the last one spills it")
+	ok(sim.stash == null, "and the shared pile goes with the last door")
+	var on_ground := 0
+	for it in sim.pickups:
+		if it.id == "wood":
+			on_ground += it.n
+	eq(on_ground, 30, "all thirty are on the ground")
 
 
 # ---------------------------------------------------------------- the base --
@@ -371,8 +393,13 @@ func test_the_stash_pays_for_what_you_build_beside_it() -> void:
 
 
 func test_deposit_all_leaves_your_weapons_alone() -> void:
-	_stock(20)
+	# A Supply Stash costs 25 wood, so a 20-unit pack could never place one.
+	# Build it from a full pack, then set the pack to the haul under test.
+	_stock()
 	var stash := _build("stash", plot.x + 2, plot.y)
+	ok(not stash.is_empty(), "the stash went up")
+	p.bag.clear_all()
+	p.bag.add("wood", 20)
 	p.bag.add("rifle", 1)
 	p.bag.add("bandage", 9)
 	sim.structs.deposit_all(sim, p, stash.store)
