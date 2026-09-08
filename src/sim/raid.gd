@@ -198,8 +198,10 @@ func _finish(sim: GameSim, repelled_: bool) -> void:
 	sim.raids_done += 1
 	sim.threat.reset_after_raid()
 
-	# The payout goes into the stash in Phase 3; here it lands in the
-	# nearest player's pockets, so a repelled raid still pays.
+	# The payout goes into the base's stash from Phase 3b; until there is one
+	# it lands in the nearest player's pockets — through the capped path, so
+	# a payout to a full pack lands at their feet rather than pushing them
+	# over the carry cap or vanishing into a full grid.
 	var reward := {}
 	var payee := sim.nearest_player(centre)
 	for id in spec.reward:
@@ -207,7 +209,7 @@ func _finish(sim: GameSim, repelled_: bool) -> void:
 		if n > 0:
 			reward[id] = n
 			if payee != null:
-				payee.add_res(id, n)
+				Loot.give_res_or_drop(sim, payee, id, n, payee.pos)
 	# XP is paid on the same share as the salvage. A floor here would pay
 	# half the raid's XP for walking away from it without a single kill.
 	for p in sim.players:

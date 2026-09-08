@@ -247,3 +247,100 @@ func test_litter_is_picked_up_by_hand() -> void:
 	s.tick(1.0 / 60.0)
 	gt(q.bag.count(rule.res), before, "gathered %s" % rule.res)
 	ok(s.world.prop_at_tile(prop.tx, prop.ty).is_empty(), "and it is gone from the ground")
+
+
+# ------------------------------------------------ the Codex review, PR #3 --
+
+func test_a_raid_payout_that_does_not_fit_lands_on_the_ground() -> void:
+	var s := _own_sim()
+	var q := s.players[0]
+	for i in range(q.bag.size()):
+		q.bag.slots[i] = {"id": "stone", "n": 50}
+	var carried := q.carried_weight()
+	s.raids_done = 0
+	var raid := Raid.start(s)
+	raid.killed = raid.total
+	raid.force_end(s)
+	near(q.carried_weight(), carried, 0.01, "the payout added nothing to a pack with no room")
+	var scrap := 0
+	for it in s.pickups:
+		if it.id == "scrap":
+			scrap += it.n
+	eq(scrap, 30, "the salvage is at your feet instead")
+
+
+func test_a_gun_you_cannot_carry_stays_on_the_ground() -> void:
+	var s := _own_sim()
+	var q := s.players[0]
+	q.hotbar.clear_all()
+	# 199.5 of 200 units: a free grid slot, but no room for a six-unit rifle.
+	q.bag.add_capped("stone", 400, q.pack_allowance())
+	near(q.carried_weight(), 199.5, 0.01)
+	var r := Loot.give_entry(s, q, {"id": "weapon:rifle", "n": 1})
+	ok(r.has("overflow"), "refused: %s" % r.text)
+	eq(q.count_carried("rifle"), 0)
+	ok(not q.overloaded(), "weight is the cap, for a gun as much as for scrap")
+
+
+func test_two_rolls_of_one_weapon_are_two_weapons() -> void:
+	var s := _own_sim()
+	# A rack that can only produce pipes, three rolls of it. Aggregating those
+	# into `{pipe, n: 3}` would hand over one pipe and destroy two, because a
+	# weapon has no count.
+	var rack := {"table": "toolrack", "rolls": [4, 4]}
+	var seen_duplicate := false
+	for attempt in range(300):
+		var entries := Loot.roll_container(s, rack)
+		var per_weapon := {}
+		for e in entries:
+			var d := Loot.entry_to_pickup(e.id)
+			if Items.stack_limit(d.id) > 1:
+				continue
+			eq(e.n, 1, "%s came back as a stack of %d" % [e.id, e.n])
+			per_weapon[e.id] = per_weapon.get(e.id, 0) + 1
+		for id in per_weapon:
+			if per_weapon[id] > 1:
+				seen_duplicate = true
+	ok(seen_duplicate, "a tool rack did roll the same tool twice, and gave both")
+
+
+func test_a_duplicate_gun_pays_out_as_ammunition() -> void:
+	var s := _own_sim()
+	var q := s.players[0]
+	Loot.grant_loot(s, q, [{"id": "weapon:rifle", "n": 1}], q.pos)
+	eq(q.count_carried("rifle"), 1)
+	var before := q.count_res("ammoR")
+	Loot.grant_loot(s, q, [{"id": "weapon:rifle", "n": 1}], q.pos)
+	eq(q.count_carried("rifle"), 1, "you do not carry two")
+	gt(q.count_res("ammoR"), before, "the second paid out as ammunition")
+
+
+func test_spare_ammo_that_does_not_fit_is_not_destroyed() -> void:
+	var s := _own_sim()
+	var q := s.players[0]
+	q.hotbar.clear_all()
+	q.bag.add("rifle", 1)
+	# Fill the rest by weight, leaving no room for the 16 spare rounds.
+	q.bag.add_capped("stone", 400, q.pack_allowance())
+	var before := q.count_res("ammoR")
+	Loot.give_entry(s, q, {"id": "weapon:rifle", "n": 1})
+	var on_ground := 0
+	for it in s.pickups:
+		if it.id == "ammoR":
+			on_ground += it.n
+	eq(q.count_res("ammoR") - before + on_ground, 16, "all sixteen rounds went somewhere")
+	gt(on_ground, 0, "and what did not fit is on the ground")
+
+
+func test_the_magazine_goes_into_the_pack_with_the_gun() -> void:
+	sim.give_test_kit(p)
+	p.mag["pistol"] = 3
+	Damage.kill_player(sim, p)
+	var pack: Dictionary = sim.backpacks[0]
+	eq(pack.mag.pistol, 3, "the pack remembers what was loaded")
+	ok(not p.mag.has("pistol"), "and the corpse does not")
+
+	# A replacement found before the pack is recovered comes as it was found.
+	p.dead = false
+	Loot.give_entry(sim, p, {"id": "weapon:pistol", "n": 1})
+	eq(p.mag.pistol, Config.WEAPONS.pistol.mag, "a fresh pistol, not the dead one's three rounds")

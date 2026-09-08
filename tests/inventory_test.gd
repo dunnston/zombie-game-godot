@@ -210,3 +210,39 @@ func test_a_torch_burns_down_and_takes_itself_with_it() -> void:
 	run(sim, 1.0)
 	ok(not p.lit)
 	eq(p.equip.offhand, "", "it burned away")
+
+
+# ------------------------------------------------ the Codex review, PR #3 --
+
+func test_swapping_lights_does_not_refill_either_one() -> void:
+	p.bag.add("torch", 1)
+	p.bag.add("flashlight", 1)
+	Equipment.equip_from_bag(sim, p, 0)
+	eq(p.equip.offhand, "torch")
+	p.light_fuel = 60.0                       # a torch two thirds burned
+	# Swap to the flashlight and back.
+	Equipment.equip_from_bag(sim, p, p.bag.size() - 1 if false else _index_of("flashlight"))
+	eq(p.equip.offhand, "flashlight")
+	near(p.light_fuel, 0.0, 0.01, "a found flashlight arrives flat")
+	Equipment.equip_from_bag(sim, p, _index_of("torch"))
+	eq(p.equip.offhand, "torch")
+	near(p.light_fuel, 60.0, 0.01, "the torch is still two thirds burned")
+
+
+func _index_of(id: String) -> int:
+	for i in range(p.bag.size()):
+		if p.bag.id_at(i) == id:
+			return i
+	return -1
+
+
+func test_dropping_a_stack_empties_the_cell_you_clicked() -> void:
+	# Two stacks of the same thing: dropping the second must not drain the
+	# first and leave the clicked cell full.
+	p.bag.slots[0] = {"id": "scrap", "n": 50}
+	p.bag.slots[5] = {"id": "scrap", "n": 12}
+	ok(Equipment.drop_stack(sim, p, "bag", 5, true))
+	eq(p.bag.at(0).n, 50, "the untouched stack is untouched")
+	ok(p.bag.at(5).is_empty(), "and the one you clicked is gone")
+	eq(sim.pickups.size(), 1)
+	eq(sim.pickups[0].n, 12)

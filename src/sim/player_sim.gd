@@ -74,6 +74,9 @@ var mag := {}                    # weapon id -> rounds loaded
 var light_on := false
 var light_fuel := 0.0
 var light_id := ""
+## Burn left per light id, so swapping between two lights and back does not
+## refill either one.
+var light_charge := {}
 
 var attack_cd := 0.0
 var reloading := {}              # {w, t, dur, shell} or empty

@@ -285,3 +285,34 @@ repelled in 18s for 19 kills; raid 3 scatters at 97s against 93s before).
   charge but the world is never dark until Phase 4, and `recompute_stats`
   produces exactly one number until Phase 4 gives it attributes and perks.
 - Not done: render interpolation, still in §7.
+
+## Review — Phase 3a Codex pass (2026-09-08)
+
+Seven items on PR #3, all addressed. Each has a test that fails against the
+pre-fix `src/` and passes after.
+
+- [x] **P1** A raid payout went in through the uncapped `add_res`, so it
+      could push you past the carry cap, or vanish into a full grid while
+      the salvage notice reported the whole reward. Paid through
+      `give_res_or_drop` now: what does not fit is at your feet.
+- [x] Weight is the cap for equipment too. A six-unit rifle fitted into a
+      free grid slot at 199.5/200 carried. `_give_item` checks the budget
+      and the gun stays on the ground.
+- [x] A duplicate gun's spare ammunition was destroyed when the pack could
+      not hold it. It spills. Deliberately not returned as `overflow`: the
+      pile it came from is a *gun*, and rewriting it into ammunition is the
+      exact drift the one-file entry grammar exists to prevent — the
+      pickup loop now also refuses an overflow whose entry is not the
+      pile's own.
+- [x] Two rolls of the same weapon in one container aggregated into
+      `{id, n: 2}` and handed over one. `roll_container` never aggregates
+      anything whose stack limit is 1.
+- [x] The magazine map stayed on the corpse: a replacement gun inherited
+      the dead one's rounds, and the pack's saved value could never be
+      restored. Cleared for everything that went into the pack.
+- [x] A light's charge is now kept per light id. A half-burned torch,
+      swapped for a flashlight and back, was full again — free fuel.
+- [x] `drop_stack` called `take(id, n)`, which drains matching stacks from
+      the start of the grid: ctrl+dropping the second stack of scrap
+      emptied the first and left the clicked cell full. It empties the
+      slot that was clicked.

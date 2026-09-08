@@ -27,18 +27,26 @@ static func recompute_stats(p: PlayerSim) -> void:
 ## the light can fall out of step with the slot.
 ##
 ## A light's charge lives on the player, not in the slot, because a slot is
-## only `{id, n}`. So it is remembered per light id: putting a torch down and
-## picking it back up keeps its burn, switching to a different light does not.
+## only `{id, n}`. It is kept **per light id** in `light_charge`, so a torch
+## you put down half burned comes back half burned — swapping to a
+## flashlight and back is not a way to refill it.
 static func after_equip_change(p: PlayerSim) -> void:
 	var id: String = p.equip.get("offhand", "")
 	var g: Dictionary = Config.GEAR.get(id, {})
 	if g.is_empty() or not g.has("light"):
-		p.light_on = false                        # nothing lit; the charge is kept
+		# Nothing lit. Bank what the last light had left, so picking it back
+		# up resumes rather than restarts.
+		if not p.light_id.is_empty():
+			p.light_charge[p.light_id] = p.light_fuel
+		p.light_on = false
 	elif p.light_id != id:
+		if not p.light_id.is_empty():
+			p.light_charge[p.light_id] = p.light_fuel
 		p.light_id = id
-		# A torch comes ready to burn. A flashlight arrives flat, so finding
-		# one is not the same as having light — you still need a battery.
-		p.light_fuel = 0.0 if g.has("battery") else float(g.burn)
+		# A torch comes ready to burn the first time. A flashlight arrives
+		# flat, so finding one is not the same as having light — you still
+		# need a battery.
+		p.light_fuel = p.light_charge.get(id, 0.0 if g.has("battery") else float(g.burn))
 		p.light_on = false
 	p.lit = p.light_on
 	recompute_stats(p)
@@ -186,7 +194,12 @@ static func drop_stack(sim: GameSim, p: PlayerSim, cont_kind: String, index: int
 		return false
 	var id: String = s.id
 	var n: int = s.n if all else 1
-	c.take(id, n)
+	# Out of *this* slot, not out of the first stack that happens to hold the
+	# same thing: `take(id, n)` would empty an unrelated pile across the grid
+	# and leave the cell you clicked still full.
+	s.n -= n
+	if s.n <= 0:
+		c.slots[index] = {}
 	var d := Loot.entry_to_pickup(Loot.item_entry_id(id))
 	Loot.spawn_pickup(sim, p.pos, d.kind, d.id, n, p)
 	sim.notify("Dropped %d %s" % [n, Items.name_of(id)], "#8a8f84")
@@ -251,8 +264,10 @@ static func update_light(sim: GameSim, p: PlayerSim, dt: float) -> void:
 	p.lit = false
 	if g.get("consumed", false):
 		# A torch burns itself up. That is the cost of having had light, and
-		# another is three sticks and three fiber.
+		# another is three sticks and three fiber. Its banked charge goes with
+		# it, so the next torch is a fresh one.
 		p.equip["offhand"] = ""
+		p.light_charge.erase(p.light_id)
 		p.light_id = ""
 		after_equip_change(p)
 		sim.notify("Your torch burns out", "#c96a5a")

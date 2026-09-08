@@ -69,6 +69,13 @@ static func roll_container(sim: GameSim, c: Dictionary, loot_mul := 1.0) -> Arra
 		var n := sim.loot_rng.irange(e.min, e.max)
 		if Config.RES.has(e.id):
 			n = maxi(1, roundi(n * loot_mul))
+		# Only stacking things are aggregated. Two rolls of the same rifle are
+		# two rifles, and an entry saying `{rifle, n: 2}` would hand over one
+		# and quietly lose the other — a weapon has no `n`.
+		if Items.stack_limit(entry_to_pickup(e.id).id) <= 1:
+			for k in range(n):
+				out.append({"id": e.id, "n": 1})
+			continue
 		if not totals.has(e.id):
 			order.append(e.id)
 		totals[e.id] = totals.get(e.id, 0) + n
@@ -107,9 +114,14 @@ static func give_entry(sim: GameSim, p: PlayerSim, entry: Dictionary) -> Diction
 		var w: Dictionary = Config.WEAPONS[wid]
 		if p.carries(wid):
 			# A duplicate gun is worth more as a magazine of its ammunition.
+			# What will not fit is dropped rather than returned as overflow:
+			# the pile this came from is a *gun*, and handing back an ammo
+			# entry would rewrite it into something it is not.
 			if w.has("ammo"):
 				var give: int = w.mag * 2
 				var got := p.bag.add_capped(w.ammo, give, p.pack_allowance())
+				if got < give:
+					spawn_entry_pickup(sim, p.pos, w.ammo, give - got)
 				return {"text": "%s (spare ammo +%d)" % [w.name, got], "color": "#d8c98a"}
 			return {"text": "%s (already carried)" % w.name, "color": "#8a8f84"}
 		if not _give_item(p, wid, true):
@@ -164,7 +176,13 @@ static func give_entry(sim: GameSim, p: PlayerSim, entry: Dictionary) -> Diction
 
 ## One non-stacking item into the first free slot, preferring the hotbar for
 ## weapons so a gun you pick up is immediately to hand.
+##
+## Weight is the capacity rule, so it applies here too: a six-unit rifle at
+## 199 of 200 units carried is refused and stays on the ground, exactly as an
+## overweight stack of scrap would be. Slot space alone is not enough.
 static func _give_item(p: PlayerSim, id: String, prefer_hotbar: bool) -> bool:
+	if p.carried_weight() + Items.weight_of(id) > p.carry_cap + 1e-9:
+		return false
 	if prefer_hotbar and p.hotbar.first_empty() >= 0:
 		return p.hotbar.add(id, 1) > 0
 	if p.bag.first_empty() >= 0:
@@ -265,10 +283,13 @@ static func update_pickups(sim: GameSim, dt: float) -> void:
 			var pull := clampf(700.0 / d, 40.0, 620.0)
 			it.vel += (p.pos - it.pos) / d * pull * dt
 		if d2 < pow(range_ * 0.45, 2.0):
-			var r := give_entry(sim, p, {"id": pickup_entry_id(it), "n": it.n})
-			if not r.is_empty() and r.has("overflow"):
+			var entry := pickup_entry_id(it)
+			var r := give_entry(sim, p, {"id": entry, "n": it.n})
+			if not r.is_empty() and r.has("overflow") and r.overflow.entry == entry:
 				# No room: leave it, and shove it clear so it stops being
-				# offered every frame.
+				# offered every frame. The entry has to match the pile — this
+				# rewrites what is lying there, and a mismatch would turn a
+				# rifle on the ground into a heap of 9mm.
 				it.n = r.overflow.n
 				it.vel = (it.pos - p.pos) * 1.2
 				continue
@@ -326,6 +347,12 @@ static func drop_backpack(sim: GameSim, p: PlayerSim) -> Dictionary:
 		return {}
 	var pack := {"pos": p.pos, "held": held, "mag": p.mag.duplicate(), "t": 0.0, "seat": p.seat}
 	sim.backpacks.append(pack)
+	# The rounds went into the pack with the gun. Leaving them on the player
+	# would hand a freshly found replacement the dead one's magazine, and
+	# would mean the saved value could never be restored on recovery.
+	for id in held:
+		if id != keep:
+			p.mag.erase(id)
 	return pack
 
 
