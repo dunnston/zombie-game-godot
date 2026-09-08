@@ -102,6 +102,12 @@ static func melee_targets(sim: GameSim, p: PlayerSim, w: Dictionary) -> Array[En
 		var a := Enemies.angle_delta(p.angle, (e.pos - p.pos).angle())
 		if absf(a) >= half_arc + e.r / reach:
 			continue
+		# A swing has to reach it. Collision keeps two bodies 32px apart
+		# across a one-tile wall, which a scythe's 73px of reach clears
+		# comfortably. Same rule bullets use, so water and fences are swung
+		# over and only what stops a round stops a blade.
+		if not sim.world.has_terrain_line_of_sight(p.pos, e.pos):
+			continue
 		out.append(e)
 	out.sort_custom(func(a: EnemySim, b: EnemySim) -> bool:
 		return a.pos.distance_squared_to(p.pos) < b.pos.distance_squared_to(p.pos))

@@ -60,6 +60,25 @@ func test_the_arc_is_an_arc() -> void:
 	near(behind.hp, behind.max_hp, 1e-6, "a walker behind you is not in the swing")
 
 
+func test_a_swing_does_not_reach_through_a_wall() -> void:
+	# Collision holds two bodies 66px apart across a one-tile wall, and the
+	# pipe's threshold is 73px, so distance alone would let the swing land.
+	var pw := World.new()
+	sim.world = pw
+	var w: Dictionary = Config.WEAPONS.pipe
+	sim.enemies.spawn("walker", plot + Vector2(66, 0))
+	sim.enemies.rebuild_spatial()
+	p.angle = 0.0
+	eq(Combat.melee_targets(sim, p, w).size(), 1, "66px is inside the pipe's reach")
+	var bi := int(plot.y / 32) * Config.WORLD_TILES + int(plot.x / 32) + 1
+	pw.blocked[bi] = 1
+	pw.tiles[bi] = Config.T.WALL
+	eq(Combat.melee_targets(sim, p, w).size(), 0, "a wall between you takes the swing")
+	# Knee-high things go the other way, exactly as they do for bullets.
+	pw.tiles[bi] = Config.T.FENCE
+	eq(Combat.melee_targets(sim, p, w).size(), 1, "a fence is swung over")
+
+
 func test_fighting_is_never_refused_and_work_is() -> void:
 	_hold("axe")
 	p.winded = true

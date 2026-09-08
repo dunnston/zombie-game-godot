@@ -103,6 +103,15 @@ func tick(sim: GameSim, dt: float) -> void:
 					spawned += 1
 					to_spawn -= 1
 
+	# Until Phase 3 there is no base, and a raid aimed at a person has to
+	# follow them: the AI already chases the live player, so a frozen centre
+	# would have the spawn anchor and the stall check below measuring a fight
+	# that has since moved, and warp legitimate pursuers away from it.
+	if not has_base:
+		var live := sim.nearest_player(centre)
+		if live != null:
+			centre = live.pos
+
 	# Anti-stall: a raider hung up on terrain would leave the raid
 	# unwinnable. One that stops closing on the base is moved to a fresh lane.
 	stall_check -= dt
@@ -117,7 +126,7 @@ func tick(sim: GameSim, dt: float) -> void:
 				e.raid_stall = 0.0
 				continue
 			# Only stalled if both far away and not getting closer.
-			if d > 240.0 and d > e.last_raid_dist - 30.0:
+			if d > R.stall_radius and d > e.last_raid_dist - R.stall_closing:
 				e.raid_stall += R.stall_interval
 			else:
 				e.raid_stall = 0.0
@@ -199,8 +208,10 @@ func _finish(sim: GameSim, repelled_: bool) -> void:
 			reward[id] = n
 			if payee != null:
 				payee.add_res(id, n)
+	# XP is paid on the same share as the salvage. A floor here would pay
+	# half the raid's XP for walking away from it without a single kill.
 	for p in sim.players:
-		p.xp += roundi(spec.xp * (1.0 if repelled_ else 0.5 + share * 0.5))
+		p.xp += roundi(spec.xp * share)
 	for e in sim.enemies.list:
 		if e.raid:
 			e.raid = false

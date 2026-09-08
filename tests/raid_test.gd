@@ -26,6 +26,11 @@ func test_raids_escalate_and_keep_scaling_past_the_list() -> void:
 	eq(s.xp, roundi(800 * 1.35))
 	eq(s.reward.scrap, roundi(110 * 1.3))
 	eq(Config.raid_spec(1).name, "RUNNING HORDE", "the index is zero-based")
+	# The anti-stall warp has to reach a raider wedged where it spawned, and
+	# must never reach into a fight you are watching.
+	var C := Config.RAID
+	ok(C.stall_radius < C.ring_min, "a raider stuck at spawn is still rescued")
+	ok(C.stall_radius > Config.CAMERA.view_height / 2.0, "nothing on your screen is warped away")
 
 
 func test_threat_thresholds_are_ordered_and_reachable() -> void:
@@ -90,8 +95,42 @@ func test_an_ignored_horde_loses_interest() -> void:
 	eq(sim.raids_done, 1)
 	near(sim.threat.value, Config.THREAT.post_raid_reset, 1e-6)
 	eq(p.count_res("scrap"), 0, "no salvage for hiding")
+	eq(p.xp, 0, "and no xp either: the payout is the share you put down")
 	var ends := events_of(sim, "raid_end")
 	ok(ends.size() == 1 and not ends[0].repelled and ends[0].share == 0.0)
+
+
+func test_a_raid_without_a_base_follows_you() -> void:
+	# Until Phase 3 the raid is aimed at a person. The AI chases the live
+	# player, so the centre the anti-stall check measures against has to be
+	# the same one — otherwise pursuit reads as a stall.
+	sim.threat.value = 100.0
+	run(sim, Config.RAID.warning_time + 0.5)
+	var r := sim.raid
+	ok(r != null and not r.has_base and r.phase == "active")
+	near(r.centre.distance_to(p.pos), 0.0, 1.0, "it starts on you")
+	p.pos = plot + Vector2(600, 0)
+	run(sim, 0.2)
+	near(r.centre.distance_to(p.pos), 0.0, 5.0, "and it comes with you")
+
+
+func test_the_raid_xp_bonus_is_only_for_raiders() -> void:
+	sim.threat.value = 100.0
+	run(sim, Config.RAID.warning_time + 0.5)
+	ok(sim.raid != null and sim.raid.phase == "active")
+	var walker: int = Config.ENEMIES.walker.xp
+
+	var ambient := sim.enemies.spawn("walker", plot + Vector2(200, 0))
+	var before := p.xp
+	Damage.kill_enemy(sim, ambient, p)
+	eq(p.xp - before, walker, "an ambient kill mid-raid is worth what it always was")
+	eq(sim.raid.killed, 0, "and is not raid progress")
+
+	var raider := sim.enemies.spawn("walker", plot + Vector2(200, 0), true, true)
+	before = p.xp
+	Damage.kill_enemy(sim, raider, p)
+	eq(p.xp - before, roundi(walker * Config.RAID.kill_xp_mul), "a raider pays the bonus")
+	eq(sim.raid.killed, 1)
 
 
 ## The harness: a competent defender with a rifle and a full pack plays

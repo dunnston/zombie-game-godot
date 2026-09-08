@@ -163,7 +163,9 @@ All simulation, all `RefCounted`, all under `src/sim/`:
   ceiling 6, decay 6/270 per second, suppression at 2.9, floor 0.3.
 - **`Combat`** — bullets (12px substeps, terrain-only collision, pierce at
   75%), the melee arc (enemies first; only an empty arc falls through to
-  scenery), harvest stamina and the winded latch, tool gates and hints,
+  scenery; a target needs the same clear line a bullet does, so no
+  swinging through a wall), harvest stamina and the winded latch, tool
+  gates and hints,
   guns with magazines, spread, pellets, recoil, shell-at-a-time reloads,
   the bow as a one-round gun.
 - **`Damage`** — enemy damage with knockback and resistance, kills (xp to
@@ -327,6 +329,10 @@ Phases 1–4 respecting it.
 | 2026-09-08 | A fixed six-weapon kit and a plain `res` map until Phase 3 | The gate is "the owner fights", which needs every weapon in hand. The hotbar, drag and drop and weight arrive with the inventory; the resource API (`count_res`, `add_res`, `take_res`) is the one the stash keeps. | n/a |
 | 2026-09-08 | The sim reports through an event list, not callbacks into nodes | `GameSim.events` is drained by `main.gd` each frame into effects and the HUD. It keeps the sim node-free, and it is the reliable-channel event stream co-op needs. | Expensive later |
 | 2026-09-08 | Raiders come for the player until structures exist | The spec targets the nearest structure so hordes break on the perimeter; with no structures the only target is you. The compound reference figures (§9) are a Phase 3 check. | n/a |
+| 2026-09-08 | A melee target needs the line a bullet needs | The arc checked distance and angle only, so a pipe (73px of threshold) hit through a one-tile wall that holds two bodies 66px apart. Terrain line of sight, not foot collision, so water and fences are still swung over — the same asymmetry shots have. | Yes, one check |
+| 2026-09-08 | `bleed` dropped from the machete, knife and scythe | The prototype declared it on three weapons and never read it anywhere. Advertising a mechanic nothing implements is worse than not having it (pillar 5); those three are already separated by damage, cadence, reach and arc. Comes back as a spec'd mechanic or not at all. | Yes |
+| 2026-09-08 | An unfinished raid pays XP on the same share as salvage | The floor was `0.5 + share/2`, so a horde you never touched still paid half its XP — the exact "hiding beats defending" the salvage share exists to prevent. | Yes, one expression |
+| 2026-09-08 | Anti-stall relocation gated at 400px, and the no-base centre follows you | The gate was a bare 240 and the centre froze at the warning, so a raider legitimately chasing a player who had moved read as stalled and got warped out of the fight. 400 sits below the 520px spawn ring (a raider wedged where it spawned is still rescued) and past half a screen (nothing you are watching is teleported). | Yes, one number |
 
 ---
 
@@ -497,6 +503,7 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 
 | Date | What |
 | --- | --- |
+| 2026-09-08 | Phase 2 review pass (PR #2): melee needs terrain line of sight; raid XP paid on the killed share and the raid kill bonus limited to raiders; the no-base raid centre follows the player and the anti-stall gate moved into `Config.RAID.stall_radius`; `bleed` removed from three weapon rows; 3 new tests, 75 total |
 | 2026-09-08 | Phase 2: the spec's enemy, weapon, resource, spawn, noise, quiet, threat and raid tables in `Config`; `EnemySim`, `Enemies` (spawner + AI), `SpatialHash`, `NavField` (the flow field), `Sound`, `QuietField`, `Combat`, `Damage`, `Threat`, `Raid`; player combat, the Phase 2 kit, sim events; enemy, effects and player views, the HUD's hotbar, threat meter, raid banner and notices; 53 new headless tests including a raid harness; smoke run shoots a walker and forces a raid |
 | 2026-09-08 | Phase 1: `Config`, `Rng`, `World` (the generator, bit-identical to the prototype), `PlayerSim`, `GameSim`, `Intent`; terrain atlas + TileMapLayers, prop renderer, player view, HUD; bindings autoload and `LocalInput`; 19 headless tests; smoke run walks, sprints and photographs seven districts |
 | 2026-09-08 | Phase 0: project created on Godot 4.7.2; headless test runner and `TestCase`; smoke autoload with screenshot + state checkpoints; placeholder scene; this document; `tasks/port-inventory.md` as the spec |

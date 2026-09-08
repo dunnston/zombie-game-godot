@@ -105,7 +105,9 @@ and runners threaten *you*, brutes are what breaches a wall.
 
 - Melee is an arc in front of the player; the arc is searched for enemies
   first and only an empty arc falls through to scenery (that is how the game
-  knows a swing was a fight or a job). Knockback per weapon, some bleed.
+  knows a swing was a fight or a job). Knockback per weapon. Three rows also
+  carry `bleed: true`, which nothing in the prototype ever reads — not
+  ported, see PROJECT.md §6.
 - Firearms have real magazines, reload times, spread, bullet speed and life,
   pellets, pierce, screen shake, threat and a noise radius. Shotgun reloads a
   shell at a time. "One click, one magazine" is deliberate for guns; the bow

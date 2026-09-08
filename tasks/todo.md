@@ -149,3 +149,29 @@ Branch `phase-2-combat`, off `phase-1-world` (its PR is still open).
   (Phase 4), solo death only (Phase 5 downed). The raid harness runs in the
   open; the compound reference figures are a Phase 3 check.
 - Not done: render interpolation, still in §7.
+
+## Review — Phase 2 Codex pass (2026-09-08)
+
+Six P2 items on PR #2, all addressed:
+
+- [x] Melee reached through walls. `melee_targets` checked distance and
+      angle only; a pipe's 73px threshold clears a one-tile wall that holds
+      two bodies 66px apart. Now needs `has_terrain_line_of_sight` — the
+      bullet rule, so water and fences are still swung over.
+- [x] Raid kill XP bonus paid on ambient kills. Now gated on `e.raid`, the
+      same flag the progress and quiet rules beside it already used.
+- [x] An unfinished raid paid `0.5 + share/2` of its XP — half for walking
+      away with no kills. Paid on `share`, as the salvage is.
+- [x] Anti-stall relocation used a bare `240.0`. Now `Config.RAID.stall_radius`
+      at 400: below the 520px spawn ring so a raider wedged where it spawned
+      is still rescued, past half a screen so nothing you can see is warped.
+      `breakoff_radius` was dead config and is gone; `stall_closing` too.
+- [x] The no-base raid centre froze at the warning while the AI chased the
+      live player, so pursuit read as a stall. It now follows the player.
+- [x] `bleed` on the machete, knife and scythe: dead in the prototype too.
+      Dropped rather than invented (owner's call).
+
+Verification: 75 tests, 377 asserts, 0 failures. The four new assertions
+were run against the pre-fix `src/` first and all four failed — the ignored
+horde was paying 60 XP for zero kills. Raid harness unchanged (raid 1
+repelled in 18s for 19 kills; raid 3 scatters at 97s against 93s before).

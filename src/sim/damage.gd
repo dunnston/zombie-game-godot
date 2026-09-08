@@ -41,8 +41,11 @@ static func kill_enemy(sim: GameSim, e: EnemySim, source: Variant = null) -> voi
 
 	# Kill XP to the killer; automated kills pay everyone present. In solo
 	# both rules are the same rule. Phase 4 turns XP into levels.
+	# The raid bonus is for putting down raiders. An ambient walker that
+	# happened to be standing there when the horde arrived is not worth more
+	# for it — same `e.raid` flag the progress and quiet rules below use.
 	var xp: int = e.def.xp
-	if sim.raid != null:
+	if sim.raid != null and e.raid:
 		xp = roundi(xp * Config.RAID.kill_xp_mul)
 	if source is PlayerSim:
 		source.xp += xp
