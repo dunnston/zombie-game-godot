@@ -20,6 +20,9 @@ var reload := false
 var use := false             # Q: use whatever healing is to hand
 var light := false           # T: strike or douse the off-hand light
 var slot := -1               # 0-5 selects a hotbar slot; -1 means no change
+var build_action := ""       # "place" / "repair" / "repair_all" / "demolish"
+var build_type := ""         # which structure, for "place"
+var build_tile := Vector2i.ZERO
 var wheel := 0               # +1 / -1 cycles the hotbar
 
 
@@ -31,3 +34,5 @@ func clear_edges() -> void:
 	light = false
 	slot = -1
 	wheel = 0
+	build_action = ""
+	build_type = ""

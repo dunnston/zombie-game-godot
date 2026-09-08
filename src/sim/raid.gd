@@ -21,6 +21,7 @@ var total := 0
 var elapsed := 0.0
 var stall_check := R.stall_interval
 var progress_check := 1.0
+var retarget := 0.0
 var idle := 0
 var last_sig := ""
 var inter_wave := R.inter_wave
@@ -100,8 +101,20 @@ func tick(sim: GameSim, dt: float) -> void:
 			if spot != Vector2.INF:
 				var e := sim.enemies.spawn(_pick_type(), spot, true, true, 1.0 + index * R.hp_per_index)
 				if e != null:
+					e.objective = sim.structs.raid_target(spot)
 					spawned += 1
 					to_spawn -= 1
+
+	# Keep objectives fresh as walls fall: a raider whose wall is rubble
+	# picks the next nearest rather than standing in the gap it made.
+	retarget -= dt
+	if retarget <= 0.0:
+		retarget = 1.5
+		for e in sim.enemies.list:
+			if not e.raid or e.dead:
+				continue
+			if e.objective.is_empty() or e.objective.destroyed:
+				e.objective = sim.structs.raid_target(e.pos)
 
 	# Until Phase 3 there is no base, and a raid aimed at a person has to
 	# follow them: the AI already chases the live player, so a frozen centre
@@ -139,6 +152,7 @@ func tick(sim: GameSim, dt: float) -> void:
 					e.vel = Vector2.ZERO
 					e.raid_stall = 0.0
 					e.last_raid_dist = spot.distance_to(centre)
+					e.objective = sim.structs.raid_target(spot)
 					e.aggro = true
 
 	# Break-off: watch actual progress — kills, structure damage (Phase 3),
@@ -198,18 +212,22 @@ func _finish(sim: GameSim, repelled_: bool) -> void:
 	sim.raids_done += 1
 	sim.threat.reset_after_raid()
 
-	# The payout goes into the base's stash from Phase 3b; until there is one
-	# it lands in the nearest player's pockets — through the capped path, so
-	# a payout to a full pack lands at their feet rather than pushing them
-	# over the carry cap or vanishing into a full grid.
+	# Salvage is the base's payout, so it goes into the base's stash where
+	# there is one and falls through to the ground when that is full. With no
+	# stash it lands in the nearest player's pockets — through the capped
+	# path, so a payout to a full pack lands at their feet rather than
+	# pushing them over the carry cap or vanishing into a full grid.
 	var reward := {}
 	var payee := sim.nearest_player(centre)
 	for id in spec.reward:
 		var n := floori(spec.reward[id] * share)
-		if n > 0:
-			reward[id] = n
-			if payee != null:
-				Loot.give_res_or_drop(sim, payee, id, n, payee.pos)
+		if n <= 0:
+			continue
+		reward[id] = n
+		if sim.stash != null:
+			Loot.stash_or_drop(sim, id, n, centre)
+		elif payee != null:
+			Loot.give_res_or_drop(sim, payee, id, n, payee.pos)
 	# XP is paid on the same share as the salvage. A floor here would pay
 	# half the raid's XP for walking away from it without a single kill.
 	for p in sim.players:

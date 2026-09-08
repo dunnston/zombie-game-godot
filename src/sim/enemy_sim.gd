@@ -39,6 +39,20 @@ var raid := false
 var last_raid_dist := -1.0
 var raid_stall := 0.0
 
+# What it is walking at and what it is swinging at. `objective` is the
+# structure a raider is heading for; `blocker` is whatever player-built
+# thing is in the way right now; `pending_struct` is the one a committed
+# wind-up will land on. Empty Dictionary means none.
+var objective := {}
+var blocker := {}
+var pending_struct := {}
+
+
+## The structure this enemy is about to hit, or an empty Dictionary. Kept as
+## a function so the view can ask without knowing the three fields.
+func swinging_at_structure() -> bool:
+	return not pending_struct.is_empty()
+
 
 func _init(type_: String, at: Vector2, hp_mul := 1.0) -> void:
 	type = type_

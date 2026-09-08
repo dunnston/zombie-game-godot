@@ -46,20 +46,32 @@ func quiet_at(px: float, py: float) -> float:
 
 
 ## Quiet including the standing contribution of anything built nearby.
-## Structures arrive in Phase 3; until then this is quiet_at.
-func total_quiet_at(px: float, py: float) -> float:
-	return minf(Q.max, quiet_at(px, py))
+##
+## Structures are counted here rather than baked into the field, so losing
+## your base makes the ground dangerous again immediately. One piece is
+## enough: a wall is a wall, not a stack of them.
+func total_quiet_at(px: float, py: float, structs: Structures = null) -> float:
+	var q := quiet_at(px, py)
+	if q >= Q.max or structs == null:
+		return minf(Q.max, q)
+	var at := Vector2(px, py)
+	var r2: float = Q.struct_radius * Q.struct_radius
+	for s in structs.list:
+		if not s.destroyed and at.distance_squared_to(s.pos) < r2:
+			q += Q.struct_quiet
+			break
+	return minf(Q.max, q)
 
 
 ## Multiplier on the population the spawner wants: 1 on untouched ground,
 ## down to the floor where it has been thoroughly cleared.
-func density_mul(px: float, py: float) -> float:
-	return 1.0 - (1.0 - Q.floor) * minf(1.0, total_quiet_at(px, py) / Q.max)
+func density_mul(px: float, py: float, structs: Structures = null) -> float:
+	return 1.0 - (1.0 - Q.floor) * minf(1.0, total_quiet_at(px, py, structs) / Q.max)
 
 
 ## True where the ground is quiet enough that nothing new should walk in.
-func suppressed(px: float, py: float) -> bool:
-	return total_quiet_at(px, py) >= Q.suppress_at
+func suppressed(px: float, py: float, structs: Structures = null) -> bool:
+	return total_quiet_at(px, py, structs) >= Q.suppress_at
 
 
 ## A kill quietens where it fell and the ground around it, weighted by true

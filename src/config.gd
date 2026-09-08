@@ -402,6 +402,171 @@ const LOCATIONS := [
 	{"id": "mall",       "name": "GALLERIA MALL",       "tier": 3, "rect": Rect2i(240, 216, 80, 54), "desc": "Shops, a drugstore and an outfitters. Everyone came here."},
 ]
 
+# --------------------------------------------------------------- structures --
+
+## Build anywhere: a "base" is wherever your structures happen to be.
+##
+## `solid` blocks feet but never bullets (invariant 3) — a base you cannot
+## shoot out of is a base that punishes you for building it. `protect` marks
+## the pieces a raider inside the perimeter should prefer, so a horde that
+## is already through heads for the workbench rather than back out. `threat`
+## scales what putting one up costs you in attention. `store` is a slot
+## count; `tier` 2 needs the upgraded workbench.
+const STASH_SLOTS := 48
+const BENCH_UPGRADE_COST := {"scrap": 55, "elec": 20, "parts": 5}
+
+const BUILD := {
+	"range": 190.0,
+	# About a compound, so post-raid recovery is one decision rather than a lap.
+	"repair_all_range": 520.0,
+	# A repair costs this share of the build price, scaled by the damage.
+	"repair_cost_share": 0.45,
+	"salvage_share": 0.5,
+	"store_reach_bonus": 40.0,
+	"bench_range": 110.0,
+}
+
+const STRUCTURES := {
+	"bedroll": {
+		"id": "bedroll", "name": "Bedroll", "cost": {"wood": 15, "cloth": 12}, "hp": 90.0,
+		"solid": false, "tier": 1, "threat": 1.0,
+		"desc": "Sets your respawn point. Only the newest one is active.",
+	},
+	"bunk": {
+		"id": "bunk", "name": "Bunk", "cost": {"wood": 22, "cloth": 14}, "hp": 140.0,
+		"solid": true, "tier": 1, "threat": 1.0, "protect": true, "houses": 1,
+		"desc": "Somewhere for one survivor to sleep. No bunk, no recruit.",
+	},
+	"watchtower": {
+		"id": "watchtower", "name": "Watchtower", "cost": {"wood": 45, "scrap": 20}, "hp": 420.0,
+		"solid": true, "tier": 1, "threat": 2.0, "protect": true, "post": "sniper",
+		"sniper_range": 520.0, "sniper_dmg": 1.9,
+		"desc": "Assign a survivor here and they cover the whole approach.",
+	},
+	"stash": {
+		"id": "stash", "name": "Supply Stash", "cost": {"wood": 25, "scrap": 8}, "hp": 220.0,
+		"solid": true, "tier": 1, "threat": 2.0, "protect": true, "store": STASH_SLOTS,
+		"desc": "The base pantry and armoury. 48 slots. Survivors and towers feed from this one.",
+	},
+	"chest": {
+		"id": "chest", "name": "Wooden Chest", "cost": {"wood": 20, "sticks": 8}, "hp": 180.0,
+		"solid": true, "tier": 1, "threat": 0.5, "protect": true, "store": 16,
+		"desc": "Sixteen slots of overflow. Cheap — build as many as you need.",
+	},
+	"locker": {
+		"id": "locker", "name": "Steel Locker", "cost": {"scrap": 34, "parts": 1}, "hp": 420.0,
+		"solid": true, "tier": 1, "threat": 1.0, "protect": true, "store": 32,
+		"desc": "Thirty-two slots, and it survives a raid that flattens a chest.",
+	},
+	"workbench": {
+		"id": "workbench", "name": "Workbench", "cost": {"wood": 30, "scrap": 18}, "hp": 300.0,
+		"solid": true, "tier": 1, "threat": 3.0, "protect": true,
+		"desc": "Unlocks crafting while you stand near it. Upgradeable.",
+	},
+	"barricade": {
+		"id": "barricade", "name": "Barricade", "cost": {"wood": 8}, "hp": 160.0,
+		"solid": true, "tier": 1, "threat": 0.5, "wall": true,
+		"desc": "Cheap, fast, and flimsy. Good for funnelling.",
+	},
+	"woodWall": {
+		"id": "woodWall", "name": "Wood Wall", "cost": {"wood": 16}, "hp": 340.0,
+		"solid": true, "tier": 1, "threat": 1.0, "wall": true,
+		"desc": "The bread-and-butter wall.",
+	},
+	# Built from nothing but what the ground gives up: the wall you can raise
+	# before you own a single tool that needs metal.
+	"stoneWall": {
+		"id": "stoneWall", "name": "Stone Wall", "cost": {"stone": 18, "sticks": 4}, "hp": 430.0,
+		"solid": true, "tier": 1, "threat": 1.0, "wall": true,
+		"desc": "Dry stone. No wood, no scrap — just what you carried up the hill.",
+	},
+	"reinforcedWall": {
+		"id": "reinforcedWall", "name": "Reinforced Wall", "cost": {"wood": 12, "scrap": 22}, "hp": 920.0,
+		"solid": true, "tier": 1, "threat": 1.5, "wall": true,
+		"desc": "Wood and sheet metal. Buys you real time.",
+	},
+	"metalWall": {
+		"id": "metalWall", "name": "Steel Wall", "cost": {"scrap": 45, "parts": 2}, "hp": 2100.0,
+		"solid": true, "tier": 2, "threat": 2.0, "wall": true,
+		"desc": "Brutes still get through — eventually.",
+	},
+	"gate": {
+		"id": "gate", "name": "Gate", "cost": {"wood": 22, "scrap": 12}, "hp": 560.0,
+		"solid": true, "tier": 1, "threat": 1.5, "gate": true,
+		"desc": "Stand next to it and interact to open or close.",
+	},
+	"spike": {
+		"id": "spike", "name": "Spike Trap", "cost": {"wood": 12, "scrap": 10}, "hp": 200.0,
+		"solid": false, "tier": 1, "threat": 1.5, "trap": true, "trap_dmg": 26.0, "trap_cd": 0.55,
+		"desc": "Shreds anything that walks over it. Wears out.",
+	},
+	"turret": {
+		"id": "turret", "name": "Auto Turret", "cost": {"scrap": 50, "elec": 28, "parts": 6}, "hp": 340.0,
+		"solid": true, "tier": 2, "threat": 5.0, "protect": true, "powered": true,
+		"range": 330.0, "dmg": 22.0, "fire_cd": 0.28, "mag": 40, "reload": 2.2,
+		"desc": "Needs a powered Generator within 260px. Eats 9mm from your stash.",
+	},
+	"floodlight": {
+		"id": "floodlight", "name": "Floodlight", "cost": {"scrap": 22, "elec": 12}, "hp": 200.0,
+		"solid": false, "tier": 2, "threat": 2.0, "powered": true, "light_radius": 260.0,
+		"desc": "Pushes back the dark. Needs a powered Generator within 260px.",
+	},
+	"generator": {
+		"id": "generator", "name": "Generator", "cost": {"scrap": 38, "elec": 16}, "hp": 380.0,
+		"solid": true, "tier": 2, "threat": 4.0, "protect": true, "power_radius": 260.0,
+		"fuel_burn": 0.35, "fuel_max": 100.0,
+		"desc": "Burns Fuel to power turrets nearby. Loud — raises Threat while running.",
+	},
+}
+
+const BUILD_ORDER := [
+	"woodWall", "stoneWall", "barricade", "reinforcedWall", "metalWall", "gate", "spike",
+	"workbench", "stash", "chest", "locker", "bedroll", "bunk", "watchtower",
+	"generator", "turret", "floodlight",
+]
+
+## What the survivor on a Watchtower is shooting. Bought once for the whole
+## base, then chosen per tower, so two towers can answer the same approach
+## differently. The axis is noise against effect: arrows are free, weak and
+## almost silent; the cannon flattens a group and brings the district down on
+## you. `dmg`, `cd` and `range` multiply the survivor's own numbers, so a
+## levelled crew is better with every armament rather than with one.
+##
+## Posting a survivor is Phase 4. The table is here because the tower, its
+## cost and its choice of armament are Phase 3.
+const ARMAMENTS := {
+	"arrows": {
+		"id": "arrows", "name": "Arrows", "order": 0, "cost": {},
+		"dmg": 1.0, "cd": 1.25, "range": 480.0, "noise": 90.0, "ammo": {"arrow": 1},
+		"speed": 780.0, "life": 0.85, "knock": 60.0, "pierce": 0, "color": "#c8a878",
+		"desc": "Quiet, cheap, and weak. Nothing hears a tower shooting arrows.",
+	},
+	"firearrows": {
+		"id": "firearrows", "name": "Fire Arrows", "order": 1,
+		"cost": {"wood": 20, "cloth": 20, "fuel": 30, "parts": 2},
+		"dmg": 0.75, "cd": 1.45, "range": 480.0, "noise": 120.0, "ammo": {"arrow": 1, "fuel": 1},
+		"speed": 720.0, "life": 0.85, "knock": 60.0, "pierce": 0, "color": "#ff9a3a", "burns": true,
+		"desc": "Sets what it hits alight, and fire spreads. Watch your treeline.",
+	},
+	"sniper": {
+		"id": "sniper", "name": "Sniper Rifle", "order": 2,
+		"cost": {"scrap": 70, "parts": 12, "mil": 6},
+		"dmg": 1.9, "cd": 1.7, "range": 520.0, "noise": 700.0, "ammo": {"ammoR": 1},
+		"speed": 1700.0, "life": 0.55, "knock": 110.0, "pierce": 1, "color": "#e8f0c0",
+		"desc": "One shot, one walker. Every district hears it.",
+	},
+	"cannon": {
+		"id": "cannon", "name": "Scrap Cannon", "order": 3,
+		"cost": {"scrap": 90, "parts": 8, "elec": 10},
+		"dmg": 3.4, "cd": 3.2, "range": 420.0, "noise": 950.0, "ammo": {"scrap": 2},
+		"speed": 900.0, "life": 0.5, "knock": 260.0, "pierce": 0, "color": "#ffd08a", "splash": 70.0,
+		"desc": "Flattens a group. The loudest thing you can build.",
+	},
+}
+
+## The one every base starts with, so a manned tower always does something.
+const DEFAULT_ARMAMENT := "arrows"
+
 # -------------------------------------------------------------- loot tables --
 
 ## Each entry is `{id, min, max, w}`. `id` is a resource, or a prefixed

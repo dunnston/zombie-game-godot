@@ -1156,14 +1156,16 @@ func tile_at_px(px: float, py: float) -> int:
 	return tile(floori(px / TILE), floori(py / TILE))
 
 
-func is_blocked_tile(tx: int, ty: int) -> bool:
+func is_blocked_tile(tx: int, ty: int, structs: Structures = null) -> bool:
 	if tx < 0 or ty < 0 or tx >= W or ty >= W:
 		return true
-	return blocked[ty * W + tx] == 1
+	if blocked[ty * W + tx] == 1:
+		return true
+	return structs != null and structs.solid_at(tx, ty)
 
 
-func is_blocked_px(px: float, py: float) -> bool:
-	return is_blocked_tile(floori(px / TILE), floori(py / TILE))
+func is_blocked_px(px: float, py: float, structs: Structures = null) -> bool:
+	return is_blocked_tile(floori(px / TILE), floori(py / TILE), structs)
 
 
 func danger_at_px(px: float, py: float) -> int:
@@ -1204,14 +1206,14 @@ func remove_prop(prop: Dictionary) -> void:
 # --------------------------------------------------------------- movement --
 
 ## Circle-vs-tilemap test over the tiles the circle touches.
-func circle_hits_solid(cx: float, cy: float, r: float) -> bool:
+func circle_hits_solid(cx: float, cy: float, r: float, structs: Structures = null) -> bool:
 	var min_x := floori((cx - r) / TILE)
 	var max_x := floori((cx + r) / TILE)
 	var min_y := floori((cy - r) / TILE)
 	var max_y := floori((cy + r) / TILE)
 	for ty in range(min_y, max_y + 1):
 		for tx in range(min_x, max_x + 1):
-			if not is_blocked_tile(tx, ty):
+			if not is_blocked_tile(tx, ty, structs):
 				continue
 			var rx := tx * TILE
 			var ry := ty * TILE
@@ -1226,32 +1228,32 @@ func circle_hits_solid(cx: float, cy: float, r: float) -> bool:
 
 ## Slide-along-walls circle movement. Resolves X and Y independently so an
 ## entity brushing a wall keeps its remaining momentum instead of sticking.
-func move_circle(pos: Vector2, d: Vector2, r: float) -> Vector2:
+func move_circle(pos: Vector2, d: Vector2, r: float, structs: Structures = null) -> Vector2:
 	var x := pos.x
 	var y := pos.y
 	if d.x != 0.0:
 		var nx := x + d.x
-		if not circle_hits_solid(nx, y, r):
+		if not circle_hits_solid(nx, y, r, structs):
 			x = nx
 		else:
 			var step := signf(d.x)
 			var probe := x
 			for i in range(4):
 				var t := probe + step * (absf(d.x) / 4.0)
-				if circle_hits_solid(t, y, r):
+				if circle_hits_solid(t, y, r, structs):
 					break
 				probe = t
 			x = probe
 	if d.y != 0.0:
 		var ny := y + d.y
-		if not circle_hits_solid(x, ny, r):
+		if not circle_hits_solid(x, ny, r, structs):
 			y = ny
 		else:
 			var step := signf(d.y)
 			var probe := y
 			for i in range(4):
 				var t := probe + step * (absf(d.y) / 4.0)
-				if circle_hits_solid(x, t, r):
+				if circle_hits_solid(x, t, r, structs):
 					break
 				probe = t
 			y = probe
@@ -1273,7 +1275,7 @@ func bullet_blocks_px(px: float, py: float) -> bool:
 
 ## Sight: nothing solid to feet between the two points. Trees and boulders
 ## block it, so an enemy cannot track you through a building.
-func has_line_of_sight(a: Vector2, b: Vector2, step := 12.0) -> bool:
+func has_line_of_sight(a: Vector2, b: Vector2, step := 12.0, structs: Structures = null) -> bool:
 	var d := b - a
 	var len := d.length()
 	if len < 1e-4:
@@ -1281,7 +1283,7 @@ func has_line_of_sight(a: Vector2, b: Vector2, step := 12.0) -> bool:
 	var n := ceili(len / step)
 	for i in range(1, n + 1):
 		var t := float(i) / n
-		if is_blocked_px(a.x + d.x * t, a.y + d.y * t):
+		if is_blocked_px(a.x + d.x * t, a.y + d.y * t, structs):
 			return false
 	return true
 
@@ -1319,8 +1321,8 @@ func find_open_spot(rng_: Rng, centre: Vector2, min_r: float, max_r: float, trie
 
 
 ## Ejects an entity that has ended up inside geometry. Cheap no-op normally.
-func unstick(pos: Vector2, r: float) -> Vector2:
-	if not circle_hits_solid(pos.x, pos.y, r):
+func unstick(pos: Vector2, r: float, structs: Structures = null) -> Vector2:
+	if not circle_hits_solid(pos.x, pos.y, r, structs):
 		return pos
 	for ring in range(1, 9):
 		var step := TILE * 0.55 * ring
@@ -1328,6 +1330,6 @@ func unstick(pos: Vector2, r: float) -> Vector2:
 			var a := (i / 12.0) * TAU
 			var nx := pos.x + cos(a) * step
 			var ny := pos.y + sin(a) * step
-			if not circle_hits_solid(nx, ny, r):
+			if not circle_hits_solid(nx, ny, r, structs):
 				return Vector2(nx, ny)
 	return pos

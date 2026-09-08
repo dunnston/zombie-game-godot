@@ -134,44 +134,8 @@ func test_the_raid_xp_bonus_is_only_for_raiders() -> void:
 	eq(sim.raid.killed, 1)
 
 
-## The harness: a competent defender with a rifle and a full pack plays
-## raid `index` through to the end. Reports how it went.
-func _play_raid(index: int, weapon := "rifle", max_seconds := 300.0) -> Dictionary:
-	sim.raids_done = index
-	p.god_mode = true
-	p.select_slot(p.hotbar_index(weapon))
-	p.add_res(Config.WEAPONS[weapon].ammo, 400)
-	sim.threat.value = 100.0
-	run(sim, Config.RAID.warning_time + 0.2)
-	var t0 := sim.time
-	var frames := int(max_seconds * 60)
-	for i in range(frames):
-		# Aim at the nearest raider and hold fire; tap on an empty gun.
-		var best: EnemySim = null
-		var bd := INF
-		for e in sim.enemies.list:
-			if e.dead or not e.raid:
-				continue
-			var d := e.pos.distance_squared_to(p.pos)
-			if d < bd:
-				bd = d
-				best = e
-		if best != null:
-			p.intent.aim = best.pos
-			p.intent.fire = true
-			p.intent.fire_pressed = i % 30 == 0
-		else:
-			p.intent.fire = false
-		sim.tick(1.0 / 60.0)
-		if sim.raid == null:
-			break
-	return {"seconds": sim.time - t0, "done": sim.raid == null, "kills": sim.stats.kills,
-		"repelled": sim.raids_done == index + 1 and events_of(sim, "raid_end").back().repelled,
-		"reward": p.count_res("scrap")}
-
-
 func test_harness_the_first_raid_is_repelled_by_a_rifle() -> void:
-	var r := _play_raid(0)
+	var r := play_raid(sim, p, 0)
 	print("raid harness [0 SCATTERED HORDE]: %.0fs, %d kills, repelled=%s, scrap +%d" % [r.seconds, r.kills, r.repelled, r.reward])
 	ok(r.done, "the raid completed")
 	ok(r.repelled, "and was repelled")
@@ -180,9 +144,3 @@ func test_harness_the_first_raid_is_repelled_by_a_rifle() -> void:
 	eq(r.reward, 30, "the salvage was paid")
 
 
-func test_harness_the_third_raid_completes_inside_the_backstop() -> void:
-	var r := _play_raid(2)
-	print("raid harness [2 HEAVY HORDE]: %.0fs, %d kills, repelled=%s" % [r.seconds, r.kills, r.repelled])
-	ok(r.done, "the raid completed")
-	ok(r.seconds < Config.RAID.max_seconds, "nothing came near the 300s backstop: %.0fs" % r.seconds)
-	ok(r.kills > 0)

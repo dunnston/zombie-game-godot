@@ -25,7 +25,7 @@ var version := 0                 # world version this was built against
 var build_ms := 0.0
 
 
-func build(world: World, target_tile: Vector2i, radius: int, now := 0.0, world_version := 0) -> void:
+func build(world: World, target_tile: Vector2i, radius: int, now := 0.0, world_version := 0, structs: Structures = null) -> void:
 	var t0 := Time.get_ticks_usec()
 	target = target_tile
 	size = radius * 2 + 3
@@ -49,7 +49,7 @@ func build(world: World, target_tile: Vector2i, radius: int, now := 0.0, world_v
 		var base := ly * size
 		for lx in range(1, size - 1):
 			var wx := x0 + lx
-			if wx >= 0 and wx < W and blocked[row + wx] == 0:
+			if wx >= 0 and wx < W and blocked[row + wx] == 0 and not (structs != null and structs.solid_at(wx, wy)):
 				open[base + lx] = 1
 
 	var start := (radius + 1) * size + radius + 1

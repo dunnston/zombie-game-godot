@@ -10,6 +10,7 @@ extends RefCounted
 ## the base is relocated (raid.gd).
 
 const S := Config.SPAWN
+const R := Config.RAID
 const PROBE_ANGLES := [0.0, 0.5, -0.5, 1.0, -1.0, 1.6, -1.6, 2.3, -2.3]
 
 var list: Array[EnemySim] = []
@@ -120,19 +121,19 @@ func tick_spawning(sim: GameSim, dt: float) -> void:
 			return
 		var tier := sim.world.danger_at_px(p.pos.x, p.pos.y)
 		var near := count_near(p.pos, S.count_radius)
-		var want: float = S.density[clampi(tier, 1, 4)] * night.density * sim.quiet.density_mul(p.pos.x, p.pos.y)
+		var want: float = S.density[clampi(tier, 1, 4)] * night.density * sim.quiet.density_mul(p.pos.x, p.pos.y, sim.structs)
 		if near >= want:
 			continue
 		# Ground you have thoroughly cleared buys an actual lull, not just a
 		# thinner stream. Tested at the player, not the spawn ring: the ring
 		# sits ~1000px out, beyond the patch a burst of kills quietens.
-		if sim.quiet.suppressed(p.pos.x, p.pos.y):
+		if sim.quiet.suppressed(p.pos.x, p.pos.y, sim.structs):
 			continue
 		var ring: float = maxf(S.ring_min, sim.view_radius + 180.0)
 		var spot := sim.world.find_open_spot(rng, p.pos, ring, ring + S.ring_width)
 		if spot == Vector2.INF:
 			continue
-		if sim.quiet.suppressed(spot.x, spot.y):
+		if sim.quiet.suppressed(spot.x, spot.y, sim.structs):
 			continue
 		var spot_tier := sim.world.danger_at_px(spot.x, spot.y)
 		spawn(pick_type(maxi(tier, spot_tier)), spot)
@@ -148,26 +149,52 @@ func rebuild_spatial() -> void:
 # ---------------------------------------------------------------------- AI --
 
 ## Is the straight line along `angle` clear for `len` px, at the body's width?
-static func clear_ahead(world: World, pos: Vector2, angle: float, len: float, r: float) -> bool:
+static func clear_ahead(world: World, pos: Vector2, angle: float, len: float, r: float, structs: Structures = null) -> bool:
 	var steps := maxi(2, ceili(len / 14.0))
 	var dir := Vector2.from_angle(angle)
 	var side := dir.orthogonal() * r * 0.7
 	for i in range(1, steps + 1):
 		var p := pos + dir * ((float(i) / steps) * len)
-		if world.is_blocked_px(p.x + side.x, p.y + side.y):
+		if world.is_blocked_px(p.x + side.x, p.y + side.y, structs):
 			return false
-		if world.is_blocked_px(p.x - side.x, p.y - side.y):
+		if world.is_blocked_px(p.x - side.x, p.y - side.y, structs):
 			return false
 	return true
 
 
-static func steer(world: World, e: EnemySim, want: float) -> float:
+static func steer(world: World, e: EnemySim, want: float, structs: Structures = null) -> float:
 	var probe := 34.0 + e.r
 	for off: float in PROBE_ANGLES:
 		var a := want + off
-		if clear_ahead(world, e.pos, a, probe, e.r):
+		if clear_ahead(world, e.pos, a, probe, e.r, structs):
 			return a
 	return want
+
+
+## The solid player structure directly in front, if any. An open gate is not
+## one: walking through it is the point.
+static func _blocker_ahead(structs: Structures, e: EnemySim, angle: float) -> Dictionary:
+	if structs == null:
+		return {}
+	var at := e.pos + Vector2.from_angle(angle) * (e.r + 16.0)
+	var s := structs.at_px(at.x, at.y)
+	if s.is_empty() or not s.solid or (s.def.get("gate", false) and s.open):
+		return {}
+	return s
+
+
+## Anything player-built within arm's reach, in any direction. What a stuck
+## enemy swings at.
+static func _adjacent_structure(structs: Structures, e: EnemySim) -> Dictionary:
+	if structs == null:
+		return {}
+	for i in range(8):
+		var a := (i / 8.0) * TAU
+		var at := e.pos + Vector2.from_angle(a) * (e.r + 14.0)
+		var s := structs.at_px(at.x, at.y)
+		if not s.is_empty() and s.solid and not (s.def.get("gate", false) and s.open):
+			return s
+	return {}
 
 
 static func angle_delta(a: float, b: float) -> float:
@@ -181,6 +208,7 @@ static func angle_delta(a: float, b: float) -> float:
 
 func tick_ai(sim: GameSim, dt: float) -> void:
 	var world := sim.world
+	var structs := sim.structs
 	var night := sim.night_factors()
 	var quarter_speed_dt := 0.25 * dt
 
@@ -214,7 +242,7 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 		# Reading `aggro or senses` here let an aggro'd enemy renew its own
 		# timer forever, and the expiry below never fired.
 		var senses := p != null and d_player2 < sense_r * sense_r
-		if senses and (d_player2 < 120.0 * 120.0 or world.has_line_of_sight(e.pos, p.pos)):
+		if senses and (d_player2 < 120.0 * 120.0 or world.has_line_of_sight(e.pos, p.pos, 12.0, structs)):
 			e.aggro = true
 			e.alert_t = maxf(e.alert_t, 4.0)
 		if p == null:
@@ -224,10 +252,19 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 
 		var tgt := Vector2.ZERO
 		var hunting := false         # walking at a player: use the flow field
+		var target_struct := {}
 		if e.raid and sim.raid != null:
-			# Raiders push for the base — the nearest structure, in Phase 3 —
-			# and happily eat the player en route.
-			if p != null:
+			# Raiders push for the base — the nearest structure — and happily
+			# eat the player en route. Targeting the *nearest* piece rather
+			# than the most valuable is what makes a horde break on the
+			# perimeter, which is the whole reason to build one.
+			if p != null and d_player2 < R.player_lure * R.player_lure:
+				tgt = p.pos
+				hunting = true
+			elif not e.objective.is_empty() and not e.objective.destroyed:
+				tgt = e.objective.pos
+				target_struct = e.objective
+			elif p != null:
 				tgt = p.pos
 				hunting = true
 			else:
@@ -256,17 +293,51 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 			e.windup -= dt
 			if e.windup <= 0.0:
 				# Land the blow if the victim is still there.
-				if p != null and d_player2 < (e.atk_range + p.r + 6.0) * (e.atk_range + p.r + 6.0):
+				if not e.pending_struct.is_empty():
+					var s: Dictionary = e.pending_struct
+					var reach: float = e.atk_range + Config.TILE
+					if not s.destroyed and e.pos.distance_squared_to(s.pos) < reach * reach:
+						structs.damage(sim, s, e.dmg * e.def.struct_mul, e.pos)
+				elif p != null and d_player2 < (e.atk_range + p.r + 6.0) * (e.atk_range + p.r + 6.0):
 					Damage.damage_player(sim, p, e.dmg, e.pos, e.def.name)
+				e.pending_struct = {}
 			e.last_pos = e.pos
 			continue                                 # committed to the swing
 
+		# Flesh first. A reachable person outranks scenery — otherwise a
+		# zombie standing next to you punches the wall behind you and ignores
+		# you entirely, which is both wrong and trivially exploitable.
 		var player_in_reach := p != null and d_player2 < (e.atk_range + p.r) * (e.atk_range + p.r)
 		if player_in_reach and e.atk_cd <= 0.0:
 			e.atk_cd = e.atk_cd_base
 			e.windup = 0.24
+			e.pending_struct = {}
+			e.blocker = {}
 			e.angle = (p.pos - e.pos).angle()
 			continue
+
+		# Otherwise a wall between this thing and where it means to be
+		# becomes where it means to be.
+		var blocker := {} if player_in_reach else _blocker_ahead(structs, e, want_angle)
+		if not blocker.is_empty() and (e.aggro or e.raid):
+			e.blocker = blocker
+			if e.atk_cd <= 0.0:
+				e.atk_cd = e.atk_cd_base
+				e.windup = 0.22
+				e.pending_struct = blocker
+				e.angle = (blocker.pos - e.pos).angle()
+			e.last_pos = e.pos
+			continue
+		e.blocker = {}
+
+		if not target_struct.is_empty() and e.atk_cd <= 0.0:
+			var d_target := e.pos.distance_to(tgt)
+			if d_target < e.atk_range + Config.TILE * 0.5:
+				e.atk_cd = e.atk_cd_base
+				e.windup = 0.22
+				e.pending_struct = target_struct
+				e.angle = want_angle
+				continue
 
 		# ----------------------------------------------------------- movement --
 		var head := want_angle
@@ -275,14 +346,14 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 			# Otherwise the field knows the way round the building. A sight
 			# line is not enough — through a doorway it is exactly what makes
 			# a walker flip between the two and circle the house twice.
-			var direct := d_player2 < 200.0 * 200.0 and clear_ahead(world, e.pos, want_angle, sqrt(d_player2), e.r)
+			var direct := d_player2 < 200.0 * 200.0 and clear_ahead(world, e.pos, want_angle, sqrt(d_player2), e.r, structs)
 			if not direct:
 				var nf := sim.nav_for(p)
 				if nf != null:
 					var d := nf.step_dir(e.pos)
 					if d != Vector2.ZERO:
 						head = d.angle()
-		var move_angle := steer(world, e, head)
+		var move_angle := steer(world, e, head, structs)
 		e.angle += clampf(angle_delta(e.angle, move_angle), -9.0 * dt, 9.0 * dt)
 
 		var speed: float = e.speed * night.speed
@@ -315,7 +386,7 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 		if vlen > cap:
 			e.vel *= cap / vlen
 
-		e.pos = world.move_circle(e.pos, e.vel * dt, e.r)
+		e.pos = world.move_circle(e.pos, e.vel * dt, e.r, structs)
 
 		# -------------------------------------------------------- stuck rescue --
 		# Moving at under a quarter of its own pace while it means to be
@@ -325,11 +396,19 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 		if (e.aggro or e.raid) and moved < speed * quarter_speed_dt:
 			e.stuck_t += dt
 			if e.stuck_t > 0.7:
-				# Phase 3: punch whatever player-built thing is adjacent.
-				# Otherwise sidestep.
-				e.pos = world.unstick(e.pos, e.r)
-				e.wander_a = want_angle + (1.4 if rng.chance(0.5) else -1.4)
-				e.vel += Vector2.from_angle(e.wander_a) * 160.0
+				# Punch whatever player-built thing is adjacent; otherwise
+				# sidestep. A horde wedged against a wall it cannot see the
+				# way round has to be able to make its own way through.
+				var adjacent := _adjacent_structure(structs, e)
+				if not adjacent.is_empty() and e.atk_cd <= 0.0:
+					e.atk_cd = e.atk_cd_base
+					e.windup = 0.22
+					e.pending_struct = adjacent
+					e.angle = (adjacent.pos - e.pos).angle()
+				else:
+					e.pos = world.unstick(e.pos, e.r, structs)
+					e.wander_a = want_angle + (1.4 if rng.chance(0.5) else -1.4)
+					e.vel += Vector2.from_angle(e.wander_a) * 160.0
 				e.stuck_t = 0.0
 		else:
 			e.stuck_t = 0.0

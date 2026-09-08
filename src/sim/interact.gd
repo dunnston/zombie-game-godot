@@ -37,6 +37,40 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 		if d < best_d:
 			best_d = d
 			best = {"kind": "container", "ref": c, "label": "Search " + c.label}
+
+	# Anything the player built, and what it has to say for itself. A piece
+	# with nothing else to offer offers its repair, with the bill, so nobody
+	# is surprised by what it costs.
+	for s in sim.structs.list:
+		if s.destroyed:
+			continue
+		var d: float = p.pos.distance_squared_to(s.pos)
+		if d >= best_d:
+			continue
+		var entry := {}
+		if s.store != null:
+			entry = {"kind": "store", "ref": s, "label": "Open %s  (%d/%d)" % [s.def.name, s.store.used(), s.store.size()]}
+		elif s.type == "workbench":
+			entry = {"kind": "bench", "ref": s, "label": "Workbench II" if s.tier >= 2 else "Upgrade Workbench  ·  %s" % Structures.cost_label(Config.BENCH_UPGRADE_COST)}
+		elif s.type == "gate":
+			entry = {"kind": "gate", "ref": s, "label": "Close gate" if s.open else "Open gate"}
+		elif s.type == "generator":
+			entry = {"kind": "generator", "ref": s,
+				"label": "Switch off  (%d/%d fuel)" % [roundi(s.fuel), roundi(s.def.fuel_max)] if Structures.generator_running(s)
+					else "Refuel and start  (%d/%d)" % [roundi(s.fuel), roundi(s.def.fuel_max)]}
+		elif s.type == "bedroll":
+			entry = {"kind": "bedroll", "ref": s,
+				"label": "Respawn point (active)" if p.spawn_tile == Vector2i(s.tx, s.ty) else "Set as respawn point"}
+		elif Structures.is_damaged(s):
+			entry = {"kind": "repair", "ref": s,
+				"label": "Repair %s  (%d%%)  ·  %s" % [s.def.name, roundi(s.hp / s.max_hp * 100.0), Structures.cost_label(Structures.repair_cost(s))]}
+		if entry.is_empty():
+			continue
+		# A piece that answers E for something else still says it is hurt.
+		if entry.kind != "repair" and Structures.is_damaged(s):
+			entry.label += "  ·  %d%% — B to repair" % roundi(s.hp / s.max_hp * 100.0)
+		best_d = d
+		best = entry
 	if not best.is_empty():
 		return best
 
@@ -104,6 +138,23 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 			p.searching = {"container": c, "t": 0.0, "dur": dur}
 		"gather":
 			gather_prop(sim, p, target.ref)
+		"gate":
+			sim.structs.toggle_gate(sim, target.ref)
+		"generator":
+			sim.structs.use_generator(sim, target.ref, p)
+		"bench":
+			sim.structs.upgrade_bench(sim, target.ref, p)
+		"repair":
+			sim.structs.repair(sim, target.ref, p)
+		"bedroll":
+			var s: Dictionary = target.ref
+			p.spawn_tile = Vector2i(s.tx, s.ty)
+			sim.structs.refresh_bedrolls(sim)
+			sim.notify("Respawn point set", "#b7e08a")
+		"store":
+			# The two-panel storage screen is 3c. Until then E deposits the
+			# haul, which is the thing you walk to a stash to do.
+			sim.structs.deposit_all(sim, p, target.ref.store)
 
 
 static func _finish_search(sim: GameSim, p: PlayerSim) -> void:

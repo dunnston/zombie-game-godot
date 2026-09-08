@@ -121,7 +121,17 @@ static func heal_player(sim: GameSim, p: PlayerSim, amount: float) -> float:
 
 
 static func respawn_player(sim: GameSim, p: PlayerSim) -> void:
-	var spot := sim.pick_random_spawn(Vector2.INF, 0.0, 520.0)
+	# A bedroll is a respawn point: waking up beside your own base is the
+	# whole reason to have built one.
+	var at_bedroll := false
+	if p.spawn_tile.x >= 0:
+		var bed := sim.structs.at_tile(p.spawn_tile.x, p.spawn_tile.y)
+		if not bed.is_empty() and bed.type == "bedroll":
+			p.pos = sim.world.unstick(bed.pos + Vector2(0, Config.TILE), p.r, sim.structs)
+			at_bedroll = true
+		else:
+			p.spawn_tile = Vector2i(-1, -1)
+	var spot := p.pos if at_bedroll else sim.pick_random_spawn(Vector2.INF, 0.0, 520.0)
 	p.pos = spot
 	p.vel = Vector2.ZERO
 	p.hp = p.max_hp
@@ -133,4 +143,4 @@ static func respawn_player(sim: GameSim, p: PlayerSim) -> void:
 	p.using = {}
 	p.slot = clampi(p.slot, 0, maxi(0, p.hotbar.size() - 1))
 	sim.emit({"t": "respawn", "seat": p.seat, "x": p.pos.x, "y": p.pos.y})
-	sim.notify("Respawned somewhere in the wild", "#9fd0ff", true)
+	sim.notify("You wake up at your bedroll" if at_bedroll else "Respawned somewhere in the wild", "#9fd0ff", true)
