@@ -12,13 +12,16 @@ const KEYS := {
 	"sneak": [KEY_CTRL],
 	"interact": [KEY_E],
 	"reload": [KEY_R],
+	"use_heal": [KEY_Q],
+	"slot1": [KEY_1], "slot2": [KEY_2], "slot3": [KEY_3],
+	"slot4": [KEY_4], "slot5": [KEY_5], "slot6": [KEY_6],
 	"inventory": [KEY_TAB],
 	"crafting": [KEY_C],
 	"build": [KEY_B],
 	"map": [KEY_M],
 	"pause": [KEY_ESCAPE],
 }
-const MOUSE := {"fire": MOUSE_BUTTON_LEFT, "aim": MOUSE_BUTTON_RIGHT}
+const MOUSE := {"fire": MOUSE_BUTTON_LEFT, "aim": MOUSE_BUTTON_RIGHT, "wheel_up": MOUSE_BUTTON_WHEEL_UP, "wheel_down": MOUSE_BUTTON_WHEEL_DOWN}
 
 
 func _init() -> void:

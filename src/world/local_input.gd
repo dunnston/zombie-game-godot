@@ -13,7 +13,18 @@ static func gather(intent: Intent, node: Node2D) -> void:
 	intent.sneak = Input.is_action_pressed("sneak")
 	intent.fire = Input.is_action_pressed("fire")
 	intent.aim = node.get_global_mouse_position()
+	if Input.is_action_just_pressed("fire"):
+		intent.fire_pressed = true
 	if Input.is_action_just_pressed("interact"):
 		intent.interact = true
 	if Input.is_action_just_pressed("reload"):
 		intent.reload = true
+	if Input.is_action_just_pressed("use_heal"):
+		intent.use = true
+	for i in range(6):
+		if Input.is_action_just_pressed("slot%d" % (i + 1)):
+			intent.slot = i
+	if Input.is_action_just_pressed("wheel_down"):
+		intent.wheel = 1
+	elif Input.is_action_just_pressed("wheel_up"):
+		intent.wheel = -1

@@ -13,10 +13,18 @@ var sneak := false
 var fire := false
 
 # edges — true for exactly one simulation step
+var fire_pressed := false    # a fresh click: an empty gun reloads on this, not on the hold
 var interact := false
 var reload := false
+var use := false             # Q: use whatever healing is to hand
+var slot := -1               # 0-5 selects a hotbar slot; -1 means no change
+var wheel := 0               # +1 / -1 cycles the hotbar
 
 
 func clear_edges() -> void:
+	fire_pressed = false
 	interact = false
 	reload = false
+	use = false
+	slot = -1
+	wheel = 0
