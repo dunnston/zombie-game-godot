@@ -25,6 +25,9 @@ var pickup_seq := 0
 ## the world's or the spawner's numbers.
 var loot_rng: Rng
 
+## Kept so a save can reproduce this run's streams.
+var run_seed := 1
+
 ## The base's one shared pile. A Supply Stash (Phase 3b) is a door into it,
 ## not a pile of its own; until one is built there is nowhere to overflow to
 ## and everything falls on the ground.
@@ -71,6 +74,7 @@ func start(world_: World, run_seed: int = 1) -> void:
 	world = world_
 	rng = Rng.new(run_seed)
 	loot_rng = Rng.new(run_seed * 2654435761 + 0xC0FFEE)
+	self.run_seed = run_seed
 	time = 0.0
 	players.clear()
 	pickups.clear()

@@ -519,6 +519,68 @@ const STRUCTURES := {
 	},
 }
 
+## Crafting is instant by design: the materials are the whole cost. `bench`
+## is 0 for by hand, 1 for a workbench, 2 for the upgraded one. A `hammer`
+## recipe is lifted to bench 1 by a carried Stone Hammer — the work you could
+## plausibly do on a flat rock — and never any further, so the hammer can
+## never produce a gun. `tool` is a flag the player must be carrying
+## something with (a knife cuts cordage).
+##
+## Order matters only for the screen: hand tools first, because the bench
+## costs wood and wood costs a hatchet.
+const RECIPES := [
+	{"id": "bandage", "name": "Bandage x2", "bench": 0, "cost": {"cloth": 4}, "give": {"item": "bandage", "n": 2}, "xp": 3},
+	{"id": "axe", "name": "Hatchet", "bench": 0, "cost": {"sticks": 3, "stone": 3, "fiber": 4}, "give": {"weapon": "axe"}, "xp": 10},
+	{"id": "knife", "name": "Stone Knife", "bench": 0, "cost": {"sticks": 2, "stone": 3, "fiber": 2}, "give": {"weapon": "knife"}, "xp": 8},
+	{"id": "pick", "name": "Stone Pickaxe", "bench": 0, "cost": {"sticks": 4, "stone": 4, "fiber": 3}, "give": {"weapon": "pick"}, "xp": 12},
+	{"id": "scythe", "name": "Scythe", "bench": 0, "cost": {"sticks": 5, "stone": 3, "fiber": 4}, "give": {"weapon": "scythe"}, "xp": 12},
+	{"id": "hammer", "name": "Stone Hammer", "bench": 0, "cost": {"sticks": 3, "stone": 6, "fiber": 2}, "give": {"weapon": "hammer"}, "xp": 12},
+	# Cordage: fiber becomes cloth, but only with a blade to cut it.
+	{"id": "cordage", "name": "Cloth x4", "bench": 0, "tool": "knife", "cost": {"fiber": 10}, "give": {"res": {"cloth": 4}}, "xp": 4},
+	# The first night's answer to "I cannot see", made of the two things the
+	# ground is covered in. It burns itself up, so it is a thing you keep
+	# remaking rather than a thing you own once.
+	{"id": "torch", "name": "Torch", "bench": 0, "cost": {"sticks": 3, "fiber": 3}, "give": {"gear": "torch"}, "xp": 6},
+	# Bench 0, like the tools: a bow is a stick and a string, and it has to be
+	# reachable in the first ten minutes to be the quiet answer to a gun.
+	{"id": "bow", "name": "Hunting Bow", "bench": 0, "cost": {"sticks": 8, "fiber": 12, "cloth": 2}, "give": {"weapon": "bow"}, "xp": 18},
+	{"id": "arrow", "name": "Arrows x10", "bench": 0, "cost": {"sticks": 6, "stone": 3, "fiber": 2}, "give": {"res": {"arrow": 10}}, "xp": 3},
+	{"id": "workGloves", "name": "Work Gloves", "bench": 0, "cost": {"cloth": 8}, "give": {"gear": "workGloves"}, "xp": 8},
+	{"id": "denimPants", "name": "Work Trousers", "bench": 0, "cost": {"cloth": 14}, "give": {"gear": "denimPants"}, "xp": 10},
+
+	{"id": "pipe", "name": "Steel Pipe", "bench": 1, "hammer": true, "cost": {"wood": 6, "scrap": 10}, "give": {"weapon": "pipe"}, "xp": 12},
+	{"id": "ammoP", "name": "9mm x24", "bench": 1, "cost": {"scrap": 9, "parts": 1}, "give": {"res": {"ammoP": 24}}, "xp": 6},
+	{"id": "medkit", "name": "Medkit", "bench": 1, "cost": {"med": 5, "cloth": 5}, "give": {"item": "medkit", "n": 1}, "xp": 8},
+	{"id": "machete", "name": "Machete", "bench": 1, "cost": {"scrap": 24, "parts": 1}, "give": {"weapon": "machete"}, "xp": 25},
+	# The metal tool tier: the workbench costs wood and wood costs a Hatchet,
+	# so these sit exactly one step past the stone tools that got you here.
+	{"id": "fireaxe", "name": "Fire Axe", "bench": 1, "cost": {"wood": 8, "scrap": 20, "parts": 2}, "give": {"weapon": "fireaxe"}, "xp": 22},
+	{"id": "steelpick", "name": "Steel Pickaxe", "bench": 1, "cost": {"wood": 6, "scrap": 26, "parts": 3}, "give": {"weapon": "steelpick"}, "xp": 24},
+	{"id": "pistol", "name": "M9 Pistol", "bench": 1, "cost": {"scrap": 28, "parts": 4}, "give": {"weapon": "pistol"}, "xp": 35},
+	{"id": "lightVest", "name": "Padded Vest", "bench": 1, "cost": {"cloth": 22, "scrap": 12}, "give": {"gear": "lightVest"}, "xp": 25},
+	{"id": "workBoots", "name": "Work Boots", "bench": 1, "cost": {"cloth": 10, "scrap": 6}, "give": {"gear": "workBoots"}, "xp": 12},
+	{"id": "hardHat", "name": "Hard Hat", "bench": 1, "cost": {"scrap": 14}, "give": {"gear": "hardHat"}, "xp": 14},
+	{"id": "paddedLegs", "name": "Padded Leggings", "bench": 1, "cost": {"cloth": 24, "scrap": 10}, "give": {"gear": "paddedLegs"}, "xp": 26},
+	{"id": "ammoS", "name": "Shells x14", "bench": 1, "cost": {"scrap": 12, "parts": 1}, "give": {"res": {"ammoS": 14}}, "xp": 7},
+	{"id": "lockpick", "name": "Lockpicks x3", "bench": 1, "hammer": true, "cost": {"scrap": 8, "parts": 1}, "give": {"item": "lockpick", "n": 3}, "xp": 6},
+	{"id": "rationPack", "name": "Ration Pack x8", "bench": 1, "hammer": true, "cost": {"med": 2, "cloth": 3}, "give": {"res": {"rations": 8}}, "xp": 5},
+	{"id": "fuel", "name": "Fuel x25", "bench": 1, "cost": {"scrap": 10, "elec": 4}, "give": {"res": {"fuel": 25}}, "xp": 6},
+	# A battery is findable long before it is craftable — parts bins, desks,
+	# glove boxes — so the flashlight is something you scavenge your way into
+	# rather than a bench unlock.
+	{"id": "battery", "name": "Batteries x2", "bench": 1, "cost": {"scrap": 6, "elec": 5}, "give": {"res": {"battery": 2}}, "xp": 6},
+	{"id": "flashlight", "name": "Flashlight", "bench": 1, "cost": {"scrap": 10, "elec": 6, "parts": 1}, "give": {"gear": "flashlight"}, "xp": 18},
+
+	{"id": "sledge", "name": "Sledgehammer", "bench": 2, "cost": {"wood": 18, "scrap": 38, "parts": 2}, "give": {"weapon": "sledge"}, "xp": 45},
+	{"id": "smg", "name": "Scrap SMG", "bench": 2, "cost": {"scrap": 48, "parts": 8, "elec": 10}, "give": {"weapon": "smg"}, "xp": 60},
+	{"id": "shotgun", "name": "Pump Shotgun", "bench": 2, "cost": {"scrap": 44, "parts": 6, "wood": 12}, "give": {"weapon": "shotgun"}, "xp": 60},
+	{"id": "ammoR", "name": "Rifle Rounds x18", "bench": 2, "cost": {"scrap": 14, "parts": 2}, "give": {"res": {"ammoR": 18}}, "xp": 8},
+	{"id": "rifle", "name": "Hunting Rifle", "bench": 2, "cost": {"scrap": 62, "parts": 12, "mil": 3}, "give": {"weapon": "rifle"}, "xp": 90},
+	{"id": "heavyVest", "name": "Riot Armor", "bench": 2, "cost": {"scrap": 46, "cloth": 20, "mil": 4}, "give": {"gear": "heavyVest"}, "xp": 70},
+	{"id": "carbine", "name": "Military Carbine", "bench": 2, "cost": {"scrap": 85, "parts": 18, "mil": 14, "elec": 12}, "give": {"weapon": "carbine"}, "xp": 150},
+	{"id": "milVest", "name": "Plate Carrier", "bench": 2, "cost": {"scrap": 40, "mil": 12, "cloth": 15}, "give": {"gear": "milVest"}, "xp": 120},
+]
+
 const BUILD_ORDER := [
 	"woodWall", "stoneWall", "barricade", "reinforcedWall", "metalWall", "gate", "spike",
 	"workbench", "stash", "chest", "locker", "bedroll", "bunk", "watchtower",

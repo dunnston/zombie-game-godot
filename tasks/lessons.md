@@ -81,3 +81,19 @@ Distilled into `PROJECT.md` §8. Append here first.
 - Dead ported code is worse than none: the prototype's "Container there"
   placement check cannot fire here, because a container already blocks its
   own tile.
+
+## 2026-09-08 (Phase 3c)
+
+- A fingerprint that guards a save has to describe the *generator's* output,
+  not the live world. Taken live, felling one tree changed the collision
+  bitmap and the prop count, and the save refused itself.
+- A Control keeps whatever it last drew. The build bar used its own `open`
+  flag and the scene stopped redrawing it when closed, so the cards stayed
+  painted over the world. Set `visible` too and let Godot hide it.
+- Build the return dictionary and then check you actually put every list in
+  it: `players` was assembled and never added, and the load path reported
+  "no players in it" — a good error message for a bug three lines away.
+- The sim must not know about screens. `Interact` emits `open_store` with a
+  tile; the scene decides that means a panel. That keeps the storage rule
+  (reach-checked, every frame, by tile) in the sim where a guest's command
+  will meet it too.

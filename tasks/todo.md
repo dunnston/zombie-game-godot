@@ -146,24 +146,24 @@ an item can be held, carried and dropped.
 
 ### 3c — what you make and what you keep (`phase-3-craft-save`)
 
-- [ ] `config.gd`: `RECIPES` (bench 0/1/2), `BENCH_UPGRADE_COST`
-- [ ] `src/sim/crafting.gd`: bench tier from a nearby workbench, the Stone
+- [x] `config.gd`: `RECIPES` (bench 0/1/2), `BENCH_UPGRADE_COST`
+- [x] `src/sim/crafting.gd`: bench tier from a nearby workbench, the Stone
       Hammer lift (never a gun), tool requirements, room checked against the
       container the craft will actually use, overflow to stash then ground
-- [ ] Crafting inside the inventory screen — the playtest finding, not a
+- [x] Crafting inside the inventory screen — the playtest finding, not a
       separate menu. Storage as the two-panel screen (contents, then pack
       and hotbar) with DEPOSIT ALL and TAKE AMMO
-- [ ] `src/sim/save.gd`: payload v1. **Containers are identified by tile
+- [x] `src/sim/save_game.gd`: payload v1. **Containers are identified by tile
       position, never ordinal index** (invariant 7) and chopped props by
       tile key, replayed against a world rebuilt from the seed. A world
       fingerprint test fails the build when generation changes without a
       version bump. A save that will not load says which and why
-- [ ] Save slots under `user://saves/`, autosave once a slot exists
-- [ ] Tests: every recipe's ids resolve, bench and hammer gates, craft
+- [x] Save slots under `user://saves/`, autosave once a slot exists
+- [x] Tests: every recipe's ids resolve, bench and hammer gates, craft
       overflow, a save round trips (looted containers by tile, felled
       props, structures, stash, worn gear, magazines), a bumped world
       fingerprint refuses to load
-- [ ] Smoke: craft a hatchet, save, reload, still there
+- [x] Smoke: craft a hatchet, save, reload, still there
 
 - [ ] **Playtest gate:** owner builds and holds a base
 
@@ -374,3 +374,32 @@ Three items on PR #4, all addressed.
 The first two have tests that fail against the pre-fix `src/`; the sweep is
 in the smoke run, which holds the button across a wall and then checks that
 holding it over the repaired wall bills nothing more.
+
+## Review — Phase 3c (2026-09-08)
+
+- Crafting is a tab of the pack, not a screen of its own — the playtest
+  finding. `C` opens it there and Tab opens the pack beside it. The recipe
+  row prints the bill and either CRAFT or the reason it cannot: needs a
+  workbench, needs a Stone Knife, missing materials, no room.
+- The Stone Hammer lift is enforced twice: the rule is "a `hammer` recipe
+  counts as bench 1 while one is carried", and a test walks every recipe to
+  prove no `hammer` recipe sits above bench 1 or produces a gun. The
+  prototype relied on the tables being right; here the tables are checked.
+- Storage is the two-panel screen the spec asks for, opened by `E` at a
+  chest. The sim does not know about screens: `Interact` emits `open_store`
+  with a tile and the scene decides what that looks like. The tile is
+  re-checked every frame, so walking away closes it.
+- **Save format v1.** Containers are keyed by tile and chopped props by
+  tile, replayed against a world rebuilt from the seed (invariant 7). The
+  world fingerprint is the guard, and getting it right took two goes: taken
+  live it included the *current* collision bitmap and prop count, so felling
+  one tree made the save refuse itself. It is taken once, when generation
+  finishes, and a test fells a tree to prove it does not move.
+- Loading rebuilds the sim in place. The views hold the same `sim` and read
+  it fresh, so only the three things that cached a player need telling.
+- `tools/test` went over ten seconds again — a save round trip regenerates
+  a 320-tile world, and there are eight of them. They joined the compound
+  harness in the `_slow_test.gd` tier: 9.4s fast, 16.9s with `--all`.
+- Not done: autosave and the save-slot UI. Both are the title screen's
+  business (Phase 4); the format, the slots on disk and the refusal
+  messages are here, and `F5` / `F9` reach slot 0 so it can be played.

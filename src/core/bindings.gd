@@ -20,6 +20,8 @@ const KEYS := {
 	"crafting": [KEY_C],
 	"build": [KEY_B],
 	"map": [KEY_M],
+	"quick_save": [KEY_F5],
+	"quick_load": [KEY_F9],
 	"pause": [KEY_ESCAPE],
 }
 const MOUSE := {"fire": MOUSE_BUTTON_LEFT, "aim": MOUSE_BUTTON_RIGHT, "wheel_up": MOUSE_BUTTON_WHEEL_UP, "wheel_down": MOUSE_BUTTON_WHEEL_DOWN}

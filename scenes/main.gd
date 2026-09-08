@@ -81,9 +81,20 @@ func _physics_process(dt: float) -> void:
 	# smoke run presses actions through `Input`, which sets the action state
 	# without ever synthesising an InputEvent.
 	if Input.is_action_just_pressed("inventory"):
+		inventory.mode = "pack"
 		inventory.toggle()
 		if inventory.visible and build_bar.open:
 			build_bar.toggle()
+	elif Input.is_action_just_pressed("crafting"):
+		# C is crafting, but crafting is a tab of the pack rather than a
+		# screen of its own — so C opens the pack on that tab.
+		if inventory.visible and inventory.mode == "craft":
+			inventory.toggle()
+		else:
+			inventory.mode = "craft"
+			inventory.visible = true
+			if build_bar.open:
+				build_bar.toggle()
 	elif Input.is_action_just_pressed("build") and not inventory.visible:
 		build_bar.toggle()
 	elif Input.is_action_just_pressed("pause"):
@@ -91,6 +102,11 @@ func _physics_process(dt: float) -> void:
 			inventory.toggle()
 		elif build_bar.open:
 			build_bar.toggle()
+	elif Input.is_action_just_pressed("quick_save"):
+		var r := SaveGame.save_to(sim, 0)
+		sim.notify("Saved" if r.ok else r.reason, "#b7e08a" if r.ok else "#c96a5a", true)
+	elif Input.is_action_just_pressed("quick_load"):
+		_load_slot(0)
 
 	var intent := sim.players[0].intent
 	# An open panel owns the mouse: you can still walk, but a click belongs to
@@ -112,10 +128,31 @@ func _physics_process(dt: float) -> void:
 	sim.tick(dt)
 
 
+## Loading rebuilds the simulation in place. Every view holds the same
+## `sim` reference and reads it fresh each frame, so the only things that
+## have to be told are the ones that cached a player: the screens and the
+## player's own view.
+func _load_slot(slot: int) -> void:
+	var r := SaveGame.load_from(sim, slot)
+	if not r.ok:
+		sim.notify(r.reason, "#c96a5a", true)
+		return
+	var p := sim.players[0]
+	player_view.p = p
+	inventory.player = p
+	build_bar.player = p
+	inventory.visible = false
+	build_bar.open = false
+	camera.position = p.pos
+	sim.notify("Loaded", "#b7e08a", true)
+
+
 func _process(dt: float) -> void:
 	for ev in sim.events:
 		if ev.t == "shake":
 			shake = maxf(shake, ev.amount)
+		elif ev.t == "open_store":
+			inventory.open_store(Vector2i(ev.tx, ev.ty))
 		fx.on_event(ev)
 		hud.on_event(ev)
 	sim.events.clear()
@@ -129,6 +166,7 @@ func _process(dt: float) -> void:
 	structure_view.queue_redraw()
 	if build_bar.open:
 		build_bar.queue_redraw()
+	inventory.tick()
 	if inventory.visible:
 		inventory.queue_redraw()
 	enemy_view.queue_redraw()
@@ -202,6 +240,15 @@ func smoke_click(at: Vector2, ctrl := false) -> void:
 		Input.parse_input_event(ev)
 		for i in range(3):
 			await get_tree().process_frame
+
+
+## Which pack slot holds `id`, for the smoke run to click on.
+func _smoke_bag_index(id: String) -> int:
+	var p := sim.players[0]
+	for i in range(p.bag.size()):
+		if p.bag.id_at(i) == id:
+			return i
+	return 0
 
 
 ## The nearest container to a point that still has something in it.
@@ -363,9 +410,80 @@ func smoke_run(smoke: Node) -> void:
 	if build_bar.open:
 		smoke.fail("B did not close the build bar")
 
+	# Crafting: the tab of the pack, not a screen of its own. Make a hatchet
+	# out of what the ground gives up.
+	for entry in [["sticks", 20], ["stone", 20], ["fiber", 20]]:
+		p.bag.add(entry[0], entry[1])
+	await smoke.tap("crafting")
+	await smoke.frames(3)
+	if not inventory.visible or inventory.mode != "craft":
+		smoke.fail("C did not open the craft tab")
+	await smoke.checkpoint("craft_tab")
+	var axes := p.count_carried("axe")
+	await smoke_click(inventory.recipe_centre("axe"))
+	await smoke.frames(3)
+	if p.count_carried("axe") <= axes:
+		smoke.fail("clicking the Hatchet row crafted nothing")
+	await smoke.tap("crafting")
+	await smoke.frames(2)
+
+	# A chest, and the two-panel screen that opens when you press E at it.
+	var chest_tile := Vector2i(-1, -1)
+	for i in range(2, 6):
+		var t := Vector2i(int(p.pos.x / 32) + i, int(p.pos.y / 32))
+		if sim.structs.can_place(sim, "chest", t.x, t.y, p).ok:
+			chest_tile = t
+			break
+	if chest_tile.x < 0:
+		smoke.fail("nowhere to put a chest")
+	else:
+		sim.structs.place(sim, "chest", chest_tile.x, chest_tile.y, p)
+		p.pos = Vector2(chest_tile.x * 32 + 16, chest_tile.y * 32 + 48)
+		await smoke.frames(3)
+		await smoke.tap("interact")
+		await smoke.frames(4)
+		if not inventory.visible or inventory.mode != "store":
+			smoke.fail("E at the chest did not open it")
+		await smoke.checkpoint("chest_open")
+		var stored := p.count_res("stone")
+		await smoke_click(inventory.cell_centre("bag", _smoke_bag_index("stone")), false)
+		await smoke.frames(2)
+		# DEPOSIT ALL is the button the haul is actually for.
+		await smoke_click(Vector2(inventory._panel().position.x + 84, inventory._panel().position.y + inventory._panel().size.y - 84))
+		await smoke.frames(3)
+		var s := sim.structs.at_tile(chest_tile.x, chest_tile.y)
+		if s.store.used() == 0:
+			smoke.fail("DEPOSIT ALL put nothing in the chest")
+		if p.count_res("stone") >= stored:
+			smoke.fail("the stone did not leave the pack")
+		await smoke.checkpoint("chest_filled")
+		await smoke.tap("inventory")
+		await smoke.frames(2)
+
+	# Save, break something, load it back.
+	await smoke.tap("quick_save")
+	await smoke.frames(3)
+	var saved_axes := p.count_carried("axe")
+	var saved_pos := p.pos
+	p.bag.clear_all()
+	p.hotbar.clear_all()
+	smoke_teleport(200, 200)
+	await smoke.frames(3)
+	await smoke.tap("quick_load")
+	await smoke.frames(10)
+	var q := sim.players[0]
+	if q.count_carried("axe") != saved_axes:
+		smoke.fail("the hatchet did not survive the save: %d of %d" % [q.count_carried("axe"), saved_axes])
+	if q.pos.distance_to(saved_pos) > 4.0:
+		smoke.fail("loaded %0.f px from where it saved" % q.pos.distance_to(saved_pos))
+	if sim.structs.at_tile(chest_tile.x, chest_tile.y).is_empty():
+		smoke.fail("the chest did not come back")
+	await smoke.checkpoint("loaded")
+
 	# A fight on the highway west of the camp: a walker walks in, the pistol
 	# answers. The six-weapon test kit, so every weapon is to hand.
-	sim.give_test_kit(p)
+	sim.give_test_kit(sim.players[0])
+	p = sim.players[0]
 	smoke_teleport(120, 160)
 	sim.enemies.list.clear()
 	await smoke.frames(3)
