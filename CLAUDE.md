@@ -30,6 +30,24 @@ that repo's `PROJECT.md` is the design spec and is not edited from here.
 ## Working agreements
 
 - Test by running the game. Assert on outcomes.
-- `tools/test.cmd` before every commit; smoke once per branch.
+- `tools/test.cmd` before every commit (`--all` and smoke once per branch).
 - Branch, PR, review, merge. Update `PROJECT.md` before finishing any piece of work.
 - The owner's feel feedback outranks the roadmap.
+
+## Branching — `main` is the only merge target
+
+**Every branch is cut from an up-to-date `main`, and every PR targets
+`main`.** Run `git fetch origin && git checkout -b <name> origin/main`, and
+open with `gh pr create --base main`.
+
+This is a rule because it was already broken once: `phase-2-combat` was cut
+from `phase-1-world` while that PR was still open, so PR #2 merged Phase 2
+into `phase-1-world` instead of `main`. PR #1 had already merged, so `main`
+stayed on Phase 1 while three more phases stacked on the wrong branch, and
+untangling it took a fourth PR.
+
+If work genuinely cannot compile without a branch that is still open, say so
+out loud, stack it deliberately, and **retarget it to `main` the moment the
+parent merges**. Never leave a PR pointing at anything but `main` silently.
+Before opening a PR, check: `gh pr list --json number,baseRefName` — every
+open PR should say `main`.

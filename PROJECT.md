@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-08, Phase 3b: items, loot, the pack, building and structures — buildable
+- **Last updated:** 2026-09-08, Phase 3 complete: items, loot, the pack, building, crafting, storage and saves
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -80,7 +80,18 @@ These settle arguments. When a decision is close, the pillar wins.
 
 ## 3. Where we are right now
 
-**Status: Phase 3b built — you can put up a wall and the horde breaks on
+**Status: Phase 3 complete — the loop closes.** You can make things, keep
+them and come back to them. Crafting is a tab of the pack (`C`), not a menu
+of its own: thirty-eight recipes across three bench tiers, with the Stone
+Hammer lifting the simple bench work and never a gun. A chest opens on `E`
+into a two-panel screen with DEPOSIT ALL and TAKE SUPPLIES. And the game
+saves: payload v1, **containers keyed by tile position and never by ordinal
+index**, chopped props replayed against a world rebuilt from the seed, and a
+world fingerprint that refuses a save the generator has outgrown, with the
+reason. `F5` and `F9` reach slot 0; the title screen and autosave are
+Phase 4's.
+
+**Phase 3b — you can put up a wall and the horde breaks on
 it.** Everything the player builds lives in a destructible tile map beside
 the terrain bitmap: walls, gates, spikes, three tiers of storage, a
 workbench that upgrades, a bedroll that is where you wake up, a generator
@@ -89,8 +100,6 @@ survivor. `B` opens build mode with the ghost, the range ring and the
 repair and salvage tools. Enemies punch what blocks them, brutes are what
 breaches a wall, raiders walk at the *nearest* structure so a horde breaks
 on the perimeter, and a base quietens the ground around it.
-
-Still to come in Phase 3: crafting, storage screens and saves (3c).
 
 **Phase 3a — the game has things in it.** On top of Phase
 2's fight: a survivor wakes with a steel pipe and two bandages and nothing
@@ -105,12 +114,12 @@ that will not fit is ever destroyed: it lands on the ground.
 
 | | |
 | --- | --- |
-| Phase | 3b of 5 — what you build (PR open; 3a's PR is open too) |
-| Playable | Buildable. **E** searches and uses, **Tab** is the pack, **B** is build mode, **T** is a torch. |
-| Unit tests | 139 tests, 1491 assertions, 8.0s (`tools\test.cmd`). `--all` adds the compound raid harness: 141 tests, 12.9s |
-| Smoke | 20 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a walker shot, a raid |
+| Phase | 3 of 5 — something to keep, complete (three PRs open: 3a, 3b, 3c) |
+| Playable | The whole loop. **E** searches and uses, **Tab** the pack, **C** crafting, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
+| Unit tests | 165 tests, 1901 assertions, 9.0s (`tools\test.cmd`). `--all` adds the compound raid harness and the save round trips: 175 tests, 16.6s |
+| Smoke | 24 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, a chest filled, a save reloaded, a walker shot, a raid |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
-| Save format | none yet (3c) |
+| Save format | **v1** — tile-derived container identity, world fingerprint, slots under `user://saves/` |
 
 ### Port status by system
 
@@ -136,10 +145,11 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Loot and containers | 3a | ported | 30 tables; overflow always lands on the ground |
 | Ground pickups and death packs | 3a | ported | Magnet, dropper hold-off, recoverable backpack |
 | Lights (torch, flashlight) | 3a | ported | Charge lives on the player; the dark itself is Phase 4 |
-| Crafting | 3c | — | Inside the inventory screen this time |
+| Crafting | 3c | ported | A tab of the pack, not a menu — the playtest finding |
+| Storage screens | 3c | ported | Two panels, DEPOSIT ALL and TAKE SUPPLIES, reach-checked by tile |
 | Building, structures, turrets | 3b | ported | Build anywhere; a Watchtower needs Phase 4 to post a survivor on it |
 | Storage tiers | 3b | ported | Stash 48 / locker 32 / chest 16; the two-panel screen is 3c |
-| Save / load | 3 | — | Stable container IDs this time |
+| Save / load | 3c | ported | v1: container identity by tile, world fingerprint, refusals with a reason |
 | Progression, SPECIAL, perks | 4 | — | |
 | Day/night and light | 4 | — | Real 2D lights this time |
 | Survivors, jobs, bunks | 4 | — | |
@@ -152,6 +162,27 @@ The spec for each row is in `tasks/port-inventory.md`.
 ---
 
 ## 4. What is built
+
+### What you make and what you keep (Phase 3c)
+
+- **`Crafting`** — instant, because the materials are the whole cost. The
+  bench comes from the workbench you are standing beside; a Stone Hammer in
+  the pack lifts the `hammer` recipes to bench 1 and no further, and a test
+  walks every recipe to prove none of those is above bench 1 or makes a gun.
+  The room check names the same container the craft will use, or the cost is
+  spent and the output lands on the floor.
+- **`SaveGame`** — payload v1. **Containers by tile position, never by
+  ordinal index** (invariant 7), chopped props as tile keys replayed against
+  a world rebuilt from the seed, and every structure, store, worn piece and
+  magazine. `World.fingerprint()` is taken once when generation finishes and
+  refuses a save the generator has outgrown, by name.
+- **The screens** — crafting is a tab of the pack rather than a menu of its
+  own, which is the playtest finding: a separate screen made you forget what
+  you were carrying. A chest opens the same panel in STORE mode, contents on
+  the left, with DEPOSIT ALL and TAKE SUPPLIES. `Interact` emits
+  `open_store` with a tile and the scene decides that means a panel — the
+  sim never learns what a screen is, and the reach check stays in the sim
+  where a guest's command will meet it.
 
 ### What you build (Phase 3b)
 
@@ -405,6 +436,8 @@ Phases 1–4 respecting it.
 | 2026-09-08 | A melee target needs the line a bullet needs | The arc checked distance and angle only, so a pipe (73px of threshold) hit through a one-tile wall that holds two bodies 66px apart. Terrain line of sight, not foot collision, so water and fences are still swung over — the same asymmetry shots have. | Yes, one check |
 | 2026-09-08 | `bleed` dropped from the machete, knife and scythe | The prototype declared it on three weapons and never read it anywhere. Advertising a mechanic nothing implements is worse than not having it (pillar 5); those three are already separated by damage, cadence, reach and arc. Comes back as a spec'd mechanic or not at all. | Yes |
 | 2026-09-08 | An unfinished raid pays XP on the same share as salvage | The floor was `0.5 + share/2`, so a horde you never touched still paid half its XP — the exact "hiding beats defending" the salvage share exists to prevent. | Yes, one expression |
+| 2026-09-08 | The save fingerprint is taken when generation finishes, not when the save is written | It has to describe the *generator*, not the run. Taken live it included the current collision bitmap and prop count, so felling a single tree changed it and the save refused itself on load. A test fells a tree and asserts the fingerprint does not move. | Yes |
+| 2026-09-08 | Crafting is a tab of the pack, and storage is the same panel again | The playtest finding from the prototype: a crafting screen of its own made you forget what you were carrying. One panel, three modes, one `_cells()` — and the storage half is opened by an event carrying a tile, so the sim never learns what a screen is. | Yes |
 | 2026-09-08 | The structure map is passed to collision, never read from a global | The prototype reached for `G.structures` from inside `solidTile`. Here every test shares one generated `World` — a wall built in one simulation would exist in the next — so `is_blocked_tile(tx, ty, structs)` takes it as an argument and the world stays a pure generated artefact. It also makes invariant 3 impossible to get wrong: bullets simply do not pass it. | Yes, but it is a signature change |
 | 2026-09-08 | A click in build mode becomes an `Intent` field, not a call into the sim | `build_action` / `build_type` / `build_tile` go through the same door as movement and firing, so a guest's build command will run identical code and the UI stays a view. | No reason to |
 | 2026-09-08 | The pump-action interrupt only fires with a round in the tube | Found by the compound harness on its first run: a defender holding the trigger on an empty shotgun cancelled its shell-at-a-time reload every frame and never fired again — 900 shells, two minutes, no kills, and the siege ran to the 300s backstop. Firing interrupts a reload because there is something to fire; an empty gun has nothing to interrupt it with. | Yes, one condition |
@@ -436,7 +469,13 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 
 ### Next up
 
-0. **The owner walks and fights** (the Phase 1 and 2 gates, together).
+0. **The owner walks, fights, and builds** (the Phase 1, 2 and 3 gates,
+   together — three phases are now waiting on one session at the keyboard).
+   Phase 3's questions: does searching a container at 1.05s feel like
+   searching or like waiting; is a thirty-slot pack at 200 units generous or
+   fussy; does dropping and dragging read; is the build bar quick enough to
+   use mid-raid; does a wood wall feel worth 16 wood; is crafting-in-the-pack
+   the right call. And the older ones:
    Walking: is 176px/s the right pace at this zoom; does the camera lead
    feel like aiming or like drift; should sprinting to empty wind you; is
    the world readable at a glance; is the zoom right. Fighting: does a
@@ -445,15 +484,11 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    time; do enemies coming round a building feel like hunting or like
    cheating; does the tier-1 crowd (four around you, 1400px) feel thin or
    dead; does a raid with nothing to defend feel like anything.
-1. **Phase 3b — what you build.** The destructible structure map beside the
-   terrain bitmap, walls and gates and traps, storage, the generator,
-   turrets and towers, repair and demolish, build mode; then raiders target
-   the nearest structure, enemies punch what blocks them, the quiet field
-   counts structures, and the raid harness runs against the compound to
-   reproduce §9's reference figures.
-2. **Phase 3c — what you make and keep.** Crafting inside the pack screen,
-   the two-panel storage screen, and saves with tile-derived container
-   identity behind a world fingerprint.
+1. **Phase 4.** Progression and `recompute_stats` growing into the whole
+   stat build, day and night with real 2D lights and the torch that is
+   already in the off-hand, survivors on the bunks and the watchtowers that
+   are already built, vehicles, fire, and the title screen that gives saves
+   their slots and autosave.
 2. **Render interpolation.** The sim runs at 60Hz and the view at the
    monitor's rate; on a 144Hz screen movement judders until positions are
    interpolated between physics frames. Every entity now needs a previous
@@ -544,6 +579,14 @@ summarised in `tasks/port-inventory.md`.
   pass for `raid == null` and a failure for the game. Printing what was
   alive, how far out and what the defender was holding, every sixty
   seconds, found the empty-shotgun reload bug in one run. (2026-09-08)
+- **A fingerprint that guards a save must describe the generator, not the
+  run.** Taken live it included the current collision bitmap and prop
+  count, so felling one tree changed it and the save refused itself.
+  (2026-09-08)
+- **A Control keeps whatever it last drew.** The build bar had its own
+  `open` flag and the scene stopped redrawing it when closed, so the cards
+  stayed painted over the world. Set `visible` and let Godot hide it.
+  (2026-09-08)
 - **Scripted mouse input needs the cursor, not just the event.** A panel
   reading `_gui_input` gets the position off the event; code polling
   `get_global_mouse_position` does not. Warp first, hold the button for
@@ -563,9 +606,9 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 139  asserts: 1491  failures: 0   (8.0s)
-tests: 141  asserts: 1498  failures: 0   (--all, 12.9s)
-SMOKE done checkpoints=20 failures=0 exit=0
+tests: 165  asserts: 1901  failures: 0   (9.0s)
+tests: 175  asserts: 1958  failures: 0   (--all, 16.6s)
+SMOKE done checkpoints=24 failures=0 exit=0
 ```
 
 `tools\test` skips `*_slow_test.gd` so the default loop stays under the
@@ -592,8 +635,8 @@ index, not the raid's ordinal:** index 1 is the second raid, RUNNING HORDE.
 
 | Index | Ours (2026-09-08) | The prototype's range |
 | --- | --- | --- |
-| 1 RUNNING HORDE | 60s, 0 lost, walls 100% | 70–93s, 0 lost, walls 18–90% |
-| 3 SIEGE | 131s, 16 lost, walls 84% | 72–260s, whole base, walls 0% |
+| 1 RUNNING HORDE | 57s, 0 lost, walls 100% | 70–93s, 0 lost, walls 18–90% |
+| 3 SIEGE | 126s, 13 lost, walls 83% | 72–260s, whole base, walls 0% |
 
 **These are single runs of a stochastic harness — read them as ranges.** The
 browser build produced 67s and 172s for the same raid on the same code. What
@@ -609,9 +652,11 @@ farms, the lake lodge, the forest and the junkyard; `10`–`13` are a
 container just searched, the pack screen with the pipe and the bandages on
 the hotbar, a dropped stack on the ground and the same stack recovered;
 `14`–`15` are a wall built beside the camp and the same wall repaired,
-with the build bar and its ghost; `16`–`19` are a walker approaching with
-its arms out, its corpse after three pistol rounds, the raid banner with a
-raider on the ring, and the salvage notice.
+with the build bar and its ghost; `16`–`19` are the craft tab, a chest
+opened, the same chest after DEPOSIT ALL, and the game reloaded from disk;
+`20`–`23` are a walker approaching with its arms out, its corpse after
+three pistol rounds, the raid banner with a raider on the ring, and the
+salvage notice.
 
 A UI change is not verified by `tools\test.cmd`: the headless run never
 loads a Control, so a parse error in a screen passes the tests and fails
@@ -626,11 +671,28 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 ## 10. Session protocol
 
 1. Read this file, then `tasks/todo.md`.
-2. Branch. Work. `tools\test.cmd` before every commit.
-3. Before finishing: update §3 (status table and numbers), §7, §11; add a §6
+2. **Branch from an up-to-date `main`:**
+   `git fetch origin && git checkout -b <name> origin/main`.
+3. Work. `tools\test.cmd` before every commit.
+4. Before finishing: update §3 (status table and numbers), §7, §11; add a §6
    row for any choice a future session might reverse without knowing why;
    add lessons to §8 and `tasks/lessons.md`.
-4. PR, review, merge.
+5. `tools\test.cmd --all` and `tools\smoke.cmd` once, and read the PNGs.
+6. **`gh pr create --base main`.** Then check nothing has drifted:
+   `gh pr list --json number,baseRefName` — every open PR must say `main`.
+
+### `main` is the only merge target
+
+A branch cut from another open branch produces a PR that merges into that
+branch, and the work never reaches `main`. It has happened here once:
+`phase-2-combat` was cut from `phase-1-world` while PR #1 was open, PR #2
+merged Phase 2 into `phase-1-world`, PR #1 had already merged, and `main`
+sat on Phase 1 while Phases 3a, 3b and 3c stacked on the wrong branch.
+Untangling it cost a fourth PR (#6) and a retarget of three others.
+
+Stack a branch only when the work genuinely cannot compile without a parent
+that is still open — say so in the PR body, and retarget to `main` the
+moment the parent merges.
 
 ---
 
@@ -638,6 +700,8 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 
 | Date | What |
 | --- | --- |
+| 2026-09-08 | Phase 3c: `RECIPES` in `Config`; `Crafting` (bench tier from the workbench beside you, the Stone Hammer lift, tool gates, room checked against the container the craft will use, overflow to stash then ground); the pack screen grows a CRAFT tab and a STORE mode with DEPOSIT ALL and TAKE SUPPLIES; `SaveGame` v1 — containers by tile, chopped props by tile, structures, stores, worn gear and magazines, behind a world fingerprint taken at generation; `F5` / `F9`; 22 new tests (159 fast, 167 with `--all`); smoke crafts a hatchet, fills a chest, saves and reloads |
+| 2026-09-08 | Phase 3b review pass (PR #4): the shared stash is cleared with its last door; salvaging a workbench recomputes the bench tier; REPAIR sweeps while held |
 | 2026-09-08 | Phase 3b: `STRUCTURES`, `BUILD_ORDER` and `ARMAMENTS` in `Config`; `Structures` — the destructible tile map, placement, damage, repair, `plan_repair_all`, demolition, power, generators, turrets, traps, gates, the bench upgrade and storage; collision, sight and the flow field take it as a parameter; enemies punch what blocks them and raiders walk at the nearest piece; `StructureView` and `BuildBar` with the ghost, the range ring and the repair and salvage tools; building goes through `Intent`; 27 new tests plus the compound raid harness in a slow tier; smoke builds a wall, walks into it, repairs it and takes it down. Fixed in passing: a Phase 2 bug where holding the trigger on an empty shotgun cancelled its reload for ever |
 | 2026-09-08 | Phase 3a review pass (PR #3): raid payouts through the capped path; weight is the cap for guns and gear too; a duplicate gun's spare ammo spills rather than vanishing, and a pickup refuses an overflow that is not its own; non-stacking rolls are never aggregated; magazines clear on death; light charge is per light id; `drop_stack` empties the slot that was clicked; 8 new tests, 113 total |
 | 2026-09-08 | Phase 3a: `GEAR`, the 30 `LOOT` tables and the real starting kit in `Config`; `Items` and `Slots`; the pack, hotbar and body slots on `PlayerSim` with weight capacity; `Loot` (rolls, the entry grammar, ground pickups, the death backpack, body drops), `Interact` (the E target and the search channel), `Equipment` (wearing things, moves, drops, the light, and `recompute_stats`); `PickupView` and `InventoryScreen`; the HUD's real hotbar, weight bar and interact prompt; 30 new headless tests, 105 total; smoke searches a container, opens the pack, drops a stack and picks it back up |

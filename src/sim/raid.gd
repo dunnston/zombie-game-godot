@@ -97,9 +97,12 @@ func tick(sim: GameSim, dt: float) -> void:
 			if near != null and (not has_base or near.pos.distance_squared_to(centre) > R.anchor_on_player_beyond * R.anchor_on_player_beyond):
 				anchor = near.pos
 			# Close enough to arrive in seconds, far enough to stay off screen.
-			var spot := sim.world.find_open_spot(rng, anchor, R.ring_min, R.ring_max, 40)
+			# The body is picked first so the spot can be checked against it: a
+			# tile centre is not room for a behemoth beside a wall.
+			var type := _pick_type()
+			var spot := sim.world.find_open_spot(rng, anchor, R.ring_min, R.ring_max, 40, Config.ENEMIES[type].r)
 			if spot != Vector2.INF:
-				var e := sim.enemies.spawn(_pick_type(), spot, true, true, 1.0 + index * R.hp_per_index)
+				var e := sim.enemies.spawn(type, spot, true, true, 1.0 + index * R.hp_per_index)
 				if e != null:
 					e.objective = sim.structs.raid_target(spot)
 					spawned += 1
@@ -145,7 +148,7 @@ func tick(sim: GameSim, dt: float) -> void:
 				e.raid_stall = 0.0
 			e.last_raid_dist = d
 			if e.raid_stall >= R.stall_limit:
-				var spot := sim.world.find_open_spot(rng, centre, R.relocate_min, R.relocate_max, 40)
+				var spot := sim.world.find_open_spot(rng, centre, R.relocate_min, R.relocate_max, 40, e.r)
 				if spot != Vector2.INF:
 					e.pos = spot
 					e.last_pos = spot

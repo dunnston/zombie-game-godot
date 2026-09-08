@@ -163,19 +163,55 @@ static func equip_best(sim: GameSim, p: PlayerSim) -> int:
 
 # -------------------------------------------------------------------- moves --
 
-static func container(p: PlayerSim, name: String) -> Slots:
+static func container(p: PlayerSim, name: String, store: Slots = null) -> Slots:
 	match name:
 		"bag": return p.bag
 		"hotbar": return p.hotbar
+		"store": return store
 	return null
 
 
 ## Moves or merges between any two containers this player can reach.
-static func move_stack(p: PlayerSim, from_cont: String, from_index: int, to_cont: String, to_index: int) -> bool:
-	var from := container(p, from_cont)
-	var to := container(p, to_cont)
+##
+## `at` names WHICH chest, rather than the screen passing the container
+## itself: the host resolves the structure and checks the player is standing
+## beside it, instead of trusting a panel it cannot see. That is also what a
+## guest's move will carry.
+static func move_stack(sim: GameSim, p: PlayerSim, from_cont: String, from_index: int, to_cont: String, to_index: int, at := Vector2i(-1, -1)) -> bool:
+	var store: Slots = null
+	if at.x >= 0 and sim != null:
+		store = sim.structs.reachable_store(p, at.x, at.y)
+	if (from_cont == "store" or to_cont == "store") and store == null:
+		return false
+	var from := container(p, from_cont, store)
+	var to := container(p, to_cont, store)
 	if from == null or to == null:
 		return false
+	# Weight is the capacity rule, and taking out of a chest is the one move
+	# that can add weight to a player — everything else here shuffles what
+	# they already carry. Without this you could stand at the cap and drag an
+	# arbitrarily heavy stack out of a locker, which is the hole every capped
+	# path (pickups, TAKE SUPPLIES, crafting) exists to close.
+	if from_cont == "store" and to_cont != "store":
+		var s := from.at(from_index)
+		if not s.is_empty():
+			var dest := to.at(to_index)
+			var per := Items.weight_of(s.id)
+			var spare := p.carry_cap - p.carried_weight()
+			if not dest.is_empty() and dest.id != s.id:
+				# A swap hands the other stack back, so it pays for itself.
+				spare += Items.weight_of(dest.id) * dest.n
+				if per * s.n > spare + 1e-9:
+					sim.notify("Too heavy to carry", "#c96a5a")
+					return false
+			elif per > 0.0:
+				var fits := floori(spare / per + 1e-9)
+				if fits <= 0:
+					sim.notify("Too heavy to carry", "#c96a5a")
+					return false
+				if fits < s.n:
+					# Take what you can lift and leave the rest in the chest.
+					return from.move_amount(from_index, to_index, fits, to)
 	return from.move(from_index, to_index) if from == to else from.move(from_index, to_index, to)
 
 
@@ -185,8 +221,15 @@ static func split_stack(p: PlayerSim, cont_kind: String, from_index: int, to_ind
 
 
 ## Drops a stack at the player's feet, where it can be picked back up.
-static func drop_stack(sim: GameSim, p: PlayerSim, cont_kind: String, index: int, all := true) -> bool:
-	var c := container(p, cont_kind)
+## `at` names a chest, so ctrl+click on a container slot drops on the ground
+## rather than silently doing nothing.
+static func drop_stack(sim: GameSim, p: PlayerSim, cont_kind: String, index: int, all := true, at := Vector2i(-1, -1)) -> bool:
+	var store: Slots = null
+	if at.x >= 0 and sim != null:
+		store = sim.structs.reachable_store(p, at.x, at.y)
+	if cont_kind == "store" and store == null:
+		return false
+	var c := container(p, cont_kind, store)
 	if c == null:
 		return false
 	var s := c.at(index)

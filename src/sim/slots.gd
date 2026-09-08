@@ -177,6 +177,38 @@ func move(from: int, to: int, other: Slots = null) -> bool:
 	return true
 
 
+## Moves up to `n` units from one slot to another, which `move` cannot do —
+## it takes the whole stack or merges what fits. Used where a rule has to
+## cap the transfer: taking from a chest is limited by what you can carry.
+##
+## Only into an empty slot or one holding the same thing. A partial swap is
+## not a thing.
+func move_amount(from: int, to: int, n: int, other: Slots = null) -> bool:
+	var dst: Slots = other if other != null else self
+	if from < 0 or from >= slots.size() or to < 0 or to >= dst.slots.size() or n <= 0:
+		return false
+	var a := slots[from]
+	if a.is_empty():
+		return false
+	var b := dst.slots[to]
+	var room := Items.stack_limit(a.id)
+	if not b.is_empty():
+		if b.id != a.id:
+			return false
+		room -= b.n
+	var got := mini(mini(n, a.n), room)
+	if got <= 0:
+		return false
+	if b.is_empty():
+		dst.slots[to] = {"id": a.id, "n": got}
+	else:
+		b.n += got
+	a.n -= got
+	if a.n <= 0:
+		slots[from] = {}
+	return true
+
+
 ## Splits half of a stack into an empty slot.
 func split(from: int, to: int) -> bool:
 	if from < 0 or from >= slots.size() or to < 0 or to >= slots.size():

@@ -35,6 +35,7 @@ var danger := PackedByteArray()      # 1..4 per tile
 var props: Array[Dictionary] = []
 var prop_grid := {}                  # tile index -> harvestable prop
 var chopped: Array[int] = []         # tile indices harvested this run, for the save
+var gen_fingerprint := 0             # checksum of what the generator produced
 var containers: Array[Dictionary] = []
 var vehicle_spawns: Array[Dictionary] = []
 var locations: Array[Dictionary] = []
@@ -60,6 +61,7 @@ func _init(seed_value: int = 20240917) -> void:
 		d["discovered"] = false
 		locations.append(d)
 	_generate()
+	_take_fingerprint()
 
 
 # ---------------------------------------------------------------- helpers --
@@ -1174,6 +1176,33 @@ func danger_at_px(px: float, py: float) -> int:
 	return danger[y * W + x]
 
 
+## A checksum of everything a save depends on: the tiles, the collision
+## bitmap, and how many props and containers came out of the generator.
+##
+## **Taken once, when generation finishes.** It has to describe what the
+## generator produced, not what the world looks like now — felling one tree
+## clears a collision byte and removes a prop, and a fingerprint recomputed
+## after that would refuse the save it was written for.
+##
+## A save records it. If generation changes — a district moves, a number in
+## the shared RNG stream shifts — the fingerprint changes, and a save whose
+## container tiles and chopped props no longer describe this map is refused
+## with a reason rather than loaded into a world that has moved underneath
+## it. That is invariant 7's other half.
+func fingerprint() -> int:
+	return gen_fingerprint
+
+
+func _take_fingerprint() -> void:
+	var h := 2166136261
+	for i in range(tiles.size()):
+		h = ((h ^ tiles[i]) * 16777619) & 0xFFFFFFFF
+		h = ((h ^ blocked[i]) * 16777619) & 0xFFFFFFFF
+	h = ((h ^ props.size()) * 16777619) & 0xFFFFFFFF
+	h = ((h ^ containers.size()) * 16777619) & 0xFFFFFFFF
+	gen_fingerprint = h
+
+
 ## The first location whose rect contains the point, or an empty Dictionary.
 func location_at_px(px: float, py: float) -> Dictionary:
 	var tx := px / TILE
@@ -1192,6 +1221,15 @@ func prop_at_tile(tx: int, ty: int) -> Dictionary:
 
 ## Removes a harvested prop and frees the tile if this prop was what blocked
 ## it. `solid` is set by whatever planted it, never inferred from kind.
+## Tile keys of everything harvested this run, for the save: "tx,ty", never
+## an ordinal (invariant 7). Replayed against a world rebuilt from the seed.
+func chopped_keys() -> Array:
+	var out: Array = []
+	for i in chopped:
+		out.append("%d,%d" % [i % W, i / W])
+	return out
+
+
 func remove_prop(prop: Dictionary) -> void:
 	var i := props.find(prop)
 	if i >= 0:
@@ -1305,7 +1343,16 @@ func has_terrain_line_of_sight(a: Vector2, b: Vector2, step := 14.0) -> bool:
 
 ## An unblocked point on a ring around a centre, inside the map, or
 ## Vector2.INF after `tries` misses.
-func find_open_spot(rng_: Rng, centre: Vector2, min_r: float, max_r: float, tries := 26) -> Vector2:
+## An open point on a ring around `centre`, or `Vector2.INF`.
+##
+## `body_r` is the radius of whatever is going to stand there. A free tile
+## centre is not enough: a tile is 32px and a behemoth is 27 across, so on
+## any open tile beside a wall it starts embedded in the wall. That matters
+## most for the thing least likely to be watched — an ambient spawn wedged
+## off screen never moves, because the stuck rescue only runs on something
+## aggro'd or raiding, and it still counts toward the standing population
+## so nothing else spawns either. (Codex review, PR #6.)
+func find_open_spot(rng_: Rng, centre: Vector2, min_r: float, max_r: float, tries := 26, body_r := 0.0) -> Vector2:
 	var lim := W * TILE - TILE * 2
 	for i in range(tries):
 		var a := rng_.frange(0.0, TAU)
@@ -1314,7 +1361,7 @@ func find_open_spot(rng_: Rng, centre: Vector2, min_r: float, max_r: float, trie
 		var y := centre.y + sin(a) * r
 		if x < TILE * 2 or y < TILE * 2 or x > lim or y > lim:
 			continue
-		if is_blocked_px(x, y):
+		if circle_hits_solid(x, y, body_r) if body_r > 0.0 else is_blocked_px(x, y):
 			continue
 		return Vector2(x, y)
 	return Vector2.INF

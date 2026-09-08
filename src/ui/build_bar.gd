@@ -29,6 +29,7 @@ func _init(sim_: GameSim) -> void:
 	player = sim_.players[0]
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	visible = false
 
 
 func cards() -> Array:
@@ -45,6 +46,10 @@ func selected_card() -> String:
 
 func toggle() -> void:
 	open = not open
+	# `visible` as well as the flag: a Control keeps whatever it drew last
+	# until something redraws it, and the scene stops redrawing a closed bar.
+	# Without this the cards stay painted over the world for ever.
+	visible = open
 	pending = {}
 
 

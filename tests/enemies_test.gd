@@ -115,3 +115,55 @@ func test_a_horde_spreads_out_rather_than_stacking() -> void:
 			if a != b and a.pos.distance_to(b.pos) < (a.r + b.r) * 0.6:
 				overlapping += 1
 	eq(overlapping, 0, "pairs sitting inside each other")
+
+
+# ------------------------------------------------ the Codex review, PR #6 --
+
+func test_a_wall_between_you_ends_the_chase() -> void:
+	# Inside a walker's 330px sense radius, outside the 120px it notices
+	# without looking, and with a wall across the line. The refresh and the
+	# expiry have to agree about what "senses" means, or hiding does nothing.
+	var plot := clear_plot(10)
+	var p := sim.players[0]
+	p.pos = tile_centre(plot)
+	for id in ["wood"]:
+		p.bag.add(id, 400)
+	p.carry_cap = 100000.0
+	for dy in range(-3, 4):
+		sim.structs.place(sim, "woodWall", plot.x + 3, plot.y + dy, p)
+
+	var e := sim.enemies.spawn("walker", tile_centre(Vector2i(plot.x + 6, plot.y)))
+	e.aggro = true
+	e.alert_t = 0.5                      # it saw you a moment ago
+	var d := e.pos.distance_to(p.pos)
+	ok(d > 120.0 and d < e.sense, "%0.f px away: in range, out of reach" % d)
+	ok(not sim.world.has_line_of_sight(e.pos, p.pos, 12.0, sim.structs), "and it cannot see you")
+	run(sim, 2.0)
+	ok(not e.aggro, "it gave up rather than tracking you through the wall")
+
+
+func test_without_the_wall_it_keeps_coming() -> void:
+	var plot := clear_plot(10)
+	var p := sim.players[0]
+	p.pos = tile_centre(plot)
+	var e := sim.enemies.spawn("walker", tile_centre(Vector2i(plot.x + 6, plot.y)))
+	e.aggro = true
+	e.alert_t = 0.5
+	run(sim, 2.0)
+	ok(e.aggro, "in the open it can still see you, so the chase stands")
+
+
+func test_nothing_spawns_inside_a_wall() -> void:
+	# Every ambient spawn, over a lot of them, has room for its own body.
+	var p := sim.players[0]
+	p.pos = tile_centre(clear_plot(4))
+	sim.view_radius = 600.0
+	var embedded := 0
+	for i in range(400):
+		sim.enemies.spawn_accum = 999.0
+		sim.enemies.tick_spawning(sim, 1.0 / 60.0)
+		for e in sim.enemies.list:
+			if sim.world.circle_hits_solid(e.pos.x, e.pos.y, e.r, sim.structs):
+				embedded += 1
+		sim.enemies.list.clear()
+	eq(embedded, 0, "%d spawns started inside geometry" % embedded)

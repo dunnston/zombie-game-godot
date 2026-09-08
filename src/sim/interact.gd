@@ -152,9 +152,10 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 			sim.structs.refresh_bedrolls(sim)
 			sim.notify("Respawn point set", "#b7e08a")
 		"store":
-			# The two-panel storage screen is 3c. Until then E deposits the
-			# haul, which is the thing you walk to a stash to do.
-			sim.structs.deposit_all(sim, p, target.ref.store)
+			# The sim does not know about screens: it says a container was
+			# opened and the presentation decides what that looks like.
+			var s: Dictionary = target.ref
+			sim.emit({"t": "open_store", "seat": p.seat, "tx": s.tx, "ty": s.ty})
 
 
 static func _finish_search(sim: GameSim, p: PlayerSim) -> void:
