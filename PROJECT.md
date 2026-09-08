@@ -143,7 +143,7 @@ that will not fit is ever destroyed: it lands on the ground.
 | --- | --- |
 | Phase | 4 of 5 — 4a progression, 4b day and fire, 4c survivors done; vehicles and 4d menus and audio to come |
 | Playable | The whole loop, it levels you, it gets dark, and you can hold it with other people. **E** searches and uses, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
-| Unit tests | 242 tests, 3794 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials and the survivor combat tests: 272 tests, 3907 assertions. Wall-clock varies with the machine — see §9 |
+| Unit tests | 249 tests, 3934 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials and the survivor combat tests: 279 tests, 4047 assertions. Wall-clock varies with the machine — see §9 |
 | Smoke | 33 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
 | Save format | **v4** — the crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
@@ -785,8 +785,8 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 242  asserts: 3794  failures: 0
-tests: 272  asserts: 3907  failures: 0   (--all)
+tests: 249  asserts: 3934  failures: 0
+tests: 279  asserts: 4047  failures: 0   (--all)
 SMOKE done checkpoints=33 failures=0 exit=0
 ```
 

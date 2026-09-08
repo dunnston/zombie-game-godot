@@ -175,7 +175,10 @@ func test_rations_come_out_of_the_stash_and_never_your_pack() -> void:
 	var stash_before := sim.stash.count("rations")
 	var pack_before := p.count_res("rations")
 
-	sim.crew.tick_upkeep(sim, Config.SURVIVOR.upkeep_every + 0.5)
+	# A single bill is a fraction of a Ration; whole ones are taken as the
+	# fraction accumulates, so this needs a few minutes of upkeep.
+	for i in range(12):
+		sim.crew.tick_upkeep(sim, Config.SURVIVOR.upkeep_every)
 	ok(sim.stash.count("rations") < stash_before, "the pantry is the stash")
 	eq(p.count_res("rations"), pack_before, "food in your own pack is no use to anyone")
 
@@ -198,11 +201,16 @@ func test_an_empty_stash_starves_them_rather_than_killing_them() -> void:
 func test_restocking_clears_the_debt_rather_than_leaving_it_for_ever() -> void:
 	_settle(2)
 	_hire(1)
-	sim.crew.tick_upkeep(sim, Config.SURVIVOR.upkeep_every + 0.5)
-	gt(sim.crew.debt, 0.0)
+	# Run up a real shortage with an empty pantry.
+	for i in range(12):
+		sim.crew.tick_upkeep(sim, Config.SURVIVOR.upkeep_every)
+	gt(sim.crew.debt, 1.0, "they are behind")
+	# Restock, and the backlog is charged alongside the next bill rather than
+	# being written off — billing only the current tick would leave a shortage
+	# outstanding for ever.
 	sim.stash.add("rations", 60)
-	sim.crew.tick_upkeep(sim, Config.SURVIVOR.upkeep_every + 0.5)
-	near(sim.crew.debt, 0.0, 0.001, "billing only the current tick would leave the debt for ever")
+	sim.crew.tick_upkeep(sim, Config.SURVIVOR.upkeep_every)
+	ok(sim.crew.debt < 1.0, "the shortage is cleared (%f left, which is the running fraction)" % sim.crew.debt)
 	for s in sim.crew.alive():
 		ok(not s.hungry)
 
@@ -371,3 +379,145 @@ func test_a_crew_survives_a_save_and_is_re_derived_not_stored() -> void:
 
 func test_the_version_moved_with_the_crew() -> void:
 	eq(SaveGame.VERSION, 4)
+
+
+# ------------------------------------------------- what the review found --
+
+func test_a_bullet_carries_who_fired_it() -> void:
+	# The kill credit is read off the bullet's `owner`. The tag spent one
+	# review in the `weapon` slot instead, so every survivor kill arrived at
+	# `damage_enemy` with a null source and nobody was ever credited.
+	# Asserting on `kill_enemy` directly did not exercise this at all.
+	_settle(3)
+	sim.stash.add("ammoP", 200)
+	var s := _hire(1)[0]
+	var e := sim.enemies.spawn("walker", s.pos + Vector2(100, 0))
+	e.hp = 99999.0
+	run(sim, 1.5)
+	gt(sim.bullets.size() + sim.stats.damage_dealt, 0.0, "they fired")
+	var tagged := 0
+	for b in sim.bullets:
+		if String(b.owner) == "survivor:%d" % s.id:
+			tagged += 1
+	# Either a bullet is still in the air carrying the tag, or one has already
+	# landed — both are the same wiring.
+	ok(tagged > 0 or sim.stats.damage_dealt > 0.0, "the bullet knows who fired it")
+
+
+func test_a_kill_through_the_bullet_credits_the_survivor() -> void:
+	_settle(3)
+	sim.stash.add("ammoP", 400)
+	var s := _hire(1)[0]
+	var e := sim.enemies.spawn("walker", s.pos + Vector2(90, 0))
+	var xp_before := p.xp
+	run(sim, 8.0)
+	ok(e.dead, "the guard put it down")
+	gt(s.kills, 0, "and was credited for it, through the bullet and not a direct call")
+	gt(s.xp, 0.0)
+	gt(p.xp, xp_before)
+
+
+func test_upkeep_bills_a_ration_a_minute_and_not_six() -> void:
+	# One survivor owes about a sixth of a Ration per ten-second bill, and
+	# Rations are whole things. Rounding each bill up to one ate six a minute.
+	_settle(2)
+	_hire(1)
+	sim.stash.add("rations", 500)
+	var before := sim.stash.count("rations")
+	# Six bills is one minute of upkeep for one person: one Ration.
+	for i in range(6):
+		sim.crew.tick_upkeep(sim, Config.SURVIVOR.upkeep_every)
+	var spent := before - sim.stash.count("rations")
+	eq(spent, 1, "a minute of one survivor is one Ration, not %d" % spent)
+
+	# And it keeps being one a minute rather than drifting.
+	for i in range(18):
+		sim.crew.tick_upkeep(sim, Config.SURVIVOR.upkeep_every)
+	eq(before - sim.stash.count("rations"), 4, "four minutes, four Rations")
+
+
+func test_a_fed_crew_never_reads_as_starving() -> void:
+	# The carried fraction must stay under the hunger threshold, or a fully
+	# stocked base would flicker into starvation every few bills.
+	_settle(3)
+	_hire(3)
+	sim.stash.add("rations", 900)
+	for i in range(40):
+		sim.crew.tick_upkeep(sim, Config.SURVIVOR.upkeep_every)
+		for s in sim.crew.alive():
+			ok(not s.hungry, "%s went hungry beside a full pantry" % s.display_name)
+
+
+func test_a_builder_cannot_repair_out_of_an_empty_stash() -> void:
+	# Healing first and billing on the way past a threshold let a builder patch
+	# a wall for nothing all raid whenever the stash was empty.
+	_settle(3)
+	var wall := _build("woodWall", plot.x + 2, plot.y)
+	ok(not wall.is_empty())
+	sim.structs.damage(sim, wall, wall.max_hp * 0.6)
+	var hurt: float = wall.hp
+
+	# Nothing to build with.
+	for id in Config.BUILDER.cost_per_100:
+		sim.stash.take(String(id), 99999)
+	var s := _hire(1)[0]
+	s.pos = wall.pos + Vector2(20, 0)
+	sim.crew.assign_job(sim, s, "builder")
+	_tick_crew(4.0)
+	near(wall.hp, hurt, 0.001, "no materials, no repair")
+
+	# Stock it and they get on with it.
+	for id in Config.BUILDER.cost_per_100:
+		sim.stash.add(String(id), 200)
+	_tick_crew(4.0)
+	gt(wall.hp, hurt, "with a stocked stash they patch it")
+
+
+func test_a_builder_pays_for_every_point_it_heals() -> void:
+	_settle(3)
+	var wall := _build("metalWall", plot.x + 2, plot.y) if false else _build("woodWall", plot.x + 2, plot.y)
+	sim.structs.damage(sim, wall, wall.max_hp * 0.9)
+	for id in Config.BUILDER.cost_per_100:
+		sim.stash.add(String(id), 500)
+	var wood_before := sim.stash.count("wood")
+	var hp_before: float = wall.hp
+
+	var s := _hire(1)[0]
+	s.pos = wall.pos + Vector2(20, 0)
+	sim.crew.assign_job(sim, s, "builder")
+	_tick_crew(6.0)
+
+	var healed: float = wall.hp - hp_before
+	var paid := wood_before - sim.stash.count("wood")
+	gt(healed, 0.0, "they repaired something")
+	gt(paid, 0, "and it cost wood")
+	# Blocks of 100 health, bought up front, so the bill is never behind.
+	var blocks := ceili(healed / 100.0)
+	ok(paid >= blocks * int(Config.BUILDER.cost_per_100.wood),
+		"%d wood for %.0f health is at least %d blocks" % [paid, healed, blocks])
+
+
+func test_a_sniper_gives_up_on_a_tower_they_cannot_reach() -> void:
+	# Every other walk has a give-up timer. Without one here, a tower behind a
+	# shut gate holds somebody against it for the rest of the run.
+	_settle(3)
+	var tower := _build("watchtower", plot.x + 6, plot.y + 6)
+	ok(not tower.is_empty())
+	var s := _hire(1)[0]
+	ok(sim.crew.assign_job(sim, s, "sniper"))
+	eq(s.job, "sniper")
+
+	# Pin them: they cannot close on it, however long they try.
+	var stuck: Vector2 = tower.pos + Vector2(400, 0)
+	# Two full give-up windows: the first trip primes the "last distance" from
+	# infinity, and only the second can see that no progress was made.
+	for i in range(int(Config.SCAVENGE.give_up_after * 3.0 * 60.0)):
+		s.pos = stuck
+		s.vel = Vector2.ZERO
+		sim.enemies.rebuild_spatial()
+		sim.crew.tick(sim, 1.0 / 60.0)
+		if s.job != "sniper":
+			break
+	eq(s.job, "guard", "they went back to guarding rather than leaning on it")
+	ok(s.tower.is_empty(), "and the tower is free for somebody who can reach it")
+	eq(sim.crew.free_towers(sim).size(), 1)

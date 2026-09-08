@@ -47,7 +47,13 @@ var out_of_ammo := false
 ## The container or structure this person is walking to. Different jobs target
 ## different shapes, so it is cleared on reassignment rather than reused.
 var run_target := {}
+## The scavenger's search timer. Reset on reassignment, like every other
+## piece of job state.
 var job_t := 0.0
+## A builder's bought-and-not-yet-spent repair, in points of structure health.
+## Deliberately not `job_t`: one is a clock and one is a currency, and sharing
+## a field between them is how a search timer starts paying for walls.
+var repair_credit := 0.0
 ## Give-up timers. There is no pathfinding, so every walk needs one.
 var reach_t := 0.0
 var last_reach_d := INF

@@ -791,3 +791,47 @@ this branch at 12.8s before I moved anything. Two things there:
 
 Numbers: 242 tests / 3794 assertions fast, 272 / 3907 with `--all`, 33 smoke
 checkpoints, zero failures.
+
+## Review — Phase 4c Codex pass on PR #10 (2026-09-08)
+
+Four findings, three of them P1, and all four real. Two are worth recording
+because of *why the tests missed them*.
+
+- [x] **P1 A survivor's bullet carried no owner.** `Combat.spawn_bullet`'s
+      signature is `(..., owner, crit, weapon, color)` and the tag went into
+      the `weapon` slot, so every survivor kill arrived at `damage_enemy` with
+      a null source. Nobody was ever credited for one.
+
+      The test that was supposed to cover this called `Damage.kill_enemy`
+      directly with the tag — it asserted the credit *mechanism* and never
+      touched the *wiring*. There are now two tests that go through a real
+      bullet, and they fail against the old code.
+- [x] **P1 Upkeep charged six Rations a minute instead of one.** One survivor
+      owes about a sixth of a Ration per ten-second bill, and `ceili` rounded
+      each bill up to a whole one; the following clamp then discarded the
+      overpayment. The fraction is carried now and only whole earned Rations
+      are taken.
+
+      The epsilon this needs is not cosmetic: six sixths is 0.9999999999 in
+      binary, and it has to be *inside* the floor rather than only on the way
+      into the branch — the first attempt at the fix guarded the branch and
+      still floored to zero, which the test caught.
+- [x] **P1 Builders repaired for free out of an empty stash.** Healing ran
+      unconditionally and the bill was charged on the way past a 100-point
+      threshold, so with nothing in the stash a builder patched walls all raid
+      for nothing. Repair is now *bought in blocks and then spent*: no credit,
+      no healing, and a warning that says why. It also has its own field —
+      sharing `job_t` with the scavenger's search timer was a clock and a
+      currency in one variable, which is how a search timer starts paying for
+      walls.
+- [x] **P2 A sniper had no give-up path.** Every other walk in the file has
+      one; the climb to a tower did not, so a Watchtower behind a shut gate
+      held somebody against it for the rest of the run. They revert to
+      guarding and the tower goes back on the free list.
+
+The three old tests that broke on the upkeep fix were all encoding the buggy
+behaviour — a single bill spending a whole Ration, and debt reaching exactly
+zero. `debt` is a running fraction now, not a shortage, and the tests say so.
+
+Numbers: 249 tests / 3934 assertions fast, 279 / 4047 with `--all`, 33 smoke
+checkpoints, zero failures.

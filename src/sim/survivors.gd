@@ -29,6 +29,7 @@ var _upkeep_t := 0.0
 var _ration_warned := -999.0
 var _ammo_warned := -999.0
 var _stash_warned := -999.0
+var _material_warned := -999.0
 
 var _scratch: Array[EnemySim] = []
 
@@ -42,6 +43,7 @@ func reset() -> void:
 	_ration_warned = -999.0
 	_ammo_warned = -999.0
 	_stash_warned = -999.0
+	_material_warned = -999.0
 
 
 func alive() -> Array[SurvivorSim]:
@@ -235,11 +237,21 @@ func tick_upkeep(sim: GameSim, dt: float) -> void:
 	var owner := sim.host()
 	var upkeep_mul: float = owner.upkeep_mul if owner != null else 1.0
 	var need: float = crew.size() * S.upkeep_per_min * minutes * upkeep_mul
-	var owed := need + debt
+	# `debt` is the running bill, not a penalty: one survivor owes about a
+	# sixth of a Ration per ten-second tick, and Rations are whole things.
+	# Rounding each tick *up* to one would eat six a minute instead of the
+	# configured one — so the fraction is carried, and only whole Rations that
+	# have actually been earned are taken.
+	debt += need
 	var paid := 0
+	# The epsilon has to be inside the floor, not merely on the way in: six
+	# bills of one sixth is 0.9999999999 in binary, and `floori` of that is
+	# zero — a fed crew would fall a Ration behind every minute for ever.
 	if sim.stash != null:
-		paid = sim.stash.take("rations", ceili(owed))
-	debt = maxf(0.0, owed - paid)
+		var whole := floori(debt + 1e-9)
+		if whole > 0:
+			paid = sim.stash.take("rations", whole)
+	debt = maxf(0.0, debt - paid)
 
 	if debt > 1.0:
 		# Hungry survivors are slower, shoot less often, and slowly starve
@@ -388,6 +400,11 @@ func _tick_one(sim: GameSim, s: SurvivorSim, dt: float, post: Vector2, base: Dic
 	# halfway across the compound.
 	s.posted = s.job == "sniper" and not s.tower.is_empty() \
 		and s.pos.distance_squared_to(s.tower.pos) < Config.POST_RADIUS * Config.POST_RADIUS
+	if s.posted:
+		# Arrived. Clear the climb's give-up clock so a later reassignment does
+		# not inherit it.
+		s.reach_t = 0.0
+		s.last_reach_d = INF
 	var arm := Structures.armament_of(s.tower) if s.posted else {}
 	var range_: float = float(arm.range) if not arm.is_empty() else float(S.range)
 	var dmg_mul: float = float(arm.dmg) if not arm.is_empty() else 1.0
@@ -423,6 +440,20 @@ func _tick_one(sim: GameSim, s: SurvivorSim, dt: float, post: Vector2, base: Dic
 	if climbing:
 		# Get to the tower first. Stopping to shoot on the way is how a sniper
 		# never arrives.
+		#
+		# And this walk needs the same give-up timer the other two jobs have,
+		# for the same reason: a tower behind a shut gate would otherwise hold
+		# somebody against it for the rest of the run. They go back to
+		# guarding, and the tower goes back on the free list for whoever can
+		# actually reach it.
+		var away := s.pos.distance_squared_to(s.tower.pos)
+		if _gave_up(s, dt, away, Config.SCAVENGE.give_up_after):
+			sim.notify("%s could not get up the Watchtower" % s.display_name, "#d9c46a")
+			s.tower = {}
+			s.job = "guard"
+			s.reach_t = 0.0
+			s.last_reach_d = INF
+			return
 		want = s.tower.pos
 		_turn(s, dt, best.pos if best != null else want, 8.0 if best != null else 6.0)
 	elif best != null and (s.job == "guard" or s.job == "sniper" or under_threat):
@@ -501,7 +532,11 @@ func _shoot(sim: GameSim, s: SurvivorSim, arm: Dictionary, best: EnemySim) -> vo
 		float(arm.life) if not arm.is_empty() else 0.5,
 		float(arm.knock) if not arm.is_empty() else 45.0,
 		int(arm.get("pierce", 0)) if not arm.is_empty() else 0,
-		null, false, "survivor:%d" % s.id,
+		# The tag goes in `owner`, which is what `tick_bullets` hands to
+		# `damage_enemy` and what credits the kill. It spent one review in the
+		# `weapon` slot instead, so every survivor kill arrived with a null
+		# source and nobody was ever credited for one.
+		"survivor:%d" % s.id, false, "survivor",
 		String(arm.color) if not arm.is_empty() else "#cfe8b0")
 	sim.emit({"t": "muzzle", "x": s.pos.x + cos(a) * 18.0, "y": s.pos.y + sin(a) * 18.0,
 		"a": a, "w": "survivor"})
@@ -717,22 +752,41 @@ func _builder_step(sim: GameSim, s: SurvivorSim, dt: float, base: Dictionary) ->
 	s.reach_t = 0.0
 	s.last_reach_d = INF
 
-	# In reach: patch it, paying out of the stash as they go. No stash, no
-	# materials, no repair — the same rule as the rations and the ammunition.
-	# The bill is per 100 points of health, which is well under one unit per
-	# tick, so it accrues and is charged whenever it crosses a whole unit.
+	# In reach: patch it, out of the stash. No stash, no materials, no repair —
+	# the same rule as the Rations and the ammunition.
+	#
+	# The bill is per 100 points of health, far more than one tick heals, so
+	# repair is *bought in blocks and then spent*. Healing first and billing
+	# on the way past a threshold is what let a builder patch a wall for
+	# nothing all raid whenever the stash was empty.
 	var heal: float = Config.BUILDER.repair_per_sec * dt
-	if sim.stash != null:
-		s.job_t += heal
-		while s.job_t >= 100.0:
-			s.job_t -= 100.0
-			for id in Config.BUILDER.cost_per_100:
-				sim.stash.take(id, int(Config.BUILDER.cost_per_100[id]))
-	target.hp = minf(target.max_hp, target.hp + heal)
+	if s.repair_credit < heal:
+		if not _buy_repair(sim):
+			if sim.time - _material_warned > S.warn_every:
+				_material_warned = sim.time
+				sim.notify("Your builders are out of materials — stock the stash", "#d9c46a")
+			return s.pos
+		s.repair_credit += 100.0
+	var spend := minf(heal, s.repair_credit)
+	s.repair_credit -= spend
+	target.hp = minf(target.max_hp, target.hp + spend)
 	if target.hp >= target.max_hp:
 		sim.emit({"t": "repaired", "x": target.pos.x, "y": target.pos.y})
 		s.run_target = {}
 	return s.pos
+
+
+## One block of repair, paid for up front. All or nothing: a builder who can
+## afford the wood but not the scrap does not get a discount.
+func _buy_repair(sim: GameSim) -> bool:
+	if sim.stash == null:
+		return false
+	for id in Config.BUILDER.cost_per_100:
+		if sim.stash.count(id) < int(Config.BUILDER.cost_per_100[id]):
+			return false
+	for id in Config.BUILDER.cost_per_100:
+		sim.stash.take(id, int(Config.BUILDER.cost_per_100[id]))
+	return true
 
 
 # ------------------------------------------------------------------ cargo --
