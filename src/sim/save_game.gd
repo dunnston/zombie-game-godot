@@ -1,6 +1,6 @@
 class_name SaveGame
 extends RefCounted
-## Saving and loading. Payload version 4.
+## Saving and loading. Payload version 5.
 ##
 ## **Containers are identified by tile position, never by ordinal index**
 ## (invariant 7). The prototype keyed them by their position in an array,
@@ -13,7 +13,7 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 4
+const VERSION := 5
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
@@ -61,6 +61,7 @@ static func to_dict(sim: GameSim) -> Dictionary:
 			"light_on": p.light_on, "light_fuel": p.light_fuel, "light_id": p.light_id,
 			"light_charge": p.light_charge.duplicate(),
 			"spawn_tx": p.spawn_tile.x, "spawn_ty": p.spawn_tile.y,
+			"driving_id": p.driving_id, "car_keys": p.car_keys.duplicate(),
 		})
 
 	var piles: Array = []
@@ -85,6 +86,7 @@ static func to_dict(sim: GameSim) -> Dictionary:
 		"crew": _crew_record(sim),
 		"rescues": _rescue_record(sim),
 		"ration_debt": sim.crew.debt,
+		"cars": _car_record(sim),
 		"raids_done": sim.raids_done,
 		"threat": sim.threat.value,
 		"bench_tier": sim.structs.bench_tier,
@@ -181,6 +183,10 @@ static func apply(sim: GameSim, data: Dictionary) -> Dictionary:
 		if s.store != null and rec.has("store") and rec.type != "stash":
 			s.store.from_record(rec.store)
 
+	# Before the players: a driver's `driving_id` has to point at a car that
+	# already exists and is where the save left it.
+	_load_cars(sim, data)
+
 	sim.players.clear()
 	for rec in data.get("players", []):
 		var p := PlayerSim.new()
@@ -211,6 +217,9 @@ static func apply(sim: GameSim, data: Dictionary) -> Dictionary:
 			p.light_charge[k] = float(rec.light_charge[k])
 		p.light_on = bool(rec.get("light_on", false))
 		p.spawn_tile = Vector2i(int(rec.get("spawn_tx", -1)), int(rec.get("spawn_ty", -1)))
+		p.driving_id = int(rec.get("driving_id", 0))
+		for k in rec.get("car_keys", []):
+			p.car_keys.append(String(k))
 		Equipment.recompute_stats(p)
 		# After the recompute, never before: the ceiling has to exist before
 		# what is standing under it is restored, or a Constitution build loads
@@ -330,3 +339,71 @@ static func _load_crew(sim: GameSim, data: Dictionary) -> void:
 		s.refresh(sim.host())
 		s.hp = minf(float(rec.get("hp", s.max_hp)), s.max_hp)
 		sim.crew.list.append(s)
+
+
+## Cars. The generator makes the same thirty in the same places from the seed,
+## so what a save carries is only what a *run* changed about them: what is
+## broken, what is open, what is in the boot, and where the driven one ended
+## up. `si` and the spawn position come back from the world.
+static func _car_record(sim: GameSim) -> Array:
+	var out: Array = []
+	for v in sim.cars.list:
+		out.append({
+			"id": v.id, "x": v.pos.x, "y": v.pos.y, "angle": v.angle,
+			"hp": v.hp, "fuel": v.fuel, "locked": v.locked, "hotwired": v.hotwired,
+			"key_id": v.key_id, "destroyed": v.destroyed,
+			"trunk": v.trunk.duplicate(),
+			# The tiles this car is blocking right now. Recomputing them on
+			# load would be wrong for a car parked somewhere it was not made.
+			"tiles": _tiles_record(v.tiles),
+		})
+	return out
+
+
+static func _tiles_record(tiles: Array) -> Array:
+	var out: Array = []
+	for t: Vector2i in tiles:
+		out.append([t.x, t.y])
+	return out
+
+
+## Rebuilds the cars over the freshly generated ones. Runs before the players,
+## because a driver's `driving_id` has to point at something that exists.
+static func _load_cars(sim: GameSim, data: Dictionary) -> void:
+	var by_id := {}
+	for v in sim.cars.list:
+		by_id[int(v.id)] = v
+
+	for rec in data.get("cars", []):
+		var v: Dictionary = by_id.get(int(rec.id), {})
+		if v.is_empty():
+			continue
+		# The generator already blocked this car's tiles. Release them before
+		# moving it, or a car that was driven somewhere leaves a permanent
+		# invisible wall where it was parked at generation.
+		sim.cars.release_tiles(sim, v)
+		v.pos = Vector2(float(rec.x), float(rec.y))
+		v.prev_pos = v.pos
+		v.angle = float(rec.angle)
+		v.speed = 0.0
+		v.engine_on = false
+		v.hp = float(rec.hp)
+		v.fuel = float(rec.fuel)
+		v.locked = bool(rec.locked)
+		v.hotwired = bool(rec.hotwired)
+		v.key_id = String(rec.get("key_id", ""))
+		v.destroyed = bool(rec.get("destroyed", false))
+		v.trunk = {}
+		for k in rec.get("trunk", {}):
+			v.trunk[k] = int(rec.trunk[k])
+		var tiles: Array[Vector2i] = []
+		for t in rec.get("tiles", []):
+			tiles.append(Vector2i(int(t[0]), int(t[1])))
+		v.tiles = tiles
+		for t in tiles:
+			if World.in_bounds(t.x, t.y):
+				sim.world.blocked[t.y * Config.WORLD_TILES + t.x] = 1
+	# The key markers live on containers, which a load rebuilds from the seed,
+	# so without this every locked car comes back keyless.
+	sim.cars.plant_keys(sim)
+	sim.world_version += 1

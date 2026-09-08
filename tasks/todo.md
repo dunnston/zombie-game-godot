@@ -228,9 +228,14 @@ Split from vehicles: two systems in one PR is one review of neither.
 
 ### 4c-vehicles — cars
 
-- [ ] ~30 cars, 62 percent locked; key, lockpick or Hotwire
-- [ ] Arcade handling, fuel, roadkill, a 400-unit boot
-- [ ] Take the `needs` gate off Hotwire once they exist
+- [x] ~30 cars, 62 percent locked; key, lockpick or Hotwire
+- [x] Arcade handling, fuel, roadkill, a 400-unit boot
+- [x] A parked car blocks its tiles, a driven one does not, and claiming asks
+      both collision maps
+- [x] A car key is learned rather than carried
+- [x] `SaveGame` v5 stores only what a run changed about a car
+- [x] The `needs` gate comes off Hotwire; only Sixth Sense is left
+- [x] 33 tests; smoke finds a car, drives it and parks it
 
 ### 4d — the front door
 
@@ -835,3 +840,45 @@ zero. `debt` is a running fraction now, not a shortage, and the tests say so.
 
 Numbers: 249 tests / 3934 assertions fast, 279 / 4047 with `--all`, 33 smoke
 checkpoints, zero failures.
+
+## Review — Phase 4c, vehicles (2026-09-08)
+
+The second half of 4c, on its own branch as planned.
+
+Two bugs found by writing the tests rather than by running the game, both of
+the same shape — **a thing that exists in two places and was only asked about
+in one**:
+
+- **Claiming a parked tile only asked the terrain bitmap.** A wall lives in
+  `Structures`, not in `world.blocked` (invariant 2), so a car could park
+  inside your own gate. `is_blocked_tile(..., structs)` asks both.
+- **The driver was drawn a frame behind their own car.** Players tick before
+  cars, so copying the car's position in the player tick copied last frame's.
+  The car sets it at the end of its own tick now: the car owns where its
+  driver is.
+
+One decision worth recording. **A car key is learned, not carried** — no
+weight, no slot, undroppable, held as a plain id on the player. The
+alternative is a resource you could leave in a chest, and the whole reason
+keys are planted in the first place is that "whose car is this?" should always
+have a findable answer.
+
+And one performance note, because it is the third time this has come up.
+`plant_keys` scanned all six hundred containers for each locked car, and it
+runs on every `GameSim.start` — which is every test. Five milliseconds each,
+about 1.4 seconds across the suite, and `sim.start` went from 0.38ms to
+7.33ms. Bucketing the containers on a coarse grid took it to 0.54ms and
+`start` back to 1.39ms. Worth remembering that anything hung off `start` is
+paid for once per test, not once per run.
+
+Measured back to back: `main` 10.13s, this branch 12.58s. Vehicles cost about
+2.45s, of which roughly 1.6s is the test file itself (it needs a world of its
+own — driving writes to `world.blocked`, so these tests would otherwise leave
+the shared world full of holes for every file after them).
+
+Numbers: 281 tests / 4227 assertions fast, 311 / 4340 with `--all`, 36 smoke
+checkpoints, zero failures.
+
+**Phase 4 is now one PR from done.** 4d is the title screen, save slots,
+autosave, rebindable keys, the pause menu, the minimap — which is the last
+thing Sixth Sense is waiting on — and audio.

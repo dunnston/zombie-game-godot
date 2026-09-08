@@ -119,6 +119,21 @@ static func give_entry(sim: GameSim, p: PlayerSim, entry: Dictionary) -> Diction
 	var id: String = entry.id
 	var n: int = entry.get("n", 1)
 
+	# A car key weighs nothing, takes no slot, and cannot be dropped — it is a
+	# fact you have learned rather than a thing you carry. That is why it is
+	# not a resource: a key you could accidentally leave in a chest would make
+	# "whose car is this?" unanswerable again.
+	if id.begins_with("key:"):
+		var key := id.substr(4)
+		if not p.car_keys.has(key):
+			p.car_keys.append(key)
+		var which := ""
+		for v in sim.cars.list:
+			if v.key_id == key:
+				which = " — it fits a car nearby"
+				break
+		return {"text": "Car key%s" % which, "major": true}
+
 	if id.begins_with("weapon:"):
 		var wid := id.substr(7)
 		if not Config.WEAPONS.has(wid):

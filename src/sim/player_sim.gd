@@ -122,6 +122,13 @@ var spawn_tile := Vector2i(-1, -1)
 
 var attack_cd := 0.0
 var reloading := {}              # {w, t, dur, shell} or empty
+## The car this player is at the wheel of, or 0. An id rather than a
+## reference, so a save stores it and a wrecked car cannot leave a dangling
+## one behind.
+var driving_id := 0
+## Keys found in containers, by the id printed on them.
+var car_keys: Array[String] = []
+
 var using := {}                  # {id, t, dur} or empty
 var searching := {}              # {container, t, dur} or empty
 var swing := {}                  # {t, dur, angle, arc, range} for the view
@@ -297,6 +304,12 @@ func use_healing(sim: GameSim) -> bool:
 
 
 func _finish_use(sim: GameSim) -> void:
+	# Hotwiring is a held action like healing is, so it rides the same timer —
+	# and is interrupted the same way, by being hit.
+	if String(using.id) == "hotwire":
+		sim.cars.finish_hotwire(sim, self, sim.cars.by_id(int(using.vehicle)))
+		using = {}
+		return
 	var c: Dictionary = Config.CONSUMABLES[using.id]
 	if take_carried(using.id, 1) > 0:
 		Damage.heal_player(sim, self, c.heal)
@@ -324,6 +337,25 @@ func tick(sim: GameSim, dt: float) -> void:
 	# bar, so it is read fresh each tick rather than baked into the recompute.
 	adrenaline_active = adrenaline and hp < max_hp * Config.ADRENALINE_HP_FRAC
 	second_wind_cd = maxf(0.0, second_wind_cd - dt)
+
+	# Behind the wheel, the car is what moves and `Vehicles` is what reads the
+	# intent. Nothing below this applies: no walking, no swinging, no
+	# reloading, and no shooting out of the window. The whole body of the tick
+	# is skipped rather than each part being guarded, so there is one place to
+	# look for "what can you do while driving" and the answer is "drive".
+	if driving_id > 0:
+		var car := sim.cars.by_id(driving_id)
+		if car.is_empty():
+			driving_id = 0                # it was wrecked out from under us
+		else:
+			# The car sets `pos` and `angle` at the end of its own tick, which
+			# runs after this one — copying them here would draw the driver a
+			# frame behind the car they are sitting in.
+			invuln = maxf(0.0, invuln - dt)
+			hurt_flash = maxf(0.0, hurt_flash - dt)
+			if it.interact:
+				sim.cars.exit(sim, self)
+			return
 
 	pos = world.unstick(pos, r, sim.structs)
 	invuln = maxf(0.0, invuln - dt)

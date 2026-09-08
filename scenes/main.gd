@@ -16,6 +16,7 @@ var structure_view: StructureView
 var fx: FxView
 var lights: LightView
 var survivor_view: SurvivorView
+var vehicle_view: VehicleView
 var player_view: PlayerView
 var camera: Camera2D
 var hud: Hud
@@ -44,6 +45,8 @@ func _ready() -> void:
 	add_child(structure_view)
 	enemy_view = EnemyView.new(sim)
 	add_child(enemy_view)
+	vehicle_view = VehicleView.new(sim)
+	add_child(vehicle_view)
 	survivor_view = SurvivorView.new(sim)
 	add_child(survivor_view)
 	player_view = PlayerView.new(sim.players[0])
@@ -695,3 +698,47 @@ func smoke_run(smoke: Node) -> void:
 		await smoke.checkpoint("crew_reassigned")
 	await smoke.tap("inventory")
 	await smoke.frames(2)
+
+	# A car. Find one, get into it, drive it, and leave it somewhere else.
+	var car := {}
+	for cand in sim.cars.list:
+		if not cand.destroyed:
+			car = cand
+			break
+	if car.is_empty():
+		smoke.fail("the world generated no cars at all")
+	else:
+		# Open it and fill the tank rather than hunting the map for a key —
+		# the locks have their own tests; this is about driving.
+		car.locked = false
+		car.hotwired = true
+		car.fuel = Config.CAR.fuel_max
+		p.pos = car.pos + Vector2(0, 50)
+		await smoke.frames(3)
+		await smoke.checkpoint("a_car")
+
+		if not sim.cars.enter(sim, p, car):
+			smoke.fail("could not get into the car")
+		if p.driving_id != int(car.id):
+			smoke.fail("in the car but not driving it")
+		var from: Vector2 = car.pos
+		var fuel_before: float = car.fuel
+		# The real key, not the intent: `LocalInput.gather` rewrites the intent
+		# from the keyboard every physics frame, so setting it here is undone
+		# before the car ever reads it.
+		await smoke.hold("move_up", 90)
+		await smoke.frames(3)
+		if car.pos.distance_to(from) < 30.0:
+			smoke.fail("the car did not go anywhere (%.0f px)" % car.pos.distance_to(from))
+		if car.fuel >= fuel_before:
+			smoke.fail("driving burned no fuel")
+		if p.pos.distance_to(car.pos) > 1.0:
+			smoke.fail("the driver did not ride with the car")
+		await smoke.checkpoint("driving")
+
+		if not sim.cars.exit(sim, p):
+			smoke.fail("could not get out")
+		if p.driving_id != 0:
+			smoke.fail("still driving after getting out")
+		await smoke.frames(3)
+		await smoke.checkpoint("parked")

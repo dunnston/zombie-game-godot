@@ -28,6 +28,12 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 	if not best_pack.is_empty():
 		return best_pack
 
+	# A car you are standing beside, before any container: getting in is the
+	# thing you walked over here to do, and a shelf beside it can wait.
+	var car := sim.cars.nearest(p.pos)
+	if not car.is_empty():
+		return {"kind": "vehicle", "ref": car, "label": sim.cars.prompt(p, car)}
+
 	# People come before things. A survivor bleeding out has eight seconds and
 	# a container does not, so neither a shelf nor a gate may ever be what the
 	# key offers while someone is down beside you.
@@ -166,6 +172,12 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 			sim.crew.revive(sim, target.ref, p)
 		"recruit":
 			sim.crew.recruit(sim, target.ref, p)
+		"vehicle":
+			var v: Dictionary = target.ref
+			if v.destroyed:
+				sim.cars.salvage(sim, v, p)
+			else:
+				sim.cars.enter(sim, p, v)
 		"gate":
 			sim.structs.toggle_gate(sim, target.ref)
 		"generator":
