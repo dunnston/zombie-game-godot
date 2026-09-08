@@ -169,12 +169,56 @@ an item can be held, carried and dropped.
 
 ## Phase 4 — a world that pushes back
 
-- [ ] Progression: XP, SPECIAL, perks, `recompute_stats()` as the only modifier source
-- [ ] Day/night with real 2D lights and the torch
-- [ ] Survivors, jobs, bunks
-- [ ] Vehicles
-- [ ] Fire
-- [ ] Title screen, save slots, rebindable keys, controller support
+Four PRs, in dependency order: perks include Hotwire (cars) and Fire Control
+(turrets), so 4a is first; a Watchtower's Fire Arrows need fire, so 4b
+precedes 4c; a save slot has nothing worth listing until there is a day, a
+level and a kill count, so 4d is last. Each bumps `SaveGame.VERSION`.
+
+### 4a — progression
+
+- [x] `ATTRS`, `PERKS`, `STAT_BASE` and the XP curve in `config.gd`
+      (invariant 5): six attributes, twenty-eight perks
+- [x] `Perks.recompute_stats` — base → attributes → perks → gear, pure, the
+      only writer of a modifier (invariant 4). Every literal on `PlayerSim`
+      deleted in favour of it
+- [x] `Progression` — one `add_xp` for all nine award sites, the level loop,
+      `raise_attribute` and `buy_perk`; a ceiling gain is handed over
+- [x] `{ok, reason}` on both gate checks, so a locked row says why
+- [x] CHAR tab on the pack screen (`K`); level and XP on the HUD
+- [x] Wire every perk to a consumer: build cost, structure health, turret
+      power, trap damage, ammunition yield, loot rarity, double drops,
+      Adrenaline, Second Wind. Base-wide numbers read `sim.host()`
+- [x] Salvage refunds a share of what you *paid*, closing the Engineer loop
+- [x] `SaveGame` v2: the build, and never a derived stat
+- [x] Tests: the curve, multi-level grants, purity, gating, the handover, the
+      starting survivor, the exploit, the save round trip — 32 in all
+- [x] Smoke: open the sheet, select an attribute, spend a point
+
+### 4b — day, night, light, fire, interpolation
+
+- [ ] Day cycle at 540s; night scales density, sense, speed and Threat gain
+- [ ] Real `CanvasModulate` + `PointLight2D` for the torch, flashlight,
+      floodlight and muzzle flashes
+- [ ] `Fire` — burning enemies and scenery, spread, the 140 ceiling, never
+      player structures
+- [ ] Render interpolation: a previous position per entity, lerped in the views
+
+### 4c — survivors and vehicles
+
+- [ ] Roster capped by Charisma and bunks; Guard, Sniper, Scavenger, Builder
+- [ ] Rations upkeep from the shared stash, debt and warnings
+- [ ] ~30 cars, 62% locked; key, lockpick or Hotwire; arcade handling, fuel,
+      roadkill, a 400-unit boot
+- [ ] Read the survivor stats 4a already produces
+
+### 4d — the front door
+
+- [ ] Title screen: CONTINUE, NEW GAME, LOAD GAME, CONTROLS
+- [ ] Save slots with an index (day, level, kills, play time); autosave
+- [ ] Full key rebinding written over `src/core/bindings.gd` from `user://`
+- [ ] Pause menu that saves before it quits
+- [ ] Minimap — which is what Sixth Sense has been waiting for
+- [ ] Synthesised audio, rate-limited per kind
 
 ## Phase 5 — co-op
 
@@ -457,3 +501,59 @@ Both have tests that fail against the pre-fix `src/`. The compound figures
 moved a little (the raid picks its body before its spot, so the stream
 shifted): index 1 is 57s, index 3 is 126s — both inside the ranges §9 has
 always described.
+
+## Review — Phase 4a (2026-09-08)
+
+Progression, and the refactor it was really about.
+
+The interesting part of 4a was not the XP curve; it was that
+`recompute_stats` had been sitting in `equipment.gd` since 3a producing
+exactly one field while the other thirty were hardcoded literals on
+`PlayerSim` with a comment promising Phase 4 would fix it. It does now. The
+whole stat block is written from `Config.STAT_BASE` and layered
+base -> attributes -> perks -> gear on every call, so a build can never leave
+a modifier behind and a save can store the build rather than its consequences.
+
+Four starting stats turned out to be sitting at their *pre-attribute* values,
+because nothing had ever applied the attribute pass: carry capacity was 200
+rather than 225, pickup range 46 rather than 49, and search and chop were at
+1.0 rather than the 0.95 and 1.06 that Perception 2 and Strength 2 are worth.
+All four now match the prototype. Nine existing assertions moved with them,
+each with a note saying which rank paid for the change.
+
+Two things found on the way in, neither of them the feature:
+
+- **Salvage was going to become a wood mine.** The refund is a share of the
+  build price, and Engineer scales what you *pay* — so at rank 3 a wall cost
+  0.47 and refunded 0.55, and putting one up and taking it down again turned
+  a profit. The refund now scales too. The test builds and salvages the same
+  tile twelve times and watches the total; against the unfixed code it turns
+  400 wood into 424.
+- **The smoke's REPAIR step was timing-fragile.** It aimed once and waited a
+  fixed six frames, while the placement step right above it loops until the
+  hovered tile has actually settled. It had been passing by luck; moving the
+  player a few pixels broke it. Instrumenting showed the repair itself was
+  fine — `check.ok` true, the right four-wood bill — so the step now settles
+  the cursor the same way placement does.
+
+Honest gaps, both deliberate:
+
+- **Sixth Sense does nothing yet.** It wants a minimap, which is 4d. It has no
+  implementation in the prototype either. It is in the tree because the tree
+  should match the spec, and it is called out here rather than left to be
+  discovered.
+- **Five survivor stats are produced and not yet read** (`survivor_cap`,
+  `survivor_dmg_mul`, `survivor_hp_mul`, `survivor_xp_mul`, `upkeep_mul`).
+  4c reads them. Computing them now is the lesser evil: a perk you can spend
+  a point on that quietly does nothing is worse than a field with no reader.
+
+Also noted, and not mine: four methods in `tests/building_test.gd` abort
+partway with a runtime script error and still report as passing, so the
+suite's assertion count overstates its coverage. Confirmed pre-existing by
+running the suite at `origin/main`. Left as a standing task, along with
+making `tests/run.gd` fail the run when the engine logs a script error.
+
+Numbers: 197 tests / 2393 assertions / 9.4s fast, 207 / 16.2s with `--all`,
+26 smoke checkpoints. The compound harness moved a little because the player
+it plays with is a slightly different player now: index 1 is 60s (was 57),
+index 3 is 124s (was 126). Both still inside the prototype's ranges.

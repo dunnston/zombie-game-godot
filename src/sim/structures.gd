@@ -133,7 +133,7 @@ func is_unlocked(type: String) -> bool:
 
 func cost_of(type: String, p: PlayerSim) -> Dictionary:
 	var def: Dictionary = Config.STRUCTURES.get(type, {})
-	return {} if def.is_empty() else PlayerSim.scaled_cost(def.cost, 1.0)
+	return {} if def.is_empty() else PlayerSim.scaled_cost(def.cost, p.build_cost_mul)
 
 
 ## Every reason a piece cannot go here, in the order a player would meet
@@ -172,7 +172,7 @@ func can_place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim) -> Di
 	# Loot cannot be buried: a container blocks its own tile in the terrain
 	# bitmap, so "Blocked" above has already refused it. The prototype
 	# carried a separate check here; here it could never fire.
-	if not p.can_afford(sim, def.cost):
+	if not p.can_afford(sim, def.cost, p.build_cost_mul):
 		return {"ok": false, "reason": "Not enough materials"}
 	return {"ok": true, "reason": ""}
 
@@ -219,8 +219,9 @@ func place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim) -> Dictio
 		sim.notify(check.reason, "#c96a5a")
 		return {}
 	var def: Dictionary = Config.STRUCTURES[type]
-	p.spend(sim, def.cost)
-	var s := make(sim, type, tx, ty)
+	p.spend(sim, def.cost, p.build_cost_mul)
+	# Wall strength is a base-wide number, so it comes off the host's build.
+	var s := make(sim, type, tx, ty, sim.host().struct_hp_mul if sim.host() != null else 1.0)
 
 	if type == "bedroll":
 		for q in sim.players:
@@ -237,7 +238,7 @@ func place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim) -> Dictio
 	# Hammering carries. Threat is the slow half of "building draws a horde";
 	# this is the immediate, local half.
 	Sound.make_noise(sim, s.pos.x, s.pos.y, Config.NOISE.build, p)
-	p.xp += maxi(2, roundi(def.threat * 4.0 + 3.0))
+	Progression.add_xp(sim, p, maxi(2, roundi(def.threat * 4.0 + 3.0)), "BUILD")
 	return s
 
 
@@ -347,7 +348,7 @@ static func is_damaged(s: Dictionary) -> bool:
 ## have consumed drops off the bill — a scratch on a steel wall does not
 ## cost a weapon part — but the main material is always at least one, so no
 ## repair is ever free.
-static func repair_cost(s: Dictionary) -> Dictionary:
+static func repair_cost(s: Dictionary, cost_mul := 1.0) -> Dictionary:
 	if not is_damaged(s):
 		return {}
 	var frac: float = 1.0 - s.hp / s.max_hp
@@ -359,7 +360,7 @@ static func repair_cost(s: Dictionary) -> Dictionary:
 		if c > main_n:
 			main_n = c
 			main_id = id
-		var n := roundi(c * frac * B.repair_cost_share)
+		var n := roundi(c * frac * B.repair_cost_share * cost_mul)
 		if n > 0:
 			out[id] = n
 	if not main_id.is_empty() and not out.has(main_id):
@@ -368,7 +369,7 @@ static func repair_cost(s: Dictionary) -> Dictionary:
 
 
 func repair(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
-	var cost := repair_cost(s)
+	var cost := repair_cost(s, p.build_cost_mul)
 	if cost.is_empty():
 		sim.notify("Already intact", "#8a8f84")
 		return false
@@ -384,7 +385,7 @@ func repair(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
 func _restore(sim: GameSim, s: Dictionary, p: PlayerSim) -> void:
 	s.hp = s.max_hp
 	sim.emit({"t": "repaired", "x": s.pos.x, "y": s.pos.y})
-	p.xp += 3
+	Progression.add_xp(sim, p, 3, "REPAIR")
 
 
 ## "WOOD 4 · SCRP 2" — one way to print a bill, used by every prompt.
@@ -417,7 +418,7 @@ func plan_repair_all(sim: GameSim, p: PlayerSim, radius := B.repair_all_range) -
 	var ledger := {}
 	var plan := {"pieces": [], "cost": {}, "repairable": 0, "skipped": 0}
 	for s in damaged_within(p.pos, radius):
-		var cost := repair_cost(s)
+		var cost := repair_cost(s, p.build_cost_mul)
 		var ok := true
 		for id in cost:
 			if not ledger.has(id):
@@ -460,7 +461,10 @@ func repair_all(sim: GameSim, p: PlayerSim, radius := B.repair_all_range) -> int
 func demolish(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
 	if s.is_empty() or s.destroyed:
 		return false
-	var refund: float = B.salvage_share * (s.hp / s.max_hp)
+	# The refund is a share of what this player *paid*, not of the list price.
+	# Without the build multiplier, Engineer at rank 3 builds for 0.47 and
+	# salvages for 0.55, and a wall you put up and took down again is profit.
+	var refund: float = B.salvage_share * (s.hp / s.max_hp) * p.build_cost_mul
 	var lines := 0
 	for id in s.def.cost:
 		var n := floori(s.def.cost[id] * refund)
@@ -533,7 +537,7 @@ func upgrade_bench(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
 	s.tier = 2
 	bench_tier = 2
 	sim.notify("WORKBENCH II — advanced weapons and steel unlocked", "#59b8c4", true)
-	p.xp += 60
+	Progression.add_xp(sim, p, 60, "WORKBENCH II")
 	sim.threat.add(sim, 4.0, p)
 	return true
 
@@ -581,6 +585,11 @@ func _tick_generators(sim: GameSim, dt: float) -> void:
 
 
 func _tick_turrets(sim: GameSim, dt: float) -> void:
+	# Turret power is a base-wide number off the host's build (Fire Control,
+	# and Intelligence). Range gets half the bonus damage does: a turret that
+	# reached across the compound would stop the walls mattering.
+	var owner := sim.host()
+	var turret_mul: float = owner.turret_mul if owner != null else 1.0
 	for s in list:
 		if s.type != "turret" or s.destroyed:
 			continue
@@ -609,7 +618,7 @@ func _tick_turrets(sim: GameSim, dt: float) -> void:
 		# Nearest live enemy in range that the turret can actually hit.
 		# Without the sight test it happily locks onto something behind a
 		# tree and pumps its whole magazine into the trunk.
-		var range_: float = def.range
+		var range_: float = def.range * (1.0 + (turret_mul - 1.0) * 0.5)
 		sim.enemies.hash.query(s.pos.x, s.pos.y, range_, sim.enemies._scratch)
 		var best: EnemySim = null
 		var bd := range_ * range_
@@ -630,7 +639,7 @@ func _tick_turrets(sim: GameSim, dt: float) -> void:
 			s.cd = def.fire_cd
 			s.ammo -= 1
 			var a: float = s.aim + sim.rng.frange(-0.035, 0.035)
-			Combat.spawn_bullet(sim, s.pos + Vector2.from_angle(a) * 18.0, a, 1300.0, def.dmg, 0.5, 45.0, 0, null, false, "turret", "#9fe0ff")
+			Combat.spawn_bullet(sim, s.pos + Vector2.from_angle(a) * 18.0, a, 1300.0, def.dmg * turret_mul, 0.5, 45.0, 0, null, false, "turret", "#9fe0ff")
 			sim.emit({"t": "muzzle", "x": s.pos.x + cos(a) * 20.0, "y": s.pos.y + sin(a) * 20.0, "a": a, "w": "turret"})
 			sim.threat.add(sim, Config.THREAT.turret_per_shot)
 			# A machine gun on a post pulls the horde onto itself, which is
@@ -639,6 +648,11 @@ func _tick_turrets(sim: GameSim, dt: float) -> void:
 
 
 func _tick_traps(sim: GameSim, dt: float) -> void:
+	# Spikes are structure, so Fortifier sharpens them — at a reduced rate,
+	# because a perk about walls standing up should not quietly become the
+	# best source of damage in the base.
+	var owner := sim.host()
+	var trap_mul := 1.0 + (owner.struct_hp_mul - 1.0) * 0.4 if owner != null else 1.0
 	for i in range(list.size() - 1, -1, -1):
 		var s: Dictionary = list[i]
 		if s.type != "spike" or s.destroyed:
@@ -653,7 +667,7 @@ func _tick_traps(sim: GameSim, dt: float) -> void:
 			if e.dead:
 				continue
 			if absf(e.pos.x - s.pos.x) < Config.TILE * 0.62 and absf(e.pos.y - s.pos.y) < Config.TILE * 0.62:
-				Damage.damage_enemy(sim, e, def.trap_dmg, s.pos, 30.0)
+				Damage.damage_enemy(sim, e, def.trap_dmg * trap_mul, s.pos, 30.0)
 				e.slow_t = 0.5
 				hit = true
 		if hit:

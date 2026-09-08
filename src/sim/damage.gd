@@ -40,10 +40,10 @@ static func kill_enemy(sim: GameSim, e: EnemySim, source: Variant = null) -> voi
 	sim.emit({"t": "kill", "x": e.pos.x, "y": e.pos.y, "type": e.type, "boss": e.def.get("boss", false)})
 	# A body is worth searching. Small drops, but enough of them to keep a
 	# gun fed between containers.
-	Loot.enemy_drop(sim, e)
+	Loot.enemy_drop(sim, e, source if source is PlayerSim else null)
 
 	# Kill XP to the killer; automated kills pay everyone present. In solo
-	# both rules are the same rule. Phase 4 turns XP into levels.
+	# both rules are the same rule.
 	# The raid bonus is for putting down raiders. An ambient walker that
 	# happened to be standing there when the horde arrived is not worth more
 	# for it — same `e.raid` flag the progress and quiet rules below use.
@@ -51,10 +51,10 @@ static func kill_enemy(sim: GameSim, e: EnemySim, source: Variant = null) -> voi
 	if sim.raid != null and e.raid:
 		xp = roundi(xp * Config.RAID.kill_xp_mul)
 	if source is PlayerSim:
-		source.xp += xp
+		Progression.add_xp(sim, source, xp, "KILL")
 	else:
 		for p in sim.players:
-			p.xp += xp
+			Progression.add_xp(sim, p, xp, "KILL")
 	if sim.raid == null:
 		sim.threat.add(sim, Config.THREAT.kill_walk * e.def.threat, source if source is PlayerSim else null)
 	# Only raiders count toward the raid; ambient kills mid-raid are not
@@ -85,6 +85,16 @@ static func damage_player(sim: GameSim, p: PlayerSim, amount: float, from: Vecto
 	p.vel += dir * 90.0
 	sim.emit({"t": "player_hit", "seat": p.seat, "x": p.pos.x, "y": p.pos.y, "dx": dir.x, "dy": dir.y, "dmg": dealt, "label": label})
 
+	# Second Wind catches the blow that would have killed you, once every two
+	# minutes. It is checked here rather than in kill_player so that the
+	# other ways to die — and a later co-op down — are not silently immortal.
+	if p.hp <= 0.0 and p.second_wind and p.second_wind_cd <= 0.0:
+		p.hp = 1.0
+		p.second_wind_cd = Config.SECOND_WIND_CD
+		p.invuln = maxf(p.invuln, Config.PLAYER.invuln_after_hit)
+		sim.notify("SECOND WIND", "#ffe08a", true)
+		sim.emit({"t": "second_wind", "x": p.pos.x, "y": p.pos.y})
+		return dealt
 	if p.hp <= 0.0:
 		kill_player(sim, p)
 	return dealt

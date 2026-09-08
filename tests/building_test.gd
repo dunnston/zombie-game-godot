@@ -254,12 +254,15 @@ func test_repair_costs_a_share_of_the_build_price() -> void:
 	_stock()
 	var wall := _build("woodWall", plot.x + 2, plot.y)
 	sim.structs.damage(sim, wall, wall.max_hp * 0.5)
-	var cost := Structures.repair_cost(wall)
-	eq(cost.wood, 4, "half the damage on a 16-wood wall at 45%")
+	# The bill is quoted with the same discount it is charged at, or the
+	# prompt and the charge disagree. Intelligence 2 is 3% off, which on a
+	# four-wood bill is a whole unit once it is rounded.
+	var cost := Structures.repair_cost(wall, p.build_cost_mul)
+	eq(cost.wood, 3, "half the damage on a 16-wood wall at 45%, less Engineering")
 	var before := p.count_res("wood")
 	ok(sim.structs.repair(sim, wall, p))
 	eq(wall.hp, wall.max_hp, "back to full")
-	eq(p.count_res("wood"), before - 4)
+	eq(p.count_res("wood"), before - 3)
 
 
 func test_a_scratch_still_costs_one_of_the_main_material() -> void:
@@ -434,4 +437,4 @@ func test_a_repair_sweep_bills_each_piece_once() -> void:
 			sim.structs.repair(sim, w, p)
 	for w in walls:
 		eq(w.hp, w.max_hp)
-	eq(p.count_res("wood"), before - 12, "three walls at four wood, billed once each")
+	eq(p.count_res("wood"), before - 9, "three walls at three wood, billed once each")

@@ -95,6 +95,16 @@ func _physics_process(dt: float) -> void:
 			inventory.visible = true
 			if build_bar.open:
 				build_bar.toggle()
+	elif Input.is_action_just_pressed("character"):
+		# K is the character sheet, on the same argument as C: it is a tab of
+		# the pack, not a screen of its own.
+		if inventory.visible and inventory.mode == "char":
+			inventory.toggle()
+		else:
+			inventory.mode = "char"
+			inventory.visible = true
+			if build_bar.open:
+				build_bar.toggle()
 	elif Input.is_action_just_pressed("build") and not inventory.visible:
 		build_bar.toggle()
 	elif Input.is_action_just_pressed("pause"):
@@ -395,8 +405,19 @@ func smoke_run(smoke: Node) -> void:
 		build_bar.selected = build_bar.cards().find("repair")
 		# REPAIR is the tool you may hold: press and keep holding, and the
 		# sweep fixes what is under the cursor.
-		smoke_aim(wall.pos)
-		await smoke.frames(6)
+		# Settle the cursor the same way the placement step does. The camera
+		# leads toward the mouse, so one warp and a fixed wait is a moving
+		# target: it happened to land before Phase 4 changed where the player
+		# is standing by a few pixels, and then it did not.
+		var wall_tile := Vector2i(wall.tx, wall.ty)
+		for i in range(12):
+			smoke_aim(wall.pos)
+			await smoke.frames(2)
+			if build_bar.check.ok and build_bar.hover_tile == wall_tile:
+				break
+		if not build_bar.check.ok or build_bar.hover_tile != wall_tile:
+			smoke.fail("could not put the REPAIR cursor on the wall: hover=%s check=%s" %
+				[str(build_bar.hover_tile), str(build_bar.check)])
 		Input.action_press("fire")
 		await smoke.frames(10)
 		Input.action_release("fire")
@@ -441,6 +462,37 @@ func smoke_run(smoke: Node) -> void:
 	if p.count_carried("axe") <= axes:
 		smoke.fail("clicking the Hatchet row crafted nothing")
 	await smoke.tap("crafting")
+	await smoke.frames(2)
+
+	# Levelling: the sheet opens on K, an attribute takes a point, and the
+	# point moves a stat the rest of the game reads. Crafting the hatchet
+	# above has already paid some XP; this tops it up to a certain level.
+	Progression.add_xp(sim, p, 3000.0)
+	if p.level < 2 or p.skill_points < 1:
+		smoke.fail("3000 XP did not level anyone up (level %d, %d points)" % [p.level, p.skill_points])
+	await smoke.tap("character")
+	await smoke.frames(3)
+	if not inventory.visible or inventory.mode != "char":
+		smoke.fail("K did not open the character sheet")
+	await smoke.checkpoint("character_sheet")
+
+	# The first click selects Constitution's tree, the second spends on it.
+	var hp_before := p.max_hp
+	var points_before := p.skill_points
+	await smoke_click(inventory.char_row_centre("con"))
+	await smoke.frames(2)
+	if inventory.char_attr != "con":
+		smoke.fail("clicking Constitution did not open its tree")
+	if p.skill_points != points_before:
+		smoke.fail("merely looking at an attribute cost a point")
+	await smoke_click(inventory.char_row_centre("con"))
+	await smoke.frames(3)
+	if p.max_hp <= hp_before:
+		smoke.fail("raising Constitution did not raise max health (%d -> %d)" % [hp_before, p.max_hp])
+	if p.skill_points != points_before - 1:
+		smoke.fail("raising an attribute did not cost exactly one point")
+	await smoke.checkpoint("point_spent")
+	await smoke.tap("character")
 	await smoke.frames(2)
 
 	# A chest, and the two-panel screen that opens when you press E at it.

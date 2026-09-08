@@ -1,6 +1,6 @@
 class_name SaveGame
 extends RefCounted
-## Saving and loading. Payload version 1.
+## Saving and loading. Payload version 2.
 ##
 ## **Containers are identified by tile position, never by ordinal index**
 ## (invariant 7). The prototype keyed them by their position in an array,
@@ -13,7 +13,7 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 1
+const VERSION := 2
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
@@ -49,7 +49,13 @@ static func to_dict(sim: GameSim) -> Dictionary:
 	for p in sim.players:
 		players.append({
 			"seat": p.seat, "name": p.display_name,
-			"x": p.pos.x, "y": p.pos.y, "hp": p.hp, "stam": p.stam, "xp": p.xp,
+			"x": p.pos.x, "y": p.pos.y, "hp": p.hp, "stam": p.stam,
+			# The build, and only the build: level, what has been spent and what
+			# it was spent on. Every derived stat is rebuilt on load by the same
+			# recompute that produced it, so a save can never carry a stale one.
+			"xp": p.xp, "level": p.level, "xp_next": p.xp_next,
+			"skill_points": p.skill_points, "attrs": p.attrs.duplicate(), "perks": p.perks.duplicate(),
+			"second_wind_cd": p.second_wind_cd,
 			"slot": p.slot, "bag": p.bag.to_record(), "hotbar": p.hotbar.to_record(),
 			"equip": p.equip.duplicate(), "mag": p.mag.duplicate(),
 			"light_on": p.light_on, "light_fuel": p.light_fuel, "light_id": p.light_id,
@@ -168,9 +174,16 @@ static func apply(sim: GameSim, data: Dictionary) -> Dictionary:
 		p.display_name = String(rec.get("name", Config.PLAYER.names[0]))
 		p.pos = Vector2(float(rec.x), float(rec.y))
 		p.intent.aim = p.pos + Vector2.RIGHT
-		p.hp = float(rec.hp)
-		p.stam = float(rec.stam)
-		p.xp = int(rec.xp)
+		p.xp = float(rec.xp)
+		p.level = int(rec.get("level", 1))
+		p.xp_next = int(rec.get("xp_next", Config.xp_for_level(p.level)))
+		p.skill_points = int(rec.get("skill_points", 0))
+		# JSON gives back a plain Dictionary of floats; the ranks are counts.
+		for k in rec.get("attrs", {}):
+			p.attrs[k] = int(rec.attrs[k])
+		for k in rec.get("perks", {}):
+			p.perks[k] = int(rec.perks[k])
+		p.second_wind_cd = float(rec.get("second_wind_cd", 0.0))
 		p.slot = int(rec.slot)
 		p.bag.from_record(rec.bag)
 		p.hotbar.from_record(rec.hotbar)
@@ -185,6 +198,11 @@ static func apply(sim: GameSim, data: Dictionary) -> Dictionary:
 		p.light_on = bool(rec.get("light_on", false))
 		p.spawn_tile = Vector2i(int(rec.get("spawn_tx", -1)), int(rec.get("spawn_ty", -1)))
 		Equipment.recompute_stats(p)
+		# After the recompute, never before: the ceiling has to exist before
+		# what is standing under it is restored, or a Constitution build loads
+		# clamped back down to the base 112.
+		p.hp = minf(float(rec.hp), p.max_hp)
+		p.stam = minf(float(rec.stam), p.max_stam)
 		p.lit = p.light_on
 		sim.players.append(p)
 	if sim.players.is_empty():

@@ -11,11 +11,23 @@ var vel := Vector2.ZERO
 var r: float = Config.PLAYER.r
 var angle := 0.0
 
-# Starting stats. Every attribute begins at rank 2 and rank 1 is the
-# baseline, so a new survivor already carries one rank of each: 112 HP,
-# 110 stamina, +9% melee, +6% chop, 8% crit. recompute_stats() (Phase 4)
-# will produce all of these from attributes and perks; nothing mutates
-# them on purchase.
+# What a point has been spent on. These two dictionaries and the worn gear
+# are the *whole* build: every number below them is derived from these by
+# `Perks.recompute_stats` and by nothing else (invariant 4), which is why a
+# save stores only these and re-derives the rest.
+var level := 1
+var xp := 0.0
+var xp_next: int = Config.xp_for_level(1)
+var skill_points := 0
+## Built in _init, for the same reason `bag` is: a member initializer runs
+## while the class is still loading and cannot reach another class_name.
+var attrs := {}
+var perks := {}                  # perk id -> rank
+
+# Derived stats. Every one of these is overwritten wholesale by
+# `Perks.recompute_stats` from `Config.STAT_BASE`, so the values here are
+# only what a PlayerSim holds between `new()` and the first recompute —
+# `_init` runs one immediately. Do not tune anything here; tune STAT_BASE.
 var hp := 112.0
 var max_hp := 112.0
 var dead := false
@@ -43,18 +55,41 @@ var crit_chance := 0.08
 var free_shot_chance := 0.0
 var noise_mul := 1.0
 var threat_mul := 1.0
-var chop_mul := 1.0
+var chop_mul := 1.06
 var chop_stam_mul := 1.0
 var loot_mul := 1.0
+var rare_loot_mul := 1.05
+var double_drop_chance := 0.0
 var heal_mul := 1.0
 var heal_speed_mul := 1.0
-var search_mul := 1.0
+var search_mul := 0.95
+var build_cost_mul := 0.97
+var struct_hp_mul := 1.0
+var turret_mul := 1.05
+var craft_yield_mul := 1.0
+var xp_mul := 1.07
+var radar_mul := 1.0
 var armor_dr := 0.0
 var lit := false                 # carrying a lit light: noticed further out
-var carry_cap: float = Config.PLAYER.carry_cap
-var pickup_range: float = Config.PLAYER.pickup_range
+var carry_cap: float = Config.PLAYER.carry_cap + 25.0
+var pickup_range: float = Config.PLAYER.pickup_range + 3.0
 
-var xp := 0
+# Read by Phase 4c's survivors, produced here so no perk is inert.
+var survivor_cap := 1
+var survivor_dmg_mul := 1.06
+var survivor_hp_mul := 1.0
+var survivor_xp_mul := 1.0
+var upkeep_mul := 1.0
+
+# Perk flags and their state. `adrenaline_active` is recomputed every tick
+# from health, and `second_wind_cd` is the only piece of build state that
+# ticks down — so it is saved, unlike everything else derived.
+var adrenaline := false
+var adrenaline_active := false
+var second_wind := false
+var second_wind_cd := 0.0
+var hotwire := false
+var hotwire_speed_mul := 1.0
 
 # One addressable list for everything carried, so it can all be moved,
 # dropped and looked at the same way. Capacity is by weight, not slot count,
@@ -98,6 +133,12 @@ var intent := Intent.new()
 func _init() -> void:
 	bag = Slots.new(Config.PLAYER.inv_slots)
 	hotbar = Slots.new(Config.PLAYER.hotbar_slots)
+	attrs = Perks.starting_attrs()
+	# So the literals above are never what anything reads: a fresh survivor's
+	# stats come from the same pass that a fully built one's do.
+	Perks.recompute_stats(self)
+	hp = max_hp
+	stam = max_stam
 
 
 # -------------------------------------------------------------- resources --
@@ -274,6 +315,11 @@ func tick(sim: GameSim, dt: float) -> void:
 			Damage.respawn_player(sim, self)
 		return
 
+	# Adrenaline is a state, not a modifier: it comes and goes with the health
+	# bar, so it is read fresh each tick rather than baked into the recompute.
+	adrenaline_active = adrenaline and hp < max_hp * Config.ADRENALINE_HP_FRAC
+	second_wind_cd = maxf(0.0, second_wind_cd - dt)
+
 	pos = world.unstick(pos, r, sim.structs)
 	invuln = maxf(0.0, invuln - dt)
 	hurt_flash = maxf(0.0, hurt_flash - dt)
@@ -394,6 +440,8 @@ func move(world: World, dt: float, rooted := false, structs: Structures = null) 
 		winded = false
 
 	var speed: float = P.speed * speed_mul
+	if adrenaline_active:
+		speed *= Config.ADRENALINE_SPEED
 	if sprinting:
 		speed *= P.sprint_mul
 	if sneaking:

@@ -102,7 +102,7 @@ func update_hover(world_pos: Vector2) -> void:
 			check = {"ok": false, "reason": "Nothing there"}
 		elif card == "repair":
 			check = {"ok": Structures.is_damaged(s),
-				"reason": Structures.cost_label(Structures.repair_cost(s)) if Structures.is_damaged(s) else "Already intact"}
+				"reason": Structures.cost_label(Structures.repair_cost(s, player.build_cost_mul)) if Structures.is_damaged(s) else "Already intact"}
 		else:
 			check = {"ok": true, "reason": "Salvage %s" % s.def.name}
 	else:

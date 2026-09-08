@@ -234,7 +234,7 @@ func _finish(sim: GameSim, repelled_: bool) -> void:
 	# XP is paid on the same share as the salvage. A floor here would pay
 	# half the raid's XP for walking away from it without a single kill.
 	for p in sim.players:
-		p.xp += roundi(spec.xp * share)
+		Progression.add_xp(sim, p, spec.xp * share, "RAID")
 	for e in sim.enemies.list:
 		if e.raid:
 			e.raid = false
