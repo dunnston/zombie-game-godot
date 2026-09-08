@@ -41,8 +41,10 @@ func rebuild() -> void:
 		_add(p)
 	for c in sim.world.containers:
 		_add(c)
-	for v in sim.world.vehicle_spawns:
-		_add(v)
+	# The vehicle markers are not drawn here any more. `Vehicles` turns each of
+	# them into a real car and `VehicleView` draws that — leaving them in would
+	# paint every car twice, and leave a phantom parked at the spawn point the
+	# moment one was driven away.
 
 
 func _add(p: Dictionary) -> void:

@@ -310,6 +310,10 @@ func _finish_use(sim: GameSim) -> void:
 		sim.cars.finish_hotwire(sim, self, sim.cars.by_id(int(using.vehicle)))
 		using = {}
 		return
+	if String(using.id) == "pick":
+		sim.cars.finish_pick(sim, self, sim.cars.by_id(int(using.vehicle)))
+		using = {}
+		return
 	var c: Dictionary = Config.CONSUMABLES[using.id]
 	if take_carried(using.id, 1) > 0:
 		Damage.heal_player(sim, self, c.heal)

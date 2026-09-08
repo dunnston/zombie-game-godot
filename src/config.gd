@@ -1003,7 +1003,8 @@ const CAR := {
 	"fuel_max": 60.0,
 	"burn_per_sec": 0.55,     # idling
 	"burn_per_speed": 0.004,  # plus this per unit of speed
-	"trunk_cap": 400,
+	"trunk_cap": 400,      # units, not slots — a boot holds a haul by bulk
+	"trunk_slots": 24,
 
 	"ram_damage": 46.0,       # to an enemy you hit at speed
 	"ram_self_damage": 3.0,

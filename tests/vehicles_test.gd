@@ -143,7 +143,10 @@ func test_a_pick_is_a_gamble_that_costs_the_tool() -> void:
 	for i in range(20):
 		if not v.locked:
 			break
+		# Picking is a held action now: starting it costs nothing, finishing
+		# it spends the pick and rolls the odds.
 		sim.cars.try_unlock(sim, p, v)
+		sim.cars.finish_pick(sim, p, v)
 		if not v.locked:
 			opened += 1
 	ok(p.count_carried("lockpick") < picks, "every attempt costs a pick")
@@ -175,6 +178,7 @@ func test_a_snapped_pick_is_heard() -> void:
 		if not v.locked:
 			v.locked = true              # relock and try again
 		sim.cars.try_unlock(sim, p, v)
+		sim.cars.finish_pick(sim, p, v)
 		if events_of(sim, "pick_snap").size() > 0:
 			snapped = true
 			break
@@ -362,12 +366,13 @@ func test_wrecking_a_car_puts_the_driver_out_rather_than_stranding_them() -> voi
 
 func test_a_wreck_spills_its_boot_rather_than_taking_it_with_it() -> void:
 	var v := _open_car()
-	v.trunk = {"scrap": 40, "wood": 20}
+	v.trunk.add("scrap", 40)
+	v.trunk.add("wood", 20)
 	var before := sim.pickups.size()
 	sim.cars.damage(sim, v, v.max_hp * 2.0)
 	ok(v.destroyed)
 	gt(sim.pickups.size(), before, "it is on the road")
-	ok(v.trunk.is_empty())
+	eq(Vehicles.trunk_load(v), 0)
 
 
 func test_a_wreck_can_be_stripped_for_parts() -> void:
@@ -389,7 +394,7 @@ func test_the_boot_takes_materials_and_not_your_rifle() -> void:
 	p.bag.add("scrap", 120)
 	p.bag.add("rifle", 1)
 	sim.cars.stow(sim, v, p)
-	eq(int(v.trunk.get("scrap", 0)), 120, "the haul goes in")
+	eq(v.trunk.count("scrap"), 120, "the haul goes in")
 	eq(p.count_carried("rifle"), 1, "the rifle stays with you")
 	eq(p.count_res("scrap"), 0)
 
@@ -414,7 +419,7 @@ func test_what_goes_in_comes_back_out() -> void:
 	eq(p.count_res("scrap"), 0)
 	sim.cars.unload(sim, v, p)
 	eq(p.count_res("scrap"), 60)
-	ok(v.trunk.is_empty())
+	eq(Vehicles.trunk_load(v), 0)
 
 
 func test_refuelling_takes_from_the_pack_then_the_stash() -> void:
@@ -469,7 +474,7 @@ func test_parking_never_claims_a_tile_something_else_owns() -> void:
 
 func test_a_run_of_cars_survives_a_save() -> void:
 	var v := _open_car()
-	v.trunk = {"scrap": 30}
+	v.trunk.add("scrap", 30)
 	v.fuel = 12.5
 	v.locked = false
 	v.hotwired = true
@@ -483,7 +488,12 @@ func test_a_run_of_cars_survives_a_save() -> void:
 	ok(not rec.is_empty())
 	near(float(rec.fuel), 12.5, 0.001)
 	ok(bool(rec.hotwired))
-	eq(int(rec.trunk.scrap), 30)
+	# `Slots.to_record` is [slot, id, n] triples, like every other container.
+	var boot_scrap := 0
+	for row in rec.trunk:
+		if String(row[1]) == "scrap":
+			boot_scrap += int(row[2])
+	eq(boot_scrap, 30)
 	# `si` comes back from the generator, so a save has no business storing it.
 	ok(not rec.has("si"), "what the seed makes is not what a save carries")
 
@@ -502,3 +512,116 @@ func test_a_car_key_is_learned_rather_than_carried() -> void:
 	ok(p.car_keys.has(v.key_id))
 	near(p.carried_weight(), weight, 0.001, "it weighs nothing")
 	eq(p.bag.count("key:" + String(v.key_id)), 0, "and takes no slot")
+
+
+# ------------------------------------------------- what the review found --
+
+func test_searching_the_right_container_actually_hands_over_the_key() -> void:
+	# The whole key path was dead: `roll_container` only rolled the table and
+	# never read `extra`, so the planted key existed on the container and could
+	# not be taken off it. Checking the marker was there was not the same as
+	# checking a search produced it.
+	var v := {}
+	var holder := {}
+	for car in sim.cars.list:
+		if not car.locked or String(car.key_id).is_empty():
+			continue
+		for c in sim.world.containers:
+			for e in c.get("extra", []):
+				if String(e.id) == "key:" + String(car.key_id):
+					v = car
+					holder = c
+					break
+			if not holder.is_empty():
+				break
+		if not holder.is_empty():
+			break
+	ok(not holder.is_empty(), "a container is holding a key")
+
+	p.bag = Slots.new(200)
+	p.carry_cap = 1000000.0
+	var got := Loot.grant_loot(sim, p, Loot.roll_container(sim, holder), Vector2(holder.x, holder.y))
+	ok(p.car_keys.has(v.key_id), "searching it hands the key over")
+	gt(got.lines.size(), 0, "and says so without crashing on a missing colour")
+	ok(sim.cars.try_unlock(sim, p, v), "and the key opens the car it belongs to")
+
+
+func test_a_stripped_car_stays_stripped_across_a_save() -> void:
+	# The fleet is regenerated from the seed on load, so a car the save does
+	# not mention has to be removed — otherwise salvage, save, reload is an
+	# endless scrap mine.
+	var v := _open_car()
+	sim.cars.damage(sim, v, v.max_hp * 2.0)
+	var id := int(v.id)
+	ok(sim.cars.salvage(sim, v, p))
+	var before := sim.cars.list.size()
+	var d := SaveGame.to_dict(sim)
+
+	var fresh := GameSim.new()
+	fresh.start(car_world(), 1)
+	gt(fresh.cars.list.size(), before, "a fresh world has the whole fleet")
+	SaveGame._load_cars(fresh, d)
+	eq(fresh.cars.list.size(), before, "and the load takes the stripped one back out")
+	ok(fresh.cars.by_id(id).is_empty(), "it is gone for good")
+
+
+func test_the_boot_and_the_refuel_button_are_reachable() -> void:
+	# All three of stow, unload and refuel had no caller but a test. Hold E at
+	# a car opens the boot in the same two-panel screen a chest uses, and the
+	# refuel button lives on it.
+	var v := _open_car()
+	p.pos = v.pos
+	p.intent.interact = true
+	p.intent.interact_held = true
+	Interact.tick(sim, p, 1.0 / 60.0)
+	p.intent.interact = false
+	p.intent.interact_held = false
+	var opened := events_of(sim, "open_boot")
+	eq(opened.size(), 1, "holding E at a car asks for the boot")
+	eq(int(opened[0].id), int(v.id))
+
+
+func test_a_downed_survivor_beats_the_car_they_are_lying_next_to() -> void:
+	# People come before things — written in the survivors PR and broken by the
+	# vehicles one. Somebody has eight seconds; the car does not.
+	var v := _open_car()
+	var s := sim.crew.make(sim, v.pos + Vector2(10, 0))
+	sim.crew.damage(sim, s, s.max_hp * 2.0, s.pos + Vector2(5, 0))
+	ok(s.downed)
+	p.pos = v.pos
+	var target := Interact.best_target(sim, p)
+	eq(String(target.kind), "revive", "the person, not the car")
+
+
+func test_a_running_engine_burns_while_it_idles() -> void:
+	var v := _open_car()
+	sim.cars.enter(sim, p, v)
+	var before: float = v.fuel
+	_drive(v, 3.0)                       # engine on, no throttle
+	ok(v.fuel < before, "an idling engine is not free (%.2f -> %.2f)" % [before, v.fuel])
+
+
+func test_picking_a_lock_takes_the_time_it_says_it_does() -> void:
+	var v := _open_car()
+	v.locked = true
+	p.bag.add("lockpick", 5)
+	var picks := p.count_carried("lockpick")
+	ok(not sim.cars.try_unlock(sim, p, v), "it does not resolve on the press")
+	eq(String(p.using.id), "pick")
+	near(p.using.dur, Config.CAR.pick_time, 0.001)
+	eq(p.count_carried("lockpick"), picks, "and costs nothing until it finishes")
+	ok(v.locked)
+
+	sim.cars.finish_pick(sim, p, v)
+	eq(p.count_carried("lockpick"), picks - 1, "finishing is what spends the pick")
+
+
+func test_the_static_car_markers_are_not_drawn_twice() -> void:
+	# `Vehicles` turns every marker into a real car and `VehicleView` draws it.
+	# The prop renderer used to draw the markers as well, which painted each
+	# car twice and left a phantom behind whenever one was driven away.
+	gt(sim.world.vehicle_spawns.size(), 0, "the generator makes markers")
+	eq(sim.cars.list.size(), sim.world.vehicle_spawns.size(),
+		"one real car per marker, and only one thing draws them")
+	var src := FileAccess.get_file_as_string("res://src/world/prop_renderer.gd")
+	ok(not src.contains("_add(v)"), "the prop renderer no longer buckets the markers")

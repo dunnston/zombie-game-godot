@@ -352,7 +352,7 @@ static func _car_record(sim: GameSim) -> Array:
 			"id": v.id, "x": v.pos.x, "y": v.pos.y, "angle": v.angle,
 			"hp": v.hp, "fuel": v.fuel, "locked": v.locked, "hotwired": v.hotwired,
 			"key_id": v.key_id, "destroyed": v.destroyed,
-			"trunk": v.trunk.duplicate(),
+			"trunk": v.trunk.to_record(),
 			# The tiles this car is blocking right now. Recomputing them on
 			# load would be wrong for a car parked somewhere it was not made.
 			"tiles": _tiles_record(v.tiles),
@@ -374,6 +374,18 @@ static func _load_cars(sim: GameSim, data: Dictionary) -> void:
 	for v in sim.cars.list:
 		by_id[int(v.id)] = v
 
+	# A salvaged car has no record, and the fleet was just regenerated from the
+	# seed — so anything the save does not mention was stripped and must go, or
+	# salvage-save-reload is an endless scrap mine.
+	var kept := {}
+	for rec in data.get("cars", []):
+		kept[int(rec.id)] = true
+	for i in range(sim.cars.list.size() - 1, -1, -1):
+		var gone: Dictionary = sim.cars.list[i]
+		if not kept.has(int(gone.id)):
+			sim.cars.release_tiles(sim, gone)
+			sim.cars.list.remove_at(i)
+
 	for rec in data.get("cars", []):
 		var v: Dictionary = by_id.get(int(rec.id), {})
 		if v.is_empty():
@@ -393,9 +405,7 @@ static func _load_cars(sim: GameSim, data: Dictionary) -> void:
 		v.hotwired = bool(rec.hotwired)
 		v.key_id = String(rec.get("key_id", ""))
 		v.destroyed = bool(rec.get("destroyed", false))
-		v.trunk = {}
-		for k in rec.get("trunk", {}):
-			v.trunk[k] = int(rec.trunk[k])
+		v.trunk.from_record(rec.get("trunk", []))
 		var tiles: Array[Vector2i] = []
 		for t in rec.get("tiles", []):
 			tiles.append(Vector2i(int(t[0]), int(t[1])))

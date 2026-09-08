@@ -152,7 +152,7 @@ that will not fit is ever destroyed: it lands on the ground.
 | --- | --- |
 | Phase | 4 of 5 — 4a progression, 4b day and fire, 4c survivors and vehicles done; 4d menus and audio to come |
 | Playable | The whole loop, it levels you, it gets dark, and you can hold it with other people. **E** searches and uses, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
-| Unit tests | 281 tests, 4227 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials and the survivor combat tests: 311 tests, 4340 assertions. Wall-clock varies with the machine — see §9 |
+| Unit tests | 288 tests, 4249 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials and the survivor combat tests: 318 tests, 4362 assertions. Wall-clock varies with the machine — see §9 |
 | Smoke | 36 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
 | Save format | **v5** — what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
@@ -228,7 +228,13 @@ The spec for each row is in `tasks/port-inventory.md`.
   *both* collision maps (invariant 2): checking only the terrain bitmap let a
   car park inside your own wall, because a wall lives in `Structures`.
 - Anything in the boot spills onto the road when a car is wrecked, and a wreck
-  can be stripped for scrap — a dead car is still worth something.
+  can be stripped for scrap — a dead car is still worth something. A stripped
+  one stays stripped across a save: the fleet is regenerated from the seed, so
+  a car the save does not mention is removed rather than quietly returning.
+- **Tap E to drive, hold E for the boot** — the same tap/hold split a
+  container already uses. The boot is a `Slots` like every other container, so
+  the two-panel store screen opens it and refuelling is a button on it, rather
+  than a second kind of storage UI existing.
 ### Other people (Phase 4c — survivors)
 
 - **`Survivors`** owns the roster, the rescues, the upkeep and the day's work;
@@ -822,8 +828,8 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 281  asserts: 4227  failures: 0
-tests: 311  asserts: 4340  failures: 0   (--all)
+tests: 288  asserts: 4249  failures: 0
+tests: 318  asserts: 4362  failures: 0   (--all)
 SMOKE done checkpoints=36 failures=0 exit=0
 ```
 

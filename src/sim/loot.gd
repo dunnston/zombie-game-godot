@@ -93,6 +93,11 @@ static func roll_container(sim: GameSim, c: Dictionary, loot_mul := 1.0, rare_mu
 		totals[e.id] = totals.get(e.id, 0) + n
 	for id in order:
 		out.append({"id": id, "n": totals[id]})
+	# Guaranteed contents, on top of whatever the table rolled: a car key is
+	# planted in a specific container so the car it opens is always findable,
+	# rather than left to a weighted roll that might never produce it.
+	for e in c.get("extra", []):
+		out.append({"id": String(e.id), "n": int(e.n)})
 	return out
 
 
@@ -132,7 +137,7 @@ static func give_entry(sim: GameSim, p: PlayerSim, entry: Dictionary) -> Diction
 			if v.key_id == key:
 				which = " — it fits a car nearby"
 				break
-		return {"text": "Car key%s" % which, "major": true}
+		return {"text": "Car key%s" % which, "color": "#d0c46a", "major": true}
 
 	if id.begins_with("weapon:"):
 		var wid := id.substr(7)

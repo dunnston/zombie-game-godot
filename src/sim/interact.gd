@@ -28,15 +28,11 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 	if not best_pack.is_empty():
 		return best_pack
 
-	# A car you are standing beside, before any container: getting in is the
-	# thing you walked over here to do, and a shelf beside it can wait.
-	var car := sim.cars.nearest(p.pos)
-	if not car.is_empty():
-		return {"kind": "vehicle", "ref": car, "label": sim.cars.prompt(p, car)}
-
 	# People come before things. A survivor bleeding out has eight seconds and
-	# a container does not, so neither a shelf nor a gate may ever be what the
-	# key offers while someone is down beside you.
+	# a container does not, so neither a shelf nor a gate — nor a car — may
+	# ever be what the key offers while someone is down beside you. Somebody
+	# who parked next to the person they are trying to save should not have to
+	# walk away from the car first.
 	var best_person := {}
 	var person_d := reach2
 	for s in sim.crew.list:
@@ -57,6 +53,12 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 			"label": "Take %s in  (level %d)" % [rescue.name, int(rescue.level)] if why.is_empty() else why}
 	if not best_person.is_empty():
 		return best_person
+
+	# Then a car, ahead of containers: getting in is the thing you walked over
+	# here to do, and a shelf beside it can wait. Hold E for the boot.
+	var car := sim.cars.nearest(p.pos)
+	if not car.is_empty():
+		return {"kind": "vehicle", "ref": car, "label": sim.cars.prompt(p, car)}
 
 	var best := {}
 	var best_d := reach2
@@ -176,6 +178,10 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 			var v: Dictionary = target.ref
 			if v.destroyed:
 				sim.cars.salvage(sim, v, p)
+			elif it.interact_held:
+				# Hold for the boot, tap to drive — the same tap/hold split a
+				# container already uses, so it is a habit rather than a rule.
+				sim.emit({"t": "open_boot", "id": int(v.id)})
 			else:
 				sim.cars.enter(sim, p, v)
 		"gate":

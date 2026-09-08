@@ -49,7 +49,9 @@ func spawn_all(world: World) -> int:
 			"key_id": "key%d" % r.irange(1000, 9999) if locked else "",
 			"key_hint": "",
 			"hotwired": false,
-			"trunk": {},
+			# A Slots like every other container, so the two-panel store screen
+			# opens it without a second kind of storage UI existing.
+			"trunk": Slots.new(C.trunk_slots),
 			"engine_on": false,
 			"destroyed": false,
 			"flash": 0.0,
@@ -137,19 +139,11 @@ func try_unlock(sim: GameSim, p: PlayerSim, v: Dictionary) -> bool:
 		return true
 
 	if p.count_carried("lockpick") > 0:
-		if p.bag.take("lockpick", 1) < 1:
-			p.hotbar.take("lockpick", 1)
-		if sim.rng.chance(pick_chance(p)):
-			v.locked = false
-			sim.notify("The lock gives", "#b7e08a")
-			Progression.add_xp(sim, p, 30, "PICK")
-			return true
-		# A failed pick snaps the tool and makes noise. That is the whole cost
-		# of the cheap way in.
-		sim.notify("The pick snaps. Something heard that.", "#c96a5a")
-		sim.emit({"t": "pick_snap", "x": v.pos.x, "y": v.pos.y})
-		Sound.make_noise(sim, v.pos.x, v.pos.y, Config.NOISE.pick_snap, p)
-		sim.threat.add(sim, 0.6, p)
+		# Picking takes time, like hotwiring and healing do, and can be
+		# interrupted by being hit. Resolving it on the interaction frame made
+		# `pick_time` a number nothing read.
+		p.using = {"id": "pick", "t": 0.0, "dur": C.pick_time, "vehicle": v.id}
+		sim.notify("Working the lock — stay still", "#d9c46a")
 		return false
 
 	if p.hotwire:
@@ -160,6 +154,27 @@ func try_unlock(sim: GameSim, p: PlayerSim, v: Dictionary) -> bool:
 
 	sim.notify("Locked. Find the key, a lockpick, or learn to hotwire.", "#c96a5a")
 	return false
+
+
+## The pick attempt itself, once the held action has run its time.
+func finish_pick(sim: GameSim, p: PlayerSim, v: Dictionary) -> void:
+	if v.is_empty() or v.destroyed or not v.locked:
+		return
+	# The pick could have gone somewhere between the press and the finish.
+	if p.bag.take("lockpick", 1) < 1 and p.hotbar.take("lockpick", 1) < 1:
+		sim.notify("No pick left", "#c96a5a")
+		return
+	if sim.rng.chance(pick_chance(p)):
+		v.locked = false
+		sim.notify("The lock gives", "#b7e08a")
+		Progression.add_xp(sim, p, 30, "PICK")
+		return
+	# A failed pick snaps the tool and makes noise. That is the whole cost of
+	# the cheap way in.
+	sim.notify("The pick snaps. Something heard that.", "#c96a5a")
+	sim.emit({"t": "pick_snap", "x": v.pos.x, "y": v.pos.y})
+	Sound.make_noise(sim, v.pos.x, v.pos.y, Config.NOISE.pick_snap, p)
+	sim.threat.add(sim, 0.6, p)
 
 
 func finish_hotwire(sim: GameSim, p: PlayerSim, v: Dictionary) -> void:
@@ -320,7 +335,10 @@ func _drive(sim: GameSim, v: Dictionary, dt: float, p: PlayerSim) -> void:
 				return
 
 	# ------------------------------------------------------ fuel and noise --
-	if not dry and (it.my != 0.0 or absf(v.speed) > 5.0):
+	# A running engine burns whether or not it is going anywhere: `burn_per_sec`
+	# is the *idle* rate, and gating the whole thing on movement let a car sit
+	# there running for free.
+	if not dry:
 		v.fuel = maxf(0.0, v.fuel - (C.burn_per_sec + absf(v.speed) * C.burn_per_speed) * dt)
 		if v.fuel <= 0.0:
 			sim.notify("Out of fuel", "#d98a4a", true)
@@ -352,43 +370,55 @@ func _wreck(sim: GameSim, v: Dictionary, cause: String) -> void:
 	v.destroyed = true
 	v.hp = 0.0
 	# Anything in the boot spills onto the road rather than leaving with it.
-	for id in v.trunk:
-		var n := int(v.trunk[id])
+	var held: Dictionary = v.trunk.entries()
+	for id in held:
+		var n := int(held[id])
 		if n > 0:
 			Loot.spawn_entry_pickup(sim, v.pos, Loot.item_entry_id(String(id)), n)
-	v.trunk = {}
+	v.trunk.clear_all()
 	sim.emit({"t": "car_wrecked", "x": v.pos.x, "y": v.pos.y, "cause": cause})
 	sim.emit({"t": "shake", "amount": 8.0})
 	sim.notify("The car is finished", "#c96a5a", true)
 
 
+
+
 # -------------------------------------------------------------- the boot --
 
+## What the boot is carrying, by count. The cap is bulk rather than slots: a
+## boot takes a haul, not a collection.
 static func trunk_load(v: Dictionary) -> int:
 	var n := 0
-	for id in v.trunk:
-		n += int(v.trunk[id])
+	var e: Dictionary = v.trunk.entries()
+	for id in e:
+		n += int(e[id])
 	return n
+
+
+func trunk_room(v: Dictionary) -> int:
+	return maxi(0, int(C.trunk_cap) - trunk_load(v))
 
 
 ## Raw materials only. The boot is for the haul, not for your rifle or the
 ## bandages you are about to need.
 func stow(sim: GameSim, v: Dictionary, p: PlayerSim) -> int:
 	var moved := 0
-	var room: int = int(C.trunk_cap) - trunk_load(v)
 	for id in Config.RES:
+		var room := trunk_room(v)
 		if room <= 0:
 			break
 		var have := p.bag.count(String(id))
 		if have <= 0:
 			continue
-		var take := mini(have, room)
-		take = p.bag.take(String(id), take)
+		var take := p.bag.take(String(id), mini(have, room))
 		if take <= 0:
 			continue
-		v.trunk[id] = int(v.trunk.get(id, 0)) + take
-		room -= take
-		moved += take
+		var put: int = v.trunk.add(String(id), take)
+		# Whatever the boot could not physically hold goes back in the pack
+		# rather than evaporating between the two.
+		if put < take:
+			p.bag.add(String(id), take - put)
+		moved += put
 	if moved > 0:
 		sim.notify("%d units into the boot" % moved, "#b7e08a")
 	else:
@@ -398,23 +428,20 @@ func stow(sim: GameSim, v: Dictionary, p: PlayerSim) -> int:
 
 func unload(sim: GameSim, v: Dictionary, p: PlayerSim) -> int:
 	var moved := 0
-	for id in v.trunk.keys():
-		var n := int(v.trunk[id])
+	var held: Dictionary = v.trunk.entries()
+	for id in held:
+		var n := int(held[id])
 		if n <= 0:
 			continue
 		var got := p.bag.add_capped(String(id), n, p.pack_allowance())
 		if got > 0:
-			v.trunk[id] = n - got
+			v.trunk.take(String(id), got)
 			moved += got
-		if int(v.trunk[id]) <= 0:
-			v.trunk.erase(id)
 	if moved > 0:
 		sim.notify("%d units out of the boot" % moved, "#b7e08a")
 	else:
 		sim.notify("Nothing you can carry", "#8a8f84")
 	return moved
-
-
 func refuel(sim: GameSim, v: Dictionary, p: PlayerSim) -> bool:
 	var need := ceili(C.fuel_max - v.fuel)
 	if need <= 0:

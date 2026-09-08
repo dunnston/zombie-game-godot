@@ -184,6 +184,8 @@ func _process(dt: float) -> void:
 			shake = maxf(shake, ev.amount)
 		elif ev.t == "open_store":
 			inventory.open_store(Vector2i(ev.tx, ev.ty))
+		elif ev.t == "open_boot":
+			inventory.open_boot(int(ev.id))
 		fx.on_event(ev)
 		lights.on_event(ev)
 		hud.on_event(ev)
