@@ -116,7 +116,7 @@ that will not fit is ever destroyed: it lands on the ground.
 | --- | --- |
 | Phase | 3 of 5 — something to keep, complete (three PRs open: 3a, 3b, 3c) |
 | Playable | The whole loop. **E** searches and uses, **Tab** the pack, **C** crafting, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
-| Unit tests | 159 tests, 1876 assertions, 9.4s (`tools\test.cmd`). `--all` adds the compound raid harness and the save round trips: 167 tests, 16.9s |
+| Unit tests | 165 tests, 1901 assertions, 9.0s (`tools\test.cmd`). `--all` adds the compound raid harness and the save round trips: 175 tests, 16.6s |
 | Smoke | 24 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, a chest filled, a save reloaded, a walker shot, a raid |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
 | Save format | **v1** — tile-derived container identity, world fingerprint, slots under `user://saves/` |
@@ -606,8 +606,8 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 159  asserts: 1876  failures: 0   (9.4s)
-tests: 167  asserts: 1922  failures: 0   (--all, 16.9s)
+tests: 165  asserts: 1901  failures: 0   (9.0s)
+tests: 175  asserts: 1958  failures: 0   (--all, 16.6s)
 SMOKE done checkpoints=24 failures=0 exit=0
 ```
 
@@ -635,8 +635,8 @@ index, not the raid's ordinal:** index 1 is the second raid, RUNNING HORDE.
 
 | Index | Ours (2026-09-08) | The prototype's range |
 | --- | --- | --- |
-| 1 RUNNING HORDE | 60s, 0 lost, walls 100% | 70–93s, 0 lost, walls 18–90% |
-| 3 SIEGE | 131s, 16 lost, walls 84% | 72–260s, whole base, walls 0% |
+| 1 RUNNING HORDE | 57s, 0 lost, walls 100% | 70–93s, 0 lost, walls 18–90% |
+| 3 SIEGE | 126s, 13 lost, walls 83% | 72–260s, whole base, walls 0% |
 
 **These are single runs of a stochastic harness — read them as ranges.** The
 browser build produced 67s and 172s for the same raid on the same code. What

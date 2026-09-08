@@ -1343,7 +1343,16 @@ func has_terrain_line_of_sight(a: Vector2, b: Vector2, step := 14.0) -> bool:
 
 ## An unblocked point on a ring around a centre, inside the map, or
 ## Vector2.INF after `tries` misses.
-func find_open_spot(rng_: Rng, centre: Vector2, min_r: float, max_r: float, tries := 26) -> Vector2:
+## An open point on a ring around `centre`, or `Vector2.INF`.
+##
+## `body_r` is the radius of whatever is going to stand there. A free tile
+## centre is not enough: a tile is 32px and a behemoth is 27 across, so on
+## any open tile beside a wall it starts embedded in the wall. That matters
+## most for the thing least likely to be watched — an ambient spawn wedged
+## off screen never moves, because the stuck rescue only runs on something
+## aggro'd or raiding, and it still counts toward the standing population
+## so nothing else spawns either. (Codex review, PR #6.)
+func find_open_spot(rng_: Rng, centre: Vector2, min_r: float, max_r: float, tries := 26, body_r := 0.0) -> Vector2:
 	var lim := W * TILE - TILE * 2
 	for i in range(tries):
 		var a := rng_.frange(0.0, TAU)
@@ -1352,7 +1361,7 @@ func find_open_spot(rng_: Rng, centre: Vector2, min_r: float, max_r: float, trie
 		var y := centre.y + sin(a) * r
 		if x < TILE * 2 or y < TILE * 2 or x > lim or y > lim:
 			continue
-		if is_blocked_px(x, y):
+		if circle_hits_solid(x, y, body_r) if body_r > 0.0 else is_blocked_px(x, y):
 			continue
 		return Vector2(x, y)
 	return Vector2.INF

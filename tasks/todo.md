@@ -431,3 +431,29 @@ The P1 and both weight holes have tests that fail against the pre-fix
 `src/`. The smoke run found the last one for free: its player is carrying
 four hundred units of building material by that point and could no longer
 craft a hatchet, which is exactly right.
+
+## Review — Phase 2 Codex pass on PR #6 (2026-09-08)
+
+Codex reviewed the Phase-2-onto-`main` PR and found two real bugs in code
+that had already been merged once. Both fixed on the tip
+(`phase-3-craft-save`) rather than on `phase-1-world`, because that is where
+the tests and the current shape of the code live — and because 3b rewrote
+the same lines, so a fix on the old branch would collide on merge.
+
+- [x] **P1** The aggro refresh needed sight; the expiry needed only
+      distance. A player standing behind a wall inside the sense radius
+      therefore kept the chase alive for ever, and the flow field walked the
+      enemy to their exact position. Hiding did nothing. Both now ask the
+      same question — within range, and either close enough to smell or
+      with a line to look along.
+- [x] Spawn points checked the tile under the entity's centre, not its
+      body. A behemoth is 27 across on a 32px tile, so beside a wall it
+      began embedded; an ambient one wedged off screen never freed itself
+      (the stuck rescue only runs on something aggro'd or raiding) while
+      still counting toward the standing population. Measured before the
+      fix: **56 of 400 ambient spawns started inside geometry.**
+
+Both have tests that fail against the pre-fix `src/`. The compound figures
+moved a little (the raid picks its body before its spot, so the stream
+shifted): index 1 is 57s, index 3 is 126s — both inside the ranges §9 has
+always described.

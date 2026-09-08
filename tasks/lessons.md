@@ -102,3 +102,8 @@ Distilled into `PROJECT.md` §8. Append here first.
   survives the load: a raid mid-wave, bullets in the air, the quiet field.
 - A view that caches the world's own dictionaries has to be rebuilt when the
   world object is replaced. The prop renderers bucket them by tile.
+- When a rule has a refresh and an expiry, they must ask the same question.
+  Aggro refreshed on sight and expired on distance, so a wall never broke a
+  chase — a bug that survived Phase 2's review and the prototype.
+- A free tile is not room for a body. Check the radius, not the centre: 56
+  of 400 ambient spawns were starting inside geometry.

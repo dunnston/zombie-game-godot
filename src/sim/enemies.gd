@@ -136,7 +136,16 @@ func tick_spawning(sim: GameSim, dt: float) -> void:
 		if sim.quiet.suppressed(spot.x, spot.y, sim.structs):
 			continue
 		var spot_tier := sim.world.danger_at_px(spot.x, spot.y)
-		spawn(pick_type(maxi(tier, spot_tier)), spot)
+		# The type comes from where the spot landed, so the body is only
+		# known now — and an open tile centre is not room for every body. A
+		# behemoth is 27 across on a 32px tile, so beside a wall it would
+		# spawn embedded, and an ambient one wedged off screen never frees
+		# itself: the stuck rescue only runs on something aggro'd or
+		# raiding, and it counts toward the population while it sits there.
+		var type := pick_type(maxi(tier, spot_tier))
+		if sim.world.circle_hits_solid(spot.x, spot.y, Config.ENEMIES[type].r, sim.structs):
+			continue
+		spawn(type, spot)
 
 
 func rebuild_spatial() -> void:
@@ -238,11 +247,19 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 		if p != null and p.lit:
 			sense_r += S.light_sense_bonus
 
-		# Only a player this enemy can sense RIGHT NOW refreshes the chase.
-		# Reading `aggro or senses` here let an aggro'd enemy renew its own
-		# timer forever, and the expiry below never fired.
-		var senses := p != null and d_player2 < sense_r * sense_r
-		if senses and (d_player2 < 120.0 * 120.0 or world.has_line_of_sight(e.pos, p.pos, 12.0, structs)):
+		# Only a player this enemy can sense RIGHT NOW refreshes the chase,
+		# and sensing means *seeing* — within the radius and either close
+		# enough to smell or with a line to look along.
+		#
+		# The refresh and the expiry have to ask the same question. They did
+		# not: the refresh needed sight, the expiry needed only distance, so
+		# a player standing behind a wall inside the sense radius kept the
+		# chase alive for ever and the flow field walked the enemy straight
+		# to them. Hiding did nothing. (Codex review, PR #6.)
+		var in_range := p != null and d_player2 < sense_r * sense_r
+		var senses := in_range and (d_player2 < 120.0 * 120.0
+			or world.has_line_of_sight(e.pos, p.pos, 12.0, structs))
+		if senses:
 			e.aggro = true
 			e.alert_t = maxf(e.alert_t, 4.0)
 		if p == null:
