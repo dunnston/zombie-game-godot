@@ -115,6 +115,15 @@ func fill_intent(intent: Intent) -> void:
 	pending = {}
 
 
+## REPAIR is the one tool you may hold: sweeping the cursor along a battered
+## wall and fixing it as you go is the point of it, and the sweep stops
+## itself — a piece that has just been repaired is no longer damaged, so
+## `check.ok` goes false and the same tile is never billed twice. Placement
+## and demolition stay strictly one click, one action.
+func sweeps() -> bool:
+	return selected_card() == "repair"
+
+
 ## The scene routes clicks here while build mode owns the mouse. Returns true
 ## when the click was consumed.
 func click(at: Vector2) -> bool:

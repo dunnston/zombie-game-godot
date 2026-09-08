@@ -98,7 +98,11 @@ func _physics_process(dt: float) -> void:
 	LocalInput.gather(intent, self, inventory.visible or build_bar.open)
 	if build_bar.open:
 		build_bar.update_hover(get_global_mouse_position())
-		if Input.is_action_just_pressed("fire"):
+		# One click, one action — except REPAIR, which is meant to be swept
+		# along a wall. It only fires on a piece that is actually damaged, so
+		# holding it over one already fixed does nothing.
+		var held_sweep: bool = build_bar.sweeps() and build_bar.check.ok and Input.is_action_pressed("fire")
+		if Input.is_action_just_pressed("fire") or held_sweep:
 			build_bar.click(get_viewport().get_mouse_position())
 		if Input.is_action_just_pressed("wheel_down"):
 			build_bar.cycle(1)
@@ -332,12 +336,20 @@ func smoke_run(smoke: Node) -> void:
 		# Damage it, then repair it with the tool.
 		sim.structs.damage(sim, wall, wall.max_hp * 0.6)
 		build_bar.selected = build_bar.cards().find("repair")
+		# REPAIR is the tool you may hold: press and keep holding, and the
+		# sweep fixes what is under the cursor.
 		smoke_aim(wall.pos)
-		await smoke.frames(3)
-		await smoke_click(get_viewport().get_canvas_transform() * wall.pos)
+		await smoke.frames(6)
+		Input.action_press("fire")
+		await smoke.frames(10)
+		Input.action_release("fire")
 		await smoke.frames(3)
 		if wall.hp < wall.max_hp:
-			smoke.fail("REPAIR left the wall at %.0f of %.0f" % [wall.hp, wall.max_hp])
+			smoke.fail("holding REPAIR left the wall at %.0f of %.0f" % [wall.hp, wall.max_hp])
+		var wood_after := p.count_res("wood")
+		await smoke.frames(10)
+		if p.count_res("wood") != wood_after:
+			smoke.fail("the sweep kept billing an intact wall")
 		await smoke.checkpoint("repaired_the_wall")
 		build_bar.selected = build_bar.cards().find("demolish")
 		smoke_aim(wall.pos)

@@ -279,6 +279,15 @@ func destroy(sim: GameSim, s: Dictionary) -> void:
 	sim.emit({"t": "shake", "amount": 4.0})
 	if sim.raid != null:
 		sim.notify("%s destroyed!" % s.def.name, "#e05a4a")
+	_after_removed(sim, s)
+
+
+## What has to be true again once a piece has left the map, however it left:
+## a bedroll takes its respawn point with it, and the bench tier is what the
+## benches still standing say it is. Both paths call this — the version that
+## only ran on destruction let you salvage your only Workbench II and go on
+## building steel walls for ever.
+func _after_removed(sim: GameSim, s: Dictionary) -> void:
 	for q in sim.players:
 		if s.type == "bedroll" and q.spawn_tile == Vector2i(s.tx, s.ty):
 			q.spawn_tile = Vector2i(-1, -1)
@@ -317,6 +326,13 @@ func spill_store(sim: GameSim, s: Dictionary) -> int:
 		var at: Vector2 = s.pos + Vector2(sim.loot_rng.frange(-13, 13), sim.loot_rng.frange(-13, 13))
 		Loot.spawn_entry_pickup(sim, at, Loot.item_entry_id(id), n)
 		spilled += n
+	if s.type == "stash":
+		# The last door into the shared pile has gone, and the pile is on the
+		# ground. Leaving `sim.stash` pointing at the empty container would
+		# leave every path that writes to it — raid salvage, crafting
+		# overflow, a demolition refund — depositing into something nobody
+		# can open.
+		sim.stash = null
 	return spilled
 
 
@@ -457,9 +473,7 @@ func demolish(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
 	s.destroyed = true
 	_unlink(s)
 	sim.world_version += 1
-	for q in sim.players:
-		if s.type == "bedroll" and q.spawn_tile == Vector2i(s.tx, s.ty):
-			q.spawn_tile = Vector2i(-1, -1)
+	_after_removed(sim, s)
 	sim.emit({"t": "struct_down", "x": s.pos.x, "y": s.pos.y, "wall": s.def.get("wall", false)})
 	sim.notify("Salvaged %s" % s.def.name if lines > 0 else "Removed %s" % s.def.name, "#c9a227")
 	return true

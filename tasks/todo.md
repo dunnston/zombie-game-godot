@@ -354,3 +354,23 @@ pre-fix `src/` and passes after.
 - Stand-ins, flagged: a Watchtower can be built and carries its armament
   choice, but posting a survivor on it is Phase 4; the floodlight lights
   nothing until there is a night; `ARMAMENTS` is content without a shooter.
+
+## Review — Phase 3b Codex pass (2026-09-08)
+
+Three items on PR #4, all addressed.
+
+- [x] Losing the last Supply Stash spilled the pile but left `sim.stash`
+      pointing at the empty container, so every later raid payout and
+      crafting overflow deposited into something nobody could open. The
+      shared pile is cleared with its last door.
+- [x] Salvaging a workbench did not recompute `bench_tier` — only being
+      destroyed by a raider did — so you could demolish your only
+      Workbench II and go on building steel walls for ever. Both paths now
+      end in `_after_removed`, which also handles the bedroll.
+- [x] REPAIR is specified as click *or hold to sweep*, and only the click
+      edge was routed. Held fire now sweeps for that tool alone; it stops
+      itself, because a piece just repaired is no longer damaged.
+
+The first two have tests that fail against the pre-fix `src/`; the sweep is
+in the smoke run, which holds the button across a wall and then checks that
+holding it over the repaired wall bills nothing more.

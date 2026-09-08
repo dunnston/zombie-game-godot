@@ -378,3 +378,60 @@ func test_deposit_all_leaves_your_weapons_alone() -> void:
 	eq(p.count_res("wood"), 0, "the haul went in")
 	eq(sim.stash.count("wood"), 20)
 	eq(sim.stash.count("bandage"), 5)
+
+
+# ------------------------------------------------ the Codex review, PR #4 --
+
+func test_losing_the_last_stash_takes_the_pile_with_it() -> void:
+	_stock()
+	var stash := _build("stash", plot.x + 2, plot.y)
+	sim.stash.add("scrap", 40)
+	sim.structs.damage(sim, stash, 9999.0)
+	ok(sim.stash == null, "there is no shared pile without a door into it")
+	# And a raid payout after that reaches the player rather than a container
+	# nobody can open.
+	var before := p.count_res("scrap")
+	sim.raids_done = 0
+	var raid := Raid.start(sim)
+	raid.killed = raid.total
+	raid.force_end(sim)
+	gt(p.count_res("scrap"), before, "the salvage was paid to the player")
+
+
+func test_a_second_stash_keeps_the_pile_alive() -> void:
+	_stock()
+	var a := _build("stash", plot.x + 2, plot.y)
+	_build("stash", plot.x + 3, plot.y)
+	sim.stash.add("scrap", 40)
+	sim.structs.damage(sim, a, 9999.0)
+	ok(sim.stash != null, "the other door still opens onto it")
+	eq(sim.stash.count("scrap"), 40)
+
+
+func test_salvaging_your_only_workbench_relocks_what_it_unlocked() -> void:
+	_stock()
+	var bench := _build("workbench", plot.x + 2, plot.y)
+	sim.structs.upgrade_bench(sim, bench, p)
+	ok(sim.structs.is_unlocked("metalWall"))
+	sim.structs.demolish(sim, bench, p)
+	eq(sim.structs.bench_tier, 0, "no bench, no bench tier")
+	ok(not sim.structs.is_unlocked("metalWall"), "and steel is locked again")
+	eq(sim.structs.can_place(sim, "metalWall", plot.x + 4, plot.y, p).reason, "Needs Workbench II")
+
+
+func test_a_repair_sweep_bills_each_piece_once() -> void:
+	_stock()
+	var walls: Array[Dictionary] = []
+	for i in range(3):
+		var w := _build("woodWall", plot.x + 2, plot.y - 1 + i)
+		sim.structs.damage(sim, w, w.max_hp * 0.5)
+		walls.append(w)
+	var before := p.count_res("wood")
+	# Sweeping is repeated repairs, one tile at a time: each pays once, and
+	# passing back over a repaired piece costs nothing.
+	for pass_ in range(2):
+		for w in walls:
+			sim.structs.repair(sim, w, p)
+	for w in walls:
+		eq(w.hp, w.max_hp)
+	eq(p.count_res("wood"), before - 12, "three walls at four wood, billed once each")
