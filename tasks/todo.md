@@ -211,13 +211,26 @@ level and a kill count, so 4d is last. Each bumps `SaveGame.VERSION`.
 - [x] `SaveGame` v3 carries the clock; fires are deliberately not saved
 - [x] 23 new tests; the fire spread trials in the slow tier
 
-### 4c — survivors and vehicles
+### 4c — survivors
 
-- [ ] Roster capped by Charisma and bunks; Guard, Sniper, Scavenger, Builder
-- [ ] Rations upkeep from the shared stash, debt and warnings
-- [ ] ~30 cars, 62% locked; key, lockpick or Hotwire; arcade handling, fuel,
-      roadkill, a 400-unit boot
-- [ ] Read the survivor stats 4a already produces
+Split from vehicles: two systems in one PR is one review of neither.
+
+- [x] Roster capped by Charisma **and** bunks, with the refusal naming which
+- [x] Guard, Sniper, Scavenger, Builder, each with a give-up timer
+- [x] Rations upkeep from the shared stash: clearing debt, a cap, warnings
+- [x] Reads the survivor stats 4a already produces, and `refresh_all` pushes
+      a newly bought Charisma perk to the people already standing there
+- [x] Enemies bite a survivor in the way; a survivor kill pays them and you
+- [x] `E` takes somebody in and helps somebody up, ahead of containers
+- [x] CREW tab: the roster, both limits, the ration clock, job reassignment
+- [x] `SaveGame` v4; a sniper's tower by tile, never by index
+- [x] 26 tests, three of them in the slow tier
+
+### 4c-vehicles — cars
+
+- [ ] ~30 cars, 62 percent locked; key, lockpick or Hotwire
+- [ ] Arcade handling, fuel, roadkill, a 400-unit boot
+- [ ] Take the `needs` gate off Hotwire once they exist
 
 ### 4d — the front door
 
@@ -719,4 +732,106 @@ the fire enemy-scan regression was found and how these fixes were confirmed
 to cost nothing.
 
 Numbers: 219 tests / 3683 assertions fast, 246 / 3788 with `--all`, 30 smoke
+checkpoints, zero failures.
+
+## Review — Phase 4c, survivors (2026-09-08)
+
+**Split from vehicles.** The plan had 4c as one PR covering both. Survivors
+alone is ~900 lines of prototype behaviour and the last two PRs each came back
+with real findings in a smaller diff; two systems in one review is one review
+of neither. Vehicles is now its own branch off `main`.
+
+What made this one different from 4a and 4b is how much of it is *refusal*
+logic rather than mechanism. A survivor system is mostly a list of reasons you
+cannot do the thing:
+
+- You cannot take somebody in without a Bunk **and** the Charisma to lead
+  them, and the interesting part is that being told "no room" is useless — so
+  `recruit_refusal()` is one function returning the sentence, and the interact
+  prompt, the roster header and the notification all print the same one.
+- You cannot make a sniper without a free Watchtower, and the roster greys the
+  row with the reason rather than after the click.
+- You cannot walk to a container behind a locked gate, so every job has a
+  give-up timer. This is invariant 6 again, written about enemies, applying
+  unchanged to people.
+- You cannot feed anyone out of your own pack. That one rule — the stash is
+  the pantry and the armoury and the builder's yard — is what makes a Supply
+  Stash worth building, and it is the reason a crew standing next to a player
+  carrying 200 Rations can still starve.
+
+Three decisions worth recording:
+
+- **Survivor stats are derived, exactly like the player's.** `refresh()`
+  rebuilds HP and damage from level and the owner's Charisma perks, so buying
+  Inspiring Presence reaches the people already in your base rather than only
+  the next hire, and the save stores the level rather than the health. That is
+  invariant 4's shape applied to a second kind of body.
+- **A sniper's tower is saved by tile, not by index.** Invariant 7 was written
+  about containers; a reference into `structs.list` would have rotted the same
+  way. A tower that did not come back turns its sniper into a guard rather
+  than crashing.
+- **Nothing a survivor carries is ever destroyed.** A haul came out of a real
+  container, so reassigning mid-run, failing to reach the stash, and dying all
+  put it on the ground. There is a test for the reassignment case because it
+  is the one that looks like bookkeeping rather than loss.
+
+**On the test budget.** Measured back to back this sitting: `main` at 11.07s,
+this branch at 12.8s before I moved anything. Two things there:
+
+1. My first cut spent ten *simulated* seconds per upkeep test just to reach a
+   ten-second billing cadence. Driving `tick_upkeep` directly took ~2.5s off.
+   The remaining survivor cost is about 1.8s, and three tests that need the
+   whole world running went to the slow tier.
+2. **The baseline is itself over ten seconds on this machine now.** It read
+   9.53s twenty minutes earlier in the same session. This is the third phase
+   running where the ten-second agreement could not actually be evaluated, and
+   it now wants a decision rather than another round of shaving — see the note
+   in PROJECT.md §9. The obvious candidate is `save_test.gd`, the single
+   heaviest file.
+
+Numbers: 242 tests / 3794 assertions fast, 272 / 3907 with `--all`, 33 smoke
+checkpoints, zero failures.
+
+## Review — Phase 4c Codex pass on PR #10 (2026-09-08)
+
+Four findings, three of them P1, and all four real. Two are worth recording
+because of *why the tests missed them*.
+
+- [x] **P1 A survivor's bullet carried no owner.** `Combat.spawn_bullet`'s
+      signature is `(..., owner, crit, weapon, color)` and the tag went into
+      the `weapon` slot, so every survivor kill arrived at `damage_enemy` with
+      a null source. Nobody was ever credited for one.
+
+      The test that was supposed to cover this called `Damage.kill_enemy`
+      directly with the tag — it asserted the credit *mechanism* and never
+      touched the *wiring*. There are now two tests that go through a real
+      bullet, and they fail against the old code.
+- [x] **P1 Upkeep charged six Rations a minute instead of one.** One survivor
+      owes about a sixth of a Ration per ten-second bill, and `ceili` rounded
+      each bill up to a whole one; the following clamp then discarded the
+      overpayment. The fraction is carried now and only whole earned Rations
+      are taken.
+
+      The epsilon this needs is not cosmetic: six sixths is 0.9999999999 in
+      binary, and it has to be *inside* the floor rather than only on the way
+      into the branch — the first attempt at the fix guarded the branch and
+      still floored to zero, which the test caught.
+- [x] **P1 Builders repaired for free out of an empty stash.** Healing ran
+      unconditionally and the bill was charged on the way past a 100-point
+      threshold, so with nothing in the stash a builder patched walls all raid
+      for nothing. Repair is now *bought in blocks and then spent*: no credit,
+      no healing, and a warning that says why. It also has its own field —
+      sharing `job_t` with the scavenger's search timer was a clock and a
+      currency in one variable, which is how a search timer starts paying for
+      walls.
+- [x] **P2 A sniper had no give-up path.** Every other walk in the file has
+      one; the climb to a tower did not, so a Watchtower behind a shut gate
+      held somebody against it for the rest of the run. They revert to
+      guarding and the tower goes back on the free list.
+
+The three old tests that broke on the upkeep fix were all encoding the buggy
+behaviour — a single bill spending a whole Ration, and debt reaching exactly
+zero. `debt` is a running fraction now, not a shortage, and the tests say so.
+
+Numbers: 249 tests / 3934 assertions fast, 279 / 4047 with `--all`, 33 smoke
 checkpoints, zero failures.

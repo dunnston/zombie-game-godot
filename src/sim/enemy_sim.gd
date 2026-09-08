@@ -55,6 +55,8 @@ var raid_stall := 0.0
 var objective := {}
 var blocker := {}
 var pending_struct := {}
+## The survivor this swing is committed to, if it is not a structure.
+var pending_survivor: SurvivorSim = null
 
 
 ## The structure this enemy is about to hit, or an empty Dictionary. Kept as

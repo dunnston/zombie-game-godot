@@ -180,6 +180,24 @@ static func steer(world: World, e: EnemySim, want: float, structs: Structures = 
 	return want
 
 
+## The nearest live survivor close enough to bite. Only ever consulted when
+## the player is out of reach — flesh you can see beats flesh in the way.
+static func _survivor_in_reach(sim: GameSim, e: EnemySim) -> SurvivorSim:
+	if sim.crew.list.is_empty():
+		return null
+	var reach: float = e.atk_range + Config.SURVIVOR.r
+	var best: SurvivorSim = null
+	var bd := reach * reach
+	for s in sim.crew.list:
+		if s.dead or s.downed:
+			continue
+		var d := e.pos.distance_squared_to(s.pos)
+		if d < bd:
+			bd = d
+			best = s
+	return best
+
+
 ## The solid player structure directly in front, if any. An open gate is not
 ## one: walking through it is the point.
 static func _blocker_ahead(structs: Structures, e: EnemySim, angle: float) -> Dictionary:
@@ -316,9 +334,14 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 					var reach: float = e.atk_range + Config.TILE
 					if not s.destroyed and e.pos.distance_squared_to(s.pos) < reach * reach:
 						structs.damage(sim, s, e.dmg * e.def.struct_mul, e.pos)
+				elif e.pending_survivor != null:
+					var reach2: float = e.atk_range + Config.SURVIVOR.r + 6.0
+					if not e.pending_survivor.dead and e.pos.distance_squared_to(e.pending_survivor.pos) < reach2 * reach2:
+						sim.crew.damage(sim, e.pending_survivor, e.dmg, e.pos)
 				elif p != null and d_player2 < (e.atk_range + p.r + 6.0) * (e.atk_range + p.r + 6.0):
 					Damage.damage_player(sim, p, e.dmg, e.pos, e.def.name)
 				e.pending_struct = {}
+				e.pending_survivor = null
 			e.last_pos = e.pos
 			continue                                 # committed to the swing
 
@@ -333,6 +356,22 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 			e.blocker = {}
 			e.angle = (p.pos - e.pos).angle()
 			continue
+
+		# A survivor standing in the way is flesh in the way. Enemies do not
+		# *hunt* your people — they come for you and for what you built — but
+		# somebody between a zombie and its target gets bitten. That is what
+		# makes a line of guards a wall you have to keep alive.
+		if not player_in_reach and e.atk_cd <= 0.0 and (e.aggro or e.raid):
+			var who := _survivor_in_reach(sim, e)
+			if who != null:
+				e.atk_cd = e.atk_cd_base
+				e.windup = 0.24
+				e.pending_struct = {}
+				e.pending_survivor = who
+				e.blocker = {}
+				e.angle = (who.pos - e.pos).angle()
+				e.last_pos = e.pos
+				continue
 
 		# Otherwise a wall between this thing and where it means to be
 		# becomes where it means to be.

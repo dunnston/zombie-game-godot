@@ -1,6 +1,6 @@
 class_name SaveGame
 extends RefCounted
-## Saving and loading. Payload version 3.
+## Saving and loading. Payload version 4.
 ##
 ## **Containers are identified by tile position, never by ordinal index**
 ## (invariant 7). The prototype keyed them by their position in an array,
@@ -13,7 +13,7 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 3
+const VERSION := 4
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
@@ -82,6 +82,9 @@ static func to_dict(sim: GameSim) -> Dictionary:
 		# burned away is already in `chopped`.
 		"day_t": sim.clock.t,
 		"day": sim.clock.day,
+		"crew": _crew_record(sim),
+		"rescues": _rescue_record(sim),
+		"ration_debt": sim.crew.debt,
 		"raids_done": sim.raids_done,
 		"threat": sim.threat.value,
 		"bench_tier": sim.structs.bench_tier,
@@ -236,6 +239,10 @@ static func apply(sim: GameSim, data: Dictionary) -> Dictionary:
 			mag[k] = int(rec.mag[k])
 		sim.backpacks.append({"pos": Vector2(float(rec.x), float(rec.y)), "held": held, "mag": mag, "t": 0.0, "seat": int(rec.get("seat", 0))})
 
+	# Last, after the structures: a sniper needs their tower to exist before
+	# they can be pointed at it.
+	_load_crew(sim, data)
+
 	sim.events.clear()
 	return {"ok": true, "reason": ""}
 
@@ -245,3 +252,81 @@ static func load_from(sim: GameSim, slot: int) -> Dictionary:
 	if not read.ok:
 		return read
 	return apply(sim, read.data)
+
+
+## The crew. Like the player's build, only the *inputs* are stored: level and
+## job produce the combat numbers on load through `SurvivorSim.refresh`, so a
+## Charisma perk bought after the save still reaches everyone in it.
+##
+## A sniper's tower is stored by tile, not by index into the structure list —
+## invariant 7, the same rule that keeps container identity out of ordinals.
+static func _crew_record(sim: GameSim) -> Array:
+	var out: Array = []
+	for s in sim.crew.list:
+		if s.dead:
+			continue
+		out.append({
+			"id": s.id, "name": s.display_name, "level": s.level, "xp": s.xp,
+			"x": s.pos.x, "y": s.pos.y, "hp": s.hp,
+			"job": s.job, "kills": s.kills, "hungry": s.hungry,
+			"downed": s.downed, "down_t": s.down_t, "tint": s.tint,
+			"tower_tx": int(s.tower.tx) if not s.tower.is_empty() else -1,
+			"tower_ty": int(s.tower.ty) if not s.tower.is_empty() else -1,
+			# A haul came out of a real container, so it survives a save the
+			# same way it survives a reassignment.
+			"carrying": s.carrying.duplicate(),
+			"carry_items": s.carry_items.duplicate(true),
+		})
+	return out
+
+
+static func _rescue_record(sim: GameSim) -> Array:
+	var out: Array = []
+	for r in sim.crew.rescues:
+		out.append({"x": r.pos.x, "y": r.pos.y, "name": r.name, "level": int(r.level)})
+	return out
+
+
+## Rebuilds the crew. Runs after the structures, because a sniper's tower has
+## to exist before it can be pointed at.
+static func _load_crew(sim: GameSim, data: Dictionary) -> void:
+	sim.crew.list.clear()
+	sim.crew.rescues.clear()
+	sim.crew.seq = 0
+	sim.crew.debt = float(data.get("ration_debt", 0.0))
+
+	for rec in data.get("rescues", []):
+		sim.crew.rescues.append({
+			"pos": Vector2(float(rec.x), float(rec.y)),
+			"name": String(rec.get("name", "Survivor")),
+			"level": int(rec.get("level", 1)),
+		})
+
+	for rec in data.get("crew", []):
+		var s := SurvivorSim.new(Vector2(float(rec.x), float(rec.y)),
+			String(rec.get("name", "Survivor")), int(rec.get("level", 1)))
+		s.id = int(rec.get("id", 0))
+		sim.crew.seq = maxi(sim.crew.seq, s.id)
+		s.xp = float(rec.get("xp", 0.0))
+		s.job = String(rec.get("job", "guard"))
+		s.kills = int(rec.get("kills", 0))
+		s.hungry = bool(rec.get("hungry", false))
+		s.downed = bool(rec.get("downed", false))
+		s.down_t = float(rec.get("down_t", 0.0))
+		s.tint = String(rec.get("tint", Config.SURVIVOR_TINTS[0]))
+		for k in rec.get("carrying", {}):
+			s.carrying[k] = int(rec.carrying[k])
+		for e in rec.get("carry_items", []):
+			s.carry_items.append({"id": String(e.id), "n": int(e.n)})
+		var tx := int(rec.get("tower_tx", -1))
+		var ty := int(rec.get("tower_ty", -1))
+		if tx >= 0:
+			s.tower = sim.structs.at_tile(tx, ty)
+		# A sniper whose tower did not come back is a guard, not a crash.
+		if s.job == "sniper" and s.tower.is_empty():
+			s.job = "guard"
+		# After the level and the job, never before: the ceiling has to exist
+		# before what is standing under it is restored.
+		s.refresh(sim.host())
+		s.hp = minf(float(rec.get("hp", s.max_hp)), s.max_hp)
+		sim.crew.list.append(s)

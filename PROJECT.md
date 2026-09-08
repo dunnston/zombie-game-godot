@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-08, Phase 4b: the day cycle, real 2D lights, fire, render interpolation
+- **Last updated:** 2026-09-08, Phase 4c survivors: the roster, four jobs, upkeep and permanent death
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -80,7 +80,16 @@ These settle arguments. When a decision is close, the pillar wins.
 
 ## 3. Where we are right now
 
-**Status: Phase 4b — it gets dark now.** A day is nine minutes: dawn, day,
+**Status: Phase 4c — you are not alone.** Seven people are scattered across
+the town waiting to be found. Taking one in needs a Bunk *and* the Charisma to
+lead them, and the refusal says which of the two is actually in the way. They
+guard, snipe from a Watchtower, scavenge containers and haul the loot home, or
+repair your walls mid-raid. They eat Rations and shoot ammunition **out of the
+shared stash and never your pack**, which is what makes stocking the base a
+decision. They level, they can be knocked down and helped back up, and they
+stay dead.
+
+**Phase 4b — it gets dark.** A day is nine minutes: dawn, day,
 dusk, night, and a curve of darkness that creeps rather than snaps. Night is
 the pressure valve — more of them out there, noticing you sooner, moving a
 little faster, and Threat climbing at nearly twice the rate. The dark is a
@@ -132,12 +141,12 @@ that will not fit is ever destroyed: it lands on the ground.
 
 | | |
 | --- | --- |
-| Phase | 4 of 5 — 4a (progression) and 4b (day, night, fire) done; 4c survivors and vehicles, 4d menus and audio to come |
-| Playable | The whole loop, it levels you, and it gets dark. **E** searches and uses, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
-| Unit tests | 219 tests, 3683 assertions, 9.9s (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips and the fire spread trials: 242 tests, 18.8s |
-| Smoke | 30 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight |
+| Phase | 4 of 5 — 4a progression, 4b day and fire, 4c survivors done; vehicles and 4d menus and audio to come |
+| Playable | The whole loop, it levels you, it gets dark, and you can hold it with other people. **E** searches and uses, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
+| Unit tests | 249 tests, 3934 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials and the survivor combat tests: 279 tests, 4047 assertions. Wall-clock varies with the machine — see §9 |
+| Smoke | 33 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
-| Save format | **v3** — the clock (day and fraction) on top of v2's build; **v2** — the build (level, points, attributes, perks) beside v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored. |
+| Save format | **v4** — the crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
 
 ### Port status by system
 
@@ -170,7 +179,7 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Save / load | 3c | ported | v1: container identity by tile, world fingerprint, refusals with a reason |
 | Progression, SPECIAL, perks | 4a | ported | `recompute_stats` is the whole build: base -> attributes -> perks -> gear, on one pure pass |
 | Day/night and light | 4b | ported | Real 2D lights, as promised: `CanvasModulate` plus `PointLight2D`, not an overlay |
-| Survivors, jobs, bunks | 4 | — | |
+| Survivors, jobs, bunks | 4c | ported | Roster capped by Charisma and bunks both; everything out of the shared stash |
 | Vehicles | 4 | — | |
 | Fire | 4b | ported | Spreads through scenery and enemies; cannot reach a player structure, by design |
 | Title screen, save slots, keybinds | 4 | — | |
@@ -180,6 +189,42 @@ The spec for each row is in `tasks/port-inventory.md`.
 ---
 
 ## 4. What is built
+
+### Other people (Phase 4c — survivors)
+
+- **`Survivors`** owns the roster, the rescues, the upkeep and the day's work;
+  **`SurvivorSim`** is one person. Their combat numbers are *derived*, not
+  stored: `refresh()` rebuilds them from level and the base owner's Charisma
+  perks, the same way `recompute_stats` rebuilds the player's. So Inspiring
+  Presence reaches the crew already standing in your base rather than only the
+  next hire, and a save stores the level rather than the health it implies.
+- **Two limits, and the refusal names the one that binds.** Charisma is how
+  many will follow you; Bunks are how many you can house; the cap is the lower.
+  "No room" without saying which kind of room is useless, so
+  `recruit_refusal()` returns the sentence the prompt and the roster both show.
+- **Four jobs.** Guard holds the base. Sniper is posted on a Watchtower and
+  gets its armament — but only while actually standing on it, because holding
+  a reference to a structure across the base is not being up it. Scavenger
+  works containers and hauls the loot home. Builder patches the most damaged
+  thing in range, during a raid and after it.
+- **Everything comes out of the shared stash.** Rations, ammunition, and a
+  builder's materials. Food in your own pack is no use to anyone until you
+  drop it off, which is the whole reason a Supply Stash is worth building.
+  Unpaid upkeep accrues as debt, is charged *with* the next bill so restocking
+  actually clears it, and is capped so a long trip away is recoverable rather
+  than a death spiral.
+- **Nothing a survivor carries is ever quietly destroyed.** A haul came out of
+  a real container, so it is handed in or put on the ground when they are
+  reassigned, when the stash cannot be reached, and when they die.
+- **No pathfinding, so every walk has a give-up timer.** Invariant 6 is
+  written about enemies and it is the same rule here: a container behind a
+  locked gate would otherwise hold a scavenger against it for the rest of the
+  run. A target that stops getting closer is written off and another picked.
+- **Enemies ignore survivors unless one is in the way.** They come for you and
+  for what you built; somebody standing between a zombie and its target gets
+  bitten, which is what makes a line of guards a wall you have to keep alive.
+- Down is a countdown, not a death: eight seconds, and a medkit or two
+  bandages puts them back up. Nobody reaches them and they are gone for good.
 
 ### The dark, and what is in it (Phase 4b)
 
@@ -611,12 +656,11 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    peaks at 0.82 alpha, which is the prototype's number, and the tint is now
    applied the way the prototype applied it — so this is the real curve
    rather than the too-dark one the first cut of `LightView` produced.
-1. **Phase 4c — survivors and vehicles.** The roster capped by Charisma *and*
-   bunks, four jobs, Rations upkeep from the shared stash, permanent death;
-   about thirty cars, 62% locked, opened by a key, a lockpick or Hotwire.
-   Both read stats 4a already produces, and Hotwire is refused until they
-   exist. The Bunk and the Watchtower are buildable today and have nothing to
-   put in them.
+1. **Vehicles.** About thirty cars, 62% locked, opened by a key, a lockpick
+   or Hotwire; arcade handling, fuel, roadkill, a 400-unit boot. Split out of
+   4c because survivors alone was already a large change, and because Hotwire
+   is the one perk still refused for want of the system it names. Cut from
+   `main` once the survivors PR is in.
 2. **Phase 4d — the front door.** Title screen, save slots with an index,
    autosave, full key rebinding over `src/core/bindings.gd`, a pause menu that
    saves before it quits, the minimap (which is what Sixth Sense is waiting
@@ -741,9 +785,9 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 219  asserts: 3683  failures: 0
-tests: 246  asserts: 3788  failures: 0   (--all)
-SMOKE done checkpoints=30 failures=0 exit=0
+tests: 249  asserts: 3934  failures: 0
+tests: 279  asserts: 4047  failures: 0   (--all)
+SMOKE done checkpoints=33 failures=0 exit=0
 ```
 
 **On timings.** The ten-second agreement is about the edit loop staying quick,
@@ -847,6 +891,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-08 | Phase 4c (survivors): `SURVIVOR`, `JOBS`, `SCAVENGE`, `BUILDER`, the names and the rescue counts in `Config`; `SurvivorSim` (one person, combat numbers derived from level and the owner's Charisma perks) and `Survivors` (the roster and its two limits, rescues seeded on their own RNG stream, recruiting with a refusal that names the binding limit, Rations upkeep from the shared stash with clearing debt and a cap, damage, down, revive and permanent death, XP and levels, and the guard/sniper/scavenger/builder step); enemies bite a survivor who is in the way; a survivor's kill pays the survivor and the player; `E` takes somebody in and helps somebody up, ahead of every container and gate; a CREW tab on the pack screen with the roster, both limits and the ration clock; `SurvivorView`; `SaveGame` v4 carries the crew and the rescues, a sniper's tower keyed by tile (invariant 7); 26 new tests, three in the slow tier; smoke takes somebody in, opens the roster and reassigns them |
 | 2026-09-08 | Phase 4b: `DAY_LENGTH`, `PHASES`, `DARKNESS_KEYS`, `NIGHT`, `FIRE` and `FLAMMABLE` in `Config`; `DayNight` (the clock, the darkness ramp, the four multipliers four callers had been reading against a stub since Phase 2, the 24h HUD string) and `Fire` (burning enemies and scenery, spread, the 140 ceiling, the wildfire warning, and no path to `sim.structs`); `LightView` — a `CanvasModulate` for the dark and pooled `PointLight2D`s for the torch, the flashlight's puddle and cone, floodlights, muzzle flashes and every fire; render interpolation via `prev_pos` and `Util.render_pos`, with a snap threshold so a respawn does not smear; the HUD gains a day, a clock, a phase and a light hint; `SaveGame` v3 carries the clock; 23 new tests (219 fast, 242 with `--all`); smoke reaches dusk, night, a lit torch and a burning treeline. Fire skips its enemy scan when nothing is alight — without it the suite went over ten seconds on the cost of discovering nothing was on fire |
 | 2026-09-08 | Phase 4a: `ATTRS`, `PERKS`, `STAT_BASE` and the XP curve in `Config`; `Perks` (the pure base → attributes → perks → gear rebuild, and the two `{ok, reason}` gate checks) and `Progression` (one `add_xp` for all nine award sites, `raise_attribute`, `buy_perk`); every derived stat on `PlayerSim` now comes from the recompute instead of a literal; a CHAR tab on the pack screen and a level/XP bar on the HUD; build cost, structure health, turret power, trap damage, ammunition yield, loot rarity, double drops, Adrenaline and Second Wind wired to their consumers; base-wide numbers read `sim.host()`; salvage refunds a share of what you paid so Engineer is not a wood mine; `SaveGame` v2 stores the build and no derived stat; 32 new tests (197 fast, 207 with `--all`); smoke opens the sheet and spends a point. Fixed in passing: the smoke's REPAIR step aimed once and waited a fixed six frames instead of settling the cursor, which made it fail the moment the player stood a few pixels elsewhere |
 | 2026-09-08 | Phase 3c: `RECIPES` in `Config`; `Crafting` (bench tier from the workbench beside you, the Stone Hammer lift, tool gates, room checked against the container the craft will use, overflow to stash then ground); the pack screen grows a CRAFT tab and a STORE mode with DEPOSIT ALL and TAKE SUPPLIES; `SaveGame` v1 — containers by tile, chopped props by tile, structures, stores, worn gear and magazines, behind a world fingerprint taken at generation; `F5` / `F9`; 22 new tests (159 fast, 167 with `--all`); smoke crafts a hatchet, fills a chest, saves and reloads |

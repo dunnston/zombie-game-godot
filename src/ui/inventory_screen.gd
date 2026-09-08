@@ -30,7 +30,7 @@ var drag := {}                   # {from: cell, id, n} while held
 var hover := {}
 var mouse := Vector2.ZERO
 
-## "pack", "craft", "char" or "store".
+## "pack", "craft", "char", "crew" or "store".
 var mode := "pack"
 ## The tile of the container being looked into, or (-1, -1). A tile rather
 ## than the container itself, so the reach check happens every frame and
@@ -40,6 +40,9 @@ var craft_top := 0               # first visible recipe row
 var char_top := 0                # first visible perk row
 ## Which attribute's tree the character sheet is showing.
 var char_attr := "str"
+## Which crew member the roster has selected, by id.
+var crew_sel := 0
+var crew_top := 0                # first visible roster row
 
 
 func _init(sim_: GameSim) -> void:
@@ -104,7 +107,7 @@ func _panel() -> Rect2:
 func _tabs() -> Array[Dictionary]:
 	var panel := _panel()
 	var out: Array[Dictionary] = []
-	var names := ["pack", "craft", "char"] if mode != "store" else ["store"]
+	var names := ["pack", "craft", "char", "crew"] if mode != "store" else ["store"]
 	var x := panel.position.x + 24.0
 	for name in names:
 		out.append({"mode": name, "rect": Rect2(x, panel.position.y + 14.0, 84.0, 24.0)})
@@ -135,7 +138,7 @@ func _cells() -> Array[Dictionary]:
 				"rect": Rect2(x0, y0 + i * (CELL + GAP), CELL, CELL)})
 
 	# The pack grid moves right in store mode but is otherwise the same grid.
-	if mode != "craft" and mode != "char":
+	if mode != "craft" and mode != "char" and mode != "crew":
 		for i in range(player.bag.size()):
 			out.append({"kind": "bag", "slot": "", "index": i,
 				"rect": Rect2(gx + (i % BAG_COLS) * (CELL + GAP), y0 + (i / BAG_COLS) * (CELL + GAP), CELL, CELL)})
@@ -257,11 +260,15 @@ func _gui_input(event: InputEvent) -> void:
 	if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
 		if mode == "char":
 			char_top += 1
+		elif mode == "crew":
+			crew_top += 1
 		else:
 			craft_top += 1
 	elif mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
 		if mode == "char":
 			char_top = maxi(0, char_top - 1)
+		elif mode == "crew":
+			crew_top = maxi(0, crew_top - 1)
 		else:
 			craft_top = maxi(0, craft_top - 1)
 	elif mb.button_index == MOUSE_BUTTON_LEFT:
@@ -290,6 +297,16 @@ func _click_chrome(at: Vector2) -> bool:
 		if r.rect.has_point(at):
 			Crafting.craft(sim, player, r.recipe, bench())
 			return true
+	for r in _crew_rows():
+		if not r.rect.has_point(at):
+			continue
+		if int(r.who) != 0:
+			crew_sel = int(r.who)
+		else:
+			var who := _selected_survivor()
+			if who != null:
+				sim.crew.assign_job(sim, who, String(r.job))
+		return true
 	for r in _char_rows():
 		if not r.rect.has_point(at):
 			continue
@@ -461,6 +478,8 @@ func _draw() -> void:
 			_draw_craft(font, panel)
 		"char":
 			_draw_char(font, panel)
+		"crew":
+			_draw_crew(font, panel)
 		"store":
 			var s := store()
 			draw_string(font, panel.position + Vector2(24, 60),
@@ -481,7 +500,7 @@ func _draw() -> void:
 
 	# The dragging hint is about the grids, and the character sheet has none —
 	# it prints its own line instead, and two of them overlap.
-	if mode != "char":
+	if mode != "char" and mode != "crew":
 		draw_string(font, Vector2(panel.position.x + 24, panel.position.y + panel.size.y - 8),
 			"drag to move  ·  right-click to equip or stow  ·  ctrl+click to drop  ·  shift+click to split",
 			HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 40, 10, Color(1, 1, 1, 0.4))
@@ -676,3 +695,167 @@ func _draw_tooltip(font: Font, stack: Dictionary) -> void:
 		draw_string(font, Vector2(at.x + 8, y), lines[i], HORIZONTAL_ALIGNMENT_LEFT, w - 16,
 			12 if i == 0 else 10, Color("#ebe6d6") if i == 0 else Color(1, 1, 1, 0.65))
 		y += 18.0
+
+
+## The roster: one row per person on the left, the four jobs on the right for
+## whoever is selected. Same shape as the character sheet, and for the same
+## reason — the decision is "what is this person for", and it belongs beside
+## the pack you would be stocking for them.
+func _crew_rows() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if mode != "crew":
+		return out
+	var panel := _panel()
+	var x0 := panel.position.x + 24.0
+	var top := panel.position.y + 96.0
+	var col_w := 300.0
+
+	var crew := sim.crew.alive()
+	var rows := int((panel.size.y - 160.0) / 34.0)
+	crew_top = clampi(crew_top, 0, maxi(0, crew.size() - rows))
+	for i in range(crew_top, mini(crew.size(), crew_top + rows)):
+		out.append({"who": crew[i].id, "job": "",
+			"rect": Rect2(x0, top + (i - crew_top) * 34.0, col_w, 30.0)})
+
+	# The job column only exists once somebody is selected: four buttons with
+	# nobody to apply them to would be four ways to be told no.
+	if _selected_survivor() != null:
+		var px := x0 + col_w + 22.0
+		var pw := panel.position.x + panel.size.x - 24.0 - px
+		for i in range(Config.JOB_IDS.size()):
+			out.append({"who": 0, "job": String(Config.JOB_IDS[i]),
+				"rect": Rect2(px, top + i * 42.0, pw, 38.0)})
+	return out
+
+
+func _selected_survivor() -> SurvivorSim:
+	var crew := sim.crew.alive()
+	if crew.is_empty():
+		return null
+	for s in crew:
+		if s.id == crew_sel:
+			return s
+	crew_sel = crew[0].id
+	return crew[0]
+
+
+func _draw_crew(font: Font, panel: Rect2) -> void:
+	var lim := sim.crew.limits(sim)
+	var crew := sim.crew.alive()
+
+	# The two limits, and which one is actually in the way. Being told "full"
+	# without being told which kind of full is useless.
+	var binding := "bunks" if int(lim.bunks) <= int(lim.charisma) else "Charisma"
+	draw_string(font, panel.position + Vector2(24, 60),
+		"%d / %d" % [crew.size(), int(lim.cap)], HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("#ebe6d6"))
+	draw_string(font, panel.position + Vector2(70, 60),
+		"Charisma %d · Bunks %d — %s is the limit" % [int(lim.charisma), int(lim.bunks), binding],
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("#8a8f84"))
+
+	# Rations are the upkeep, and they come out of the stash and nowhere else.
+	var rations := sim.crew.rations_held(sim)
+	var per_min: float = crew.size() * Config.SURVIVOR.upkeep_per_min * (player.upkeep_mul)
+	var rcol := Color("#8a8f84")
+	if sim.crew.debt > 1.0:
+		rcol = Color("#e05a4a")
+	elif per_min > 0.0 and rations < per_min * 3.0:
+		rcol = Color("#d9c46a")
+	var supply := "%d Rations in the stash" % rations
+	if per_min > 0.0:
+		supply += "  ·  %.1f/min  ·  about %d min left" % [per_min, int(rations / maxf(0.01, per_min))]
+	if sim.crew.debt > 1.0:
+		supply = "OUT OF RATIONS — they are starving"
+	draw_string(font, Vector2(panel.position.x, panel.position.y + 60), supply,
+		HORIZONTAL_ALIGNMENT_RIGHT, panel.size.x - 24.0, 11, rcol)
+
+	if crew.is_empty():
+		var found := sim.crew.rescues.size()
+		draw_string(font, panel.position + Vector2(24, 120),
+			"Nobody yet. There are %d people out there to find — look inside buildings." % found,
+			HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 48.0, 12, Color("#8a8f84"))
+		draw_string(font, panel.position + Vector2(24, 142),
+			"You will need a Bunk for each of them, and the Charisma to lead them.",
+			HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 48.0, 11, Color(1, 1, 1, 0.35))
+		return
+
+	var sel := _selected_survivor()
+	for row in _crew_rows():
+		var rect: Rect2 = row.rect
+		var hot: bool = rect.has_point(mouse)
+		if int(row.who) != 0:
+			_draw_crew_row(font, rect, int(row.who), hot)
+		else:
+			_draw_job_row(font, rect, String(row.job), sel, hot)
+
+	draw_string(font, Vector2(panel.position.x + 24, panel.position.y + panel.size.y - 8),
+		"click a name to select  ·  click a job to reassign  ·  they eat and shoot from the stash, never your pack",
+		HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 40, 10, Color(1, 1, 1, 0.4))
+
+
+func _draw_crew_row(font: Font, rect: Rect2, id: int, hot: bool) -> void:
+	var s: SurvivorSim = null
+	for o in sim.crew.alive():
+		if o.id == id:
+			s = o
+			break
+	if s == null:
+		return
+	var job: Dictionary = Config.JOBS.get(s.job, Config.JOBS.guard)
+	var selected := s.id == crew_sel
+	draw_rect(rect, Color("#242a32") if selected else (Color("#1c2028") if hot else Color("#181b20")))
+	draw_rect(rect, Color(String(job.color)) if selected else Color("#3a4048"), false, 1.0)
+
+	var name_col := Color("#ebe6d6")
+	if s.downed:
+		name_col = Color("#e05a4a")
+	elif s.hungry:
+		name_col = Color("#d9c46a")
+	draw_string(font, rect.position + Vector2(8, 14), s.display_name, HORIZONTAL_ALIGNMENT_LEFT, 90, 12, name_col)
+	draw_string(font, rect.position + Vector2(96, 14), "LV %d" % s.level, HORIZONTAL_ALIGNMENT_LEFT, 44, 10, Color("#8a8f84"))
+	draw_string(font, rect.position + Vector2(0, 14), String(job.short) + ("*" if s.posted else ""),
+		HORIZONTAL_ALIGNMENT_RIGHT, rect.size.x - 8, 11, Color(String(job.color)))
+
+	# Health as a thin bar under the name, plus whatever is wrong with them.
+	var bar := Rect2(rect.position.x + 8, rect.position.y + 20, 130.0, 4.0)
+	draw_rect(bar, Color(0, 0, 0, 0.55))
+	draw_rect(Rect2(bar.position, Vector2(bar.size.x * clampf(s.hp / maxf(1.0, s.max_hp), 0.0, 1.0), bar.size.y)),
+		Color("#c8423a") if s.hp < s.max_hp * 0.35 else Color("#7ec46a"))
+	var note := ""
+	if s.downed:
+		note = "DOWN — %.0fs" % maxf(0.0, s.down_t)
+	elif s.hungry:
+		note = "hungry"
+	elif s.out_of_ammo:
+		note = "no ammo in the stash"
+	elif not s.carrying.is_empty() or not s.carry_items.is_empty():
+		note = "hauling home"
+	if not note.is_empty():
+		draw_string(font, rect.position + Vector2(146, 24), note, HORIZONTAL_ALIGNMENT_LEFT,
+			rect.size.x - 154, 9, Color("#e05a4a") if s.downed else Color(1, 1, 1, 0.4))
+	draw_string(font, rect.position + Vector2(0, 25), "%d kills" % s.kills,
+		HORIZONTAL_ALIGNMENT_RIGHT, rect.size.x - 8, 9, Color(1, 1, 1, 0.3))
+
+
+func _draw_job_row(font: Font, rect: Rect2, id: String, s: SurvivorSim, hot: bool) -> void:
+	if s == null:
+		return
+	var job: Dictionary = Config.JOBS[id]
+	var current := s.job == id
+	# Sniper is the only job that can be refused, and it says why up front
+	# rather than after the click.
+	var blocked := ""
+	if id == "sniper" and not current and sim.crew.free_towers(sim).is_empty():
+		blocked = "No free Watchtower"
+
+	draw_rect(rect, Color("#242a32") if current else (Color("#1c2028") if hot and blocked.is_empty() else Color("#181b20")))
+	draw_rect(rect, Color(String(job.color)) if current else Color("#3a4048"), false, 1.0)
+	var col := Color(String(job.color))
+	if not blocked.is_empty():
+		col = Color("#6a6f68")
+	draw_string(font, rect.position + Vector2(8, 16), String(job.name), HORIZONTAL_ALIGNMENT_LEFT,
+		rect.size.x - 100, 12, col)
+	draw_string(font, rect.position + Vector2(8, 30), String(job.desc), HORIZONTAL_ALIGNMENT_LEFT,
+		rect.size.x - 16, 9, Color(1, 1, 1, 0.2 if not blocked.is_empty() else 0.38))
+	var right := "ON DUTY" if current else ("ASSIGN" if blocked.is_empty() else blocked)
+	draw_string(font, rect.position + Vector2(0, 16), right, HORIZONTAL_ALIGNMENT_RIGHT,
+		rect.size.x - 8, 10, Color("#9fd07a") if current else (Color("#c9a227") if blocked.is_empty() else Color("#7a7f76")))
