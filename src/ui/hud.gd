@@ -91,27 +91,60 @@ func _draw() -> void:
 		draw_line(Vector2(wx, ty - 10), Vector2(wx, ty + 2), Color(1, 1, 1, 0.4), 1.0)
 	draw_string(font, Vector2(tx + 52, ty + 14), sim.threat.label(), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, tcol)
 
-	# The hotbar: what you hold and what is in it.
+	# The hotbar: six slots, and the selected one is what you are holding.
 	var slot_w := 74.0
-	var sx := vp.x / 2.0 - slot_w * p.loadout.size() / 2.0
+	var n_slots := p.hotbar.size()
+	var sx := vp.x / 2.0 - slot_w * n_slots / 2.0
 	var sy := vp.y - 58.0
-	for i in range(p.loadout.size()):
-		var wpn: Dictionary = Config.WEAPONS[p.loadout[i]]
+	for i in range(n_slots):
+		var stack := p.hotbar.at(i)
+		var id: String = stack.get("id", "")
 		var r := Rect2(sx + i * slot_w, sy, slot_w - 4, 44)
 		draw_rect(r, Color(0, 0, 0, 0.6 if i == p.slot else 0.4))
-		draw_rect(r, Color(wpn.get("color", "#888888")) if i == p.slot else Color(1, 1, 1, 0.15), false, 2.0 if i == p.slot else 1.0)
+		var edge := Color(Items.color_of(id)) if not id.is_empty() else Color("#888888")
+		draw_rect(r, edge if i == p.slot else Color(1, 1, 1, 0.15), false, 2.0 if i == p.slot else 1.0)
 		draw_string(font, Vector2(r.position.x + 4, r.position.y + 12), str(i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1, 1, 1, 0.5))
-		draw_string(font, Vector2(r.position.x, r.position.y + 25), wpn.name, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 10, Color.WHITE)
-		if wpn.kind == "gun":
-			var ammo := "%d / %d" % [p.mag.get(wpn.id, 0), p.count_res(wpn.ammo)]
+		if id.is_empty():
+			continue
+		draw_string(font, Vector2(r.position.x, r.position.y + 25), Items.name_of(id), HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 10, Color.WHITE)
+		var wpn: Dictionary = Config.WEAPONS.get(id, {})
+		if wpn.get("kind", "") == "gun":
+			var ammo := "%d / %d" % [p.mag.get(id, 0), p.count_res(wpn.ammo)]
 			draw_string(font, Vector2(r.position.x, r.position.y + 39), ammo, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 10, Color("#ffe6a8"))
 		elif wpn.get("tool", false):
 			draw_string(font, Vector2(r.position.x, r.position.y + 39), "tool", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 9, Color(1, 1, 1, 0.5))
+		elif stack.n > 1:
+			draw_string(font, Vector2(r.position.x, r.position.y + 39), "x%d" % stack.n, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 10, Color(1, 1, 1, 0.7))
 	# Reload and healing.
 	if not p.reloading.is_empty():
 		draw_string(font, Vector2(0, sy - 8), "RELOADING", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 11, Color("#ffe6a8"))
-	var meds := "Q  bandage x%d  medkit x%d" % [p.count_res("bandage"), p.count_res("medkit")]
-	draw_string(font, Vector2(sx + slot_w * p.loadout.size() + 8, sy + 30), meds, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.6))
+	var meds := "Q  bandage x%d  medkit x%d" % [p.count_carried("bandage"), p.count_carried("medkit")]
+	draw_string(font, Vector2(sx + slot_w * n_slots + 8, sy + 30), meds, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.6))
+
+	# Carry weight, beside the hotbar. Grey is fine, amber is nearly full,
+	# red means you are over and it is costing you.
+	var carried := p.carried_weight()
+	var frac := clampf(carried / p.carry_cap, 0.0, 1.0)
+	var wx := sx - 132.0
+	draw_rect(Rect2(wx, sy + 18, 120, 10), Color(0, 0, 0, 0.55))
+	var wcol := Color("#8a8f84")
+	if p.overloaded():
+		wcol = Color("#c96a5a")
+	elif frac > 0.85:
+		wcol = Color("#d9c46a")
+	draw_rect(Rect2(wx, sy + 18, 120 * frac, 10), wcol)
+	draw_string(font, Vector2(wx, sy + 14), "%d / %d" % [roundi(carried), roundi(p.carry_cap)], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, wcol)
+
+	# What the interact key is offering, and the search channel.
+	var target := Interact.best_target(sim, p)
+	if not p.searching.is_empty():
+		var c: Dictionary = p.searching.container
+		var k := clampf(p.searching.t / p.searching.dur, 0.0, 1.0)
+		draw_string(font, Vector2(0, sy - 70), "Searching %s" % c.label, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#ebe6d6"))
+		draw_rect(Rect2(vp.x / 2.0 - 60, sy - 62, 120, 6), Color(0, 0, 0, 0.6))
+		draw_rect(Rect2(vp.x / 2.0 - 60, sy - 62, 120 * k, 6), Color("#c9a227"))
+	elif not target.is_empty():
+		draw_string(font, Vector2(0, sy - 70), "E  %s" % target.label, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#d8e8c0"))
 
 	# Notices, left of centre, newest at the bottom.
 	var ny := vp.y * 0.42

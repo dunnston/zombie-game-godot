@@ -13,10 +13,11 @@ func before_each() -> void:
 	plot = tile_centre(clear_plot(12))
 	p.pos = plot
 	p.intent.aim = plot + Vector2.RIGHT
+	sim.give_test_kit(p)
 
 
 func _hold(id: String) -> void:
-	p.select_slot(p.loadout.find(id))
+	p.select_slot(p.hotbar_index(id))
 	p.attack_cd = 0.0
 
 

@@ -42,3 +42,23 @@ Distilled into `PROJECT.md` §8. Append here first.
 - A 27ms Dijkstra with per-neighbour Variant arrays became a 1.6ms BFS with
   a padded byte grid and index arithmetic. In GDScript the inner loop's
   shape is the whole cost.
+
+## 2026-09-08 (Phase 3a)
+
+- A member initializer runs while its class is still loading. `var bag :=
+  Slots.new(...)` on PlayerSim died with "nonexistent function 'new' in
+  base GDScript". Build cross-class objects in `_init`.
+- The unit tests never load a Control, so two parse errors in the pack
+  screen passed a green test run and only appeared when the smoke run
+  booted the scene. Any UI change needs the smoke run.
+- `Input.action_press` sets action state without synthesising an
+  InputEvent: `_unhandled_input` never fires, so the scripted Tab could not
+  open the pack. Poll anything the smoke run has to press.
+- Two classes that name each other in type annotations are fine, but the
+  weight-capped add read better on `Slots` than on `Items` anyway. When a
+  cycle appears, ask which side the function belonged on.
+- A test that puts the player beside one container and asserts on *that*
+  container is wrong: furniture stands shoulder to shoulder and the key
+  goes to the nearest. Assert on what the sim chose.
+- Regenerating the world per test costs a third of a second each. One
+  private world, with `looted` reset between tests, kept the suite at 6.8s.

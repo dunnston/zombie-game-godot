@@ -48,21 +48,37 @@ var chop_stam_mul := 1.0
 var loot_mul := 1.0
 var heal_mul := 1.0
 var heal_speed_mul := 1.0
+var search_mul := 1.0
 var armor_dr := 0.0
-var lit := false                 # carrying a lit torch (Phase 3): seen further
+var lit := false                 # carrying a lit light: noticed further out
+var carry_cap: float = Config.PLAYER.carry_cap
+var pickup_range: float = Config.PLAYER.pickup_range
 
 var xp := 0
 
-# What is held and carried. Phase 3 replaces the loadout with the hotbar
-# and `res` with the slot grid; the resource API stays.
-var loadout: Array[String] = []
+# One addressable list for everything carried, so it can all be moved,
+# dropped and looked at the same way. Capacity is by weight, not slot count,
+# but the grids are finite too: hoarding thirty kinds of thing still costs.
+## Built in _init rather than here: a member initializer runs while the class
+## is still loading, and reaching for another class_name at that moment is
+## how you get "nonexistent function 'new'".
+var bag: Slots
+var hotbar: Slots
+var equip := {"head": "", "body": "", "hands": "", "legs": "", "feet": "", "offhand": ""}
+var start_weapon: String = Config.START_KIT.weapon
 var slot := 0
-var res := {}                    # id -> count
 var mag := {}                    # weapon id -> rounds loaded
+
+# The off-hand light. The charge lives here rather than in the slot, because
+# a slot is only {id, n}; Equipment keeps the two in step.
+var light_on := false
+var light_fuel := 0.0
+var light_id := ""
 
 var attack_cd := 0.0
 var reloading := {}              # {w, t, dur, shell} or empty
 var using := {}                  # {id, t, dur} or empty
+var searching := {}              # {container, t, dur} or empty
 var swing := {}                  # {t, dur, angle, arc, range} for the view
 var recoil := 0.0
 var recoil_dir := 1.0
@@ -72,36 +88,91 @@ var needs_hint_at := -99.0
 var intent := Intent.new()
 
 
+func _init() -> void:
+	bag = Slots.new(Config.PLAYER.inv_slots)
+	hotbar = Slots.new(Config.PLAYER.hotbar_slots)
+
+
 # -------------------------------------------------------------- resources --
+#
+# The pack is where supplies live: ammunition, materials, everything a rule
+# spends. These three keep the names Phase 2 used and answer for the pack, so
+# reloading and building need not know the inventory was rebuilt underneath
+# them. `count_carried` is the wider question — the hotbar counts too — and
+# only the things you hold in your hand ask it.
 
 func count_res(id: String) -> int:
-	return res.get(id, 0)
+	return bag.count(id)
 
 
-func add_res(id: String, n: int) -> void:
-	res[id] = res.get(id, 0) + n
+func add_res(id: String, n: int) -> int:
+	return bag.add(id, n)
 
 
 ## Takes up to `n`, returns how many were taken.
 func take_res(id: String, n: int) -> int:
-	var have: int = res.get(id, 0)
-	var take := mini(have, n)
-	if take > 0:
-		res[id] = have - take
-	return take
+	return bag.take(id, n)
+
+
+func count_carried(id: String) -> int:
+	return bag.count(id) + hotbar.count(id)
+
+
+## Spends from the hotbar first, so the stack you can see going down is the
+## one you were watching.
+func take_carried(id: String, n: int) -> int:
+	var got := hotbar.take(id, n)
+	if got < n:
+		got += bag.take(id, n - got)
+	return got
+
+
+func carries(id: String) -> bool:
+	return count_carried(id) > 0
+
+
+func carried_weight() -> float:
+	return bag.weight() + hotbar.weight()
+
+
+## How much weight the pack may still take. The budget covers pack and hotbar
+## together, because that is what the weight bar shows — check against
+## anything narrower and loot keeps fitting after the bar has passed 100%.
+func pack_allowance() -> float:
+	return carry_cap - hotbar.weight()
+
+
+func overloaded() -> bool:
+	return carried_weight() > carry_cap
 
 
 # ---------------------------------------------------------------- weapons --
 
-## What the player is swinging or firing. Empty hands means fists.
+## The item id in the selected hotbar slot, or "" for empty hands.
+func held_id() -> String:
+	return hotbar.id_at(slot)
+
+
+## What the player is swinging or firing. An empty slot, or one holding
+## something that is not a weapon, means fists — you can still punch.
 func weapon() -> Dictionary:
-	if slot >= 0 and slot < loadout.size() and Config.WEAPONS.has(loadout[slot]):
-		return Config.WEAPONS[loadout[slot]]
+	var id := held_id()
+	if Config.WEAPONS.has(id):
+		return Config.WEAPONS[id]
 	return Config.WEAPONS.fists
 
 
+## Which hotbar slot holds `id`, or -1. The tests and the smoke run reach for
+## a named weapon; the player reaches for a number.
+func hotbar_index(id: String) -> int:
+	for i in range(hotbar.size()):
+		if hotbar.id_at(i) == id:
+			return i
+	return -1
+
+
 func select_slot(i: int) -> void:
-	if i < 0 or i >= loadout.size() or i == slot:
+	if i < 0 or i >= hotbar.size() or i == slot:
 		return
 	slot = i
 	reloading = {}
@@ -109,7 +180,7 @@ func select_slot(i: int) -> void:
 
 
 func cycle_slot(dir: int) -> void:
-	var n := loadout.size()
+	var n := hotbar.size()
 	if n == 0:
 		return
 	select_slot(((slot + dir) % n + n) % n)
@@ -126,11 +197,11 @@ func use_healing(sim: GameSim) -> bool:
 		return false
 	var missing := max_hp - hp
 	var pick := ""
-	if missing > 45.0 and count_res("medkit") > 0:
+	if missing > 45.0 and count_carried("medkit") > 0:
 		pick = "medkit"
-	elif count_res("bandage") > 0:
+	elif count_carried("bandage") > 0:
 		pick = "bandage"
-	elif count_res("medkit") > 0:
+	elif count_carried("medkit") > 0:
 		pick = "medkit"
 	if pick.is_empty():
 		sim.notify("No medical supplies", "#c96a5a")
@@ -142,7 +213,7 @@ func use_healing(sim: GameSim) -> bool:
 
 func _finish_use(sim: GameSim) -> void:
 	var c: Dictionary = Config.CONSUMABLES[using.id]
-	if take_res(using.id, 1) > 0:
+	if take_carried(using.id, 1) > 0:
 		Damage.heal_player(sim, self, c.heal)
 	using = {}
 
@@ -218,6 +289,11 @@ func tick(sim: GameSim, dt: float) -> void:
 			cycle_slot(it.wheel)
 		if it.use:
 			use_healing(sim)
+
+	if it.light:
+		Equipment.toggle_light(sim, self)
+	Equipment.update_light(sim, self, dt)
+	Interact.tick(sim, self, dt)
 
 
 ## Stamina, speed and the actual step, from the movement half of the intent.

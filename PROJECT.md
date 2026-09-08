@@ -80,24 +80,28 @@ These settle arguments. When a decision is close, the pillar wins.
 
 ## 3. Where we are right now
 
-**Status: Phase 2 built, awaiting the owner's fight.** On top of Phase 1's
-map: walkers, runners, brutes and behemoths from the spec's table, spawned
-off screen around the player and culled far away; they see, hear, hunt,
-investigate and give up; they find doors with a flow field the prototype
-never had. The player holds a six-slot Phase 2 kit (pipe, hatchet, bow,
-pistol, shotgun, rifle), swings, chops trees, shoots, reloads and bandages;
-bullets stop on walls and fly over water and fences. Gunfire raises Threat;
-at 100 a raid comes for you in waves. Nothing to pick up or build yet, and
-no structures for a raid to break on: that is Phase 3.
+**Status: Phase 3a built — the game now has things in it.** On top of Phase
+2's fight: a survivor wakes with a steel pipe and two bandages and nothing
+else. Everything else is out there. Thirty container archetypes answer a
+held E and pay out of their own loot table; ground litter, bushes and rocks
+answer a tap. What comes out goes into a thirty-slot pack, a six-slot hotbar
+and six body slots, all of it draggable, droppable and weighed — capacity is
+200 units across the pack and hotbar together. Fifteen armour pieces reduce
+damage through `recompute_stats()` and nothing else; a torch lights the
+off-hand and burns itself away. Dying leaves a pack where you fell. Nothing
+that will not fit is ever destroyed: it lands on the ground.
+
+Still to come in Phase 3: building and structures (3b), then crafting,
+storage and saves (3c).
 
 | | |
 | --- | --- |
-| Phase | 2 of 5 — something to fear (PR open, playtest gate pending; Phase 1's PR is also still open) |
-| Playable | Fightable. Open the project in Godot and press Play. Keys 1–6 pick a weapon, R reloads, Q bandages. |
-| Unit tests | 72 tests, 365 assertions, ~5.5s (`tools\test.cmd`, ~8s with the import pass) |
-| Smoke | 14 checkpoints: walk, sprint, seven districts, a walker shot, a raid wave, a raid over (`tools\smoke.cmd`, ~10s) |
+| Phase | 3a of 5 — what you carry (PR open) |
+| Playable | Scavengeable. Play, then hold **E** at a cabinet, **Tab** for the pack, **T** for a torch. |
+| Unit tests | 105 tests, 1154 assertions, ~6.8s (`tools\test.cmd`, ~9s with the import pass) |
+| Smoke | 18 checkpoints: walk, sprint, seven districts, a container searched, the pack opened, a stack dropped and recovered, a walker shot, a raid |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~1.6ms |
-| Save format | none yet |
+| Save format | none yet (3c) |
 
 ### Port status by system
 
@@ -114,13 +118,15 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Enemies, spawning, chase | 2 | ported | Count radius widened past the spawn ring (§6); stuck test is relative to pace (§6) |
 | Noise | 2 | ported | One `Sound.make_noise`; alert + destination, never aggro |
 | Quiet field / pressure | 2 | ported | Structures' standing quiet arrives with structures (Phase 3) |
-| Combat: melee, bow, guns, bullets | 2 | ported | Fixed six-slot kit stands in for the hotbar until Phase 3 |
+| Combat: melee, bow, guns, bullets | 2 | ported | Now fed by the hotbar; `TEST_KIT` is what the tests hold |
 | Damage routing | 2 | ported | Solo death only; downed-not-dead is co-op (Phase 5) |
 | Navigation | 2 | **new** | Flow field per living player; enemies chasing you follow it |
-| Raids and threat | 2 | ported | Raiders come for you; targeting the nearest structure needs Phase 3 |
-| Items registry | 3 | — | |
-| Inventory, equipment, hotbar | 3 | — | |
-| Loot and containers | 3 | — | |
+| Raids and threat | 2 | ported | Raiders come for you; targeting the nearest structure needs 3b |
+| Items registry | 3a | ported | `Items` over RES + WEAPONS + GEAR + CONSUMABLES; `Slots` is the container |
+| Inventory, equipment, hotbar | 3a | ported | Tab; drag, right-click, ctrl+click to drop, shift+click to split |
+| Loot and containers | 3a | ported | 30 tables; overflow always lands on the ground |
+| Ground pickups and death packs | 3a | ported | Magnet, dropper hold-off, recoverable backpack |
+| Lights (torch, flashlight) | 3a | ported | Charge lives on the player; the dark itself is Phase 4 |
 | Crafting | 3 | — | Inside the inventory screen this time |
 | Building, structures, towers, turrets | 3 | — | |
 | Storage tiers | 3 | — | |
@@ -137,6 +143,36 @@ The spec for each row is in `tasks/port-inventory.md`.
 ---
 
 ## 4. What is built
+
+### What you carry (Phase 3a)
+
+- **`Items`** — one registry over `RES`, `WEAPONS`, `GEAR` and `CONSUMABLES`.
+  `kind` ("res" / "weapon" / "gear" / "consumable") is what the screen
+  switches on. Fists are excluded: they are not an object you carry.
+- **`Slots`** — the slot container behind the pack, the hotbar and (from 3b)
+  every chest. Add tops up part-used stacks before opening new ones; `add`
+  and `add_capped` report what actually fitted so the caller can spill the
+  rest. The plain id→count maps keep their own three functions on `Items`.
+- **`PlayerSim`** — a 30-slot `bag`, a 6-slot `hotbar` and six `equip`
+  slots. `count_res` / `add_res` / `take_res` still answer for the pack, so
+  reloading and healing did not have to learn about any of this;
+  `count_carried` is the wider question, and only what you hold in your hand
+  asks it. Capacity is weight across pack and hotbar together.
+- **`Loot`** — the weighted roll, the prefixed entry grammar
+  (`weapon:` / `gear:` / `item:` / bare resource) with the pickup decoder
+  beside it, ground piles with the magnet and the dropper hold-off, the
+  death backpack, and small drops from bodies.
+- **`Interact`** — one function decides what `E` is offering, so the prompt
+  and the key can never disagree. Searching is a held channel that stops if
+  you let go or drift away; gathering is offered last, because litter is
+  everywhere and would otherwise outrank the cabinet you crossed the room for.
+- **`Equipment`** — equip, unequip, quick-equip, moves, drops and the light,
+  every one ending in `recompute_stats()` (invariant 4). Phase 3 gives that
+  function one output, `armor_dr`; Phase 4 grows it into the whole build.
+- **View** — `PickupView` draws the piles and packs; `InventoryScreen` is the
+  pack, drawn immediate-mode against a computed cell list so the hit test and
+  the drawing describe the same rectangles; the HUD gained the real hotbar, a
+  weight bar, the interact prompt and the search ring.
 
 ### Something to fear (Phase 2)
 
@@ -332,6 +368,14 @@ Phases 1–4 respecting it.
 | 2026-09-08 | A melee target needs the line a bullet needs | The arc checked distance and angle only, so a pipe (73px of threshold) hit through a one-tile wall that holds two bodies 66px apart. Terrain line of sight, not foot collision, so water and fences are still swung over — the same asymmetry shots have. | Yes, one check |
 | 2026-09-08 | `bleed` dropped from the machete, knife and scythe | The prototype declared it on three weapons and never read it anywhere. Advertising a mechanic nothing implements is worse than not having it (pillar 5); those three are already separated by damage, cadence, reach and arc. Comes back as a spec'd mechanic or not at all. | Yes |
 | 2026-09-08 | An unfinished raid pays XP on the same share as salvage | The floor was `0.5 + share/2`, so a horde you never touched still paid half its XP — the exact "hiding beats defending" the salvage share exists to prevent. | Yes, one expression |
+| 2026-09-08 | One `Slots` container, and the pack keeps the Phase 2 resource API | `count_res` / `add_res` / `take_res` now answer for the bag rather than a flat map, so reloading, chopping and healing did not change at all when the inventory landed underneath them. The stash and car boots stay plain id→count maps with three functions of their own: the prototype proved one API can serve both shapes. | Yes |
+| 2026-09-08 | Weight capacity is netted across the pack and the hotbar | The bar shows both, so every capacity check has to subtract the hotbar or loot keeps fitting after the bar reads full. `pack_allowance()` is the one expression that does it. | Yes |
+| 2026-09-08 | The entry grammar and the pickup decoder live in the same file | `weapon:` / `gear:` / `item:` / bare resource, encoded and decoded within twenty lines of each other. In the prototype the two drifted and the symptom was rare gear silently deleted on contact — a bug you only find by dropping a rifle. | No reason to |
+| 2026-09-08 | Nothing equips itself | Loot goes to the pack and waits. The prototype auto-wore the best piece and became impossible to reason about; quick-equip is a button you press, and it never picks between a torch and a flashlight for you because that is a decision about how loud you want to be. | Yes |
+| 2026-09-08 | Gathering is the last thing `E` offers | Ranked by distance like everything else, a twig at your feet beats the container you walked across the room for. Litter is everywhere by design, so it only gets the key when nothing else wants it. | Yes |
+| 2026-09-08 | A dropped pile ignores its dropper until they step clear | It lands at your feet, inside collection range, so without the hold-off the magnet hands it straight back and dropping does nothing. A state, not a timer: it waits as long as you stand there. Teammates may take it immediately — that is how you hand something over. | Yes |
+| 2026-09-08 | The pack screen is drawn immediate-mode, not built from Control nodes | One `_cells()` function produces the rectangles that both the drawing and the hit test use, so they cannot describe different grids. It is also how the HUD already works, and how the prototype's canvas inventory worked. | Yes, but it is a rewrite |
+| 2026-09-08 | Panels are polled, not handled as input events | `Input.action_press` sets action state without synthesising an `InputEvent`, so a scripted Tab never reached `_unhandled_input` and the smoke run could not open the pack. Polling `is_action_just_pressed` matches every other key here and keeps the smoke path honest. | Yes |
 | 2026-09-08 | Anti-stall relocation gated at 400px, and the no-base centre follows you | The gate was a bare 240 and the centre froze at the warning, so a raider legitimately chasing a player who had moved read as stalled and got warped out of the fight. 400 sits below the 520px spawn ring (a raider wedged where it spawned is still rescued) and past half a screen (nothing you are watching is teleported). | Yes, one number |
 
 ---
@@ -360,12 +404,15 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    time; do enemies coming round a building feel like hunting or like
    cheating; does the tier-1 crowd (four around you, 1400px) feel thin or
    dead; does a raid with nothing to defend feel like anything.
-1. **Phase 3.** Items, the inventory and hotbar (replacing the kit), loot
-   and containers, the destructible structure map, building, storage,
-   crafting in the inventory screen, saves with tile-derived container
-   identity; then raiders target the nearest structure, enemies punch what
-   blocks them, the quiet field counts structures, and the raid harness is
-   run against the compound to reproduce §9's reference figures.
+1. **Phase 3b — what you build.** The destructible structure map beside the
+   terrain bitmap, walls and gates and traps, storage, the generator,
+   turrets and towers, repair and demolish, build mode; then raiders target
+   the nearest structure, enemies punch what blocks them, the quiet field
+   counts structures, and the raid harness runs against the compound to
+   reproduce §9's reference figures.
+2. **Phase 3c — what you make and keep.** Crafting inside the pack screen,
+   the two-panel storage screen, and saves with tile-derived container
+   identity behind a world fingerprint.
 2. **Render interpolation.** The sim runs at 60Hz and the view at the
    monitor's rate; on a 144Hz screen movement judders until positions are
    interpolated between physics frames. Every entity now needs a previous
@@ -439,6 +486,18 @@ summarised in `tasks/port-inventory.md`.
 - **Trace before tuning.** A walker that took 10.7s round the shack looked
   like oscillation; a per-second trace of its field distance (22 → 3,
   monotonic) showed it was a 22-tile path at a walker's pace. (2026-09-08)
+- **A member initializer runs while the class is still loading.** `var bag
+  := Slots.new(...)` at the top of `PlayerSim` failed with "nonexistent
+  function 'new' in base GDScript" — the other class was not ready yet.
+  Build cross-class objects in `_init`. (2026-09-08)
+- **The unit tests never load the UI.** Two parse errors in the pack screen
+  passed a green `tools\test` and only surfaced when the smoke run tried to
+  boot the scene. A UI change is not verified until the smoke run has drawn
+  it. (2026-09-08)
+- **`Input.action_press` does not synthesise an `InputEvent`.** It sets the
+  action's state, so polled code sees it and `_input`/`_unhandled_input`
+  never fire. Anything the smoke run needs to press must be polled.
+  (2026-09-08)
 
 ---
 
@@ -453,8 +512,8 @@ summarised in `tasks/port-inventory.md`.
 Both must report **zero failures**. Current expected output:
 
 ```
-tests: 72  asserts: 365  failures: 0
-SMOKE done checkpoints=14 failures=0 exit=0
+tests: 105  asserts: 1154  failures: 0
+SMOKE done checkpoints=18 failures=0 exit=0
 ```
 
 The tests also print measurements worth reading when a number moves:
@@ -478,9 +537,16 @@ because the last stragglers wedge and the 25s no-progress rule fires.
 The smoke PNGs in `.smoke/` are the proof for anything visual: read them.
 `00_spawn` and `01_walked_east` should show the survivor on the highway
 west of the camp; `03`–`09` are the suburbs, Market Row, downtown, the
-farms, the lake lodge, the forest and the junkyard; `10`–`13` are a walker
-approaching with its arms out, its corpse after three pistol rounds, the
-raid banner with a raider on the ring, and the salvage notice.
+farms, the lake lodge, the forest and the junkyard; `10`–`13` are a
+container just searched, the pack screen with the pipe and the bandages on
+the hotbar, a dropped stack on the ground and the same stack recovered;
+`14`–`17` are a walker approaching with its arms out, its corpse after
+three pistol rounds, the raid banner with a raider on the ring, and the
+salvage notice.
+
+A UI change is not verified by `tools\test.cmd`: the headless run never
+loads a Control, so a parse error in a screen passes the tests and fails
+the game. Run the smoke and look at the picture.
 
 `tools\smoke.cmd` opens a window for a few seconds; that is expected. The
 Godot MCP's `run_project` / `get_debug_output` are the alternative when a
@@ -503,6 +569,7 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 
 | Date | What |
 | --- | --- |
+| 2026-09-08 | Phase 3a: `GEAR`, the 30 `LOOT` tables and the real starting kit in `Config`; `Items` and `Slots`; the pack, hotbar and body slots on `PlayerSim` with weight capacity; `Loot` (rolls, the entry grammar, ground pickups, the death backpack, body drops), `Interact` (the E target and the search channel), `Equipment` (wearing things, moves, drops, the light, and `recompute_stats`); `PickupView` and `InventoryScreen`; the HUD's real hotbar, weight bar and interact prompt; 30 new headless tests, 105 total; smoke searches a container, opens the pack, drops a stack and picks it back up |
 | 2026-09-08 | Phase 2 review pass (PR #2): melee needs terrain line of sight; raid XP paid on the killed share and the raid kill bonus limited to raiders; the no-base raid centre follows the player and the anti-stall gate moved into `Config.RAID.stall_radius`; `bleed` removed from three weapon rows; 3 new tests, 75 total |
 | 2026-09-08 | Phase 2: the spec's enemy, weapon, resource, spawn, noise, quiet, threat and raid tables in `Config`; `EnemySim`, `Enemies` (spawner + AI), `SpatialHash`, `NavField` (the flow field), `Sound`, `QuietField`, `Combat`, `Damage`, `Threat`, `Raid`; player combat, the Phase 2 kit, sim events; enemy, effects and player views, the HUD's hotbar, threat meter, raid banner and notices; 53 new headless tests including a raid harness; smoke run shoots a walker and forces a raid |
 | 2026-09-08 | Phase 1: `Config`, `Rng`, `World` (the generator, bit-identical to the prototype), `PlayerSim`, `GameSim`, `Intent`; terrain atlas + TileMapLayers, prop renderer, player view, HUD; bindings autoload and `LocalInput`; 19 headless tests; smoke run walks, sprints and photographs seven districts |

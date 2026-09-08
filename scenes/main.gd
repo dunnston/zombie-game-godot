@@ -11,10 +11,12 @@ var terrain: TerrainRenderer
 var props_below: PropRenderer
 var props_above: PropRenderer
 var enemy_view: EnemyView
+var pickup_view: PickupView
 var fx: FxView
 var player_view: PlayerView
 var camera: Camera2D
 var hud: Hud
+var inventory: InventoryScreen
 var shake := 0.0
 var _shake_rng := RandomNumberGenerator.new()
 
@@ -32,6 +34,8 @@ func _ready() -> void:
 
 	props_below = PropRenderer.new(sim, false)
 	add_child(props_below)
+	pickup_view = PickupView.new(sim)
+	add_child(pickup_view)
 	enemy_view = EnemyView.new(sim)
 	add_child(enemy_view)
 	player_view = PlayerView.new(sim.players[0])
@@ -60,11 +64,22 @@ func _ready() -> void:
 	add_child(layer)
 	hud = Hud.new(sim)
 	layer.add_child(hud)
+	inventory = InventoryScreen.new(sim)
+	layer.add_child(inventory)
 	print("boot: world %d ms, terrain %d ms, props %d, containers %d" % [t1 - t0, t2 - t1, sim.world.props.size(), sim.world.containers.size()])
 
 
 func _physics_process(dt: float) -> void:
-	LocalInput.gather(sim.players[0].intent, self)
+	# Polled rather than handled as an event, like every other key here: the
+	# smoke run presses actions through `Input`, which sets the action state
+	# without ever synthesising an InputEvent.
+	if Input.is_action_just_pressed("inventory"):
+		inventory.toggle()
+	elif Input.is_action_just_pressed("pause") and inventory.visible:
+		inventory.toggle()
+	# An open panel owns the mouse: you can still walk, but a click belongs to
+	# the screen you are looking at rather than to the gun in your hand.
+	LocalInput.gather(sim.players[0].intent, self, inventory.visible)
 	sim.tick(dt)
 
 
@@ -81,6 +96,9 @@ func _process(dt: float) -> void:
 	_update_camera(dt)
 	props_below.queue_redraw()
 	props_above.queue_redraw()
+	pickup_view.queue_redraw()
+	if inventory.visible:
+		inventory.queue_redraw()
 	enemy_view.queue_redraw()
 	player_view.queue_redraw()
 	fx.queue_redraw()
@@ -112,6 +130,8 @@ func smoke_state() -> Dictionary:
 		"location": loc.get("id", "outskirts"), "stam": p.stam, "hp": p.hp, "winded": p.winded,
 		"weapon": p.weapon().id, "enemies": sim.enemies.alive_count(), "kills": sim.stats.kills,
 		"threat": sim.threat.value, "raid": sim.raid != null,
+		"bag": p.bag.used(), "weight": roundi(p.carried_weight()), "dr": p.armor_dr,
+		"pickups": sim.pickups.size(), "looted": sim.stats.looted,
 	}
 
 
@@ -126,6 +146,34 @@ func smoke_teleport(tx: int, ty: int) -> void:
 func smoke_aim(world_pos: Vector2) -> void:
 	var screen := get_viewport().get_canvas_transform() * world_pos
 	Input.warp_mouse(screen)
+
+
+## A click at a screen position, fed through the real input pipeline so it
+## reaches the panel's own hit test rather than a back door.
+func smoke_click(at: Vector2, ctrl := false) -> void:
+	for pressed in [true, false]:
+		var ev := InputEventMouseButton.new()
+		ev.button_index = MOUSE_BUTTON_LEFT
+		ev.position = at
+		ev.global_position = at
+		ev.ctrl_pressed = ctrl
+		ev.pressed = pressed
+		Input.parse_input_event(ev)
+		await get_tree().process_frame
+
+
+## The nearest container to a point that still has something in it.
+func smoke_nearest_container(at: Vector2) -> Dictionary:
+	var best := {}
+	var bd := INF
+	for c in sim.world.containers:
+		if c.looted:
+			continue
+		var d: float = at.distance_squared_to(Vector2(c.x, c.y))
+		if d < bd:
+			bd = d
+			best = c
+	return best
 
 
 ## The scripted session: walk, sprint, photograph the districts, then fight.
@@ -149,8 +197,60 @@ func smoke_run(smoke: Node) -> void:
 		await smoke.frames(3)
 		await smoke.checkpoint(spot[0])
 
+	# The pack: search a container, look at what came out, drop something and
+	# pick it back up. All of it through the real keys and the real panel.
+	var box := smoke_nearest_container(Vector2(160 * 32, 160 * 32))
+	if box.is_empty():
+		smoke.fail("no container in the world to search")
+	else:
+		smoke_teleport(int(box.tx), int(box.ty) + 1)
+		await smoke.frames(3)
+		var before := p.bag.used()
+		await smoke.hold("interact", 150)
+		if not box.looted:
+			smoke.fail("holding E beside the %s did not search it" % box.label)
+		if p.bag.used() <= before:
+			smoke.fail("the search put nothing in the pack")
+		await smoke.checkpoint("searched")
+
+	await smoke.tap("inventory")
+	await smoke.frames(3)
+	if not inventory.visible:
+		smoke.fail("Tab did not open the pack")
+	await smoke.checkpoint("pack_open")
+
+	# Ctrl+click the bandages off the hotbar: they should land on the ground.
+	var piles := sim.pickups.size()
+	await smoke_click(inventory.cell_centre("hotbar", 1), true)
+	await smoke.frames(2)
+	if sim.pickups.size() <= piles:
+		smoke.fail("ctrl+click on the hotbar dropped nothing")
+	await smoke.tap("inventory")
+	await smoke.frames(2)
+	if inventory.visible:
+		smoke.fail("Tab did not close the pack")
+	await smoke.checkpoint("dropped")
+
+	# Step clear, then walk back over the pile: the magnet hands it back.
+	if not sim.pickups.is_empty():
+		var pile: Dictionary = sim.pickups[0]
+		var away := p.pos
+		smoke_teleport(int(p.pos.x / 32) + 6, int(p.pos.y / 32))
+		await smoke.frames(10)
+		p.pos = pile.pos
+		var waited := 0
+		while not sim.pickups.is_empty() and waited < 120:
+			await smoke.frames(1)
+			waited += 1
+		if not sim.pickups.is_empty():
+			smoke.fail("the dropped pile was never picked back up")
+		if p.count_carried("bandage") < 2:
+			smoke.fail("the bandages did not come back: %d" % p.count_carried("bandage"))
+	await smoke.checkpoint("pack_recovered")
+
 	# A fight on the highway west of the camp: a walker walks in, the pistol
-	# answers. Everything goes through the real input path but the spawn.
+	# answers. The six-weapon test kit, so every weapon is to hand.
+	sim.give_test_kit(p)
 	smoke_teleport(120, 160)
 	sim.enemies.list.clear()
 	await smoke.frames(3)
