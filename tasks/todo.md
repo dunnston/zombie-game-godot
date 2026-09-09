@@ -295,6 +295,28 @@ Split from vehicles: two systems in one PR is one review of neither.
 
 (filled in as phases land)
 
+## Review — Phase 5 Codex pass on PR #15 (2026-09-09)
+
+Five findings, all real, all fixed with a test each:
+
+- **P1 — edges lost on the unreliable channel.** Presses now go on the
+  reliable channel as `msg_edges`, once, and the state packet carries held
+  state only. A single slot press and a single wall placement land exactly
+  once at 30% loss and reorder, without the retry loop the old test had.
+- **P1 — seats exhausted by parked characters.** `_free_seat` takes the seat
+  from an absent character and moves them above the four drawn seats;
+  `unpark_player` hands one back. Three friends who came and went no
+  longer make a game full for a fourth.
+- **P2 — `open_boot` reached everyone near the car.** It names its seat and
+  is gated like `open_store`, on the host's screen and in the relay.
+- **P2 — an emptied boot never cleared on guests.** One empty record is
+  sent after a boot is emptied (`_trunks_sent`).
+- **P2 — parked characters earned shared XP.** Automated kills and raid
+  payouts pay `present_players()`.
+
+Found while fixing: the test runner treated a file that fails to parse as
+zero tests and zero failures. It now fails the run.
+
 ## Review — Phase 5, co-op (2026-09-09)
 
 **What landed.** `src/net/` (protocol, link + loopback, ENet hub, host,

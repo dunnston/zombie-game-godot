@@ -248,20 +248,41 @@ func player_by_identity(identity: String) -> PlayerSim:
 	return null
 
 
-## A guest arriving for the first time: a new seat, the starting kit, and a
-## spot beside the host so the two of you begin together. Returns null when
-## every seat is taken. `Config.NET.max_players` seats exist in total and a
-## parked character keeps its seat — the roster is who has ever been here,
-## and "full" is who is here now (see NetHost.admit).
-func join_player(identity: String, name_ := "") -> PlayerSim:
+## The lowest seat under `max_players` nobody present is sitting in. A
+## parked character in that seat is moved to a parked seat first: seats
+## are for who is here, and the roster — who has ever been here — is not
+## limited to four. Returns -1 only when four people are actually present.
+func _free_seat() -> int:
+	for i in range(Config.NET.max_players):
+		var holder: PlayerSim = null
+		for q in players:
+			if q.seat == i:
+				holder = q
+				break
+		if holder == null:
+			return i
+		if holder.away:
+			holder.seat = _parked_seat()
+			return i
+	return -1
+
+
+## A seat number no one holds, above the four that are drawn.
+func _parked_seat() -> int:
 	var taken := {}
 	for q in players:
 		taken[q.seat] = true
-	var seat := -1
-	for i in range(Config.NET.max_players):
-		if not taken.has(i):
-			seat = i
-			break
+	var n: int = Config.NET.max_players
+	while taken.has(n):
+		n += 1
+	return n
+
+
+## A guest arriving for the first time: a new seat, the starting kit, and a
+## spot beside the host so the two of you begin together. Returns null when
+## four people are already present (see NetHost.admit).
+func join_player(identity: String, name_ := "") -> PlayerSim:
+	var seat := _free_seat()
 	if seat < 0:
 		return null
 	var p := PlayerSim.new()
@@ -305,6 +326,11 @@ func park_player(p: PlayerSim) -> void:
 
 ## The same person back. The character wakes where it was parked, alive.
 func unpark_player(p: PlayerSim, name_ := "") -> void:
+	# Somebody else may have taken the seat while they were away.
+	if p.seat >= Config.NET.max_players:
+		var seat := _free_seat()
+		if seat >= 0:
+			p.seat = seat
 	p.away = false
 	if not name_.is_empty():
 		p.display_name = name_

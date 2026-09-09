@@ -625,7 +625,12 @@ func tick(dt: float, idle := false) -> void:
 	if idle:
 		NetProtocol.clear_intent(me.intent)
 	seq += 1
-	_send(NetProtocol.STATE, NetProtocol.msg_intent(seq, me.intent))
+	# Held state every step on the unreliable channel; a press, on the step
+	# it happens, on the reliable one — a dropped datagram must not swallow
+	# a gate toggle, and a duplicated one must not toggle it twice.
+	if NetProtocol.has_edges(me.intent):
+		_send(NetProtocol.RELIABLE, NetProtocol.msg_edges(seq, me.intent))
+	_send(NetProtocol.STATE, NetProtocol.msg_intent(seq, me.intent, false))
 	me.prev_pos = me.pos
 	_predict_self(dt)
 	# Edges were sent once; the host consumes them after one step and so

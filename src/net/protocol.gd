@@ -190,8 +190,23 @@ static func msg_reject(reason: String) -> Dictionary:
 	return {"t": "reject", "reason": reason}
 
 
-static func msg_intent(seq: int, it: Intent) -> Dictionary:
-	return {"t": "in", "q": seq, "i": pack_intent(it)}
+## `with_edges` false strips the one-step presses: the STATE channel may
+## drop a packet, and a press that was dropped never happened, so edges
+## travel on RELIABLE (see `msg_edges`) and held state every step here.
+static func msg_intent(seq: int, it: Intent, with_edges := true) -> Dictionary:
+	return {"t": "in", "q": seq, "i": pack_intent(it, with_edges)}
+
+
+## The presses alone, for the reliable channel. Sent only on a step that
+## has one, and merged by the host as edges only — the held state in it is
+## a copy the STATE packet already carries.
+static func msg_edges(seq: int, it: Intent) -> Dictionary:
+	return {"t": "edges", "q": seq, "i": pack_intent(it, true)}
+
+
+static func has_edges(it: Intent) -> bool:
+	return it.fire_pressed or it.reload or it.interact or it.use or it.light \
+		or it.slot >= 0 or it.wheel != 0 or not it.build_action.is_empty()
 
 
 static func msg_cmd(name_: String, args: Dictionary) -> Dictionary:
@@ -206,20 +221,22 @@ static func msg_bye() -> Dictionary:
 
 ## Held state and edges into one small record. Edges are what the sim reads
 ## for exactly one step, so they are the fields a lost packet must not lose.
-static func pack_intent(it: Intent) -> Dictionary:
+static func pack_intent(it: Intent, with_edges := true) -> Dictionary:
 	var f := 0
 	if it.sprint: f |= 1
 	if it.sneak: f |= 2
 	if it.fire: f |= 4
-	if it.fire_pressed: f |= 8
-	if it.reload: f |= 16
-	if it.interact: f |= 32
 	if it.interact_held: f |= 64
-	if it.use: f |= 128
-	if it.light: f |= 256
+	if with_edges:
+		if it.fire_pressed: f |= 8
+		if it.reload: f |= 16
+		if it.interact: f |= 32
+		if it.use: f |= 128
+		if it.light: f |= 256
 	var out := {"mx": snappedf(it.mx, 0.01), "my": snappedf(it.my, 0.01),
-		"ax": roundi(it.aim.x), "ay": roundi(it.aim.y), "f": f, "s": it.slot, "w": it.wheel}
-	if not it.build_action.is_empty():
+		"ax": roundi(it.aim.x), "ay": roundi(it.aim.y), "f": f,
+		"s": it.slot if with_edges else -1, "w": it.wheel if with_edges else 0}
+	if with_edges and not it.build_action.is_empty():
 		out["b"] = [it.build_action, it.build_type, it.build_tile.x, it.build_tile.y]
 	return out
 

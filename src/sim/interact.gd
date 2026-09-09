@@ -212,7 +212,7 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 			elif it.interact_held:
 				# Hold for the boot, tap to drive — the same tap/hold split a
 				# container already uses, so it is a habit rather than a rule.
-				sim.emit({"t": "open_boot", "id": int(v.id)})
+				sim.emit({"t": "open_boot", "seat": p.seat, "id": int(v.id)})
 			else:
 				sim.cars.enter(sim, p, v)
 		"gate":

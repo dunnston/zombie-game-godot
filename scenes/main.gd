@@ -385,7 +385,7 @@ func _process(dt: float) -> void:
 			if int(ev.get("seat", me.seat)) == me.seat:
 				inventory.open_store(Vector2i(ev.tx, ev.ty))
 		elif ev.t == "open_boot":
-			if me.driving_id == 0:
+			if int(ev.get("seat", me.seat)) == me.seat:
 				inventory.open_boot(int(ev.id))
 		fx.on_event(ev)
 		lights.on_event(ev)

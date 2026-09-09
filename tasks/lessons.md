@@ -188,6 +188,13 @@ yet when an earlier autoload's `_ready` wants to know.
 - The prop renderers hold references to the world's prop dictionaries from
   build time, so removing a prop from `world.props` did not stop it drawing.
   Solo had this bug all along; the guest mirror made it visible.
+- `load()` on a test file with a parse error returns a script object that
+  cannot be instantiated and has no methods: the runner counted it as zero
+  tests and zero failures, and eighteen network tests vanished from a run
+  that reported green. `can_instantiate()` is the check; it is in `run.gd`.
+- A press on an unreliable channel is not a press. Edges go reliably, once;
+  held state goes every step. The two must not both carry the edge, or a
+  gate opens and closes on the same tap.
 - `_set` is a virtual on Object; naming a method `_set` with a different
   signature is a parse error in the caller's script chain, not in the file.
 - A GDScript `WebRTCPeerConnectionExtension` can carry the real

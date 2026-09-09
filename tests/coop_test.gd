@@ -142,3 +142,44 @@ func test_leaving_while_down_is_death_and_the_save_keeps_the_seat() -> void:
 	ok(back.away)
 	ok(not sim2.players[0].away)
 	ok(h != null)
+
+
+func test_seats_are_for_who_is_here() -> void:
+	var sim := TestCase.new_sim()
+	# Three friends come and go: the roster remembers all three.
+	for who in ["a", "b", "c"]:
+		var g := sim.join_player(who)
+		ne(g, null, who)
+		sim.park_player(g)
+	eq(sim.players.size(), 4)
+	eq(sim.present_players().size(), 1)
+	# A fourth new friend still gets a seat under four, and the parked
+	# character whose seat it was moves above.
+	var d := sim.join_player("d")
+	ne(d, null, "a new friend is not refused by three absent ones")
+	ok(d.seat >= 1 and d.seat < Config.NET.max_players, "seat %d" % d.seat)
+	var seats := {}
+	for p in sim.present_players():
+		ok(not seats.has(p.seat), "two present players share seat %d" % p.seat)
+		seats[p.seat] = true
+	var moved := sim.player_by_identity("a")
+	ok(moved.seat >= Config.NET.max_players, "the absent character gave its seat up: %d" % moved.seat)
+	# The first friend returns and gets a drawn seat back.
+	sim.unpark_player(moved)
+	ok(moved.seat < Config.NET.max_players, "back in a drawn seat: %d" % moved.seat)
+	ok(moved.seat != d.seat and moved.seat != 0)
+	# With four present, the fifth is refused.
+	sim.unpark_player(sim.player_by_identity("b"))
+	eq(sim.present_players().size(), 4)
+	eq(sim.join_player("e"), null, "four present is full")
+
+
+func test_parked_players_earn_nothing() -> void:
+	var sim := TestCase.new_sim()
+	var g := _two(sim)
+	sim.park_player(g)
+	var xp_before := g.xp
+	var e := sim.enemies.spawn("walker", sim.players[0].pos + Vector2(200, 0))
+	Damage.kill_enemy(sim, e, "turret")
+	eq(g.xp, xp_before, "a turret's kill paid nobody who is not here")
+	ok(sim.players[0].xp > 0.0, "and paid the host")

@@ -285,16 +285,24 @@ func test_a_lossy_unordered_channel_still_converges() -> void:
 	_pump(t, 2.0)
 	gt(gp.pos.x - plot.x, 200.0, "walked despite 30% loss")
 	ok(guest.me.pos.distance_to(gp.pos) < Config.NET.snap_over, "converged: %.1f px" % guest.me.pos.distance_to(gp.pos))
-	# A single tap survives the losses: the edge is merged until consumed.
-	var got := 0
-	for i in range(20):
-		guest.me.intent.slot = 4
-		_step(t)
-		if gp.slot == 4:
-			got += 1
-			break
-		_pump(t, 0.1)
-	ok(got > 0, "a slot press got through")
+	# A single press lands, exactly once, however lossy the state channel:
+	# edges travel reliably. No retry here — one press, one outcome.
+	guest.me.intent.slot = 4
+	_step(t)
+	_pump(t, 0.1)
+	eq(gp.slot, 4, "the one slot press got through")
+	# A one-step action is not doubled either: a wall is placed once.
+	var plot2 := TestCase.clear_plot(6)
+	gp.pos = TestCase.tile_centre(plot2)
+	guest.me.pos = gp.pos
+	gp.bag.add("wood", 40)
+	var before: int = t.sim.structs.count()
+	guest.me.intent.build_action = "place"
+	guest.me.intent.build_type = "woodWall"
+	guest.me.intent.build_tile = plot2 + Vector2i(2, 0)
+	_step(t)
+	_pump(t, 0.2)
+	eq(t.sim.structs.count(), before + 1, "placed exactly once")
 
 
 # -------------------------------------------------------------- snapshots --
@@ -433,6 +441,14 @@ func test_the_stash_and_a_searched_container_are_shared() -> void:
 	for c in guest.sim.world.containers:
 		by_tile["%d,%d" % [c.tx, c.ty]] = c
 	ok(by_tile["%d,%d" % [box.tx, box.ty]].looted, "the mirror's container is empty too")
+	# A boot: filled, seen by the guest; emptied, cleared on the guest too.
+	var car: Dictionary = t.sim.cars.list[0]
+	car.trunk.add("scrap", 5)
+	_pump(t, 0.6)
+	eq(guest.sim.cars.by_id(int(car.id)).trunk.count("scrap"), 5, "the boot's contents reached the mirror")
+	car.trunk.take("scrap", 5)
+	_pump(t, 0.6)
+	eq(guest.sim.cars.by_id(int(car.id)).trunk.count("scrap"), 0, "and so did its emptying")
 
 
 func test_events_reach_the_guest_that_can_see_them() -> void:
@@ -461,6 +477,14 @@ func test_events_reach_the_guest_that_can_see_them() -> void:
 	_step(t)
 	ok(_guest_events(t, "notify").size() >= 1)
 	eq(_guest_events(t, "growl").size(), 0, "too far to hear")
+	# A boot opening is the presser's screen and nobody else's.
+	t.sim.emit({"t": "open_boot", "seat": hp.seat, "id": 1})
+	t.sim.emit({"t": "open_boot", "seat": gp.seat, "id": 1})
+	_pump(t, 0.05)
+	var boots := _guest_events(t, "open_boot")
+	eq(boots.size(), 1, "only the guest's own boot event reached it")
+	if boots.size() == 1:
+		eq(int(boots[0].seat), gp.seat)
 
 
 func test_the_host_save_carries_the_guest_home() -> void:

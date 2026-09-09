@@ -76,7 +76,7 @@ static func kill_enemy(sim: GameSim, e: EnemySim, source: Variant = null) -> voi
 					s.kills += 1
 					sim.crew.award_xp(sim, s, xp)
 					break
-		for p in sim.players:
+		for p in sim.present_players():
 			Progression.add_xp(sim, p, xp, "KILL")
 	if sim.raid == null:
 		sim.threat.add(sim, Config.THREAT.kill_walk * e.def.threat, source if source is PlayerSim else null)

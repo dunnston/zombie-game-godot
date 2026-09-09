@@ -24,6 +24,7 @@ var sync_t := 0.0
 ## append-only lists.
 var _struct_seen := {}
 var _store_hash := ""
+var _trunks_sent := {}
 var _looted_seen := {}
 var _chopped_sent := 0
 var _discovered_seen := {}
@@ -49,6 +50,7 @@ func _init(sim_: GameSim, name_ := "Host", pw_hash_ := "") -> void:
 func _reset_diffs() -> void:
 	_struct_seen.clear()
 	_store_hash = ""
+	_trunks_sent.clear()
 	_looted_seen.clear()
 	_chopped_sent = 0
 	_discovered_seen.clear()
@@ -111,6 +113,16 @@ func _on_reliable(g: Dictionary, m: Dictionary) -> void:
 		return
 	if g.player == null:
 		return                          # nothing else before hello
+	if t == "edges":
+		# A press, reliably. Only its edges are taken: the held state beside
+		# them is whatever the STATE packet of that step said, and that
+		# packet may be newer by now.
+		var packed = m.get("i", {})
+		if packed is Dictionary:
+			NetProtocol.merge_late_intent((g.player as PlayerSim).intent, packed)
+			g.last_in = sim.time
+			g.quiet = false
+		return
 	if t == "cmd":
 		var p: PlayerSim = g.player
 		Actions.execute(sim, p, String(m.get("c", "")), m.get("a", {}) if m.get("a") is Dictionary else {})
@@ -271,10 +283,6 @@ func _relay_events() -> void:
 	for i in range(_ev_mark, sim.events.size()):
 		var ev: Dictionary = sim.events[i]
 		var t := String(ev.t)
-		if t == "open_store" or t == "open_boot":
-			# A screen opening for whoever pressed E: `open_store` names the
-			# seat; `open_boot` is fixed up below by who is near the car.
-			pass
 		for g in guests:
 			var p: PlayerSim = g.player
 			if p == null:
@@ -282,11 +290,6 @@ func _relay_events() -> void:
 			if ev.has("seat") and int(ev.seat) != p.seat and t != "player_hit" and t != "player_died" \
 					and t != "player_down" and t != "player_up" and t != "respawn":
 				continue
-			if t == "open_boot":
-				var v := sim.cars.by_id(int(ev.id))
-				var r: float = Config.CAR.enter_range
-				if v.is_empty() or p.pos.distance_squared_to(v.pos) > r * r or p.driving_id > 0:
-					continue
 			if ev.has("x") and p.pos.distance_squared_to(Vector2(ev.x, ev.y)) > r2:
 				continue
 			_send(g, NetProtocol.RELIABLE, {"t": "ev", "e": ev})
@@ -320,14 +323,24 @@ func _sync_stores() -> void:
 		if s.destroyed or s.store == null or s.type == "stash":
 			continue
 		list.append({"tx": s.tx, "ty": s.ty, "car": 0, "slots": s.store.to_record()})
+	# A boot is listed while it holds something, and once more — empty —
+	# after it is emptied, so a guest's copy is cleared rather than left
+	# showing loot the host no longer has. Thirty empty boots every half
+	# second would be noise; one tombstone each is not.
+	var holding := {}
 	for v in sim.cars.list:
-		if v.destroyed or v.trunk.used() == 0:
+		if v.destroyed:
 			continue
-		list.append({"tx": -1, "ty": -1, "car": int(v.id), "slots": v.trunk.to_record()})
+		var has: bool = v.trunk.used() > 0
+		if has or _trunks_sent.has(int(v.id)):
+			list.append({"tx": -1, "ty": -1, "car": int(v.id), "slots": v.trunk.to_record()})
+		if has:
+			holding[int(v.id)] = true
 	var text := var_to_str(list)
 	if text == _store_hash:
 		return
 	_store_hash = text
+	_trunks_sent = holding
 	for g in guests:
 		if g.player != null:
 			_send(g, NetProtocol.RELIABLE, {"t": "stores", "list": list})

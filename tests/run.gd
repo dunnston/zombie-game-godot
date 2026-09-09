@@ -62,8 +62,11 @@ func _init() -> void:
 	var spy := ErrorSpy.new()
 	for path in files:
 		var script: GDScript = load(path)
-		if script == null:
-			failures.append("%s: failed to load" % path)
+		# A file with a parse error still loads as a script object; it just
+		# cannot be instantiated and has no methods. Counting that as "zero
+		# tests, zero failures" is how a broken test file passes a run.
+		if script == null or not script.can_instantiate():
+			failures.append("%s: failed to load (parse error above)" % path)
 			continue
 		var methods: Array[String] = []
 		for m in script.get_script_method_list():
