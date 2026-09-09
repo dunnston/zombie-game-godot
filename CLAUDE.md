@@ -21,6 +21,11 @@ that repo's `PROJECT.md` is the design spec and is not edited from here.
 to WebRTC", "room codes", "UPnP didn't work", "my friend can't connect",
 "no port forwarding".
 - The Godot MCP (`run_project`, `get_debug_output`) reads `GODOT_PATH` from `~/.claude.json`.
+- **Content is designed in Notion:** DEADLINE → *Items & Crafting* (page
+  `3d610d456b16816fbf35d781eeaccb11`) holds the Items, Benches and Loot Sources
+  tables, seeded from `config.gd`. "Look at Notion and update the game" means
+  the procedure in `PROJECT.md` §10, *Syncing content from Notion*: diff, report,
+  then build. Notion owns what exists and what it costs; the code owns how it behaves.
 
 ## Invariants (carried from the prototype, still true)
 

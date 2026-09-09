@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-09, Phase 5: co-op — host-authoritative, up to four, over ENet; downed-not-dead; UPnP opens the port; room codes over WebRTC built and switched off
+- **Last updated:** 2026-09-09, Phase 5: co-op — host-authoritative, up to four, over ENet; downed-not-dead; UPnP opens the port; room codes over WebRTC built and switched off. Then the content catalogue in Notion (Items & Crafting), and how it syncs into `config.gd`
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -18,6 +18,7 @@ contradicts it, the code is right — fix this file and say so.
 | `tasks/port-inventory.md` | **The spec.** Every system in the prototype, what it does, its numbers. |
 | `tasks/lessons.md` | Raw running log of lessons. §8 here is the distilled version. |
 | `tasks/switch-to-webrtc.md` | The runbook for turning on room codes over WebRTC. Built, tested, switched off. |
+| **Notion → DEADLINE → Items & Crafting** | **The content catalogue.** Every item, recipe, bench and loot source, owner-editable. §10 says how it is synced into `config.gd`. |
 
 ---
 
@@ -891,6 +892,7 @@ Phases 1–4 respecting it.
 | 2026-09-09 | The host keeps the world running while its pause menu is up, if anyone is connected | A pause that froze three other people's game would be the host's screen deciding everyone's time. Alone, a pause is a pause. The host's own intent is cleared while the menu is up. | Yes |
 | 2026-09-09 | Felled props carry a `gone` flag the renderer skips | The prop renderers bucket the prop dictionaries once and hold references, so a chopped tree went on being drawn until a reload — on the host too, not only the mirror. One flag, no rebuild per swing. | Yes |
 | 2026-09-08 | Anti-stall relocation gated at 400px, and the no-base centre follows you | The gate was a bare 240 and the centre froze at the warning, so a raider legitimately chasing a player who had moved read as stalled and got warped out of the fight. 400 sits below the 520px spawn ring (a raider wedged where it spawned is still rescued) and past half a screen (nothing you are watching is teleported). | Yes, one number |
+| 2026-09-09 | Content tables are designed in Notion (DEADLINE → Items & Crafting) and mirrored into `config.gd` by a sync, rather than edited in the code first | The owner wants to see and reorganise every item, recipe, bench and loot source in one place, on a phone, without a text editor — and to add benches and weapon classes before they exist in code. Notion owns *what exists and what it costs*; the code owns *how it behaves*; the sync procedure in §10 keeps the seam honest. Invariant 5 still holds: `config.gd` is the only place the game reads from. | Yes — the tables are a mirror, and `config.gd` stays the truth for the running game |
 
 ---
 
@@ -1211,6 +1213,46 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 6. **`gh pr create --base main`.** Then check nothing has drifted:
    `gh pr list --json number,baseRefName` — every open PR must say `main`.
 
+### Syncing content from Notion
+
+The owner designs content in Notion, on the **Items & Crafting** page under
+DEADLINE (page `3d610d456b16816fbf35d781eeaccb11`). Three tables:
+
+| Table | Data source | Mirrors in `config.gd` |
+| --- | --- | --- |
+| Items | `collection://23c90712-6033-4bf5-b835-114704efbdc6` | `WEAPONS`, `GEAR`, `CONSUMABLES`, `RES`, `RECIPES`, `STRUCTURES` |
+| Benches | `collection://98144f5b-c2b1-475d-960e-0efbe4895f44` | the `bench` field on `RECIPES` (0 = Hand, 1/2 = Workbench tiers today) |
+| Loot Sources | `collection://915ca948-b8e7-45a8-bca4-a3d621cf5e30` | `CONTAINERS`, `LOOT`, `HARVEST`, and `FURNISHING` via the `Where` column |
+
+When the owner says **"look at Notion and update the game"**:
+
+1. Query all three data sources (`notion-query-data-sources`, SQL mode) and
+   fetch any row whose Notes look long. Read `Recipe` for quantities and
+   `Ingredients` for the links; the two should agree, and a mismatch is a
+   question for the owner, not a coin toss.
+2. Diff against `config.gd` by `Code ID`. Rows with a blank `Code ID` and
+   `Status = Planned` are new content. Rows whose `Recipe`, `Crafted at`,
+   `Found in` or `Breaks down into` differ from the code are changes. Rows
+   marked `Cut` come out. On Loot Sources, `Rolls` is the `rolls` field on
+   `CONTAINERS`, and **`Where` is `FURNISHING`** — the buildings a container
+   is placed in. It is prose, and `FURNISHING` is weighted, so a building
+   added or removed there is a real change to make while the weights stay as
+   they are; a weight is a feel number and is not edited from Notion.
+3. **Report before changing anything**: what will be built, what will change,
+   and what does not add up (an ingredient with no row, a bench that is not in
+   the game yet, a weapon class the code has no stats for).
+4. Build it on a branch from `main`, as ever. A new *system* (a Recycling
+   bench, a stamina cost on axes) is its own roadmap card and its own PR; a
+   sync never smuggles one in.
+5. Write back: fill in `Code ID`, flip `Status` to `In game`, and refresh
+   `Stats` from the code. Stats are a mirror of the code, not a control — feel
+   numbers are tuned by playing.
+
+Notion owns *what exists, what it costs, where it is made and where it is
+found*. The code owns *how it behaves*. The tables were seeded from
+`config.gd` on 2026-09-09, so the first sync should find nothing to do
+except the Planned rows.
+
 ### `main` is the only merge target
 
 A branch cut from another open branch produces a PR that merges into that
@@ -1230,6 +1272,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-09 | **Content catalogue in Notion.** Three linked databases under DEADLINE → Items & Crafting, seeded from `config.gd`: Items (every weapon, armour piece, ammo, consumable, material, utility item and structure — 98 rows, 27 of them the planned melee weapons — with recipe, bench, loot sources, recycling output, stats and status), Benches (Hand plus the planned Wood Work Bench, Scrap Work Bench, Tech Bench and Recycling, each in-game recipe placed on the bench it will move to), and Loot Sources (all 30 container kinds, 6 harvest scenery kinds, car trunks and stripped cars, with which buildings they furnish). Ten views on Items: Weapons by class, Armor by slot, Ammo & Consumables, Materials with what they are used for, Structures, By bench board, Craft by hand, Findable, Planned, Everything. The 27 melee weapons from the owner's class list (Improvised, Blunt, Bladed, Axes, Polearms, Heavy) are in as Planned. No code change; §10 gains the sync procedure |
 | 2026-09-09 | Phase 5 Codex pass on PR #15: intent **edges travel on the reliable channel** as their own message (`msg_edges`), once, and the state packet carries held state only — a dropped datagram no longer swallows a press and a duplicate cannot toggle a gate twice; **seats belong to who is present**: a parked character gives its seat up to a newcomer and gets one back on return, so three absent friends cannot make a game "full"; `open_boot` names its seat and is gated like `open_store`; an emptied boot sends one empty record so a guest's copy clears; automated kills and raid payouts pay `present_players()` only. Also: the test runner now fails a file that loads but cannot instantiate (a parse error had been counting as zero tests, zero failures — `net_test.gd` vanished from a run that reported green). 7 new tests |
 | 2026-09-09 | Phase 5, the room-code road (off): `PeerHub` — the `MultiplayerPeer`-behind-`NetLink` half of `EnetHub` pulled out as a base, with the "no answer" text reserved for a dial nobody answered; `EnetHub` extends it; `WebRtcHub` — rooms and joins over `WebRTCMultiplayerPeer`, signalling over `WebSocketPeer` to `server/signal.js`, room codes, gid→peer id, a connection factory, `available()`; `server/` — the prototype's broker with a `package.json` and a README for free-tier hosting; `tools/fetch-webrtc` for the native extension into gitignored `addons/webrtc/`; `Config.NET.broker`, `stun`, `rtc_timeout`; the HOST page's ROOM CODE row and JOIN taking a code; `tests/support/fake_rtc.gd` and `fake_broker.gd`; `webrtc_test` (4, fast: the handshake through the real multiplayer peer) and `webrtc_slow_test` (1: the real broker under Node, and real WebRTC on localhost when the extension is present) |
 | 2026-09-09 | Phase 5, the door: `NetDoor` — UPnP port mapping on a thread when hosting starts, the public address queried and shown on the HOST page as a click-to-copy row, the LAN addresses beside it, refusal reasons in words, and a close that never blocks on a router (an unfinished discovery is orphaned, reaped from `_process`, and takes its own mapping down); `Config.NET.upnp`, `upnp_timeout_ms`, `upnp_lease_s`; `door_slow_test.gd` (2 tests, slow tier: discovery on a box with no router takes eight seconds to say so) |
