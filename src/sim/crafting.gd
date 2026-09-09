@@ -108,7 +108,9 @@ static func craft(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> bool
 		var gid: String = r.give.gear
 		if p.bag.add(gid, 1) == 0:
 			_on_the_ground(sim, p, "gear:" + gid, 1)
-		label = "%s crafted — equip it from your pack (Tab)" % Config.GEAR[gid].name
+		# No key named here: the sim does not know what the keyboard says, and a
+		# hardcoded "(Tab)" is a lie the moment somebody rebinds the pack.
+		label = "%s crafted — equip it from your pack" % Config.GEAR[gid].name
 	elif r.give.has("item"):
 		var iid: String = r.give.item
 		var want: int = r.give.n

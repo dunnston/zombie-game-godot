@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-08, Phase 4c vehicles: about thirty cars, three ways into a locked one
+- **Last updated:** 2026-09-08, Phase 4d: the front door — title screen, save slots, autosave, pause menu, rebindable keys
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -80,7 +80,16 @@ These settle arguments. When a decision is close, the pillar wins.
 
 ## 3. Where we are right now
 
-**Status: Phase 4c complete — you have people and you have wheels.** About
+**Status: Phase 4d — the game has a front door.** It boots to a title screen
+with CONTINUE, NEW GAME, LOAD GAME, CONTROLS and QUIT. Six save slots, each
+with a summary — name, day, level, kills, play time, how long ago — read from
+a small index rather than by parsing six worlds. A game with a slot autosaves
+every two minutes. Escape closes what is open, innermost first, and then opens
+a pause menu that freezes the world; SAVE AND QUIT TO TITLE writes the game
+down before it leaves. Every key is rebindable, saved per machine rather than
+per save, and every on-screen prompt is built from the binding.
+
+**Phase 4c — you have people and you have wheels.** About
 thirty cars sit across the town, most locked and most nearly dry. There are
 three ways into a locked one: the key hidden in a container near it, a
 lockpick that may snap and be heard, or the Hotwire perk — which is no longer
@@ -150,10 +159,10 @@ that will not fit is ever destroyed: it lands on the ground.
 
 | | |
 | --- | --- |
-| Phase | 4 of 5 — 4a progression, 4b day and fire, 4c survivors and vehicles done; 4d menus and audio to come |
+| Phase | 4 of 5 — 4a progression, 4b day and fire, 4c survivors and vehicles, 4d the front door done; the minimap and audio to come |
 | Playable | The whole loop, it levels you, it gets dark, and you can hold it with other people. **E** searches and uses, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
-| Unit tests | 288 tests, 4249 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials and the survivor combat tests: 318 tests, 4362 assertions. Wall-clock varies with the machine — see §9 |
-| Smoke | 36 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked |
+| Unit tests | 309 tests, 4416 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials and the survivor combat tests: 339 tests, 4529 assertions. Wall-clock varies with the machine — see §9 |
+| Smoke | 42 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked , the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
 | Save format | **v5** — what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
 
@@ -191,13 +200,60 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Survivors, jobs, bunks | 4c | ported | Roster capped by Charisma and bunks both; everything out of the shared stash |
 | Vehicles | 4c | ported | Key, pick or Hotwire; a parked car blocks its tiles and a driven one does not |
 | Fire | 4b | ported | Spreads through scenery and enemies; cannot reach a player structure, by design |
-| Title screen, save slots, keybinds | 4 | — | |
+| Title screen, save slots, keybinds | 4d | ported | Six slots with summaries off an index; binds are per machine, not per save |
 | Audio | 4 | — | |
 | Online co-op | 5 | — | Last |
 
 ---
 
 ## 4. What is built
+
+### The front door (Phase 4d — title, slots, keys)
+
+- **The game boots to a title screen** rather than into a world. CONTINUE
+  names the game it would open and what state it is in; NEW GAME, LOAD GAME,
+  CONTROLS and QUIT sit under it. The one exception is the smoke run, which
+  boots straight into a world — a screenshot harness that had to click
+  through a menu first would be testing the menu on every checkpoint.
+- **`Saves` is an index, not a directory listing.** Name, day, level, kills,
+  play time and when it was last touched live in one small
+  `user://saves/index.json`, rewritten on every save. Listing six saves must
+  not mean parsing six worlds, which is exactly what reading the payloads
+  would cost.
+- **The file is the truth about existence; the index is the truth about the
+  summary.** An entry whose payload was deleted from outside is dropped
+  rather than offered, and a payload with no entry is still on disk — both
+  halves can outlive the other and neither is silent.
+- **CONTINUE opens the one you last chose, not the one last written.**
+  Loading marks a slot current before anything else writes, so coming
+  straight back after a LOAD returns to the game you picked rather than to
+  whichever autosave happened to fire last.
+- **Autosave every two minutes, for a game that has a slot.** A run with no
+  slot — a smoke run, a NEW GAME the player has not named — writes nothing;
+  the alternative is a headless test quietly creating a save file.
+- **Escape closes what is open, innermost first**, and only opens the pause
+  menu once there is nothing left to close. The menu owns input while it is
+  visible and the world does not step behind it: the smoke asserts the sim
+  clock has not moved after a second of paused frames.
+- **SAVE AND QUIT TO TITLE writes the game down before it leaves.** Quitting
+  is the moment a player is least able to notice they lost an hour.
+- **Every key is rebindable, and the binds belong to the machine.** They are
+  written to `user://binds.json`, not into the save — the keyboard in front
+  of you does not change when you load a different game. `KeyBinds` is now
+  static state on a `class_name` rather than autoload-only fields, because an
+  autoload does not exist under `godot -s` and the binds had no test.
+- **A conflict is reported, not refused.** Two things on one key is a choice
+  the player is allowed to make, so CONTROLS marks both rows rather than
+  rejecting the second. Escape is the one key nothing may take: it is how you
+  leave a screen you opened by accident with a key you just reassigned.
+- **Every prompt is built from the binding.** `KeyBinds.primary_label` is what
+  the HUD and the interact prompt read, so rebinding E changes what the game
+  tells you to press.
+- **One `_rows()` builds the page, and both the hit test and the drawing read
+  it** — a menu whose click map and paint can disagree is a button that does
+  the wrong thing. The footer rows (RESET TO DEFAULTS, BACK) are pinned
+  rather than scrolled, because on a long CONTROLS list BACK went off the
+  bottom of the panel.
 
 ### Wheels (Phase 4c — vehicles)
 
@@ -701,13 +757,13 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    peaks at 0.82 alpha, which is the prototype's number, and the tint is now
    applied the way the prototype applied it — so this is the real curve
    rather than the too-dark one the first cut of `LightView` produced.
-1. **Phase 4d — the front door.** Title screen, save slots with an index,
-   autosave, full key rebinding over `src/core/bindings.gd`, a pause menu that
-   saves before it quits, the minimap (which is what Sixth Sense is still
-   waiting for), and synthesised audio with per-kind rate limits.
+1. **Phase 4d, part two — the minimap and the ears.** The front door is
+   built; what is left of Phase 4 is the minimap (which is what Sixth Sense is
+   still waiting for — it is now the *only* perk with a `needs` gate) and
+   synthesised audio with per-kind rate limits, so a shotgun hitting twelve
+   zombies is one impact rather than twelve.
 
-   This is the last of Phase 4, and after it the only thing left in the plan
-   is co-op.
+   After that the only thing left in the plan is co-op.
 
 ### Deliberately not building
 
@@ -828,9 +884,9 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 288  asserts: 4249  failures: 0
-tests: 318  asserts: 4362  failures: 0   (--all)
-SMOKE done checkpoints=36 failures=0 exit=0
+tests: 309  asserts: 4416  failures: 0
+tests: 339  asserts: 4529  failures: 0   (--all)
+SMOKE done checkpoints=42 failures=0 exit=0
 ```
 
 **On timings.** The ten-second agreement is about the edit loop staying quick,
@@ -934,6 +990,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-08 | Phase 4d (the front door): `Saves` — six slots behind a small `user://saves/index.json` so listing six games does not parse six worlds, with the file as the truth about existence and the index as the truth about the summary, `latest()` preferring the slot last chosen over the one last written, and the play time and "3 hours ago" labels; autosave every two minutes for a game that has a slot, and never for one that does not; `KeyBinds` rewritten as static state on a `class_name` — full rebinding to `user://binds.json`, conflicts reported rather than refused, Escape reserved, unknown actions from an old file dropped, and every prompt built from `primary_label`; `MenuScreen` with TITLE, PAUSE, LOAD, CONTROLS and NEW GAME off one `_rows()` that is both the hit test and the paint, footer rows pinned so BACK cannot scroll away; `scenes/main.gd` boots to the title (except under smoke), Escape closes innermost-first and then pauses with the world frozen, and SAVE AND QUIT TO TITLE writes before it leaves; 21 new tests (309 fast, 339 with `--all`); 6 new smoke checkpoints — pause, CONTROLS, a key rebound, a save written, the title, and that slot loaded from it. The menu never repainted after a page change: the assertions passed because they read `menu.page`, and only the screenshot showed CONTROLS still on screen |
 | 2026-09-08 | Phase 4c (vehicles): `CAR` in `Config`; `Vehicles` — about thirty cars rolled from their own per-spawn seeds, three ways into a locked one (a key planted in a nearby container, a lockpick that can snap and be heard, or Hotwire), arcade handling with speed-scaled steering, fuel, engine noise and Threat, roadkill credited to the driver, the 400-unit boot, refuelling, wrecking and stripping; a parked car blocks its tiles and a driven one does not, asking both collision maps; driving short-circuits the player tick entirely; a car key is learned rather than carried; `VehicleView`; `SaveGame` v5 stores only what a run changed about a car; Hotwire's `needs` gate comes off, leaving only Sixth Sense; 33 new tests; smoke finds a car, drives it and parks it. `plant_keys` buckets containers rather than scanning all six hundred per locked car — it ran on every `GameSim.start` and was five milliseconds of every test |
 | 2026-09-08 | Phase 4c (survivors): `SURVIVOR`, `JOBS`, `SCAVENGE`, `BUILDER`, the names and the rescue counts in `Config`; `SurvivorSim` (one person, combat numbers derived from level and the owner's Charisma perks) and `Survivors` (the roster and its two limits, rescues seeded on their own RNG stream, recruiting with a refusal that names the binding limit, Rations upkeep from the shared stash with clearing debt and a cap, damage, down, revive and permanent death, XP and levels, and the guard/sniper/scavenger/builder step); enemies bite a survivor who is in the way; a survivor's kill pays the survivor and the player; `E` takes somebody in and helps somebody up, ahead of every container and gate; a CREW tab on the pack screen with the roster, both limits and the ration clock; `SurvivorView`; `SaveGame` v4 carries the crew and the rescues, a sniper's tower keyed by tile (invariant 7); 26 new tests, three in the slow tier; smoke takes somebody in, opens the roster and reassigns them |
 | 2026-09-08 | Phase 4b: `DAY_LENGTH`, `PHASES`, `DARKNESS_KEYS`, `NIGHT`, `FIRE` and `FLAMMABLE` in `Config`; `DayNight` (the clock, the darkness ramp, the four multipliers four callers had been reading against a stub since Phase 2, the 24h HUD string) and `Fire` (burning enemies and scenery, spread, the 140 ceiling, the wildfire warning, and no path to `sim.structs`); `LightView` — a `CanvasModulate` for the dark and pooled `PointLight2D`s for the torch, the flashlight's puddle and cone, floodlights, muzzle flashes and every fire; render interpolation via `prev_pos` and `Util.render_pos`, with a snap threshold so a respawn does not smear; the HUD gains a day, a clock, a phase and a light hint; `SaveGame` v3 carries the clock; 23 new tests (219 fast, 242 with `--all`); smoke reaches dusk, night, a lit torch and a burning treeline. Fire skips its enemy scan when nothing is alight — without it the suite went over ten seconds on the cost of discovering nothing was on fire |
