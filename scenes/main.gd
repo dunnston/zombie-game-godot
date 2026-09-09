@@ -29,6 +29,8 @@ var ears: SfxView
 var inventory: InventoryScreen
 var build_bar: BuildBar
 var menu: MenuScreen
+## The dev menu, or null in a release build.
+var dev: DevScreen = null
 var shake := 0.0
 
 ## Co-op (Phase 5). `me` is the local player whatever seat it holds; every
@@ -125,6 +127,12 @@ func _ready() -> void:
 	build_bar = BuildBar.new(sim)
 	layer.add_child(build_bar)
 	structure_view.build_bar = build_bar
+	# The dev menu exists only where a developer is: a debug build, or an
+	# export run with --dev. A release build never constructs it, so there is
+	# nothing to remember to switch off before shipping.
+	if OS.is_debug_build() or OS.get_cmdline_args().has("--dev"):
+		dev = DevScreen.new(sim)
+		layer.add_child(dev)
 	menu = MenuScreen.new()
 	menu.chose.connect(_on_menu)
 	layer.add_child(menu)
@@ -170,6 +178,34 @@ func _physics_process(dt: float) -> void:
 	# Polled rather than handled as an event, like every other key here: the
 	# smoke run presses actions through `Input`, which sets the action state
 	# without ever synthesising an InputEvent.
+	# The dev menu is typed into, so while it is up it owns the keyboard: none
+	# of the screen keys below may fire, or looking for "bandage" would open
+	# the build bar, the pack and the character sheet on the way. F1 itself is
+	# read here rather than in the panel, because these are polled actions and
+	# the panel only sees real InputEvents.
+	if dev != null:
+		if Input.is_action_just_pressed("dev_menu"):
+			dev.toggle()
+		if dev.open:
+			# The world keeps running underneath, so you can watch what you
+			# just did. It only stops answering this keyboard.
+			var held := me.intent
+			held.clear_edges()
+			held.mx = 0.0
+			held.my = 0.0
+			held.sprint = false
+			held.sneak = false
+			held.fire = false
+			held.interact_held = false
+			held.aim = me.pos + Vector2.from_angle(me.angle) * 64.0
+			if role == "guest":
+				net_guest.poll()
+				net_guest.tick(dt)
+				_after_guest_step()
+			else:
+				_host_step(dt)
+			return
+
 	if Input.is_action_just_pressed("inventory"):
 		inventory.mode = "pack"
 		inventory.toggle()
@@ -374,6 +410,8 @@ func _set_local(p: PlayerSim) -> void:
 	props_below.player = p
 	props_above.player = p
 	ears.player = p
+	if dev != null:
+		dev.player = p
 
 
 func _process(dt: float) -> void:

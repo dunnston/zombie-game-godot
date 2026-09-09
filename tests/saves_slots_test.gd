@@ -203,7 +203,9 @@ func test_a_stale_index_entry_does_not_occupy_a_slot() -> void:
 		ok(true, "every real slot is taken on this machine, which is a valid answer")
 		return
 	Saves.save_to(sim, free, "Doomed")
-	eq(Saves.first_free() > free, true, "a real save occupies it")
+	# Not `> free`: when the slot taken was the last one, `first_free` answers
+	# -1, and this failed on any machine whose owner had five saved games.
+	ne(Saves.first_free(), free, "a real save occupies it")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.slot_path(free)))
 	eq(Saves.first_free(), free, "with the payload gone the slot is free again")
 	Saves.delete(free)

@@ -153,3 +153,115 @@ func test_camp_still_stocked() -> void:
 				have[res] += 1
 	for res in have:
 		ok(have[res] > 0, "camp has %s within a short walk (%d)" % [res, have[res]])
+
+
+# ------------------------------------------------------------- dev menu --
+
+## DL-56. The menu is a developer tool, but the thing it does — hand you an
+## item, put an enemy in front of you, move you across the map — is game state,
+## so it is tested like anything else that touches game state.
+
+func _dev() -> DevScreen:
+	var d := DevScreen.new(sim)
+	d.player = p
+	return d
+
+
+func test_the_dev_catalogue_covers_the_game() -> void:
+	var d := _dev()
+	var kinds := {}
+	for row in d._all:
+		kinds[String(row.kind)] = int(kinds.get(String(row.kind), 0)) + 1
+	eq(int(kinds.get("give", 0)), Items.registry().size(), "every carryable item is listed")
+	eq(int(kinds.get("enemy", 0)), Config.ENEMIES.size(), "every enemy is listed")
+	eq(int(kinds.get("goto", 0)), sim.world.locations.size(), "every district is listed")
+	gt(int(kinds.get("verb", 0)), 0, "and there are verbs")
+	d.free()
+
+
+func test_the_filter_narrows_by_name_and_by_id() -> void:
+	var d := _dev()
+	var all := d._shown.size()
+	d.filter = "bandage"
+	d._refilter()
+	gt(d._shown.size(), 0, "bandage matches something")
+	ok(d._shown.size() < all, "and not everything")
+	for row in d._shown:
+		var hay := (String(row.label) + String(row.id)).to_lower()
+		ok(hay.contains("bandage"), "%s matched 'bandage'" % String(row.label))
+	d.filter = "zzzznothing"
+	d._refilter()
+	eq(d._shown.size(), 0, "a miss shows an empty list, not the whole catalogue")
+	d.free()
+
+
+func test_giving_an_item_puts_it_in_the_pack() -> void:
+	var d := _dev()
+	var before := p.count_carried("bandage")
+	d.apply({"kind": "give", "id": "bandage"}, 3)
+	eq(p.count_carried("bandage"), before + 3, "three bandages arrived")
+	d.free()
+
+
+func test_spawning_an_enemy_puts_one_in_the_world() -> void:
+	var d := _dev()
+	var before := sim.enemies.list.size()
+	d.apply({"kind": "enemy", "id": "walker"}, 2)
+	eq(sim.enemies.list.size(), before + 2, "two walkers arrived")
+	for e in sim.enemies.list:
+		ok(not sim.world.circle_hits_solid(e.pos.x, e.pos.y, e.r, sim.structs),
+			"a spawned walker is not inside a wall")
+	d.free()
+
+
+func test_going_to_a_district_lands_you_in_it() -> void:
+	var d := _dev()
+	var target := ""
+	for l in sim.world.locations:
+		if String(l.id) != String(sim.world.locations[0].id):
+			target = String(l.id)
+			break
+	d.apply({"kind": "goto", "id": target})
+	var here := sim.world.location_at_px(p.pos.x, p.pos.y)
+	eq(String(here.get("id", "")), target, "the player is standing in %s" % target)
+	ok(not sim.world.circle_hits_solid(p.pos.x, p.pos.y, p.r, sim.structs), "and not inside a wall")
+	d.free()
+
+
+func test_the_verbs_do_what_they_say() -> void:
+	var d := _dev()
+	p.hp = 1.0
+	p.stam = 0.0
+	d.apply({"kind": "verb", "id": "heal"})
+	d.apply({"kind": "verb", "id": "stamina"})
+	eq(p.hp, p.max_hp, "healed")
+	eq(p.stam, p.max_stam, "stamina back")
+
+	# Fifty of everything overflows the pack on purpose: what will not fit is
+	# dropped at your feet rather than lost, so every resource is accounted for
+	# one way or the other.
+	d.apply({"kind": "verb", "id": "res"})
+	for rid in Config.RES:
+		var on_ground := 0
+		for it in sim.pickups:
+			if String(it.id) == rid:
+				on_ground += int(it.n)
+		gt(p.count_carried(rid) + on_ground, 0, "has some %s, carried or at his feet" % rid)
+
+	sim.enemies.spawn("walker", p.pos + Vector2(200, 0))
+	d.apply({"kind": "verb", "id": "clear"})
+	for e in sim.enemies.list:
+		ok(e.dead, "everything loaded is dead")
+
+	sim.threat.value = 40.0
+	d.apply({"kind": "verb", "id": "quiet"})
+	eq(sim.threat.value, 0.0, "threat cleared")
+	d.free()
+
+
+## A release build has no dev menu at all, so nothing about it can be reached
+## by accident. The gate is in main.gd; this pins the shape it depends on.
+func test_the_dev_menu_is_not_a_rebindable_action() -> void:
+	for a in KeyBinds.ACTIONS:
+		ne(String(a.id), "dev_menu", "the dev key is not offered on the controls screen")
+	ok(KeyBinds.KEYS.has("dev_menu"), "but it is bound")
