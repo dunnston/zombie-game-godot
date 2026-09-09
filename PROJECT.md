@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-09, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1. The HOST page also names your public address when UPnP will not
+- **Last updated:** 2026-09-09, the Notion catalogue restructured to eleven categories with a tab each, and weapons split into six melee and eight ranged classes. Before that, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1. The HOST page also names your public address when UPnP will not
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -1267,8 +1267,26 @@ DEADLINE (page `3d610d456b16816fbf35d781eeaccb11`). Three tables:
 | Table | Data source | Mirrors in `config.gd` |
 | --- | --- | --- |
 | Items | `collection://23c90712-6033-4bf5-b835-114704efbdc6` | `WEAPONS`, `GEAR`, `CONSUMABLES`, `RES`, `RECIPES`, `STRUCTURES` |
-| Benches | `collection://98144f5b-c2b1-475d-960e-0efbe4895f44` | the `bench` field on `RECIPES` (0 = Hand, 1/2 = Workbench tiers today) |
+| Workbenches | `collection://98144f5b-c2b1-475d-960e-0efbe4895f44` | the `bench` field on `RECIPES`. The rows are Player Menu, Basic, Advanced, Tech, Recycle; the code today has only 0 = by hand and 1/2 = the one Workbench and its upgrade |
 | Loot Sources | `collection://915ca948-b8e7-45a8-bca4-a3d621cf5e30` | `CONTAINERS`, `LOOT`, `HARVEST`, and `FURNISHING` via the `Where` column |
+
+**The Items table is owner-facing, and its shape is not the code's shape.**
+Eleven categories, each with its own tab: Building, Materials, Tools, Weapons,
+Clothing/Armor, Consumables food, Consumables misc, Ammo, Medical Items,
+Special Items, Misc Items. Weapons carries six melee classes (Improvised,
+Blunt, Bladed, Axes, Polearms, Heavy) and eight ranged (Handguns, Shotguns,
+Rifles, SMGs, Assault Rifles, Precision Rifles, Bows/Crossbows,
+Heavy/Special). None of this is a `Config` key. `Building` is the pieces in
+`STRUCTURES`; `Tools`, `Consumables misc`, `Medical Items` and
+`Consumables food` all land in `CONSUMABLES` or `GEAR`. Map by `Code ID`,
+never by category name.
+
+Weapons also carry ten 1-5 design-intent ratings: Damage, Attack Speed,
+Reach, Stamina Cost, Knockback, Stagger, Durability, Crit Chance, Cleave and
+Noise. **Five of them describe systems the game does not have** — Stamina
+Cost, Stagger, Durability, Crit Chance and Cleave. Treat a number in those
+columns as a design note, not a spec to implement; building any of them is
+its own roadmap card.
 
 When the owner says **"look at Notion and update the game"**:
 
@@ -1318,6 +1336,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-09 | Notion catalogue restructured to the owner's taxonomy. Eleven categories replace the first seven, each with its own tab on the Items table: Building (needs no bench, and is where a bench is crafted), Materials, Tools, Weapons, Clothing/Armor, Consumables food, Consumables misc, Ammo, Medical Items, Special Items, Misc Items. Weapons split into six melee classes and eight ranged, with the ranged identities written down (handgun as backup, shotgun as "get off me", bow as the quiet answer rather than a worse gun) and **noise as a first-class weapon stat**. Ten 1-5 design-intent columns added; five of them — Stamina Cost, Stagger, Durability, Crit Chance, Cleave — describe systems that do not exist yet. The benches became Player Menu, Basic, Advanced, Tech and Recycle, and each is now also a buildable row under Building. 19 rows added: the ranged weapons the owner enumerated, plus the four benches. 117 item rows, 42 of them Planned. Renaming a Notion select option drops the value on every row that held it, so all 98 existing rows were re-mapped from a dump taken first; §10 gains the taxonomy note |
 | 2026-09-09 | Bugfix round one, from the Notion 🐞 Open bugs view. **DL-45**: a tap of E beside a car opened the boot instead of driving — `interact_held` is already true on the frame `interact` fires, so the vehicle branch read every press as a hold and tap-to-drive had been unreachable since it shipped; the choice now waits out `Config.PLAYER.boot_hold` on a `car_hold` channel. **DL-45 (body)**: containers could be searched through a wall; reach now needs sight as well, using the rule bullets use, counting only tiles strictly between and exempting touching tiles. **DL-42**: 135 litter props on road and pavement tiles — `_plant_litter` had no surface policy, so the camp starter-cache planted on kitchen floors; `Config.LITTER_SURFACES` is now the one table and is enforced inside the planter. **DL-43**: zombies spawned inside the base because nothing knew what a base was — `Config.BASE.radius` and `Structures.in_base()`, anchored on every piece marked `protect`, excluded from ambient spawning (raids are untouched). **DL-56**: a dev menu behind F1, built only in a debug build or under `--dev`. **DL-46 / DL-55 do not reproduce** — see §8. 19 new tests (386 fast), 4 new smoke checkpoints |
 | 2026-09-09 | **Content catalogue in Notion.** Three linked databases under DEADLINE → Items & Crafting, seeded from `config.gd`: Items (every weapon, armour piece, ammo, consumable, material, utility item and structure — 98 rows, 27 of them the planned melee weapons — with recipe, bench, loot sources, recycling output, stats and status), Benches (Hand plus the planned Wood Work Bench, Scrap Work Bench, Tech Bench and Recycling, each in-game recipe placed on the bench it will move to), and Loot Sources (all 30 container kinds, 6 harvest scenery kinds, car trunks and stripped cars, with which buildings they furnish). Ten views on Items: Weapons by class, Armor by slot, Ammo & Consumables, Materials with what they are used for, Structures, By bench board, Craft by hand, Findable, Planned, Everything. The 27 melee weapons from the owner's class list (Improvised, Blunt, Bladed, Axes, Polearms, Heavy) are in as Planned. No code change; §10 gains the sync procedure |
 | 2026-09-09 | Phase 5 Codex pass on PR #15: intent **edges travel on the reliable channel** as their own message (`msg_edges`), once, and the state packet carries held state only — a dropped datagram no longer swallows a press and a duplicate cannot toggle a gate twice; **seats belong to who is present**: a parked character gives its seat up to a newcomer and gets one back on return, so three absent friends cannot make a game "full"; `open_boot` names its seat and is gated like `open_store`; an emptied boot sends one empty record so a guest's copy clears; automated kills and raid payouts pay `present_players()` only. Also: the test runner now fails a file that loads but cannot instantiate (a parse error had been counting as zero tests, zero failures — `net_test.gd` vanished from a run that reported green). 7 new tests |
