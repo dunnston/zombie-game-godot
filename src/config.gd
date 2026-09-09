@@ -74,6 +74,42 @@ const PLAYER := {
 	"names": ["Survivor", "Ash", "Bex", "Cole", "Dee"],
 }
 
+# --------------------------------------------------------------- co-op --
+
+## Phase 5. The host runs the simulation exactly as solo does; guests send
+## intent up and get snapshots down. Every number the wire depends on is
+## here, so the tests and the game agree about what "late" means.
+const NET := {
+	"max_players": 4,
+	## The UDP port a host listens on and a guest dials. ENet, built into the
+	## engine: no plugin, no broker. Works across a LAN, a VPN or a forwarded
+	## port; see PROJECT.md §6 for what internet play without any of those
+	## would take.
+	"port": 27333,
+	"snap_every": 3,            # simulation steps between snapshots: 20Hz at 60
+	"interest_radius": 1600.0,  # px around a guest that a snapshot describes
+	"sync_interval": 0.5,       # seconds between inventory / store / world diffs
+	"intent_timeout": 0.4,      # a silent guest is holding nothing after this
+	"snap_over": 48.0,          # a predicted position this far off snaps to the host's
+	"lerp_rate": 6.0,           # ... and closer than that leans toward it at this rate
+	"ease_rate": 14.0,          # everyone and everything else eases at this rate
+	"hello_timeout": 15.0,      # seconds a guest waits for the host to answer
+	## UPnP: the host asks its router to open the port. Off, and friends on
+	## the internet need a forwarded port or a VPN.
+	"upnp": true,
+	"upnp_timeout_ms": 2000,    # how long to wait for a router to answer discovery
+	"upnp_lease_s": 0,          # 0 is "until removed"; some routers refuse a lease
+	## Room codes over WebRTC (`WebRtcHub`): built, tested, and OFF until this
+	## names a broker — `server/signal.js` on a public host, e.g.
+	## "wss://deadline-signal.fly.dev". Also needs the native extension in
+	## `addons/webrtc/` (`tools/fetch-webrtc`). With both, START HOSTING opens
+	## a room beside the UDP port and JOIN accepts a six-letter code.
+	"broker": "",
+	"stun": ["stun:stun.l.google.com:19302"],
+	"rtc_timeout": 25.0,        # seconds a WebRTC dial may take: broker, offer, ICE
+	"guest_view_radius": 880.0, # what the spawner assumes a guest can see
+}
+
 ## view_height is world pixels of height on screen at zoom 1; the camera
 ## zooms so that the viewport shows about that much world vertically.
 const CAMERA := {"follow": 7.5, "view_height": 580.0, "min_zoom": 0.9, "max_zoom": 2.6, "lead": 0.22, "lead_max": 170.0}

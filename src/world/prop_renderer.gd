@@ -22,6 +22,8 @@ const CONTAINER_PAINT := {
 const SHADOW := Color(0, 0, 0, 0.22)
 
 var sim: GameSim
+## Whose body the above/below split is measured against.
+var player: PlayerSim = null
 var above := false
 var _buckets := {}
 
@@ -59,7 +61,7 @@ func _draw() -> void:
 	var tl := inv * Vector2.ZERO
 	var br := inv * get_viewport_rect().size
 	var pad := 80.0
-	var py: float = sim.players[0].pos.y
+	var py: float = (player if player != null else sim.players[0]).pos.y
 	var list: Array[Dictionary] = []
 	var c0 := Vector2i(maxi(0, int((tl.x - pad) / CELL)), maxi(0, int((tl.y - pad) / CELL)))
 	var c1 := Vector2i(mini(CELLS - 1, int((br.x + pad) / CELL)), mini(CELLS - 1, int((br.y + pad) / CELL)))
@@ -69,6 +71,8 @@ func _draw() -> void:
 			if b == null:
 				continue
 			for p in b:
+				if p.get("gone", false):
+					continue
 				var y: float = p.y
 				if (y > py) != above:
 					continue

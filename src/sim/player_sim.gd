@@ -5,6 +5,14 @@ extends RefCounted
 
 var seat := 0
 var display_name := "Survivor"
+## Who this character belongs to, across sessions. The host's own is ""; a
+## guest's is the id their machine made up the first time it joined anything,
+## so the host's save can hand the same character back next week (Phase 5).
+var identity := ""
+## Parked: the guest who owns this character is not connected. An away player
+## is not ticked, not drawn, not targeted and not counted. Their character
+## stays in the world's save so they get it back.
+var away := false
 
 var pos := Vector2.ZERO
 ## Where `pos` was at the top of this tick. Presentation only: the views lerp
@@ -35,6 +43,14 @@ var hp := 112.0
 var max_hp := 112.0
 var dead := false
 var respawn_t := 0.0
+## Downed, not dead (co-op only): on the ground for `downed_time`, and a
+## teammate holding E beside you gets you back up. Nobody comes: you die as
+## you always did. Alone there is no one to come, so alone you just die.
+var downed := false
+var down_t := 0.0
+## The teammate you are getting up: {seat, t, dur}. A held channel like
+## searching — let go, or step away, and it stops.
+var reviving := {}
 var invuln := 0.0
 var hurt_flash := 0.0
 var last_hurt := 99.0
@@ -329,12 +345,27 @@ func tick(sim: GameSim, dt: float) -> void:
 	var world := sim.world
 	# Where the view should draw from until the next step lands.
 	prev_pos = pos
+	if away:
+		return
 	last_hurt += dt
 
 	if dead:
 		respawn_t -= dt
 		if respawn_t <= 0.0:
 			Damage.respawn_player(sim, self)
+		return
+
+	if downed:
+		# Bleeding out. Nothing else happens to you: you cannot move, swing,
+		# reload or search, and being hit again does nothing — the clock is
+		# the threat now. `Damage.tick_downed` is where the clock runs out.
+		vel = Vector2.ZERO
+		swing = {}
+		reloading = {}
+		using = {}
+		searching = {}
+		reviving = {}
+		Damage.tick_downed(sim, self, dt)
 		return
 
 	# Adrenaline is a state, not a modifier: it comes and goes with the health
@@ -377,8 +408,8 @@ func tick(sim: GameSim, dt: float) -> void:
 	if recoil < 0.001:
 		recoil_dir = 1.0 if sim.rng.chance(0.5) else -1.0
 
-	# Healing roots you in place.
-	var rooted := not using.is_empty()
+	# Healing roots you in place, and so does getting somebody up.
+	var rooted := not using.is_empty() or not reviving.is_empty()
 	move(world, dt, rooted, sim.structs)
 
 	if not using.is_empty():

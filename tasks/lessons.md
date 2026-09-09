@@ -166,3 +166,45 @@ redirected when `--smoke` is on the command line.
 The corollary that cost the third one: **check the cmdline, not another
 autoload.** Autoloads run in declaration order, so `Smoke.enabled` is not set
 yet when an earlier autoload's `_ready` wants to know.
+
+## 2026-09-09 (Phase 5)
+
+- Two player records as Dictionaries put a snapshot over ENet's MTU on their
+  own. The engine warned in the socket test; the loopback never would have.
+  Pack entities as flat float arrays and assert the byte count in a test.
+- Read the inbox before checking whether the link is open: a reject and the
+  hang-up that follows it arrive in the same poll.
+- Loopback ends that reference each other, and a hub and its links, are
+  reference cycles: `close()` must break them or every session leaks.
+- `ENetMultiplayerPeer.poll()` on a disconnected peer is an engine error per
+  frame. Check `get_connection_status()` first.
+- The smoke cannot run `--headless`: `frame_post_draw` never fires. Xvfb
+  runs the real thing on a headless Linux box.
+- `var x := t.sim.structs.count()` where `t` is a Dictionary is a Variant and
+  fails to parse: type anything pulled out of a Dictionary.
+- A `var` declared inside an `else` at function scope still clashes with a
+  later `var` of the same name in the same function: GDScript scopes are the
+  function's, not the block's, for the parser's duplicate check.
+- The prop renderers hold references to the world's prop dictionaries from
+  build time, so removing a prop from `world.props` did not stop it drawing.
+  Solo had this bug all along; the guest mirror made it visible.
+- `load()` on a test file with a parse error returns a script object that
+  cannot be instantiated and has no methods: the runner counted it as zero
+  tests and zero failures, and eighteen network tests vanished from a run
+  that reported green. `can_instantiate()` is the check; it is in `run.gd`.
+- A press on an unreliable channel is not a press. Edges go reliably, once;
+  held state goes every step. The two must not both carry the edge, or a
+  gate opens and closes on the same tap.
+- `_set` is a virtual on Object; naming a method `_set` with a different
+  signature is a parse error in the caller's script chain, not in the file.
+- A GDScript `WebRTCPeerConnectionExtension` can carry the real
+  `WebRTCMultiplayerPeer` through offer, answer and peer-connected — but a
+  `WebRTCDataChannelExtension` gets `_put_packet(pointer, size)`, which a
+  script cannot fill. Test the handshake with the fake; test bytes with the
+  native extension.
+- GitHub's pages and API are 403 through this session's proxy; only exact
+  release download URLs pass. A release asset whose name you do not know
+  cannot be found from here — leave a fetch script and the URL to the owner.
+- `UPNP.discover` outlasts its own timeout on a machine with no router:
+  eight seconds to say "nobody". Run it on a thread, and never join that
+  thread from STOP HOSTING — orphan it and reap it from `_process`.

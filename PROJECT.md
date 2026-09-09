@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-09, the content catalogue in Notion (Items & Crafting) and how it syncs into `config.gd`
+- **Last updated:** 2026-09-09, Phase 5: co-op — host-authoritative, up to four, over ENet; downed-not-dead; UPnP opens the port; room codes over WebRTC built and switched off. Then the content catalogue in Notion (Items & Crafting), and how it syncs into `config.gd`
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -17,6 +17,7 @@ contradicts it, the code is right — fix this file and say so.
 | `tasks/todo.md` | The phase plan with checkboxes, and per-phase review notes. |
 | `tasks/port-inventory.md` | **The spec.** Every system in the prototype, what it does, its numbers. |
 | `tasks/lessons.md` | Raw running log of lessons. §8 here is the distilled version. |
+| `tasks/switch-to-webrtc.md` | The runbook for turning on room codes over WebRTC. Built, tested, switched off. |
 | **Notion → DEADLINE → Items & Crafting** | **The content catalogue.** Every item, recipe, bench and loot source, owner-editable. §10 says how it is synced into `config.gd`. |
 
 ---
@@ -81,8 +82,25 @@ These settle arguments. When a decision is close, the pillar wins.
 
 ## 3. Where we are right now
 
-**Status: Phase 4 is complete.** Everything the browser prototype had is in
-Godot, and several things are better than they were. Only co-op is left.
+**Status: Phase 5 is built and every phase is now in Godot.** Everything the
+browser prototype had, and several things it did not. What is left is the
+owner playing it — alone, and then with a friend.
+
+**Other people at the table.** A game can be hosted from the pause menu or
+the title screen, and joined from the title with an address, a name and an
+optional password. Up to four. The host runs the simulation exactly as solo
+does; a guest keeps a mirror of it, built through the same load path a save
+uses, sends what it wants every step and predicts only its own footsteps.
+Twenty snapshots a second describe everything within 1600px of that guest;
+walls, chests, emptied containers, felled trees and the roster travel
+reliably as diffs; every command a guest's pack screen makes runs on the host
+through the same function solo uses, range check included. The transport is
+ENet, which the engine ships with, and no broker to run. When you host, the
+game asks your router to open the port itself over UPnP and shows the
+address to hand out; a router that says no leaves the LAN address on the
+same page. And **downed-not-dead**: with a teammate standing, running
+out of health puts you on the ground for thirty seconds rather than in it,
+and holding E beside you gets you up. Alone, you die as you always did.
 
 **The ears.** Every sound in the game is synthesised at boot — thirty-five
 recipes in `Config`, no audio file anywhere in the project — and rate-limited
@@ -175,12 +193,12 @@ that will not fit is ever destroyed: it lands on the ground.
 
 | | |
 | --- | --- |
-| Phase | **4 of 5 complete.** 4a progression, 4b day and fire, 4c survivors and vehicles, 4d the front door, the map and the audio. Only co-op is left |
-| Playable | The whole loop, it levels you, it gets dark, and you can hold it with other people. **E** searches and uses, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
-| Unit tests | 338 tests, 4811 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials and the survivor combat tests: 368 tests, 4924 assertions. Wall-clock varies with the machine — see §9 |
-| Smoke | 45 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked , the town map with its districts, Sixth Sense widening the reveal, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it , and every cue reaching a voice |
+| Phase | **5 of 5 built.** 4a progression, 4b day and fire, 4c survivors and vehicles, 4d the front door, the map and the audio, 5 co-op. None of it has been played by the owner yet |
+| Playable | The whole loop, it levels you, it gets dark, you can hold it with other people, and a friend can join you in it. **E** searches, uses and gets a teammate up, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load, MULTIPLAYER on the title and HOST THIS GAME on the pause menu. |
+| Unit tests | 368 tests, 5041 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials, the survivor combat tests, the UPnP door and the real broker under Node: 401 tests, 5174 assertions. Wall-clock varies with the machine — see §9 |
+| Smoke | 48 checkpoints: a loopback guest joined, walked and parked, and before that walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked , the town map with its districts, Sixth Sense widening the reveal, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it , and every cue reaching a voice |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
-| Save format | **v6** — the districts you have found (ids only: the rects are `Config`, so a save cannot carry a stale map), on top of v5's what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
+| Save format | **v7** — every player by identity, with whether they are here, so a guest's character comes back to them next week (a guest's seat loads parked; the host's never does), on top of v6's the districts you have found (ids only: the rects are `Config`, so a save cannot carry a stale map), on top of v5's what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
 
 ### Port status by system
 
@@ -198,7 +216,7 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Noise | 2 | ported | One `Sound.make_noise`; alert + destination, never aggro |
 | Quiet field / pressure | 2, 3b | ported | A base standing nearby quietens the ground, and losing it makes it dangerous again |
 | Combat: melee, bow, guns, bullets | 2 | ported | Now fed by the hotbar; `TEST_KIT` is what the tests hold |
-| Damage routing | 2 | ported | Solo death only; downed-not-dead is co-op (Phase 5) |
+| Damage routing | 2, 5 | ported | Alone you die; with a teammate standing you go down for thirty seconds, and E beside you gets you up |
 | Navigation | 2 | **new** | Flow field per living player; enemies chasing you follow it |
 | Raids and threat | 2, 3b | ported | Raiders walk at the nearest structure; the compound harness reproduces §9 |
 | Items registry | 3a | ported | `Items` over RES + WEAPONS + GEAR + CONSUMABLES; `Slots` is the container |
@@ -219,11 +237,80 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Title screen, save slots, keybinds | 4d | ported | Six slots with summaries off an index; binds are per machine, not per save |
 | Minimap and town map | 4d | improved | The prototype showed every enemy in the world; here the reveal radius is what Sixth Sense buys |
 | Audio | 4d | improved | Synthesised at boot, not per shot; rate-limited per kind; the prototype had no distance falloff |
-| Online co-op | 5 | — | Last |
+| Online co-op | 5 | **built** | Host-authoritative over ENet (built in, no broker); the prototype's WebRTC is the same `MultiplayerPeer` face once the extension is dropped in — see §6 |
 
 ---
 
 ## 4. What is built
+
+### Other people at the table (Phase 5 — co-op)
+
+- **The host runs the game; guests run a mirror of it.** `NetHost` sits
+  beside the scene's ordinary loop: read the guests' intent, `sim.tick`,
+  send. `NetGuest` builds its mirror with `SaveGame.apply` from the host's
+  payload — the same load path a save uses, so a guest joins with every wall,
+  chest and district exactly as the host has them — and then never ticks it.
+  Snapshots land in the mirror's entity lists, events land in its `events`,
+  and every view draws it exactly as it draws the host's. The one thing a
+  guest simulates is its own next step: `PlayerSim.move()` with the host's
+  code, pulled toward the host's answer (a lerp inside 48px, a snap past it).
+- **Intent up, snapshots down, facts reliably.** `Intent` is packed to a few
+  bytes and sent every step on the unreliable channel; edges are merged so a
+  press survives a packet without it, and a late packet gives up only its
+  edges. A silent guest is holding nothing after 400ms, and a paused one says
+  so every step. Snapshots at 20Hz describe every player, every survivor,
+  and the enemies, piles, cars and fires within 1600px, as flat float arrays
+  — sixty enemies and twenty piles in under three kilobytes. Anything over
+  900 bytes is zstd-compressed to stay inside one datagram. Walls, stores,
+  emptied containers, felled trees, found districts, waiting rescues and the
+  roster go over the reliable channel as diffs every half second, keyed by
+  tile and id and never by index (invariant 7); a guest's own pack goes the
+  moment it changes.
+- **A guest's command is the host's function.** `Actions` is the one seam
+  between the screens and shared state: on the host and in solo it calls
+  `Crafting.craft`, `Equipment.move_stack` and the rest; on a guest it sends
+  the same arguments to the host, who runs the same function with the same
+  range, cost and room checks. Building, searching, driving and getting
+  somebody up are not commands — they are `Intent` edges, and were already
+  the sim's door.
+- **Seats and identity.** A guest's machine has an identity in
+  `user://net.json`; the host's save keeps every player by it (v7), so
+  leaving parks the character where it stood and coming back next week is
+  the same character, level, pack and all. Four seats; "full" is who is
+  here, not who has ever been. A wrong password, a full game, a stale build
+  or a second copy of somebody already connected is refused with the reason.
+- **Downed, not dead.** With a teammate standing, zero health is thirty
+  seconds on the ground: the horde loses interest in you, being hit again
+  does nothing, and a teammate holding E beside you for two and a half
+  seconds brings you back at 40%. Bleed out, or leave, and it is the death
+  it always was. Alone there is nobody to come, so alone you just die.
+- **The door.** START HOSTING listens on the port and, on a thread, asks
+  the router over UPnP to map it, then asks for the public address. The
+  HOST page says what happened in a sentence: open, with the address to
+  click-to-copy; refused, with the router's reason; or no router answered.
+  The LAN addresses are on the page either way. Closing never waits on a
+  router — a discovery still running is orphaned and takes its own mapping
+  down. Carrier-grade NAT and routers with UPnP off are the two things it
+  cannot get past; those are the VPN or the WebRTC road (§6).
+- **The room-code road, built and switched off.** `WebRtcHub` is the same
+  `PeerHub` face over `WebRTCMultiplayerPeer`: the host registers with the
+  broker (`server/signal.js`, the prototype's, unchanged) and gets a
+  six-letter code, a guest joins with the code, and the broker relays the
+  offer, the answer and the ICE candidates until the two machines talk
+  directly. The signalling is a `NetSignaller` over the engine's own
+  `WebSocketPeer`; the connection comes from a factory. It is off until
+  `Config.NET.broker` names a broker **and** the native `webrtc-native`
+  extension is in `addons/webrtc/` (`tools/fetch-webrtc`, gitignored) —
+  the engine ships the WebRTC API and not the implementation. With both,
+  START HOSTING opens a room beside the port and shows the code, and JOIN
+  takes a code where it takes an address. The switch is those three steps;
+  `server/README.md` has the free-tier deployment.
+- **The transport is a face.** `NetLink` is bytes in on a channel, bytes out
+  with the channel they came on. `Loopback` is a pair of queues — optionally
+  lossy and out of order — and is what the tests and the smoke run join a
+  guest through; `EnetHub` stands the engine's own `ENetMultiplayerPeer`
+  behind the same face, one hub dealing packets to one link per peer. A
+  WebRTC peer would plug in there without the sessions changing.
 
 ### The ears (Phase 4d — audio)
 
@@ -795,6 +882,15 @@ Phases 1–4 respecting it.
 | 2026-09-08 | A dropped pile ignores its dropper until they step clear | It lands at your feet, inside collection range, so without the hold-off the magnet hands it straight back and dropping does nothing. A state, not a timer: it waits as long as you stand there. Teammates may take it immediately — that is how you hand something over. | Yes |
 | 2026-09-08 | The pack screen is drawn immediate-mode, not built from Control nodes | One `_cells()` function produces the rectangles that both the drawing and the hit test use, so they cannot describe different grids. It is also how the HUD already works, and how the prototype's canvas inventory worked. | Yes, but it is a rewrite |
 | 2026-09-08 | Panels are polled, not handled as input events | `Input.action_press` sets action state without synthesising an `InputEvent`, so a scripted Tab never reached `_unhandled_input` and the smoke run could not open the pack. Polling `is_action_just_pressed` matches every other key here and keeps the smoke path honest. | Yes |
+| 2026-09-09 | The WebRTC road is built to the last step and left switched off | The owner wants to flip to it quickly if UPnP fails, so everything that can be written and tested without the native binaries is: the hub, the broker wire over the real WebSocket, the menu rows, the fetch script and the deployment notes. The binaries stay out of git (`addons/webrtc/` is ignored) because they are per-platform, several megabytes, and a download away; and the broker URL stays empty in `Config` because there is no broker yet. A GDScript `WebRTCPeerConnectionExtension` stands in for the native one in tests — it carries the handshake and the connection through the real `WebRTCMultiplayerPeer`, but not bytes: the engine hands that layer raw pointers. | Yes — one config value and one script |
+| 2026-09-09 | UPnP before WebRTC for internet play | The owner asked for the cheap way. UPnP is twenty lines against a class the engine ships, no binaries to vendor and no broker to keep alive; it fails only on routers with it switched off and on carrier-grade NAT. WebRTC stays the road for those cases: an extension, a broker on a free tier, and TURN money if STUN is not enough. Try the free thing with real friends before paying for the sure thing. | Yes — additive |
+| 2026-09-09 | Co-op transport is ENet, built into the engine, not WebRTC | The plan said WebRTC because the browser had no choice. Godot's WebRTC is a GDExtension that is not in the engine — tens of megabytes of binaries to vendor per platform — and it still needs the signalling broker to introduce two peers. ENet is in the box, needs no broker, and is the same `MultiplayerPeer` face; every session object above the hub is transport-blind, so WebRTC is an additive change when the owner wants internet play without port forwarding. What ENet does not do is punch through two home routers on its own. | Yes — `EnetHub` gets a sibling |
+| 2026-09-09 | A guest holds a real `GameSim` as its mirror, never ticked | Every view already reads a `GameSim`; teaching them a second shape would have meant a second view layer. The mirror is built by `SaveGame.apply` (so joining is the load path, invariant 7 keeps container identity honest) and snapshots write into its lists. Its clock, stats and threat are whatever the host last said. | Expensive later |
+| 2026-09-09 | World facts travel as diffs of state, not as a vocabulary of events | The prototype relayed `struct`, `sdel`, `looted`, `prop` and so on, and every new system needed a new event or a guest quietly drifted. Here the host compares what it last sent against `structs.list`, the looted flags, `chopped`, `discovered` and the roster every half second, and sends the difference. A missed event is impossible because there are no events to miss; the cost is a hash of the structure list twice a second. | Yes |
+| 2026-09-09 | Snapshot entities are flat `PackedFloat32Array`s, players included | A Dictionary per enemy is a type header per field; two player dictionaries alone put a snapshot over the 1392-byte MTU and the engine warned about it in the socket test. Fixed strides, an index for the type and the item, and zstd over 900 bytes. | Yes |
+| 2026-09-09 | Downed-not-dead only when a teammate is standing | The mechanic is "somebody can come"; with nobody to come it is thirty seconds of watching a timer. `has_teammate_for` decides at the moment of the fall, so a guest leaving mid-bleed-out is death, not a rescue. | Yes, one condition |
+| 2026-09-09 | The host keeps the world running while its pause menu is up, if anyone is connected | A pause that froze three other people's game would be the host's screen deciding everyone's time. Alone, a pause is a pause. The host's own intent is cleared while the menu is up. | Yes |
+| 2026-09-09 | Felled props carry a `gone` flag the renderer skips | The prop renderers bucket the prop dictionaries once and hold references, so a chopped tree went on being drawn until a reload — on the host too, not only the mirror. One flag, no rebuild per swing. | Yes |
 | 2026-09-08 | Anti-stall relocation gated at 400px, and the no-base centre follows you | The gate was a bare 240 and the centre froze at the warning, so a raider legitimately chasing a player who had moved read as stalled and got warped out of the fight. 400 sits below the 520px spawn ring (a raider wedged where it spawned is still rescued) and past half a screen (nothing you are watching is teleported). | Yes, one number |
 | 2026-09-09 | Content tables are designed in Notion (DEADLINE → Items & Crafting) and mirrored into `config.gd` by a sync, rather than edited in the code first | The owner wants to see and reorganise every item, recipe, bench and loot source in one place, on a phone, without a text editor — and to add benches and weapon classes before they exist in code. Notion owns *what exists and what it costs*; the code owns *how it behaves*; the sync procedure in §10 keeps the seam honest. Invariant 5 still holds: `config.gd` is the only place the game reads from. | Yes — the tables are a mirror, and `config.gd` stays the truth for the running game |
 
@@ -811,7 +907,7 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 | 2 | Enemies, combat, noise, quiet field, navigation, raids | Built 2026-09-08 — **owner fights** |
 | 3 | Items, inventory, loot, crafting, building, raids, saves | Owner builds and holds a base |
 | 4 | Progression, day/night, survivors, vehicles, fire, menus, audio | Owner plays a full session |
-| 5 | Online co-op | Owner plays with a friend |
+| 5 | Online co-op | Built 2026-09-09 — **owner plays with a friend** |
 
 ### Next up
 
@@ -843,10 +939,27 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    a level arrives often enough to feel earned, and whether the new minimap
    reveal radius makes Sixth Sense worth six Perception or just makes the map
    useless without it.
-1. **The test budget.** The fast tier is 17s against a ten-second rule.
-   `save_test.gd` regenerates worlds and belongs in the slow tier; that is an
-   owner decision because it changes what runs on every commit.
-1. **Phase 5 — co-op.** The last thing in the plan.
+1. **Play it with somebody.** The co-op gate. On a LAN or a VPN today: the
+   host clicks HOST THIS GAME, the guest types the host's address. Two
+   copies on one machine also work (`127.0.0.1`). The questions: does a
+   guest's walk feel like their own or like being dragged; does 48px of
+   snap ever show; is twenty-eight seconds on the ground long enough to be
+   rescued and short enough to hurt; does a shared stash make stocking it a
+   decision between two people; is a raid with two guns fun or just short.
+1. **Internet play across two home routers.** The cheap road is in:
+   UPnP, through the engine's own `UPNP` class, no server. The owner's
+   router has not answered it yet; the HOST page will say whether it did.
+   If it says no, or a friend is behind carrier-grade NAT, the roads left
+   are a VPN (no code) or the WebRTC GDExtension plus the prototype's
+   `server/signal.js` broker on a free host — **already built**; the
+   runbook is `tasks/switch-to-webrtc.md` (three steps and a test run).
+   The one thing untested until the extension is fetched is bytes over a
+   real WebRTC channel; `webrtc_slow_test` runs that leg on localhost the
+   moment `WebRtcHub.available()` is true — see §6.
+1. **The test budget.** The fast tier is ~20s against a ten-second rule.
+   `save_test.gd` regenerates worlds and belongs in the slow tier, and
+   `net_test.gd` opens a real UDP socket once; both are owner decisions
+   because they change what runs on every commit.
 
 ### Deliberately not building
 
@@ -877,6 +990,27 @@ summarised in `tasks/port-inventory.md`.
   the save format from the start.
 
 ### New in Godot
+
+- **A snapshot that fits a Dictionary does not fit a datagram.** Two player
+  records as Dictionaries were 500 bytes each; the engine's MTU warning in
+  the socket test was the only thing that said so. Measure the packet, in a
+  test, against the number the transport cares about. (2026-09-09)
+- **Read what arrived before judging the line.** A refusal is followed by a
+  hang-up, and a guest that checked `is_open()` first reported "the host
+  closed the connection" instead of "wrong password". Same on the host: a
+  `bye` and the drop arrive together, and "left" is the truer word.
+  (2026-09-09)
+- **A `RefCounted` pair that point at each other leak.** Loopback ends and
+  hub↔link both did; `close()` breaks the cycle. The leak was a warning at
+  exit, not a failure, which is exactly how it would have shipped.
+  (2026-09-09)
+- **Polling a hung-up ENet peer is an engine error.** `poll()` on a peer
+  whose status is DISCONNECTED logs an error every frame; check the status
+  first. (2026-09-09)
+- **`--headless` cannot run the smoke.** `checkpoint` awaits
+  `RenderingServer.frame_post_draw`, which never fires without a renderer,
+  and the run hangs at the first one. Xvfb runs the real windowed smoke on a
+  Linux box with no screen. (2026-09-09)
 
 - **Anything a headless run writes under `user://` needs its own path.**
   `user://` is shared with the game the owner plays, and three times in Phase
@@ -986,10 +1120,16 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 338  asserts: 4811  failures: 0
-tests: 368  asserts: 4924  failures: 0   (--all)
-SMOKE done checkpoints=45 failures=0 exit=0
+tests: 368  asserts: 5041  failures: 0
+tests: 401  asserts: 5174  failures: 0   (--all)
+SMOKE done checkpoints=48 failures=0 exit=0
 ```
+
+On Linux (the remote session that built Phase 5 ran on one): set `GODOT`
+to a Linux 4.7.2 binary and run `tools/test.sh`; the smoke needs a display,
+and `xvfb-run -a -s "-screen 0 1280x720x24" $GODOT --path . --rendering-driver opengl3 -- --smoke --smoke-out=$PWD/.smoke`
+is what ran it there. `--headless` hangs the smoke: `frame_post_draw` never
+fires without a renderer.
 
 **On timings.** The ten-second agreement is about the edit loop staying quick,
 and the number is machine- and load-dependent: the identical commit measured
@@ -1129,6 +1269,10 @@ moment the parent merges.
 | Date | What |
 | --- | --- |
 | 2026-09-09 | **Content catalogue in Notion.** Three linked databases under DEADLINE → Items & Crafting, seeded from `config.gd`: Items (every weapon, armour piece, ammo, consumable, material, utility item and structure — 98 rows, 27 of them the planned melee weapons — with recipe, bench, loot sources, recycling output, stats and status), Benches (Hand plus the planned Wood Work Bench, Scrap Work Bench, Tech Bench and Recycling, each in-game recipe placed on the bench it will move to), and Loot Sources (all 30 container kinds, 6 harvest scenery kinds, car trunks and stripped cars, with which buildings they furnish). Ten views on Items: Weapons by class, Armor by slot, Ammo & Consumables, Materials with what they are used for, Structures, By bench board, Craft by hand, Findable, Planned, Everything. The 27 melee weapons from the owner's class list (Improvised, Blunt, Bladed, Axes, Polearms, Heavy) are in as Planned. No code change; §10 gains the sync procedure |
+| 2026-09-09 | Phase 5 Codex pass on PR #15: intent **edges travel on the reliable channel** as their own message (`msg_edges`), once, and the state packet carries held state only — a dropped datagram no longer swallows a press and a duplicate cannot toggle a gate twice; **seats belong to who is present**: a parked character gives its seat up to a newcomer and gets one back on return, so three absent friends cannot make a game "full"; `open_boot` names its seat and is gated like `open_store`; an emptied boot sends one empty record so a guest's copy clears; automated kills and raid payouts pay `present_players()` only. Also: the test runner now fails a file that loads but cannot instantiate (a parse error had been counting as zero tests, zero failures — `net_test.gd` vanished from a run that reported green). 7 new tests |
+| 2026-09-09 | Phase 5, the room-code road (off): `PeerHub` — the `MultiplayerPeer`-behind-`NetLink` half of `EnetHub` pulled out as a base, with the "no answer" text reserved for a dial nobody answered; `EnetHub` extends it; `WebRtcHub` — rooms and joins over `WebRTCMultiplayerPeer`, signalling over `WebSocketPeer` to `server/signal.js`, room codes, gid→peer id, a connection factory, `available()`; `server/` — the prototype's broker with a `package.json` and a README for free-tier hosting; `tools/fetch-webrtc` for the native extension into gitignored `addons/webrtc/`; `Config.NET.broker`, `stun`, `rtc_timeout`; the HOST page's ROOM CODE row and JOIN taking a code; `tests/support/fake_rtc.gd` and `fake_broker.gd`; `webrtc_test` (4, fast: the handshake through the real multiplayer peer) and `webrtc_slow_test` (1: the real broker under Node, and real WebRTC on localhost when the extension is present) |
+| 2026-09-09 | Phase 5, the door: `NetDoor` — UPnP port mapping on a thread when hosting starts, the public address queried and shown on the HOST page as a click-to-copy row, the LAN addresses beside it, refusal reasons in words, and a close that never blocks on a router (an unfinished discovery is orphaned, reaped from `_process`, and takes its own mapping down); `Config.NET.upnp`, `upnp_timeout_ms`, `upnp_lease_s`; `door_slow_test.gd` (2 tests, slow tier: discovery on a box with no router takes eight seconds to say so) |
+| 2026-09-09 | Phase 5 (co-op) — **every phase built**: `Config.NET`; `src/net/` — `NetProtocol` (framing with zstd over 900 bytes, packed intents with edge merging, flat-array snapshots, structure and inventory records, the join refusal), `NetLink` with `Loopback` (lossy, reordering, seeded), `EnetHub` over `ENetMultiplayerPeer`, `NetHost` (admission by identity, intent expiry, snapshots at 20Hz, inventory and store diffs, world diffs, event relay by interest), `NetGuest` (the mirror via `SaveGame.apply`, prediction with `PlayerSim.move`, easing, cosmetic tracers, the roster), `Actions` (the command seam the pack screen now calls) and `NetPrefs`; `PlayerSim` gains identity, away, downed, down_t and reviving; `GameSim` gains join, park, unpark, present players and `has_teammate_for`; `Damage` gains down, bleed-out and revive; `Interact` offers a downed teammate first and runs the revive channel; `SaveGame` v7; `Equipment.move_stack` and `drop_stack` resolve a car boot by id (dragging in and out of a boot works now); `PlayerView` draws every player with names and the downed pose; the HUD shows teammates, the downed state and the revive bar; the map shows teammates; MULTIPLAYER, HOST and JOIN pages with typed fields; the host and guest loops in `main.gd`; 24 new tests (362 fast, 392 with `--all`) including a real UDP handshake on localhost and a 30%-loss loopback; three smoke checkpoints with a loopback guest joined, walked and parked. Fixed in passing: a felled tree kept being drawn until a reload |
 | 2026-09-08 | Phase 4d (audio) — **Phase 4 complete**: `Config.SFX` (35 cues as recipes), `SFX_THROTTLE`, `SFX_RATE`/`SFX_GAIN`/`SFX_NEAR`/`SFX_RANGE`; `Sfx` — tone and filtered-noise synthesis rendered to PCM at boot rather than a graph per shot, a Chamberlin state-variable filter for the lowpass/highpass/bandpass with a per-sample cutoff sweep, a 24-voice pool, the per-kind rate limit, and mute persisted to `user://audio.json`; `SfxView` maps sim events to cues so `src/sim` never learns that sound exists; the gunshot rides the muzzle flash rather than the bullet, so a shotgun is one bang and not eight; distance falloff, which the prototype had none of; the hit event gained a `kind` so a pipe thumps and a bullet pings; SOUND on the pause menu and the title; 19 new tests (338 fast, 368 with `--all`); a smoke checkpoint that plays every cue and checks a voice actually started. The bank was 205ms at boot until the per-sample `exp` and `pow` became stepped multipliers giving the identical curve: 91ms. The autoload is `Audio`, not `Sfx` — an autoload whose name matches a `class_name` shadows the class, and under `-s` the name then resolves to a bare GDScript with no static methods, which is the second time this project has hit that |
 | 2026-09-08 | Phase 4d (the map): `Config.MAP`; `MapScreen` — the corner minimap and the town map behind `M` off one `_draw`, a 320x320 one-pixel-per-tile ground image tinted by danger and cached on the generator's fingerprint (41ms, once per world), structures, packs, crew, enemies, the pulsing raid marker and the player's facing; district discovery in `GameSim` paying 25 XP per danger tier — the tenth XP site — with undiscovered districts drawn as `? ? ?`; `SaveGame` v6 carries what you have found, by id; **Sixth Sense loses its `needs` gate and `radar_mul` becomes a reveal radius**, which is a deliberate balance change from the prototype, where the minimap showed every enemy in the world and the perk did nothing; the debug readout moved off the corner the minimap now owns; 10 new tests (319 fast, 349 with `--all`); smoke opens the town map, buys the perk and watches the reveal widen. Two existing tests changed with it, both correctly: no perk carries a `needs` any more, and the raid test searched the notices for INCOMING instead of assuming it was first, because a discovery notice can now arrive on the same tick |
 | 2026-09-08 | Phase 4d (the front door): `Saves` — six slots behind a small `user://saves/index.json` so listing six games does not parse six worlds, with the file as the truth about existence and the index as the truth about the summary, `latest()` preferring the slot last chosen over the one last written, and the play time and "3 hours ago" labels; autosave every two minutes for a game that has a slot, and never for one that does not; `KeyBinds` rewritten as static state on a `class_name` — full rebinding to `user://binds.json`, conflicts reported rather than refused, Escape reserved, unknown actions from an old file dropped, and every prompt built from `primary_label`; `MenuScreen` with TITLE, PAUSE, LOAD, CONTROLS and NEW GAME off one `_rows()` that is both the hit test and the paint, footer rows pinned so BACK cannot scroll away; `scenes/main.gd` boots to the title (except under smoke), Escape closes innermost-first and then pauses with the world frozen, and SAVE AND QUIT TO TITLE writes before it leaves; 21 new tests (309 fast, 339 with `--all`); 6 new smoke checkpoints — pause, CONTROLS, a key rebound, a save written, the title, and that slot loaded from it. The menu never repainted after a page change: the assertions passed because they read `menu.page`, and only the screenshot showed CONTROLS still on screen |

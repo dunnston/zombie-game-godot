@@ -16,6 +16,8 @@ const COLORS := {
 }
 
 var sim: GameSim
+## Whose reach the build ring shows.
+var player: PlayerSim = null
 var build_bar: BuildBar
 
 
@@ -109,5 +111,5 @@ func _draw_ghost() -> void:
 	draw_rect(Rect2(at, Vector2(Config.TILE, Config.TILE)), Color(col.r, col.g, col.b, 0.9), false, 2.0)
 	# The reach a piece may be placed within, so "Too far" is visible before
 	# it is a refusal.
-	var p := sim.players[0]
+	var p: PlayerSim = player if player != null else sim.players[0]
 	draw_arc(p.pos, Config.BUILD.range, 0.0, TAU, 64, Color("#d8e8c0", 0.12), 1.0)

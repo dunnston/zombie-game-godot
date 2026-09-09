@@ -167,7 +167,7 @@ func tick(sim: GameSim, dt: float) -> void:
 		progress_check = 1.0
 		var player_hp := 0.0
 		var players_down := 0
-		for p in sim.players:
+		for p in sim.present_players():
 			player_hp += p.hp
 			if p.dead:
 				players_down += 1
@@ -233,7 +233,7 @@ func _finish(sim: GameSim, repelled_: bool) -> void:
 			Loot.give_res_or_drop(sim, payee, id, n, payee.pos)
 	# XP is paid on the same share as the salvage. A floor here would pay
 	# half the raid's XP for walking away from it without a single kill.
-	for p in sim.players:
+	for p in sim.present_players():
 		Progression.add_xp(sim, p, spec.xp * share, "RAID")
 	for e in sim.enemies.list:
 		if e.raid:

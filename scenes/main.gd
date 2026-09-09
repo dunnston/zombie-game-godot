@@ -30,6 +30,26 @@ var inventory: InventoryScreen
 var build_bar: BuildBar
 var menu: MenuScreen
 var shake := 0.0
+
+## Co-op (Phase 5). `me` is the local player whatever seat it holds; every
+## screen and view that used to assume seat 0 is pointed at it. The host
+## session and the socket hub exist only while hosting; the guest session
+## only while joined; `role` says which loop `_physics_process` runs.
+var me: PlayerSim
+var role := "solo"                  # solo / host / guest / joining
+var net_host: NetHost = null
+var net_guest: NetGuest = null
+var hub: PeerHub = null
+## The room-code road (WebRTC through a broker), open beside the port while
+## hosting when `Config.NET.broker` names one. Null otherwise.
+var room: WebRtcHub = null
+## The router's answer to "open the port": the cheap way onto the internet.
+var door: NetDoor = null
+var prefs := {}
+var _join_t := 0.0
+## An in-process guest the smoke run pumps through a loopback, so the
+## co-op path is exercised by the real scene without a second machine.
+var smoke_guest: NetGuest = null
 var _shake_rng := RandomNumberGenerator.new()
 
 ## The slot this game belongs to, or -1 for a run with no home. Autosave and
@@ -65,7 +85,7 @@ func _ready() -> void:
 	add_child(vehicle_view)
 	survivor_view = SurvivorView.new(sim)
 	add_child(survivor_view)
-	player_view = PlayerView.new(sim.players[0])
+	player_view = PlayerView.new(sim)
 	add_child(player_view)
 	props_above = PropRenderer.new(sim, true)
 	add_child(props_above)
@@ -108,6 +128,16 @@ func _ready() -> void:
 	menu = MenuScreen.new()
 	menu.chose.connect(_on_menu)
 	layer.add_child(menu)
+	# A smoke run must not touch this machine's identity file (§8: every
+	# `user://` path a headless run can write is redirected).
+	if Smoke.enabled:
+		NetPrefs.STORE = "user://smoke/net.json"
+	prefs = NetPrefs.load()
+	menu.fields.address = String(prefs.address)
+	menu.fields.name = String(prefs.name)
+	menu.fields.password = String(prefs.password)
+	menu.net.port = Config.NET.port
+	_set_local(sim.players[0])
 	# The smoke run drives the game directly and has no business clicking
 	# through a title screen, so it starts in the world it was given. Everybody
 	# else gets a front door.
@@ -129,6 +159,10 @@ func _physics_process(dt: float) -> void:
 		# menu. Only the title screen has nothing to back out of.
 		if Input.is_action_just_pressed("pause"):
 			menu.back()
+		# The wire does not pause. A guest keeps telling the host it is
+		# holding nothing; a host with guests keeps the world running for
+		# them; a dial in progress keeps dialling.
+		_net_menu_step(dt)
 		return
 
 	_tick_autosave(dt)
@@ -191,7 +225,7 @@ func _physics_process(dt: float) -> void:
 	elif Input.is_action_just_pressed("quick_load"):
 		_quick_load()
 
-	var intent := sim.players[0].intent
+	var intent := me.intent
 	# An open panel owns the mouse: you can still walk, but a click belongs to
 	# the screen you are looking at rather than to the gun in your hand.
 	LocalInput.gather(intent, self, inventory.visible or build_bar.open or map.open)
@@ -208,7 +242,78 @@ func _physics_process(dt: float) -> void:
 		elif Input.is_action_just_pressed("wheel_up"):
 			build_bar.cycle(-1)
 		build_bar.fill_intent(intent)
+	if role == "guest":
+		# No `sim.tick` on a guest: the mirror is the host's picture, and the
+		# only thing this machine simulates is its own next step.
+		net_guest.poll()
+		net_guest.tick(dt)
+		_after_guest_step()
+		return
+	_host_step(dt)
+
+
+## One simulation step, and — while hosting — the wire around it: what the
+## guests want goes in before the step, what happened comes out after it.
+func _host_step(dt: float) -> void:
+	if net_host == null:
+		sim.tick(dt)
+		return
+	for h: PeerHub in [hub, room]:
+		if h == null:
+			continue
+		h.poll()
+		for id in h.joined:
+			if h.links.has(id):
+				net_host.attach(h.links[id])
+		h.joined.clear()
+		h.left.clear()
+	net_host.poll()
 	sim.tick(dt)
+	net_host.after_tick(dt)
+	if smoke_guest != null:
+		smoke_guest.poll()
+		smoke_guest.tick(dt)
+
+
+## What a guest checks after every step: whether the renderers have to be
+## told about a felled tree, and whether the host is still there.
+func _after_guest_step() -> void:
+	if net_guest.world_dirty:
+		net_guest.world_dirty = false
+		props_below.rebuild()
+		props_above.rebuild()
+	if net_guest.status != "joined":
+		# The mirror is a stale copy of somebody else's world: back to the
+		# title, with the reason on the JOIN page and the address still there.
+		var why := net_guest.reason
+		_enter_title()
+		menu.net.error = "The host left." if why.is_empty() else why
+		menu.came_from_net = MenuScreen.Page.TITLE
+		menu.open(MenuScreen.Page.JOIN)
+
+
+## The wire while a menu is up.
+func _net_menu_step(dt: float) -> void:
+	match role:
+		"guest":
+			net_guest.poll()
+			net_guest.tick(dt, true)
+			_after_guest_step()
+		"host":
+			# The door stays open while the host reads the menu: a dial has to
+			# land even if nobody else is here yet.
+			if hub != null:
+				hub.poll()
+			if room != null:
+				room.poll()
+			# Guests are playing: the world goes on without the host's hands
+			# on it. Alone, a pause is a pause.
+			if net_host.connected_count() > 0 or (hub != null and not hub.joined.is_empty()) \
+					or (room != null and not room.joined.is_empty()):
+				NetProtocol.clear_intent(me.intent)
+				_host_step(dt)
+		"joining":
+			_join_step(dt)
 
 
 ## Loading rebuilds the simulation in place. Every view holds the same
@@ -221,9 +326,7 @@ func _load_slot(which: int) -> bool:
 		sim.notify(r.reason, "#c96a5a", true)
 		return false
 	var p := sim.players[0]
-	player_view.p = p
-	inventory.player = p
-	build_bar.player = p
+	_set_local(p)
 	inventory.visible = false
 	# Through `toggle`, not the flag: a Control keeps what it last drew, and
 	# the scene stops redrawing a closed bar.
@@ -246,9 +349,7 @@ func _load_slot(which: int) -> bool:
 ## either way and the renderers cache it.
 func _rebuild_views() -> void:
 	var p := sim.players[0]
-	player_view.p = p
-	inventory.player = p
-	build_bar.player = p
+	_set_local(p)
 	inventory.visible = false
 	if build_bar.open:
 		build_bar.toggle()
@@ -259,19 +360,42 @@ func _rebuild_views() -> void:
 	camera.position = p.pos
 
 
+## Everything that has to know which player is this machine's. One place,
+## because the list is long and a view left pointing at seat 0 would draw a
+## guest's screen from the host's body.
+func _set_local(p: PlayerSim) -> void:
+	me = p
+	player_view.local = p
+	hud.player = p
+	inventory.player = p
+	build_bar.player = p
+	map.player = p
+	structure_view.player = p
+	props_below.player = p
+	props_above.player = p
+	ears.player = p
+
+
 func _process(dt: float) -> void:
 	for ev in sim.events:
 		if ev.t == "shake":
 			shake = maxf(shake, ev.amount)
 		elif ev.t == "open_store":
-			inventory.open_store(Vector2i(ev.tx, ev.ty))
+			# The screen opens for whoever pressed E, and only on their machine.
+			if int(ev.get("seat", me.seat)) == me.seat:
+				inventory.open_store(Vector2i(ev.tx, ev.ty))
 		elif ev.t == "open_boot":
-			inventory.open_boot(int(ev.id))
+			if int(ev.get("seat", me.seat)) == me.seat:
+				inventory.open_boot(int(ev.id))
 		fx.on_event(ev)
 		lights.on_event(ev)
 		hud.on_event(ev)
 		ears.on_event(ev)
 	sim.events.clear()
+	if net_host != null:
+		net_host.on_events_cleared()
+	_refresh_net_lines()
+	NetDoor.reap()
 	fx.tick(dt)
 	lights.tick()
 	hud.tick(dt)
@@ -294,7 +418,7 @@ func _process(dt: float) -> void:
 
 ## Leads toward the cursor so you can see what you are aiming at.
 func _update_camera(dt: float) -> void:
-	var p := sim.players[0]
+	var p := me
 	var C := Config.CAMERA
 	var mouse := get_global_mouse_position()
 	# The camera follows where the player is *drawn*, not where the last
@@ -317,6 +441,7 @@ func smoke_state() -> Dictionary:
 	var p := sim.players[0]
 	var loc := sim.world.location_at_px(p.pos.x, p.pos.y)
 	return {
+		"role": role, "players": sim.present_players().size(),
 		"x": p.pos.x, "y": p.pos.y, "tx": int(p.pos.x / 32), "ty": int(p.pos.y / 32),
 		"location": loc.get("id", "outskirts"), "stam": p.stam, "hp": p.hp, "winded": p.winded,
 		"weapon": p.weapon().id, "enemies": sim.enemies.alive_count(), "kills": sim.stats.kills,
@@ -720,7 +845,9 @@ func smoke_run(smoke: Node) -> void:
 	var ftx := floori(p.pos.x / 32) + 2
 	var fty := floori(p.pos.y / 32)
 	for i in range(4):
-		var prop := {"kind": "pine", "tx": ftx + i, "ty": fty,
+		# `si` is the sprite index every drawn pine has; without it the
+		# renderer logged an error per prop per frame until they burned.
+		var prop := {"kind": "pine", "si": 0, "tx": ftx + i, "ty": fty,
 			"x": (ftx + i) * 32 + 16.0, "y": fty * 32 + 16.0, "hp": 40.0, "solid": false}
 		sim.world.props.append(prop)
 		sim.world.prop_grid[fty * Config.WORLD_TILES + ftx + i] = prop
@@ -999,6 +1126,58 @@ func smoke_run(smoke: Node) -> void:
 	await smoke.checkpoint("loaded_from_title")
 	Saves.delete(test_slot)
 
+	# Co-op, through this scene's real host loop: a guest session joined over
+	# a loopback and pumped in-process. No socket — the socket has its own
+	# test — but everything above it is the path a friend takes: the world as
+	# a payload, a seat, a second body on screen, intent up, snapshots down.
+	p = sim.players[0]
+	var ends: Array = NetLink.Loopback.pair()
+	net_host = NetHost.new(sim, "Host")
+	net_host.attach(ends[0])
+	role = "host"
+	smoke_guest = NetGuest.new(ends[1], "smoke-guest", "Bex")
+	await smoke.frames(20)
+	if not smoke_guest.joined():
+		smoke.fail("the loopback guest never joined: %s %s" % [smoke_guest.status, smoke_guest.reason])
+	else:
+		var gp := sim.player_by_identity("smoke-guest")
+		if gp == null:
+			smoke.fail("the host has no seat for the guest")
+		else:
+			var beside := sim.world.unstick(p.pos + Vector2(64, 0), gp.r)
+			gp.pos = beside
+			gp.prev_pos = beside
+			smoke_guest.me.pos = beside
+			smoke_guest.me.prev_pos = beside
+			# The walk below measures the wire, not a fight: a walker's bite
+			# knocks the guest back and once cost the step six pixels of its
+			# forty. Nothing may touch them, and nothing is close enough to try.
+			gp.god_mode = true
+			for i in range(sim.enemies.list.size() - 1, -1, -1):
+				if sim.enemies.list[i].pos.distance_to(beside) < 400.0:
+					sim.enemies.list.remove_at(i)
+			await smoke.frames(6)
+			await smoke.checkpoint("coop_joined")
+			var from := gp.pos
+			smoke_guest.me.intent.mx = 1.0
+			smoke_guest.me.intent.aim = beside + Vector2(200, 0)
+			await smoke.frames(60)
+			smoke_guest.me.intent.mx = 0.0
+			if gp.pos.x - from.x < 40.0:
+				smoke.fail("the guest's intent did not move their player on the host: dx=%.1f" % (gp.pos.x - from.x))
+			if smoke_guest.me.pos.distance_to(gp.pos) > Config.NET.snap_over:
+				smoke.fail("guest prediction drifted %.0f px from the host" % smoke_guest.me.pos.distance_to(gp.pos))
+			if smoke_guest.sim.players.size() != sim.players.size():
+				smoke.fail("the mirror's roster does not match the host's")
+			await smoke.checkpoint("coop_walked")
+			smoke_guest.leave()
+			await smoke.frames(6)
+			if not gp.away:
+				smoke.fail("leaving did not park the guest's character")
+			await smoke.checkpoint("coop_left")
+	smoke_guest = null
+	_stop_hosting()
+
 # --------------------------------------------------------------- the menu --
 
 ## What the title screen and the pause menu ask for. The menu knows about rows
@@ -1006,6 +1185,7 @@ func smoke_run(smoke: Node) -> void:
 func _on_menu(what: String, arg: int) -> void:
 	match what:
 		"continue", "load":
+			_stop_hosting()
 			if _load_slot(arg):
 				slot = arg
 				Saves.mark_current(arg)
@@ -1013,6 +1193,7 @@ func _on_menu(what: String, arg: int) -> void:
 		"new_confirm":
 			if arg < 0:
 				return
+			_stop_hosting()
 			slot = arg
 			sim.new_game(WORLD_SEED)
 			_rebuild_views()
@@ -1020,6 +1201,31 @@ func _on_menu(what: String, arg: int) -> void:
 			# disk before anything can go wrong in it.
 			Saves.save_to(sim, slot)
 			_leave_title()
+		"host_start":
+			_start_hosting(arg)
+		"host_stop":
+			_stop_hosting()
+			menu.open(MenuScreen.Page.PAUSE if menu.over_game else MenuScreen.Page.TITLE)
+		"copy_code":
+			if not String(menu.net.code).is_empty():
+				DisplayServer.clipboard_set(String(menu.net.code))
+				sim.notify("Copied room code %s" % String(menu.net.code), "#9fd0ff")
+		"copy_address":
+			# A public address is a thing you paste to a friend, not retype.
+			var text := String(menu.net.public)
+			if text.is_empty() and not (menu.net.lan as Array).is_empty():
+				text = String(menu.net.lan[0])
+			if not text.is_empty():
+				DisplayServer.clipboard_set(text)
+				sim.notify("Copied %s" % text, "#9fd0ff")
+		"join_start":
+			_start_join()
+		"join_cancel":
+			_leave_game()
+			menu.net.status = ""
+		"leave_game":
+			_leave_game()
+			_enter_title()
 		"delete":
 			Saves.delete(arg)
 			if slot == arg:
@@ -1034,12 +1240,225 @@ func _on_menu(what: String, arg: int) -> void:
 			# into "quit" would take the session with it and leave CONTINUE
 			# pointing at an older payload.
 			if _save_current():
+				_stop_hosting()
 				_enter_title()
 		"quit":
+			_stop_hosting()
+			_leave_game()
 			get_tree().quit()
 
 
+# ---------------------------------------------------------------- co-op --
+
+## Opens the door. `which` is the menu's `host_arg`: -2 hosts the game
+## running now, -3 starts a new one, a slot number loads that save first. A
+## guest's characters ride in whichever save this is.
+func _start_hosting(which: int) -> void:
+	_save_prefs()
+	menu.net.error = ""
+	if which == -3:
+		var free := Saves.first_free()
+		if free < 0:
+			menu.net.error = "Every save slot is full — delete one first"
+			return
+		slot = free
+		sim.new_game(WORLD_SEED)
+		_rebuild_views()
+		Saves.save_to(sim, slot)
+	elif which >= 0:
+		if not _load_slot(which):
+			menu.net.error = "That save would not load"
+			return
+		slot = which
+		Saves.mark_current(which)
+	_stop_hosting()
+	var door_hub := EnetHub.new()
+	var err := door_hub.host(Config.NET.port, Config.NET.max_players - 1)
+	if not err.is_empty():
+		menu.net.error = err
+		return
+	hub = door_hub
+	var name_ := String(menu.fields.name).strip_edges()
+	net_host = NetHost.new(sim, name_ if not name_.is_empty() else "Host", NetProtocol.hash_password(String(menu.fields.password)))
+	role = "host"
+	sim.notify("Hosting on UDP port %d" % Config.NET.port, "#9fd0ff", true)
+	if Config.NET.upnp:
+		door = NetDoor.new()
+		door.open(Config.NET.port)
+	# The room-code road, when it is switched on: a broker named and the
+	# native extension present. Either missing is said on the HOST page.
+	if not String(Config.NET.broker).is_empty() and WebRtcHub.available():
+		room = WebRtcHub.new()
+		var rerr := room.host(String(Config.NET.broker))
+		if not rerr.is_empty():
+			menu.net.error = rerr
+			room = null
+	if at_title:
+		_leave_title()
+	else:
+		menu.close()
+
+
+func _stop_hosting() -> void:
+	if net_host != null:
+		net_host.stop()
+		net_host = null
+	if hub != null and role == "host":
+		hub.close()
+		hub = null
+	if door != null:
+		door.close()
+		door = null
+	if room != null:
+		room.close()
+		room = null
+	if role == "host":
+		role = "solo"
+		if sim != null:
+			sim.notify("Stopped hosting", "#8a8f84")
+
+
+## Dials. The rest happens in `_join_step`, a frame at a time, so the menu
+## can show what is going on and CANCEL can mean something.
+func _start_join() -> void:
+	_save_prefs()
+	_leave_game()
+	var text := String(menu.fields.address).strip_edges()
+	var port: int = Config.NET.port
+	var address := text
+	var colon := text.rfind(":")
+	if colon > 0 and text.substr(colon + 1).is_valid_int():
+		address = text.left(colon)
+		port = int(text.substr(colon + 1))
+	if address.is_empty():
+		menu.net.error = "Type the host's address first"
+		return
+	var err := ""
+	if WebRtcHub.is_code(WebRtcHub.normalise_code(text)) and not text.contains("."):
+		# Six letters is a room code: the broker road, if it is switched on.
+		if String(Config.NET.broker).is_empty():
+			menu.net.error = "Room codes need a broker (Config.NET.broker) — type the host's address instead"
+			return
+		if not WebRtcHub.available():
+			menu.net.error = "Room codes need the WebRTC extension (tools/fetch-webrtc) — type the host's address instead"
+			return
+		var r := WebRtcHub.new()
+		err = r.join(String(Config.NET.broker), text)
+		hub = r
+		menu.net.status = "asking the broker for room %s…" % WebRtcHub.normalise_code(text)
+	else:
+		var e := EnetHub.new()
+		err = e.join(address, port)
+		hub = e
+		menu.net.status = "dialling %s:%d…" % [address, port]
+	if not err.is_empty():
+		hub = null
+		menu.net.error = err
+		return
+	role = "joining"
+	_join_t = 0.0
+	menu.net.error = ""
+
+
+func _join_step(dt: float) -> void:
+	_join_t += dt
+	hub.poll()
+	if net_guest == null:
+		var link := hub.host_link()
+		if link != null:
+			var name_ := String(menu.fields.name).strip_edges()
+			# The mirror is built into this scene's own `sim`, so every view
+			# keeps the reference it already holds.
+			net_guest = NetGuest.new(link, String(prefs.identity), name_ if not name_.is_empty() else "Guest",
+				NetProtocol.hash_password(String(menu.fields.password)), sim)
+			menu.net.status = "connected — waiting for the host…"
+		elif not hub.error.is_empty() or _join_t > (Config.NET.rtc_timeout if hub is WebRtcHub else Config.NET.hello_timeout):
+			var why := hub.error if not hub.error.is_empty() else "no answer"
+			_leave_game()
+			menu.net.error = "Could not reach the host (%s)" % why
+		elif hub is WebRtcHub and not (hub as WebRtcHub).status.is_empty():
+			menu.net.status = (hub as WebRtcHub).status
+		return
+	net_guest.poll()
+	net_guest.tick(dt, true)
+	if net_guest.joined():
+		_enter_guest_world()
+	elif net_guest.status != "connecting":
+		var why := net_guest.reason
+		_leave_game()
+		menu.net.error = why
+
+
+## The host's world has arrived in `sim`. Everything that cached the old one
+## is rebuilt, the local player becomes the seat the host gave us, and the
+## pack screen's commands start going over the wire.
+func _enter_guest_world() -> void:
+	role = "guest"
+	slot = -1
+	Actions.guest = net_guest
+	terrain.build(sim.world)
+	props_below.rebuild()
+	props_above.rebuild()
+	inventory.visible = false
+	if build_bar.open:
+		build_bar.toggle()
+	map.open = false
+	_set_local(net_guest.me)
+	camera.position = me.pos
+	menu.net.status = ""
+	_leave_title()
+
+
+## Hangs up, whichever side of the dial we were on. The mirror left in `sim`
+## is nobody's game: it is never saved, and CONTINUE or NEW GAME replace it.
+func _leave_game() -> void:
+	Actions.guest = null
+	if net_guest != null:
+		net_guest.leave()
+		net_guest = null
+	if hub != null and role != "host":
+		hub.close()
+		hub = null
+	if role == "guest" or role == "joining":
+		role = "solo"
+	menu.net.status = ""
+
+
+func _save_prefs() -> void:
+	prefs.name = String(menu.fields.name).strip_edges()
+	prefs.address = String(menu.fields.address).strip_edges()
+	prefs.password = String(menu.fields.password)
+	NetPrefs.save(prefs)
+
+
+## What the menu and the HUD say about the connection, refreshed each frame.
+func _refresh_net_lines() -> void:
+	menu.net.role = role
+	if role == "host" and net_host != null:
+		menu.net.guests = net_host.guest_names()
+		if door != null:
+			door.poll()
+			menu.net.door = door.status
+			menu.net.public = door.public
+		else:
+			menu.net.door = ""
+			menu.net.public = ""
+		menu.net.lan = NetDoor.lan_addresses(Config.NET.port)
+		menu.net.code = room.code if room != null else ""
+		menu.net.room = room.status if room != null else ""
+		hud.net_line = "hosting  ·  %d connected  ·  ↑%s ↓%s" % [net_host.connected_count(),
+			String.humanize_size(net_host.stats.sent), String.humanize_size(net_host.stats.received)]
+	elif role == "guest" and net_guest != null:
+		menu.net.status = net_guest.host_name
+		hud.net_line = "in %s's game  ·  ↑%s ↓%s" % [net_guest.host_name,
+			String.humanize_size(net_guest.stats.sent), String.humanize_size(net_guest.stats.received)]
+	else:
+		menu.net.guests = []
+		hud.net_line = ""
+
+
 func _enter_title() -> void:
+	_leave_game()
 	at_title = true
 	inventory.visible = false
 	if build_bar.open:
@@ -1060,6 +1479,9 @@ func _leave_title() -> void:
 ## silently doing nothing. Returns whether the payload actually reached disk,
 ## because the one caller that leaves the game afterwards must not.
 func _save_current() -> bool:
+	if role == "guest":
+		sim.notify("Guests do not save — the host's game keeps your character", "#c96a5a", true)
+		return false
 	if slot < 0:
 		# The smoke run writes outside the player's six, for the same reason
 		# the tests use 90-92: `user://` is shared with the real game, and a
@@ -1077,6 +1499,10 @@ func _save_current() -> bool:
 ## same one CONTINUE would — quick load is a shortcut past the title screen,
 ## so it has to agree with the title screen about which game that is.
 func _quick_load() -> void:
+	if role == "guest":
+		sim.notify("Not while in somebody else's game", "#c96a5a")
+		return
+	_stop_hosting()
 	var which := slot
 	if which < 0:
 		var s := Saves.latest()
@@ -1091,7 +1517,7 @@ func _quick_load() -> void:
 ## A game with a slot writes itself down on a timer. One without does not:
 ## autosave must never invent a slot behind the player's back.
 func _tick_autosave(dt: float) -> void:
-	if slot < 0:
+	if slot < 0 or role == "guest":
 		return
 	_autosave_t += dt
 	if _autosave_t < Saves.AUTOSAVE_EVERY:
