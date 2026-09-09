@@ -278,9 +278,10 @@ Split from vehicles: two systems in one PR is one review of neither.
 - [x] Room codes over WebRTC: `WebRtcHub`, the broker in `server/`, the
       fetch script, the menu rows, tests with a stand-in connection —
       **switched off** (`Config.NET.broker` empty, no binaries in git)
-- [ ] Switch it on if UPnP says no: `tools/fetch-webrtc`, deploy `server/`
-      to a free tier, set `Config.NET.broker`, run `tools/test --all` (the
-      slow test then walks a guest over real WebRTC on localhost)
+- [ ] Switch it on if UPnP says no — **`tasks/switch-to-webrtc.md`** is the
+      runbook: `tools/fetch-webrtc`, deploy `server/` to a free tier, set
+      `Config.NET.broker`, run `tools/test --all` (the slow test then walks
+      a guest over real WebRTC on localhost)
 - [ ] Owner plays with a friend (the Phase 5 gate)
 
 ## Open decisions (owner)

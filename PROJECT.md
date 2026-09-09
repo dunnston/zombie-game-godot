@@ -17,6 +17,7 @@ contradicts it, the code is right — fix this file and say so.
 | `tasks/todo.md` | The phase plan with checkboxes, and per-phase review notes. |
 | `tasks/port-inventory.md` | **The spec.** Every system in the prototype, what it does, its numbers. |
 | `tasks/lessons.md` | Raw running log of lessons. §8 here is the distilled version. |
+| `tasks/switch-to-webrtc.md` | The runbook for turning on room codes over WebRTC. Built, tested, switched off. |
 
 ---
 
@@ -948,8 +949,8 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    router has not answered it yet; the HOST page will say whether it did.
    If it says no, or a friend is behind carrier-grade NAT, the roads left
    are a VPN (no code) or the WebRTC GDExtension plus the prototype's
-   `server/signal.js` broker on a free host — **already built**: run
-   `tools/fetch-webrtc`, deploy `server/` (README), set `Config.NET.broker`.
+   `server/signal.js` broker on a free host — **already built**; the
+   runbook is `tasks/switch-to-webrtc.md` (three steps and a test run).
    The one thing untested until the extension is fetched is bytes over a
    real WebRTC channel; `webrtc_slow_test` runs that leg on localhost the
    moment `WebRtcHub.available()` is true — see §6.
