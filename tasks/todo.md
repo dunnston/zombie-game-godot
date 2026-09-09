@@ -243,8 +243,17 @@ Split from vehicles: two systems in one PR is one review of neither.
 - [x] Save slots with an index (day, level, kills, play time); autosave
 - [x] Full key rebinding written over `src/core/bindings.gd` from `user://`
 - [x] Pause menu that saves before it quits
-- [ ] Minimap — which is what Sixth Sense has been waiting for
-- [ ] Synthesised audio, rate-limited per kind
+- [ ] Synthesised audio, rate-limited per kind (4d part three)
+
+### 4d part two — the map
+
+- [x] `Config.MAP`: the corner size, the reveal radii, the discovery XP
+- [x] `World.discovered` and `GameSim` marking a district on entry, paying XP
+- [x] `MapScreen`: one Control, corner and full page off the same overlay code
+- [x] The world image, built once per world and cached on the fingerprint
+- [x] Sixth Sense loses its `needs` gate and `radar_mul` finally does something
+- [x] `SaveGame` v6 carries what you have found
+- [x] Tests, and smoke checkpoints for the corner map and the open map
 
 ## Phase 5 — co-op
 
@@ -1040,3 +1049,61 @@ Numbers: 309 tests / 4416 assertions fast, 339 / 4529 with `--all`, 42 smoke
 checkpoints, zero failures. The fast tier measured 15.9s this sitting against
 12.8s for the same suite earlier — the machine drifts, so the still-open budget
 question is about the shape of the suite, not about any one measurement.
+
+## Review — Phase 4d part two, the map (2026-09-08)
+
+**Built.** `Config.MAP`; `src/ui/map_screen.gd` (the corner minimap and the
+town map behind `M`, one Control and one `_draw`); district discovery in
+`GameSim._discover` paying 25 XP per danger tier; `SaveGame` v6 carrying the
+ids of what you have found; Sixth Sense ungated and wired. 10 tests in
+`tests/map_test.gd`, 2 new smoke checkpoints.
+
+**The one thing that is not a port.** The prototype drew *every* enemy in the
+world on the minimap, and set `radarMul` from Sixth Sense in a line that
+nothing ever read — a rank-6 Perception perk that did literally nothing. Two
+ways to fix that: delete the perk, or make the map obey it. Making the map
+obey it is also better on its own terms, because a minimap that shows the
+whole town is a free answer to the question the game is asking. So the reveal
+is 380px, 900px for anything that has already noticed you (a horde on its way
+is not a secret), ×2.4 with the perk. **This is a balance change and the owner
+has not played it** — it is in the decision log and it is a feel question.
+
+- [x] Two existing tests changed, both correct consequences:
+      `progression_test` asserted at least one perk still carried a `needs`
+      gate, and Sixth Sense was the last one — it now asserts the opposite,
+      that none are left, and checks the refusal against a synthetic gate
+      instead. `raid_test` read `notify[0]` and the discovery notice can now
+      legitimately arrive on the same tick, so it searches for INCOMING.
+- [x] The debug readout was in the bottom-right corner the minimap now owns.
+      The screenshot is what showed the collision; nothing asserted on it.
+      The developer line moved, not the map.
+- [x] The ground image is 102,400 pixels of GDScript, measured at 41ms. It is
+      built lazily on the first draw and cached against
+      `world.gen_fingerprint`, so it lands inside the boot or the load it
+      already belongs to and never runs again. A headless test never pays it
+      at all, because no test builds a view.
+
+**Still open for the owner**, unchanged: the fast tier is 13.5s against a
+ten-second budget, and moving `save_test.gd`'s world-regenerating round trips
+to the slow tier is the fix.
+
+Numbers: 319 tests / 4434 assertions fast, 349 / 4547 with `--all`, 44 smoke
+checkpoints, zero failures.
+
+## Review — Phase 4d map Codex pass on PR #13 (2026-09-08)
+
+One finding, P2, real.
+
+- [x] **P2 Build mode opened behind the town map.** `B` was gated on
+      `not inventory.visible` and nothing else, so with the map up it put the
+      ghost and the click handler back on a screen you cannot see the world
+      through — place, repair and salvage all reachable blind. The map already
+      closed the build bar on the way in; the mirror was missing. Same rule as
+      the pack now: an open screen closes build mode and build mode does not
+      open behind one.
+
+Checked rather than assumed: the guard was reverted and the smoke re-run, and
+it failed eleven checkpoints. The smoke step presses `B` rather than calling
+`build_bar.toggle()`, which is the whole reason it catches this.
+
+Numbers: 319 tests / 4434 assertions fast, 44 smoke checkpoints, zero failures.

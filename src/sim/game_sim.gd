@@ -272,6 +272,23 @@ func notify(text: String, color := "#ebe6d6", important := false) -> void:
 
 # ------------------------------------------------------------------- step --
 
+## Walking into a district for the first time. Finding the place is worth
+## something on its own — a reason to go and look at the map rather than to
+## stay where the loot already is — and it is what fills in the town map: an
+## undiscovered district shows as `? ? ?` until somebody has stood in it.
+func _discover(p: PlayerSim) -> void:
+	if p.dead:
+		return
+	var loc := world.location_at_px(p.pos.x, p.pos.y)
+	if loc.is_empty() or loc.discovered:
+		return
+	loc.discovered = true
+	var xp: int = Config.MAP.discover_xp * int(loc.tier)
+	Progression.add_xp(self, p, xp, "DISCOVERED")
+	notify("%s — %s" % [loc.name, loc.desc], "#9fd0ff", true)
+	emit({"t": "discovered", "id": String(loc.id), "x": p.pos.x, "y": p.pos.y})
+
+
 func tick(dt: float) -> void:
 	time += dt
 	# The clock first: everything below it that asks about the dark — the
@@ -281,6 +298,7 @@ func tick(dt: float) -> void:
 	enemies.rebuild_spatial()
 	for p in players:
 		p.tick(self, dt)
+		_discover(p)
 	enemies.tick_ai(self, dt)
 	Combat.tick_bullets(self, dt)
 	structs.tick(self, dt)

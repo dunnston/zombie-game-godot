@@ -80,7 +80,13 @@ These settle arguments. When a decision is close, the pillar wins.
 
 ## 3. Where we are right now
 
-**Status: Phase 4d — the game has a front door.** It boots to a title screen
+**Status: Phase 4d — the front door, and a map to go with it.** There is a
+minimap in the corner and a town map behind `M`: the ground tinted red by
+danger, the districts you have stood in named and the ones you have not marked
+`? ? ?`, and enemies revealed within a radius that Sixth Sense doubles — the
+prototype drew every enemy in the world and left that perk doing nothing.
+
+**The front door.** The game boots to a title screen
 with CONTINUE, NEW GAME, LOAD GAME, CONTROLS and QUIT. Six save slots, each
 with a summary — name, day, level, kills, play time, how long ago — read from
 a small index rather than by parsing six worlds. A game with a slot autosaves
@@ -159,12 +165,12 @@ that will not fit is ever destroyed: it lands on the ground.
 
 | | |
 | --- | --- |
-| Phase | 4 of 5 — 4a progression, 4b day and fire, 4c survivors and vehicles, 4d the front door done; the minimap and audio to come |
+| Phase | 4 of 5 — 4a progression, 4b day and fire, 4c survivors and vehicles, 4d the front door and the map done; audio to come |
 | Playable | The whole loop, it levels you, it gets dark, and you can hold it with other people. **E** searches and uses, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
-| Unit tests | 309 tests, 4416 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials and the survivor combat tests: 339 tests, 4529 assertions. Wall-clock varies with the machine — see §9 |
-| Smoke | 42 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked , the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it |
+| Unit tests | 319 tests, 4434 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials and the survivor combat tests: 349 tests, 4547 assertions. Wall-clock varies with the machine — see §9 |
+| Smoke | 44 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked , the town map with its districts, Sixth Sense widening the reveal, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
-| Save format | **v5** — what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
+| Save format | **v6** — the districts you have found (ids only: the rects are `Config`, so a save cannot carry a stale map), on top of v5's what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
 
 ### Port status by system
 
@@ -201,12 +207,40 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Vehicles | 4c | ported | Key, pick or Hotwire; a parked car blocks its tiles and a driven one does not |
 | Fire | 4b | ported | Spreads through scenery and enemies; cannot reach a player structure, by design |
 | Title screen, save slots, keybinds | 4d | ported | Six slots with summaries off an index; binds are per machine, not per save |
+| Minimap and town map | 4d | improved | The prototype showed every enemy in the world; here the reveal radius is what Sixth Sense buys |
 | Audio | 4 | — | |
 | Online co-op | 5 | — | Last |
 
 ---
 
 ## 4. What is built
+
+### The map (Phase 4d — minimap and town map)
+
+- **One Control draws both.** The corner minimap and the town map behind `M`
+  are the same picture at two sizes with two levels of detail, off one
+  `_draw` — a marker that appears on one and not the other is a bug, and
+  having two functions is how you get one.
+- **The ground is a 320×320 image, one pixel per tile**, tinted red by danger
+  tier so the map itself says where not to go, and darkened where the ground
+  is solid so the river and the walls read as shape. Built once per world and
+  cached on the generator's fingerprint: 41ms, inside the boot or the load it
+  already belongs to.
+- **The town map names what you have stood in.** An undiscovered district
+  still shows its outline — you can see there is *somewhere* there — but not
+  its name or its danger, which is the reason to go and look. Walking into one
+  pays 25 XP per danger tier, so finding the place is worth something on its
+  own. What you have found is saved.
+- **Sixth Sense finally does something.** The prototype drew every enemy in
+  the world on the minimap and left `radarMul` set by the perk and read by
+  nobody — six ranks of Perception for nothing. Here the map reveals what is
+  near (380px), further for anything that has already noticed you (900px,
+  because a horde on its way is not a secret), and the whole radius scales
+  with `radar_mul`. **This is a deliberate change from the prototype**, and it
+  is the last `needs` gate coming off a perk.
+- **The map is a panel over a running world**, like the pack — reading it is
+  not a time-out, which is why its markers are live. Escape closes it before
+  it opens anything else.
 
 ### The front door (Phase 4d — title, slots, keys)
 
@@ -404,9 +438,9 @@ The spec for each row is in `tasks/port-inventory.md`.
   - **A perk whose system does not exist yet carries a `needs` field and
     cannot be bought.** It stays visible so the tree matches the spec and can
     be planned around, and its row says what it is waiting on — a point spent
-    on nothing is worse than a row that explains itself. Two carry it today:
-    **Sixth Sense** (the minimap, 4d) and **Hotwire** (cars, 4c). The field
-    comes off as each system lands.
+    on nothing is worse than a row that explains itself. **As of 4d none are
+    left**: Hotwire got its cars and Sixth Sense got its map. A test asserts
+    that, so a `needs` cannot outlive the system it names.
   - The five survivor stats (`survivor_cap`, `upkeep_mul` and friends) are
     produced here and not read until 4c, but the perks that write them —
     Recruiter, Inspiring Presence, Quartermaster, Natural Leader — are not
@@ -685,6 +719,7 @@ Phases 1–4 respecting it.
 | 2026-09-08 | Keep Forward Plus + D3D12 as created | Works on this machine; Compatibility would reach weaker PCs. Revisit at export time. | Yes, one setting |
 | 2026-09-08 | 32px tiles, 1280x720 base, nearest-neighbour filtering | Matches the prototype's scale so the spec's numbers carry over. | Yes, but touches every number |
 | 2026-09-08 | Code-generated art, as in the prototype | "The project as it is now." A real tileset is a separate decision for after it plays. | Yes |
+| 2026-09-08 | The minimap reveals enemies within a radius, rather than showing every enemy in the world as the prototype did | The prototype set `radarMul` from Sixth Sense and read it nowhere, so a rank-6 Perception perk did literally nothing. A radius makes the perk the thing that buys the radar, and stops the minimap being a free solution to the whole game. **This is a balance change, not a port** — 380px, 900px for anything that has already noticed you, ×2.4 with the perk — and it is a feel question for the owner. | Yes, three numbers in `Config.MAP` |
 | 2026-09-08 | Multiplayer is Phase 5, last | It is the largest rebuild and depends on the sim/view split holding through Phases 1–4. | n/a |
 | 2026-09-08 | Playtest gate after Phases 1, 2 and 3 | The prototype's roadmap was blocked on the owner playing it. Do not let that happen again. | n/a |
 | 2026-09-08 | Smoke output to `.smoke/` in the project, gitignored | `user://` is buried in AppData; a project-relative path is one Read away. | Yes |
@@ -757,13 +792,12 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    peaks at 0.82 alpha, which is the prototype's number, and the tint is now
    applied the way the prototype applied it — so this is the real curve
    rather than the too-dark one the first cut of `LightView` produced.
-1. **Phase 4d, part two — the minimap and the ears.** The front door is
-   built; what is left of Phase 4 is the minimap (which is what Sixth Sense is
-   still waiting for — it is now the *only* perk with a `needs` gate) and
-   synthesised audio with per-kind rate limits, so a shotgun hitting twelve
-   zombies is one impact rather than twelve.
+1. **Phase 4d, part three — the ears.** Synthesised audio: everything made at
+   runtime, master gain 0.35, and rate-limited per kind so a shotgun hitting
+   twelve zombies is one impact rather than twelve.
 
-   After that the only thing left in the plan is co-op.
+   That is the last of Phase 4, and after it the only thing left in the plan
+   is co-op.
 
 ### Deliberately not building
 
@@ -884,9 +918,9 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 309  asserts: 4416  failures: 0
-tests: 339  asserts: 4529  failures: 0   (--all)
-SMOKE done checkpoints=42 failures=0 exit=0
+tests: 319  asserts: 4434  failures: 0
+tests: 349  asserts: 4547  failures: 0   (--all)
+SMOKE done checkpoints=44 failures=0 exit=0
 ```
 
 **On timings.** The ten-second agreement is about the edit loop staying quick,
@@ -990,6 +1024,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-08 | Phase 4d (the map): `Config.MAP`; `MapScreen` — the corner minimap and the town map behind `M` off one `_draw`, a 320x320 one-pixel-per-tile ground image tinted by danger and cached on the generator's fingerprint (41ms, once per world), structures, packs, crew, enemies, the pulsing raid marker and the player's facing; district discovery in `GameSim` paying 25 XP per danger tier — the tenth XP site — with undiscovered districts drawn as `? ? ?`; `SaveGame` v6 carries what you have found, by id; **Sixth Sense loses its `needs` gate and `radar_mul` becomes a reveal radius**, which is a deliberate balance change from the prototype, where the minimap showed every enemy in the world and the perk did nothing; the debug readout moved off the corner the minimap now owns; 10 new tests (319 fast, 349 with `--all`); smoke opens the town map, buys the perk and watches the reveal widen. Two existing tests changed with it, both correctly: no perk carries a `needs` any more, and the raid test searched the notices for INCOMING instead of assuming it was first, because a discovery notice can now arrive on the same tick |
 | 2026-09-08 | Phase 4d (the front door): `Saves` — six slots behind a small `user://saves/index.json` so listing six games does not parse six worlds, with the file as the truth about existence and the index as the truth about the summary, `latest()` preferring the slot last chosen over the one last written, and the play time and "3 hours ago" labels; autosave every two minutes for a game that has a slot, and never for one that does not; `KeyBinds` rewritten as static state on a `class_name` — full rebinding to `user://binds.json`, conflicts reported rather than refused, Escape reserved, unknown actions from an old file dropped, and every prompt built from `primary_label`; `MenuScreen` with TITLE, PAUSE, LOAD, CONTROLS and NEW GAME off one `_rows()` that is both the hit test and the paint, footer rows pinned so BACK cannot scroll away; `scenes/main.gd` boots to the title (except under smoke), Escape closes innermost-first and then pauses with the world frozen, and SAVE AND QUIT TO TITLE writes before it leaves; 21 new tests (309 fast, 339 with `--all`); 6 new smoke checkpoints — pause, CONTROLS, a key rebound, a save written, the title, and that slot loaded from it. The menu never repainted after a page change: the assertions passed because they read `menu.page`, and only the screenshot showed CONTROLS still on screen |
 | 2026-09-08 | Phase 4c (vehicles): `CAR` in `Config`; `Vehicles` — about thirty cars rolled from their own per-spawn seeds, three ways into a locked one (a key planted in a nearby container, a lockpick that can snap and be heard, or Hotwire), arcade handling with speed-scaled steering, fuel, engine noise and Threat, roadkill credited to the driver, the 400-unit boot, refuelling, wrecking and stripping; a parked car blocks its tiles and a driven one does not, asking both collision maps; driving short-circuits the player tick entirely; a car key is learned rather than carried; `VehicleView`; `SaveGame` v5 stores only what a run changed about a car; Hotwire's `needs` gate comes off, leaving only Sixth Sense; 33 new tests; smoke finds a car, drives it and parks it. `plant_keys` buckets containers rather than scanning all six hundred per locked car — it ran on every `GameSim.start` and was five milliseconds of every test |
 | 2026-09-08 | Phase 4c (survivors): `SURVIVOR`, `JOBS`, `SCAVENGE`, `BUILDER`, the names and the rescue counts in `Config`; `SurvivorSim` (one person, combat numbers derived from level and the owner's Charisma perks) and `Survivors` (the roster and its two limits, rescues seeded on their own RNG stream, recruiting with a refusal that names the binding limit, Rations upkeep from the shared stash with clearing debt and a cap, damage, down, revive and permanent death, XP and levels, and the guard/sniper/scavenger/builder step); enemies bite a survivor who is in the way; a survivor's kill pays the survivor and the player; `E` takes somebody in and helps somebody up, ahead of every container and gate; a CREW tab on the pack screen with the roster, both limits and the ration clock; `SurvivorView`; `SaveGame` v4 carries the crew and the rescues, a sniper's tower keyed by tile (invariant 7); 26 new tests, three in the slow tier; smoke takes somebody in, opens the roster and reassigns them |

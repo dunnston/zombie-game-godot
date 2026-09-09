@@ -13,7 +13,7 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 5
+const VERSION := 6
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
@@ -94,11 +94,23 @@ static func to_dict(sim: GameSim) -> Dictionary:
 		"players": players,
 		"looted": looted,
 		"chopped": sim.world.chopped_keys(),
+		# The districts you have stood in. Only the ids: the rects are `Config`,
+		# so a save cannot carry a stale map of a town that has been re-laid.
+		"discovered": _discovered(sim),
 		"structures": structures,
 		"stash": sim.stash.to_record() if sim.stash != null else [],
 		"pickups": piles,
 		"backpacks": packs,
 	}
+
+
+## Just the ids, in `Config.LOCATIONS` order.
+static func _discovered(sim: GameSim) -> Array:
+	var out: Array = []
+	for l in sim.world.locations:
+		if l.discovered:
+			out.append(String(l.id))
+	return out
 
 
 static func save_to(sim: GameSim, slot: int) -> Dictionary:
@@ -162,6 +174,12 @@ static func apply(sim: GameSim, data: Dictionary) -> Dictionary:
 		var c: Dictionary = by_tile.get(key, {})
 		if not c.is_empty():
 			c.looted = true
+
+	var found := {}
+	for id in data.get("discovered", []):
+		found[String(id)] = true
+	for l in world.locations:
+		l.discovered = found.has(String(l.id))
 
 	for key in data.get("chopped", []):
 		var parts: PackedStringArray = String(key).split(",")

@@ -201,6 +201,8 @@ func _draw() -> void:
 		draw_string(font, Vector2(0, vp.y / 2.0 - 10), "YOU DIED", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 34, Color("#e05a4a"))
 		draw_string(font, Vector2(0, vp.y / 2.0 + 16), "respawning in %.1f" % maxf(0.0, p.respawn_t), HORIZONTAL_ALIGNMENT_CENTER, vp.x, 13, Color("#ebe6d6"))
 
-	# Debug corner.
+	# Debug readout. Above the minimap rather than in the corner: the corner is
+	# a real piece of UI now, and a developer line does not outrank it.
 	var dbg := "%d fps   tile %d,%d   enemies %d   kills %d" % [Engine.get_frames_per_second(), int(p.pos.x / 32), int(p.pos.y / 32), sim.enemies.alive_count(), sim.stats.kills]
-	draw_string(font, Vector2(vp.x - 340, vp.y - 12), dbg, HORIZONTAL_ALIGNMENT_RIGHT, 330, 11, Color(1, 1, 1, 0.5))
+	draw_string(font, Vector2(vp.x - 350, vp.y - Config.MAP.corner - 38.0), dbg,
+		HORIZONTAL_ALIGNMENT_RIGHT, 334, 11, Color(1, 1, 1, 0.5))

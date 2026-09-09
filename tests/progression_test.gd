@@ -211,9 +211,19 @@ func test_a_perk_whose_system_is_not_built_yet_cannot_take_your_point() -> void:
 		ok(not Progression.buy_perk(sim, p, String(k.id)), k.id)
 		eq(p.skill_points, 20, "%s refused and charged nothing" % k.id)
 		eq(int(p.perks.get(k.id, 0)), 0)
-	gt(waiting, 0, "there is at least one perk waiting on a later phase")
+	# As of 4d there are none left: Hotwire got its cars and Sixth Sense got
+	# its map. The loop above is the guard for whatever the next phase gates,
+	# and this is the guard against a perk quietly staying dead — a `needs`
+	# that outlives the system it names is a point spent on nothing.
+	eq(waiting, 0, "every shipped perk does something")
 
-
+	# The refusal itself still has to work, so it is checked against a gate
+	# that is not in the game rather than against one that is.
+	var pretend := {"id": "notYet", "attr": "per", "req": 1, "max": 1,
+		"name": "Not Yet", "desc": "", "needs": "the weather"}
+	var st2 := Perks.perk_status(p, pretend)
+	ok(not st2.ok)
+	eq(st2.reason, "Waiting on the weather")
 func test_a_perk_gated_above_your_rank_is_refused_with_a_reason() -> void:
 	p.skill_points = 5
 	# Demolisher needs Strength 5 and everyone starts at 2.
