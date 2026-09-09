@@ -22,8 +22,18 @@ var camera: Camera2D
 var hud: Hud
 var inventory: InventoryScreen
 var build_bar: BuildBar
+var menu: MenuScreen
 var shake := 0.0
 var _shake_rng := RandomNumberGenerator.new()
+
+## The slot this game belongs to, or -1 for a run with no home. Autosave and
+## QUIT TO TITLE both need to know where to write, and "nowhere" is a real
+## answer — a smoke run has no slot and must not create one.
+var slot := -1
+var _autosave_t := 0.0
+## True while the title screen is up: the world exists behind it, but nothing
+## steps and nothing reads the keyboard.
+var at_title := false
 
 
 func _ready() -> void:
@@ -84,10 +94,31 @@ func _ready() -> void:
 	build_bar = BuildBar.new(sim)
 	layer.add_child(build_bar)
 	structure_view.build_bar = build_bar
+	menu = MenuScreen.new()
+	menu.chose.connect(_on_menu)
+	layer.add_child(menu)
+	# The smoke run drives the game directly and has no business clicking
+	# through a title screen, so it starts in the world it was given. Everybody
+	# else gets a front door.
+	if Smoke.enabled:
+		menu.visible = false
+	else:
+		_enter_title()
 	print("boot: world %d ms, terrain %d ms, props %d, containers %d" % [t1 - t0, t2 - t1, sim.world.props.size(), sim.world.containers.size()])
 
 
 func _physics_process(dt: float) -> void:
+	# The menu owns everything while it is up. The world is still there — a
+	# pause menu is drawn over a live game — but nothing steps and nothing
+	# reads the keyboard, so Escape is the only way back and the horde is not
+	# eating you while you read the controls.
+	if menu.visible:
+		if Input.is_action_just_pressed("pause") and not at_title and menu.page == MenuScreen.Page.PAUSE:
+			menu.close()
+		return
+
+	_tick_autosave(dt)
+
 	# Polled rather than handled as an event, like every other key here: the
 	# smoke run presses actions through `Input`, which sets the action state
 	# without ever synthesising an InputEvent.
@@ -119,10 +150,16 @@ func _physics_process(dt: float) -> void:
 	elif Input.is_action_just_pressed("build") and not inventory.visible:
 		build_bar.toggle()
 	elif Input.is_action_just_pressed("pause"):
+		# Escape closes what is open, innermost first, and only opens the pause
+		# menu once there is nothing left to close.
 		if inventory.visible:
 			inventory.toggle()
 		elif build_bar.open:
 			build_bar.toggle()
+		else:
+			menu.over_game = true
+			menu.came_from = MenuScreen.Page.PAUSE
+			menu.open(MenuScreen.Page.PAUSE)
 	elif Input.is_action_just_pressed("quick_save"):
 		var r := SaveGame.save_to(sim, 0)
 		sim.notify("Saved" if r.ok else r.reason, "#b7e08a" if r.ok else "#c96a5a", true)
@@ -153,11 +190,11 @@ func _physics_process(dt: float) -> void:
 ## `sim` reference and reads it fresh each frame, so the only things that
 ## have to be told are the ones that cached a player: the screens and the
 ## player's own view.
-func _load_slot(slot: int) -> void:
-	var r := SaveGame.load_from(sim, slot)
+func _load_slot(which: int) -> bool:
+	var r := SaveGame.load_from(sim, which)
 	if not r.ok:
 		sim.notify(r.reason, "#c96a5a", true)
-		return
+		return false
 	var p := sim.players[0]
 	player_view.p = p
 	inventory.player = p
@@ -176,6 +213,24 @@ func _load_slot(slot: int) -> void:
 	props_above.rebuild()
 	camera.position = p.pos
 	sim.notify("Loaded", "#b7e08a", true)
+	return true
+
+
+## Everything a new world invalidates. `_load_slot` does the same work for a
+## restored one; NEW GAME needs it too, because the world object is replaced
+## either way and the renderers cache it.
+func _rebuild_views() -> void:
+	var p := sim.players[0]
+	player_view.p = p
+	inventory.player = p
+	build_bar.player = p
+	inventory.visible = false
+	if build_bar.open:
+		build_bar.toggle()
+	terrain.build(sim.world)
+	props_below.rebuild()
+	props_above.rebuild()
+	camera.position = p.pos
 
 
 func _process(dt: float) -> void:
@@ -744,3 +799,184 @@ func smoke_run(smoke: Node) -> void:
 			smoke.fail("still driving after getting out")
 		await smoke.frames(3)
 		await smoke.checkpoint("parked")
+
+
+
+	# The front door. The smoke run starts in the world rather than at the
+	# title, so this drives the menu directly — but through the same rows and
+	# the same signal a click goes through, not by calling the handlers.
+	var test_slot := 93
+	Saves.delete(test_slot)
+
+	# Escape with nothing open is the pause menu.
+	await smoke.tap("pause")
+	await smoke.frames(4)
+	if not menu.visible or menu.page != MenuScreen.Page.PAUSE:
+		smoke.fail("Escape did not open the pause menu")
+	await smoke.checkpoint("paused")
+
+	# The world is frozen behind it: nothing steps while the menu is up.
+	var frozen_at := sim.time
+	await smoke.frames(20)
+	if not is_equal_approx(sim.time, frozen_at):
+		smoke.fail("the world kept running behind the pause menu")
+
+	# CONTROLS, and back again to where it came from.
+	if not smoke_click_menu("controls_page"):
+		smoke.fail("no CONTROLS row on the pause menu")
+	await smoke.frames(3)
+	if menu.page != MenuScreen.Page.CONTROLS:
+		smoke.fail("CONTROLS did not open")
+	await smoke.checkpoint("controls")
+
+	# Rebinding: pick a row, press a key, and the InputMap moves with it.
+	menu.rebinding = "map"
+	var rebound := InputEventKey.new()
+	rebound.physical_keycode = KEY_N
+	menu._gui_input(rebound_pressed(rebound))
+	await smoke.frames(2)
+	if KeyBinds.codes_for("map") != [KEY_N]:
+		smoke.fail("rebinding did not take: %s" % str(KeyBinds.codes_for("map")))
+	if KeyBinds.primary_label("map") != "N":
+		smoke.fail("the prompt did not follow the binding")
+	KeyBinds.reset_all()
+	await smoke.checkpoint("rebound")
+
+	if not smoke_click_menu("back"):
+		smoke.fail("no BACK row on CONTROLS")
+	await smoke.frames(3)
+	if menu.page != MenuScreen.Page.PAUSE:
+		smoke.fail("BACK did not return to the pause menu")
+
+	# SAVE writes a real slot with a summary the title screen can read.
+	slot = test_slot
+	if not smoke_click_menu("save"):
+		smoke.fail("no SAVE row")
+	await smoke.frames(4)
+	var listed := {}
+	for s in Saves.list():
+		if int(s.slot) == test_slot:
+			listed = s
+	if listed.is_empty():
+		smoke.fail("SAVE wrote no slot")
+	elif int(listed.day) != sim.clock.day:
+		smoke.fail("the summary does not match the game")
+
+	# QUIT TO TITLE goes back to the front door with the world still loaded.
+	if not smoke_click_menu("quit_to_title"):
+		smoke.fail("no QUIT TO TITLE row")
+	await smoke.frames(4)
+	if not at_title or menu.page != MenuScreen.Page.TITLE:
+		smoke.fail("did not land on the title screen")
+	await smoke.checkpoint("title")
+
+	# LOAD GAME lists what was just written, and opening it comes back in.
+	if not smoke_click_menu("load_page"):
+		smoke.fail("no LOAD GAME row")
+	await smoke.frames(3)
+	await smoke.checkpoint("load_list")
+	if not smoke_click_menu("load", test_slot):
+		smoke.fail("the slot just saved is not in the list")
+	await smoke.frames(6)
+	if at_title or menu.visible:
+		smoke.fail("loading did not leave the title screen")
+	await smoke.checkpoint("loaded_from_title")
+	Saves.delete(test_slot)
+
+# --------------------------------------------------------------- the menu --
+
+## What the title screen and the pause menu ask for. The menu knows about rows
+## and pages; everything that touches the simulation is here.
+func _on_menu(what: String, arg: int) -> void:
+	match what:
+		"continue", "load":
+			if _load_slot(arg):
+				slot = arg
+				Saves.mark_current(arg)
+				_leave_title()
+		"new_confirm":
+			if arg < 0:
+				return
+			slot = arg
+			sim.new_game(WORLD_SEED)
+			_rebuild_views()
+			# Written down immediately, so a slot the player chose exists on
+			# disk before anything can go wrong in it.
+			Saves.save_to(sim, slot)
+			_leave_title()
+		"delete":
+			Saves.delete(arg)
+			if slot == arg:
+				slot = -1
+			menu.queue_redraw()
+		"resume":
+			menu.close()
+		"save":
+			_save_current()
+		"quit_to_title":
+			_save_current()
+			_enter_title()
+		"quit":
+			get_tree().quit()
+
+
+func _enter_title() -> void:
+	at_title = true
+	inventory.visible = false
+	if build_bar.open:
+		build_bar.toggle()
+	menu.over_game = false
+	menu.came_from = MenuScreen.Page.TITLE
+	menu.open(MenuScreen.Page.TITLE)
+
+
+func _leave_title() -> void:
+	at_title = false
+	menu.over_game = true
+	menu.close()
+
+
+## Writes the game into its slot, or says why it cannot. A run with no slot —
+## the smoke path, or a world started before the title screen existed — is
+## given one rather than silently doing nothing.
+func _save_current() -> void:
+	if slot < 0:
+		slot = Saves.first_free()
+	if slot < 0:
+		sim.notify("Every save slot is full — delete one from the title screen", "#c96a5a", true)
+		return
+	var r := Saves.save_to(sim, slot)
+	sim.notify("Saved" if r.ok else r.reason, "#b7e08a" if r.ok else "#c96a5a", true)
+
+
+## A game with a slot writes itself down on a timer. One without does not:
+## autosave must never invent a slot behind the player's back.
+func _tick_autosave(dt: float) -> void:
+	if slot < 0:
+		return
+	_autosave_t += dt
+	if _autosave_t < Saves.AUTOSAVE_EVERY:
+		return
+	_autosave_t = 0.0
+	var r := Saves.save_to(sim, slot)
+	if r.ok:
+		sim.notify("Autosaved", "#8a8f84")
+
+## Presses a menu row by id, the way a click does. Returns false when the row
+## is not on the page — which is a failure worth reporting rather than a
+## silent no-op.
+func smoke_click_menu(id: String, arg := -1) -> bool:
+	for r in menu._rows():
+		if String(r.id) != id:
+			continue
+		if arg >= 0 and int(r.arg) != arg:
+			continue
+		menu._press(r)
+		return true
+	return false
+
+
+## The key event the CONTROLS page waits for, marked pressed.
+func rebound_pressed(ev: InputEventKey) -> InputEventKey:
+	ev.pressed = true
+	return ev

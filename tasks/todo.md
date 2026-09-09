@@ -239,10 +239,10 @@ Split from vehicles: two systems in one PR is one review of neither.
 
 ### 4d — the front door
 
-- [ ] Title screen: CONTINUE, NEW GAME, LOAD GAME, CONTROLS
-- [ ] Save slots with an index (day, level, kills, play time); autosave
-- [ ] Full key rebinding written over `src/core/bindings.gd` from `user://`
-- [ ] Pause menu that saves before it quits
+- [x] Title screen: CONTINUE, NEW GAME, LOAD GAME, CONTROLS, QUIT
+- [x] Save slots with an index (day, level, kills, play time); autosave
+- [x] Full key rebinding written over `src/core/bindings.gd` from `user://`
+- [x] Pause menu that saves before it quits
 - [ ] Minimap — which is what Sixth Sense has been waiting for
 - [ ] Synthesised audio, rate-limited per kind
 
@@ -928,4 +928,51 @@ directly. What would have caught them earlier is asking, for each new function,
 *which key press reaches this* — and writing that test instead.
 
 Numbers: 288 tests / 4249 assertions fast, 318 / 4362 with `--all`, 36 smoke
+checkpoints, zero failures.
+
+## Review — Phase 4d, the front door (2026-09-08)
+
+Split deliberately: this is the shell — title, slots, autosave, pause,
+keybinds. The minimap and the audio are the second half of 4d.
+
+**Built.** `src/sim/saves.gd` (the slot index, `list`/`latest`/`first_free`/
+`save_to`/`delete`, and the three labels); `src/core/bindings.gd` rewritten as
+`class_name KeyBinds` with static state (rebind, conflicts, reset, persistence
+to `user://binds.json`); `src/ui/menu_screen.gd` (five pages off one `_rows()`);
+the wiring in `scenes/main.gd` — boots to the title unless `Smoke.enabled`,
+Escape closes innermost-first then pauses, the world is frozen behind the pause
+menu, autosave every 120s for a game that has a slot, SAVE and SAVE AND QUIT TO
+TITLE. 19 tests in `tests/saves_slots_test.gd`, 6 new smoke checkpoints.
+
+**Two bugs the smoke caught that the tests could not:**
+
+- [x] **P1 The menu never repainted after a page change.** Clicking CONTROLS
+      set `menu.page` and drew nothing new, so the screen still showed the
+      pause menu while every assertion passed — they read `menu.page`. Only
+      the screenshot shows it. A `_process` that calls `queue_redraw` while
+      visible fixed it. This is the same lesson as the 4c P1s wearing a
+      different hat: **assert on what the player sees, not on the variable
+      that decides it.**
+- [x] **P1 BACK scrolled off the bottom of CONTROLS.** The list is longer than
+      the panel, so on a short window the only way out of the page was
+      Escape — which is also the key you may have just been rebinding.
+      RESET TO DEFAULTS and BACK are pinned footer rows now.
+
+**Two things done deliberately, worth writing down:**
+
+- **The test slots are 90/91/92, outside `Saves.MAX_SLOTS`.** `user://` is
+  shared with the real game; the first cut used slots 3/4/5 and would have
+  overwritten a player's third save on any headless run. Anything above
+  `MAX_SLOTS` is unreachable from the menu and `first_free` never hands it out.
+- **`KeyBinds` had to become static.** It was an autoload, and an autoload
+  does not exist under `godot --headless -s`, so the entire binding system was
+  untestable. Static state on a `class_name` is reachable from both.
+
+**Still open: the ten-second test budget.** `main` measured 9.53–11.07s across
+sittings before this branch and the fast tier is now 12.8s. The structural fix
+is moving `save_test.gd`'s world-regenerating round trips into the slow tier,
+which is the same rule Phase 3c wrote down and this file has not applied. This
+needs an owner decision because it changes what runs on every commit.
+
+Numbers: 307 tests / 4410 assertions fast, 337 / 4523 with `--all`, 42 smoke
 checkpoints, zero failures.
