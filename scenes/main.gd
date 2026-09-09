@@ -165,7 +165,11 @@ func _physics_process(dt: float) -> void:
 		map.toggle()
 		if map.open and build_bar.open:
 			build_bar.toggle()
-	elif Input.is_action_just_pressed("build") and not inventory.visible:
+	elif Input.is_action_just_pressed("build") and not inventory.visible and not map.open:
+		# Same rule as the pack: an open screen closes build mode, and build mode
+		# does not open behind one. Without the map here, B put the ghost and the
+		# click handler back on a screen you cannot see the world through — you
+		# could place, repair and salvage behind the town map.
 		build_bar.toggle()
 	elif Input.is_action_just_pressed("pause"):
 		# Escape closes what is open, innermost first, and only opens the pause
@@ -835,6 +839,16 @@ func smoke_run(smoke: Node) -> void:
 	if not map.open:
 		smoke.fail("M did not open the town map")
 	await smoke.checkpoint("town_map")
+
+	# B behind the map does nothing. Pressed, not called: the whole point is
+	# that the key reaches the branch that refuses it.
+	var built_before := sim.structs.list.size()
+	await smoke.tap("build")
+	await smoke.frames(3)
+	if build_bar.open:
+		smoke.fail("B opened build mode behind the town map")
+	if sim.structs.list.size() != built_before:
+		smoke.fail("something got built behind the map")
 
 	# Sixth Sense is the reason the reveal radius is a number rather than
 	# "all of them", so the map has to change when the perk is bought.

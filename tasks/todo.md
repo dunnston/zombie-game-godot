@@ -1089,3 +1089,21 @@ to the slow tier is the fix.
 
 Numbers: 319 tests / 4434 assertions fast, 349 / 4547 with `--all`, 44 smoke
 checkpoints, zero failures.
+
+## Review — Phase 4d map Codex pass on PR #13 (2026-09-08)
+
+One finding, P2, real.
+
+- [x] **P2 Build mode opened behind the town map.** `B` was gated on
+      `not inventory.visible` and nothing else, so with the map up it put the
+      ghost and the click handler back on a screen you cannot see the world
+      through — place, repair and salvage all reachable blind. The map already
+      closed the build bar on the way in; the mirror was missing. Same rule as
+      the pack now: an open screen closes build mode and build mode does not
+      open behind one.
+
+Checked rather than assumed: the guard was reverted and the smoke re-run, and
+it failed eleven checkpoints. The smoke step presses `B` rather than calling
+`build_bar.toggle()`, which is the whole reason it catches this.
+
+Numbers: 319 tests / 4434 assertions fast, 44 smoke checkpoints, zero failures.
