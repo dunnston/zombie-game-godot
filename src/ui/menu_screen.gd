@@ -31,7 +31,8 @@ var over_game := false
 ## What the scene knows about the connection, refreshed every frame it is up:
 ## role ("solo", "host", "guest", "joining"), a status line, the last error,
 ## the guests' names and the port.
-var net := {"role": "solo", "status": "", "error": "", "guests": [], "port": 0}
+var net := {"role": "solo", "status": "", "error": "", "guests": [], "port": 0,
+	"door": "", "public": "", "lan": []}
 ## What the HOST and JOIN pages type into. Loaded from this machine's
 ## `NetPrefs`, written back when a game is hosted or joined.
 var fields := {"address": "", "name": "", "password": ""}
@@ -150,12 +151,23 @@ func _rows() -> Array[Dictionary]:
 			if String(net.role) == "host":
 				var n: int = (net.guests as Array).size()
 				out.append(_row("info", "HOSTING ON UDP PORT %d" % int(net.port),
-					"%d connected: %s" % [n, ", ".join(net.guests)] if n > 0 else "Nobody has joined yet — give them your address and this port", false))
+					"%d connected: %s" % [n, ", ".join(net.guests)] if n > 0 else "Nobody has joined yet", false))
+				# The internet door: what the router said, and the address to
+				# hand out if it said yes. The LAN address is always there.
+				var pub := String(net.public)
+				if not pub.is_empty():
+					out.append(_row("copy_address", "INTERNET:  %s" % pub, String(net.door) + "  ·  click to copy"))
+				elif not String(net.door).is_empty():
+					out.append(_row("info", "INTERNET", String(net.door), false))
+				var lan: Array = net.lan
+				if not lan.is_empty():
+					out.append(_row("copy_address" if pub.is_empty() else "info", "THIS NETWORK:  %s" % ", ".join(lan),
+						"Friends on the same LAN or VPN type one of these" + ("  ·  click to copy" if pub.is_empty() else ""), pub.is_empty()))
 				out.append(_row("host_stop", "STOP HOSTING", "Guests are dropped; their characters stay in the save"))
 			else:
 				out.append(_text_row("name", "YOUR NAME", "What the others see over your head"))
 				out.append(_text_row("password", "PASSWORD", "Optional. Guests must type the same one"))
-				out.append(_row("host_start", "START HOSTING", "Listens on UDP port %d  ·  LAN, VPN or a forwarded port" % int(net.port), true, host_arg))
+				out.append(_row("host_start", "START HOSTING", "Listens on UDP port %d and asks your router to open it to the internet" % int(net.port), true, host_arg))
 				if not String(net.error).is_empty():
 					out.append(_row("info", String(net.error), "", false))
 		Page.JOIN:

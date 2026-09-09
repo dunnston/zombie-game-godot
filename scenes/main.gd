@@ -40,6 +40,8 @@ var role := "solo"                  # solo / host / guest / joining
 var net_host: NetHost = null
 var net_guest: NetGuest = null
 var hub: EnetHub = null
+## The router's answer to "open the port": the cheap way onto the internet.
+var door: NetDoor = null
 var prefs := {}
 var _join_t := 0.0
 ## An in-process guest the smoke run pumps through a loopback, so the
@@ -385,6 +387,7 @@ func _process(dt: float) -> void:
 	if net_host != null:
 		net_host.on_events_cleared()
 	_refresh_net_lines()
+	NetDoor.reap()
 	fx.tick(dt)
 	lights.tick()
 	hud.tick(dt)
@@ -1188,6 +1191,14 @@ func _on_menu(what: String, arg: int) -> void:
 		"host_stop":
 			_stop_hosting()
 			menu.open(MenuScreen.Page.PAUSE if menu.over_game else MenuScreen.Page.TITLE)
+		"copy_address":
+			# A public address is a thing you paste to a friend, not retype.
+			var text := String(menu.net.public)
+			if text.is_empty() and not (menu.net.lan as Array).is_empty():
+				text = String(menu.net.lan[0])
+			if not text.is_empty():
+				DisplayServer.clipboard_set(text)
+				sim.notify("Copied %s" % text, "#9fd0ff")
 		"join_start":
 			_start_join()
 		"join_cancel":
@@ -1252,6 +1263,9 @@ func _start_hosting(which: int) -> void:
 	net_host = NetHost.new(sim, name_ if not name_.is_empty() else "Host", NetProtocol.hash_password(String(menu.fields.password)))
 	role = "host"
 	sim.notify("Hosting on UDP port %d" % Config.NET.port, "#9fd0ff", true)
+	if Config.NET.upnp:
+		door = NetDoor.new()
+		door.open(Config.NET.port)
 	if at_title:
 		_leave_title()
 	else:
@@ -1265,6 +1279,9 @@ func _stop_hosting() -> void:
 	if hub != null and role == "host":
 		hub.close()
 		hub = null
+	if door != null:
+		door.close()
+		door = null
 	if role == "host":
 		role = "solo"
 		if sim != null:
@@ -1372,6 +1389,14 @@ func _refresh_net_lines() -> void:
 	menu.net.role = role
 	if role == "host" and net_host != null:
 		menu.net.guests = net_host.guest_names()
+		if door != null:
+			door.poll()
+			menu.net.door = door.status
+			menu.net.public = door.public
+		else:
+			menu.net.door = ""
+			menu.net.public = ""
+		menu.net.lan = NetDoor.lan_addresses(Config.NET.port)
 		hud.net_line = "hosting  ·  %d connected  ·  ↑%s ↓%s" % [net_host.connected_count(),
 			String.humanize_size(net_host.stats.sent), String.humanize_size(net_host.stats.received)]
 	elif role == "guest" and net_guest != null:

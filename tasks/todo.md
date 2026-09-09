@@ -273,8 +273,11 @@ Split from vehicles: two systems in one PR is one review of neither.
 - [x] MULTIPLAYER on the title (host a save, host a new game, join); HOST
       THIS GAME on the pause menu; LEAVE GAME for a guest; typed fields
 - [x] Loopback link for tests and smoke; a real UDP handshake in the suite
+- [x] UPnP: the host asks its router to open the port and shows the public
+      address (the cheap road onto the internet — no server, no extension)
 - [ ] Signalling broker + WebRTC extension (`server/signal.js` from the
-      prototype) — for internet play without a forwarded port; owner's call
+      prototype) — only if UPnP says no for the owner's router or a
+      friend's carrier-grade NAT
 - [ ] Owner plays with a friend (the Phase 5 gate)
 
 ## Open decisions (owner)
@@ -322,7 +325,9 @@ play across two NATs — ENet does not do that alone.
   drift, so an animation keyed to it can hitch on a bad link.
 - The host's pause menu keeps the world running while anyone is connected;
   the host's own body stands still. The guests are not told.
-- No broker, no room codes: an address and a port.
+- No broker, no room codes: an address and a port. UPnP asks the router to
+  open it; whether the owner's router agrees is the first thing to look at
+  on the HOST page.
 
 ## Review — Phase 1 (2026-09-08)
 

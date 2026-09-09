@@ -94,6 +94,11 @@ const NET := {
 	"lerp_rate": 6.0,           # ... and closer than that leans toward it at this rate
 	"ease_rate": 14.0,          # everyone and everything else eases at this rate
 	"hello_timeout": 15.0,      # seconds a guest waits for the host to answer
+	## UPnP: the host asks its router to open the port. Off, and friends on
+	## the internet need a forwarded port or a VPN.
+	"upnp": true,
+	"upnp_timeout_ms": 2000,    # how long to wait for a router to answer discovery
+	"upnp_lease_s": 0,          # 0 is "until removed"; some routers refuse a lease
 	"guest_view_radius": 880.0, # what the spawner assumes a guest can see
 }
 

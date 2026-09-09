@@ -188,3 +188,8 @@ yet when an earlier autoload's `_ready` wants to know.
 - The prop renderers hold references to the world's prop dictionaries from
   build time, so removing a prop from `world.props` did not stop it drawing.
   Solo had this bug all along; the guest mirror made it visible.
+- `_set` is a virtual on Object; naming a method `_set` with a different
+  signature is a parse error in the caller's script chain, not in the file.
+- `UPNP.discover` outlasts its own timeout on a machine with no router:
+  eight seconds to say "nobody". Run it on a thread, and never join that
+  thread from STOP HOSTING — orphan it and reap it from `_process`.

@@ -11,7 +11,7 @@ that repo's `PROJECT.md` is the design spec and is not edited from here.
 - Unit tests: `tools/test.cmd` (headless, under ten seconds). Smoke: `tools/smoke.cmd`.
 - On Linux: `GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64 tools/test.sh`; the
   smoke needs Xvfb (`xvfb-run -a -s "-screen 0 1280x720x24" $GODOT --path . --rendering-driver opengl3 -- --smoke --smoke-out=$PWD/.smoke`). `--headless` hangs it.
-- Co-op: `src/net/`. Host-authoritative over ENet on UDP `Config.NET.port` (27333). Guests mirror a `GameSim` and never tick it. Screens change shared state only through `Actions`.
+- Co-op: `src/net/`. Host-authoritative over ENet on UDP `Config.NET.port` (27333). Guests mirror a `GameSim` and never tick it. Screens change shared state only through `Actions`. `NetDoor` asks the router to open the port over UPnP.
 - The Godot MCP (`run_project`, `get_debug_output`) reads `GODOT_PATH` from `~/.claude.json`.
 
 ## Invariants (carried from the prototype, still true)
