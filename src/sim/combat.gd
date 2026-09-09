@@ -165,6 +165,8 @@ static func swing_refused(sim: GameSim, p: PlayerSim, w: Dictionary, fighting: b
 ## chop_stam_cost, stops recovery for stam_chop_delay, and IS refused when
 ## the bar is short, which is what makes three trees a decision.
 static func melee_attack(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
+	if refuse_broken(sim, p, w):
+		return false
 	var reach: float = w.range + p.r
 	var dmg: float = w.dmg * p.melee_mul * (Config.ADRENALINE_MELEE if p.adrenaline_active else 1.0)
 	var hits := melee_targets(sim, p, w)
@@ -190,11 +192,15 @@ static func melee_attack(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 		for e in hits:
 			var crit := sim.rng.chance(p.crit_chance + 0.06)
 			Damage.damage_enemy(sim, e, dmg * (1.9 if crit else 1.0), p.pos, w.knock, crit, p, false, false, "melee")
+		Wear.use(sim, p, w.id, 1)
 	elif chop_prop(sim, p, w, dmg):
 		p.stam = maxf(0.0, p.stam - chop_stam_cost(p))
 		p.stam_lock = P.stam_chop_delay
+		# Work is what actually blunts a tool, so it costs more than a fight.
+		Wear.use(sim, p, w.id, int(Config.WEAR.chop_mul))
 	# A swing that connects with nothing costs nothing: flailing at the
-	# scenery is already its own punishment.
+	# scenery is already its own punishment — and it is what stops a broken
+	# weapon being announced once per frame while the trigger is held.
 	return true
 
 
@@ -271,7 +277,26 @@ static func chop_prop(sim: GameSim, p: PlayerSim, w: Dictionary, dmg: float) -> 
 
 # --------------------------------------------------------------------- guns --
 
+## A broken weapon does nothing at all until it is mended. It keeps its slot
+## rather than crumbling away, because it is the thing you carry back to the
+## bench — and because a weapon that vanished at zero would make "repair it"
+## a promise the game could not keep.
+##
+## It refuses rather than degrading: one rule, visible on the hotbar long
+## before it fires, instead of a weapon that has been quietly getting worse.
+static func refuse_broken(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
+	if not Wear.is_broken(p, String(w.id)):
+		return false
+	if sim.time - p.broken_told_at > 3.0:
+		p.broken_told_at = sim.time
+		sim.notify("%s is broken — mend it at the bench that made it" % w.name, "#c96a5a", true)
+	sim.emit({"t": "deny", "x": p.pos.x, "y": p.pos.y})
+	return true
+
+
 static func fire_gun(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
+	if refuse_broken(sim, p, w):
+		return false
 	var mag: int = p.mag.get(w.id, 0)
 	if mag <= 0:
 		sim.emit({"t": "dryfire", "x": p.pos.x, "y": p.pos.y})
@@ -305,6 +330,7 @@ static func fire_gun(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 
 	sim.threat.add(sim, Config.THREAT.per_gunshot * w.threat, p)
 	Sound.make_noise(sim, p.pos.x, p.pos.y, w.noise, p)
+	Wear.use(sim, p, w.id, 1)
 	return true
 
 

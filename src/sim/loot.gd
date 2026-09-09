@@ -377,14 +377,20 @@ static func drop_backpack(sim: GameSim, p: PlayerSim) -> Dictionary:
 
 	if held.is_empty():
 		return {}
-	var pack := {"pos": p.pos, "held": held, "mag": p.mag.duplicate(), "t": 0.0, "seat": p.seat}
+	var pack := {"pos": p.pos, "held": held, "mag": p.mag.duplicate(),
+		"wear": p.wear.duplicate(), "t": 0.0, "seat": p.seat}
 	sim.backpacks.append(pack)
 	# The rounds went into the pack with the gun. Leaving them on the player
 	# would hand a freshly found replacement the dead one's magazine, and
 	# would mean the saved value could never be restored on recovery.
+	#
+	# The same is true of the wear, and it is load-bearing: leave it behind
+	# and walking back to your own body would be a free repair on everything
+	# in it, which would make dying the cheapest bench in the game.
 	for id in held:
 		if id != keep:
 			p.mag.erase(id)
+			p.wear.erase(id)
 	return pack
 
 
@@ -398,6 +404,8 @@ static func collect_backpack(sim: GameSim, p: PlayerSim, pack: Dictionary) -> in
 			pack.held.erase(id)
 		if got > 0 and Config.WEAPONS.has(id) and not p.mag.has(id):
 			p.mag[id] = pack.mag.get(id, Config.WEAPONS[id].get("mag", 0))
+		if got > 0 and Wear.wears(id) and not p.wear.has(id):
+			p.wear[id] = int(pack.get("wear", {}).get(id, Wear.max_of(id)))
 		moved += got
 	var left := 0
 	for id in pack.held:

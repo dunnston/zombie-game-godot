@@ -350,7 +350,7 @@ func _on_snapshot(m: Dictionary) -> void:
 	_apply_survivors(m.get("sv", []))
 	sim.backpacks.clear()
 	for b in m.get("bp", []):
-		sim.backpacks.append({"pos": Vector2(float(b[1]), float(b[2])), "held": {}, "mag": {}, "t": 0.0, "seat": int(b[0])})
+		sim.backpacks.append({"pos": Vector2(float(b[1]), float(b[2])), "held": {}, "mag": {}, "wear": {}, "t": 0.0, "seat": int(b[0])})
 
 
 func _apply_player(pr: Dictionary) -> void:

@@ -81,22 +81,36 @@ static func visible_recipes(p: PlayerSim, bench: int, stations := {}) -> Array:
 	return out
 
 
-## Why a recipe cannot be made right now, in the order a player meets it.
-static func status(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> Dictionary:
+## Why this recipe's *bench* cannot do the work here: the workbench tier, the
+## station and the tool in the pack, and nothing about cost or room.
+##
+## Split out of `status` so repair can ask the same question: "mended at the
+## bench that made it" is this function, asked about the same recipe row, and
+## a second copy of the gate would be a second thing to keep in step.
+## Returns "" when the bench is fine.
+static func bench_reason(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> String:
 	# A Stone Hammer is a workbench for simple work — what you could
 	# plausibly do on a flat rock. It never reaches Workbench II and it never
 	# unlocks a gun, because no `hammer` recipe is above bench 1.
 	var effective := maxi(bench, 1) if r.get("hammer", false) and has_tool(p, "hammer") else bench
 	if r.bench > effective:
-		return {"ok": false, "reason": "Needs a Workbench" if r.bench == 1 else "Needs Workbench II"}
+		return "Needs a Workbench" if r.bench == 1 else "Needs Workbench II"
 	# Asked of the world rather than taken from the caller: on a guest this
 	# same function runs on the host, where standing beside the station is the
 	# only thing that can be checked honestly.
 	var station := String(r.get("station", ""))
 	if not station.is_empty() and sim.structs.near_station(p.pos, station).is_empty():
-		return {"ok": false, "reason": "Needs a %s" % station_name(station)}
+		return "Needs a %s" % station_name(station)
 	if r.has("tool") and not has_tool(p, r.tool):
-		return {"ok": false, "reason": "Needs a %s" % Config.WEAPONS[r.tool].name}
+		return "Needs a %s" % Config.WEAPONS[r.tool].name
+	return ""
+
+
+## Why a recipe cannot be made right now, in the order a player meets it.
+static func status(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> Dictionary:
+	var why := bench_reason(sim, p, r, bench)
+	if not why.is_empty():
+		return {"ok": false, "reason": why}
 	# Duplicates are allowed: gear and guns are ordinary items you can carry,
 	# drop, stash or hand to the next respawn. What limits you is space — and
 	# space means weight as well as slots, or standing at the cap beside a

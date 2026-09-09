@@ -255,6 +255,42 @@ The spec for each row is in `tasks/port-inventory.md`.
 
 ## 4. What is built
 
+### Weapons wear out, and the bench that made one mends it
+
+- **`dur` is a count of uses**, per weapon in `WEAPONS`: one connecting melee
+  swing, or one shot. A swing at air costs nothing — the same rule that
+  already makes flailing at scenery free — and **felling a tree costs twice
+  what hitting a walker does** (`WEAR.chop_mul`), because work is what
+  actually blunts an axe. Fists carry no `dur` and never wear.
+- **Nothing degrades on the way down.** A weapon swings exactly as well at 5%
+  as at 100% and then it stops. A weapon that got quietly worse would be a
+  chore you could not see, which is the thing pillar 1 is against; instead
+  the hotbar carries a condition sliver, and one warning fires on each
+  crossing of `worn_at` (30%) and `spent_at` (10%).
+- **Broken is refused, not degraded and not destroyed.** A broken weapon
+  keeps its slot and does nothing — it is the thing you carry back to the
+  bench, and a weapon that crumbled at zero would make "you repair it" a
+  promise the game could not keep. The hotbar says BROKEN and the tooltip
+  says where to take it.
+- **Mended at the bench that made it**, for a share of what it cost to make
+  scaled by how worn it is (`WEAR.repair_cost_share`, 0.5), with the main
+  material always at least one so no repair is free. The gate is not a second
+  rule: it is `Crafting.bench_reason` asked about the weapon's own recipe
+  row, so a Hatchet is mended by hand in a field and a Machete needs the
+  Workbench, automatically and forever. The rows sit at the top of the CRAFT
+  tab, above the recipes, with the verb **MEND** — REPAIR is the build bar's
+  word for a wall, and one verb for two jobs teaches the wrong thing.
+- **A weapon nothing makes is mended nowhere.** That falls out of the recipe
+  lookup rather than needing a flag, and it is what a unique, found-only
+  weapon would lean on: no recipe, so no bench, and a bigger `dur` to pay for
+  it. **No such weapon exists yet** — every weapon in the game but Fists is
+  craftable — so the mechanic is ready and the content is not.
+- **It travels.** `PlayerSim.wear` is weapon id -> uses left, kept exactly
+  like `mag`, and it goes everywhere `mag` goes: the save (v10), the pack
+  diff a guest gets, and **the backpack you drop when you die** — leave it
+  behind and walking back to your own body would be the cheapest bench in the
+  game. `Wear.use` is the only writer.
+
 ### The chemistry, the living, and losing control (Phase 6b)
 
 Everything built on top of the meter. The bar was Phase 6a; this is what
@@ -997,6 +1033,11 @@ Phases 1–4 respecting it.
 | 2026-09-08 | The sim reports through an event list, not callbacks into nodes | `GameSim.events` is drained by `main.gd` each frame into effects and the HUD. It keeps the sim node-free, and it is the reliable-channel event stream co-op needs. | Expensive later |
 | 2026-09-08 | Raiders come for the player until structures exist | The spec targets the nearest structure so hordes break on the perimeter; with no structures the only target is you. The compound reference figures (§9) are a Phase 3 check. | n/a |
 | 2026-09-08 | A melee target needs the line a bullet needs | The arc checked distance and angle only, so a pipe (73px of threshold) hit through a one-tile wall that holds two bodies 66px apart. Terrain line of sight, not foot collision, so water and fences are still swung over — the same asymmetry shots have. | Yes, one check |
+| 2026-09-09 | Wear is kept per weapon **id**, not per instance | A slot is `{id, n}` and nothing else (`Slots`), which is what lets everything the player owns be moved, dropped, stashed, saved and sent as one addressable list. Per-instance durability means per-instance state in every container, every save record and every wire diff. `mag` already made this trade — two pistols share one magazine — so wear matches it. **The consequence is real and visible: two Hatchets in one pack share one condition, and both read BROKEN together.** Accepted as the smaller lie. | Expensive: it is the slot model |
+| 2026-09-09 | A broken weapon refuses; it does not degrade, and it does not vanish | Three options, and only one is both readable and honest. Degrading on the way down is a chore you cannot see (pillar 1) and makes every combat number a function of wear. Vanishing at zero makes "you repair it" impossible. Refusing is one rule, warned about twice before it fires, and leaves the thing in your hands to carry to the bench. | Yes |
+| 2026-09-09 | The repair gate is the recipe's own bench, not a table of its own | "Repaired at the same bench they are made" is literally `Crafting.bench_reason` asked about the same recipe row — which is why that gate was split out of `Crafting.status` rather than copied. A new weapon needs no repair entry, and the two can never drift apart. | Yes |
+| 2026-09-09 | The weapon repair bill ignores `build_cost_mul`; the structure one still takes it | That multiplier is Engineer and the Intelligence ladder making what you *construct* cheaper, and `Crafting.craft` already ignores it — a Machete costs 24 scrap at any Intelligence. Charging a share of a price the perk does not touch, and then discounting the share, would make mending cheaper than making for a reason nothing in the game states. | Yes, one argument |
+| 2026-09-09 | Durability numbers are the code's first guess, not Notion's | Notion's `Durability` column is where the owner's per-weapon intent belongs, and **it is blank for every weapon in the game** — one Planned row (AK-Style Rifle, 5) is the only value in it. §10 says not to read that column as a spec, so the table in `Config.WEAPONS` is a first pass to be played and argued with, and the write-back is the owner's to make. | Yes, sixteen numbers |
 | 2026-09-08 | `bleed` dropped from the machete, knife and scythe | The prototype declared it on three weapons and never read it anywhere. Advertising a mechanic nothing implements is worse than not having it (pillar 5); those three are already separated by damage, cadence, reach and arc. Comes back as a spec'd mechanic or not at all. | Yes |
 | 2026-09-08 | An unfinished raid pays XP on the same share as salvage | The floor was `0.5 + share/2`, so a horde you never touched still paid half its XP — the exact "hiding beats defending" the salvage share exists to prevent. | Yes, one expression |
 | 2026-09-08 | The save fingerprint is taken when generation finishes, not when the save is written | It has to describe the *generator*, not the run. Taken live it included the current collision bitmap and prop count, so felling a single tree changed it and the save refused itself on load. A test fells a tree and asserts the fingerprint does not move. | Yes |
@@ -1068,6 +1109,18 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    peaks at 0.82 alpha, which is the prototype's number, and the tint is now
    applied the way the prototype applied it — so this is the real curve
    rather than the too-dark one the first cut of `LightView` produced.
+1. **Does breaking a weapon read as tension or as a chore?** The wear gate,
+   and the one most likely to want its numbers moved. A Hatchet is 140
+   connecting swings and a tree costs two of them, so it is roughly seventy
+   trees; a pistol is 600 rounds. The questions: does the first break arrive
+   as a story or as an interruption; is a warning at 30% and again at 10%
+   enough that it never surprises you; is *refusing* the right answer at zero
+   or should a broken weapon still swing like fists; is half the recipe the
+   right bill, or does mending want to be cheap enough that you never think
+   about it. And the one the slot model forces: **two Hatchets share one
+   condition and break together** — does that read as odd in the hand? The
+   dev menu has `Wear what you are holding to a sliver` and `Mend everything
+   you are carrying`, so none of this needs an afternoon of chopping.
 1. **Meet the living.** Phase 6b's gate. Is a four-person Scavenger Crew a
    harder fight than twenty walkers or just a fiddlier one; does a Raider
    holding its distance read as cover-fighting or as running away; is losing
@@ -1459,7 +1512,8 @@ groups, and the difference decides how much work a change to one is:
 | --- | --- |
 | Damage, Attack Speed, Reach, Knockback, Noise | **Already per-weapon** in `WEAPONS` as `dmg`, `cd`, `range`, `knock` and (guns) `noise`. A change here is a number. |
 | Stamina Cost, Crit Chance, Cleave | **The mechanic exists; the per-weapon field does not.** A swing costs a flat `PLAYER.stam_swing` (2.0) whatever you hold; `crit_chance` is a player stat off Luck and perks, rolled in both `melee_attack` and `fire_gun`; cleave is real but derived from the weapon's `arc` (`melee_targets` allows 6 targets over 1.4 radians, otherwise 3). A change here means making an existing system read a per-weapon value. |
-| Stagger, Durability | **Not in the game at all.** Nothing interrupts an enemy mid-attack, and no weapon wears out. Each is its own roadmap card. |
+| Durability | **Built 2026-09-09**, and now per-weapon in `WEAPONS` as `dur` — a count of uses, with repair at the recipe's own bench. The Notion column is **blank on every row but one**, so the numbers in the code are the code's first guess; filling that column in and syncing it back is a real change to make, and it is the owner's call, not a sync's. |
+| Stagger | **Not in the game at all.** Nothing interrupts an enemy mid-attack. Its own roadmap card. |
 
 Do not read a number in the last two groups as a spec to implement. The
 middle group in particular is a small change to a system that already works,
@@ -1513,6 +1567,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-09 | **Weapons wear out and benches mend them.** `dur` on every weapon in `WEAPONS` as a count of *uses* — one connecting swing, one shot — and `Wear` as the only thing that writes it, kept per weapon id beside `mag` for the same reason `mag` is (a slot is `{id, n}`; two Hatchets share one condition, and that is the accepted cost of the slot model). A swing at air is free; **felling a tree costs a tool twice what a walker does**. Nothing degrades on the way down: one warning at 30%, one at 10%, a condition sliver on the hotbar, and then it is **broken — refused, not destroyed and not quietly worse**, because it is the thing you carry back to the bench. Mending is a share of the recipe scaled by the wear (0.5, main material always ≥ 1) at **the recipe's own bench** — `Crafting.bench_reason` split out of `status` so the gate cannot drift, which makes a Hatchet mendable by hand and a Machete not, for free and forever. MEND rows sit above the recipes on the CRAFT tab (a different verb to the build bar's REPAIR on purpose). A weapon nothing makes is mended nowhere, which is what a unique found-only weapon will lean on — **no such weapon exists yet**. Wear travels with the save (v10), the guest's pack diff, and the backpack you drop when you die, without which walking back to your own corpse would be the cheapest bench in the game. Repair goes through `Actions` like every other screen command. Two dev verbs, `wear_test.gd` (23 tests) and two smoke checkpoints. **The sixteen `dur` numbers are the code's first guess: Notion's Durability column is blank on every in-game weapon** |
 | 2026-09-09 | **The chemistry, the living, and losing control** (Phase 6b). A **Chemistry Station**: the first bench that is not a rung on the workbench ladder, gated by `station` rather than by `bench`, so no amount of upgrading ever produces a suppressant. The chain finishes — Refined −50, and **Experimental −75**, which always pays ninety seconds of Surge and charges a Fever one time in four; the Fever turns you *faster*, so the risk is on the same axis as the reward. **Food and drink arrive as a full table and as buffs only** — nine items, six effects, no hunger meter under any of it and a test that asserts no such field exists. Hydration is what finally writes `mut_rate_mul`. `F` eats the commonest thing that would help; right-click in the pack uses what you clicked, through `Actions`. **The Lurch**: at FERAL your legs stop being yours for a second and a half every couple of minutes, the intent is rewritten rather than guarded, and a guest hands the body to the host for the duration. And **the living**: Looter, Raider and Enforcer, a raid track of their own rolled against your Mutation band (never at HUMAN, 55% at FERAL), hostile bullets that look for people instead of enemies, a `standoff` a rifleman keeps and a shotgun closes, and a Looter that empties your stash and runs for the edge — kill it and you get it back. They carry no brain matter: killing people is never a way to hold the meter down. Two new test files (47 tests) and five more smoke checkpoints. Save v9, protocol 3 |
 | 2026-09-09 | **The theme moved: Mutation is the main status** (Phase 6a). The player was bitten before the first frame, there is no cure, and brain matter is what holds the change back — so the meter you manage runs through the horde. 0–100, a full cycle in 2.5 in-game days, faster in worse districts and in the dark, and moved by teeth: one zombie hit in seven is a bite. Three bands (HUMAN / TURNING / FERAL) whose modifiers live in `Config.MUTATION.bands` and reach the player through `recompute_stats` and nowhere else; a **band change** is the only thing that triggers a recompute. FERAL is the bargain stated plainly: +45% melee, +12% speed, half the stagger, sensed at 0.6× the radius — and 60% worse spread and a worse gun multiplier. At 100 you turn: your own banner, and you come back at 55 rather than 0. Kills drop brain matter by what the body was (Walker 45% Raw → Behemoth always Neural Tissue), once per corpse whatever the loot perks say. Raw is −10 and Nausea; a Workbench makes the Stabilized Neural Serum, −30 and clean. `G` picks the dose that fits the hole. `Config.EFFECTS` is one table for every buff and debuff, ticked on the player and applied inside the same recompute. Save payload v8, snapshot stride 20 plus a fourth string for the effect clocks, protocol 2. Pillar 1 rewritten (the pillar was never "no meters", it was "no chores"), invariant 4 extended, invariant 9 added, `mutation_test.gd` (29 tests) and three smoke checkpoints |
 | 2026-09-09 | Notion catalogue restructured to the owner's taxonomy. Eleven categories replace the first seven, each with its own tab on the Items table: Building (needs no bench, and is where a bench is crafted), Materials, Tools, Weapons, Clothing/Armor, Consumables food, Consumables misc, Ammo, Medical Items, Special Items, Misc Items. Weapons split into six melee classes and eight ranged, with the ranged identities written down (handgun as backup, shotgun as "get off me", bow as the quiet answer rather than a worse gun) and **noise as a first-class weapon stat**. Ten 1-5 design-intent columns added. Five are already per-weapon in `WEAPONS`; Stamina Cost, Crit Chance and Cleave name mechanics that exist but are not per-weapon (a flat `stam_swing`, a player-stat crit, cleave derived from `arc`); only Stagger and Durability are absent entirely. Codex caught the first draft calling all five missing, which would have sent a future pass rebuilding combat systems that already work. The benches became Player Menu, Basic, Advanced, Tech and Recycle, and each is now also a buildable row under Building. 19 rows added: the ranged weapons the owner enumerated, plus the four benches. 117 item rows, 42 of them Planned. Renaming a Notion select option drops the value on every row that held it, so all 98 existing rows were re-mapped from a dump taken first; §10 gains the taxonomy note |

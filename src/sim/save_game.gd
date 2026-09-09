@@ -1,6 +1,6 @@
 class_name SaveGame
 extends RefCounted
-## Saving and loading. Payload version 9.
+## Saving and loading. Payload version 10.
 ##
 ## **Containers are identified by tile position, never by ordinal index**
 ## (invariant 7). The prototype keyed them by their position in an array,
@@ -13,7 +13,7 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 9
+const VERSION := 10
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
@@ -69,7 +69,7 @@ static func to_dict(sim: GameSim) -> Dictionary:
 			# same way it is derived from it in play.
 			"mutation": p.mutation, "effects": p.effects.duplicate(),
 			"slot": p.slot, "bag": p.bag.to_record(), "hotbar": p.hotbar.to_record(),
-			"equip": p.equip.duplicate(), "mag": p.mag.duplicate(),
+			"equip": p.equip.duplicate(), "mag": p.mag.duplicate(), "wear": p.wear.duplicate(),
 			"light_on": p.light_on, "light_fuel": p.light_fuel, "light_id": p.light_id,
 			"light_charge": p.light_charge.duplicate(),
 			"spawn_tx": p.spawn_tile.x, "spawn_ty": p.spawn_tile.y,
@@ -81,7 +81,8 @@ static func to_dict(sim: GameSim) -> Dictionary:
 		piles.append({"x": it.pos.x, "y": it.pos.y, "kind": it.kind, "id": it.id, "n": it.n})
 	var packs: Array = []
 	for b in sim.backpacks:
-		packs.append({"x": b.pos.x, "y": b.pos.y, "held": b.held.duplicate(), "mag": b.mag.duplicate(), "seat": b.seat})
+		packs.append({"x": b.pos.x, "y": b.pos.y, "held": b.held.duplicate(), "mag": b.mag.duplicate(),
+			"wear": b.wear.duplicate(), "seat": b.seat})
 
 	return {
 		"version": VERSION,
@@ -253,6 +254,8 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 			p.equip[k] = String(rec.equip[k])
 		for k in rec.get("mag", {}):
 			p.mag[k] = int(rec.mag[k])
+		for k in rec.get("wear", {}):
+			p.wear[k] = int(rec.wear[k])
 		p.light_id = String(rec.get("light_id", ""))
 		p.light_fuel = float(rec.get("light_fuel", 0.0))
 		for k in rec.get("light_charge", {}):
@@ -297,7 +300,11 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 		var mag := {}
 		for k in rec.get("mag", {}):
 			mag[k] = int(rec.mag[k])
-		sim.backpacks.append({"pos": Vector2(float(rec.x), float(rec.y)), "held": held, "mag": mag, "t": 0.0, "seat": int(rec.get("seat", 0))})
+		var wear := {}
+		for k in rec.get("wear", {}):
+			wear[k] = int(rec.wear[k])
+		sim.backpacks.append({"pos": Vector2(float(rec.x), float(rec.y)), "held": held, "mag": mag,
+			"wear": wear, "t": 0.0, "seat": int(rec.get("seat", 0))})
 
 	# Last, after the structures: a sniper needs their tower to exist before
 	# they can be pointed at it.
