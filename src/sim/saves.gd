@@ -88,10 +88,13 @@ static func has_any() -> bool:
 
 
 ## The lowest slot number with nothing in it, or -1 when they are all taken.
+##
+## The *file* decides, not the index. An entry whose payload was deleted from
+## outside the game is stale, and counting it as occupied would let six stale
+## entries offer nothing to load and refuse to start anything new.
 static func first_free() -> int:
-	var idx := read_index()
 	for n in range(MAX_SLOTS):
-		if not idx.slots.has(str(n)) and not FileAccess.file_exists(SaveGame.slot_path(n)):
+		if not FileAccess.file_exists(SaveGame.slot_path(n)):
 			return n
 	return -1
 

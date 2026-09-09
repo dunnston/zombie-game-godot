@@ -87,7 +87,7 @@ func _draw() -> void:
 	draw_rect(Rect2(x, y, w * clampf(p.xp / maxf(1.0, float(p.xp_next)), 0, 1), 8), Color("#9fd0ff"))
 	draw_string(font, Vector2(x + 6, y + 7), "LV %d" % p.level, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color.WHITE)
 	if p.skill_points > 0:
-		draw_string(font, Vector2(x, y + 7), "%d POINT%s  ·  K" % [p.skill_points, "" if p.skill_points == 1 else "S"],
+		draw_string(font, Vector2(x, y + 7), "%d POINT%s  ·  %s" % [p.skill_points, "" if p.skill_points == 1 else "S", KeyBinds.primary_label("character")],
 			HORIZONTAL_ALIGNMENT_RIGHT, w - 6, 9, Color("#ffe08a"))
 
 	# Threat meter, top right.
@@ -148,7 +148,7 @@ func _draw() -> void:
 	# Reload and healing.
 	if not p.reloading.is_empty():
 		draw_string(font, Vector2(0, sy - 8), "RELOADING", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 11, Color("#ffe6a8"))
-	var meds := "Q  bandage x%d  medkit x%d" % [p.count_carried("bandage"), p.count_carried("medkit")]
+	var meds := "%s  bandage x%d  medkit x%d" % [KeyBinds.primary_label("use_heal"), p.count_carried("bandage"), p.count_carried("medkit")]
 	draw_string(font, Vector2(sx + slot_w * n_slots + 8, sy + 30), meds, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.6))
 
 	# Carry weight, beside the hotbar. Grey is fine, amber is nearly full,
@@ -165,16 +165,26 @@ func _draw() -> void:
 	draw_rect(Rect2(wx, sy + 18, 120 * frac, 10), wcol)
 	draw_string(font, Vector2(wx, sy + 14), "%d / %d" % [roundi(carried), roundi(p.carry_cap)], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, wcol)
 
-	# What the interact key is offering, and the search channel.
+	# What the interact key is offering, and the search channel. Every key
+	# named here comes from `KeyBinds`, so rebinding changes what the game
+	# tells you to press.
 	var target := Interact.best_target(sim, p)
-	if not p.searching.is_empty():
+	if p.driving_id > 0:
+		# At the wheel, driving is all there is — so the prompt is the controls
+		# rather than whatever happens to be within reach of the car.
+		draw_string(font, Vector2(0, sy - 70), "%s / %s  drive  ·  %s / %s  steer  ·  %s  get out" % [
+			KeyBinds.primary_label("move_up"), KeyBinds.primary_label("move_down"),
+			KeyBinds.primary_label("move_left"), KeyBinds.primary_label("move_right"),
+			KeyBinds.primary_label("interact")],
+			HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#d8e8c0"))
+	elif not p.searching.is_empty():
 		var c: Dictionary = p.searching.container
 		var k := clampf(p.searching.t / p.searching.dur, 0.0, 1.0)
 		draw_string(font, Vector2(0, sy - 70), "Searching %s" % c.label, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#ebe6d6"))
 		draw_rect(Rect2(vp.x / 2.0 - 60, sy - 62, 120, 6), Color(0, 0, 0, 0.6))
 		draw_rect(Rect2(vp.x / 2.0 - 60, sy - 62, 120 * k, 6), Color("#c9a227"))
 	elif not target.is_empty():
-		draw_string(font, Vector2(0, sy - 70), "E  %s" % target.label, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#d8e8c0"))
+		draw_string(font, Vector2(0, sy - 70), "%s  %s" % [KeyBinds.primary_label("interact"), target.label], HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#d8e8c0"))
 
 	# Notices, left of centre, newest at the bottom.
 	var ny := vp.y * 0.42

@@ -12,17 +12,31 @@ var p: PlayerSim
 const T0 := 90
 const T1 := 91
 const T2 := 92
+## The same argument for the keyboard. `reset_all()` writes the store on every
+## call, so pointing at the real `user://binds.json` would erase the controls
+## of whoever is sitting at this machine the first time the suite ran.
+const BINDS := "user://binds_test.json"
+
+var _real_binds := ""
 
 
 func before_each() -> void:
 	sim = new_sim()
 	p = sim.players[0]
 	_wipe()
+	_real_binds = KeyBinds.STORE
+	KeyBinds.STORE = BINDS
 
 
 func after_each() -> void:
 	_wipe()
 	KeyBinds.reset_all()
+	if FileAccess.file_exists(BINDS):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(BINDS))
+	KeyBinds.STORE = _real_binds
+	# Back to whatever the player actually has, rather than to the defaults:
+	# the suite has been rebinding keys the running game is still reading.
+	KeyBinds.load_binds()
 
 
 ## Leaves no slot of ours behind: these write real files under `user://`, and
@@ -153,6 +167,46 @@ func test_a_saved_slot_round_trips_through_the_payload() -> void:
 	eq(fresh.clock.day, 3)
 	eq(fresh.players[0].level, 5)
 
+
+
+
+func test_the_real_binds_file_is_never_touched_by_a_test() -> void:
+	# The store is redirected for the duration of every case. Without this the
+	# first headless run on a machine erased the player's controls, because
+	# `reset_all()` writes `{}` to disk on the way past.
+	eq(KeyBinds.STORE, BINDS)
+	ne(_real_binds, BINDS)
+	var before := _read(_real_binds)
+	KeyBinds.rebind("light", KEY_V)
+	KeyBinds.reset_all()
+	ok(FileAccess.file_exists(BINDS), "the writes went to the test store")
+	eq(_read(_real_binds), before, "and the player's own file is byte for byte what it was")
+
+
+func _read(path: String) -> String:
+	if not FileAccess.file_exists(path):
+		return "<none>"
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return "<unreadable>"
+	var s := f.get_as_text()
+	f.close()
+	return s
+
+
+func test_a_stale_index_entry_does_not_occupy_a_slot() -> void:
+	# A payload deleted from outside leaves the entry behind. `list()` already
+	# hides it; if `first_free` still counted it, six stale entries would offer
+	# nothing to load and refuse to start anything new.
+	var free := Saves.first_free()
+	if free < 0:
+		ok(true, "every real slot is taken on this machine, which is a valid answer")
+		return
+	Saves.save_to(sim, free, "Doomed")
+	eq(Saves.first_free() > free, true, "a real save occupies it")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(SaveGame.slot_path(free)))
+	eq(Saves.first_free(), free, "with the payload gone the slot is free again")
+	Saves.delete(free)
 
 # ------------------------------------------------------------- the labels --
 

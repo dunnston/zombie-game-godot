@@ -208,8 +208,10 @@ func enter(sim: GameSim, p: PlayerSim, v: Dictionary) -> bool:
 	v.speed = 0.0
 	release_tiles(sim, v)            # it is no longer scenery in the way
 	sim.emit({"t": "enter_car", "x": v.pos.x, "y": v.pos.y})
-	sim.notify("W/S to drive, A/D to steer, E to get out" if v.fuel > 0.5
-		else "No fuel. You will need some.", "#d8e8c0")
+	# The controls are a HUD hint built from the bindings, not a sentence from
+	# here: the sim has no business naming keys it cannot see.
+	if v.fuel <= 0.5:
+		sim.notify("No fuel. You will need some.", "#d8e8c0")
 	return true
 
 

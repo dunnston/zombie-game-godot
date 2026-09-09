@@ -974,5 +974,69 @@ is moving `save_test.gd`'s world-regenerating round trips into the slow tier,
 which is the same rule Phase 3c wrote down and this file has not applied. This
 needs an owner decision because it changes what runs on every commit.
 
-Numbers: 307 tests / 4410 assertions fast, 337 / 4523 with `--all`, 42 smoke
+Numbers: 309 tests / 4416 assertions fast, 339 / 4529 with `--all`, 42 smoke
 checkpoints, zero failures.
+
+## Review — Phase 4d Codex pass on PR #12 (2026-09-08)
+
+Seven findings, three P1, all real. Three of them are the *same bug I named in
+the 4c review one PR ago* — a feature built and not connected, with a test that
+calls the function instead of pressing the key. Naming a pattern does not fix
+it; the check has to be in the loop.
+
+- [x] **P1 The rebind screen could never capture a key.** `_gui_input` only
+      receives key events when the Control has keyboard focus, and `MenuScreen`
+      is `FOCUS_NONE` — so clicking a binding row lit it up and then waited for
+      ever. The smoke missed it because it called `menu._gui_input(...)`
+      directly. Key capture is `_input` now, which does not need focus, and the
+      smoke pushes the event through `get_viewport().push_input()` — the real
+      delivery path, which is the whole point of a smoke test.
+- [x] **P1 F5 and F9 ignored the slot you were playing.** They saved and loaded
+      slot 0 unconditionally, so quick-saving in slot 3 overwrote whatever was
+      in slot 0, and quick-loading pulled slot 0's world into slot 3's
+      autosave. Both go through the active slot now, and F9 with no slot takes
+      the same one CONTINUE would — a shortcut past the title screen has to
+      agree with the title screen.
+- [x] **P1 SAVE AND QUIT TO TITLE quit even when the save failed.** A full disk
+      turned it into plain QUIT and CONTINUE then reopened an older payload.
+      `_save_current()` returns whether the bytes reached disk and the title is
+      only entered on true.
+- [x] **P2 Escape did nothing on CONTROLS, LOAD or NEW GAME.** The poll only
+      acted when the page was exactly PAUSE, so the documented "closes the
+      innermost thing" stopped at the menu's own front door. `MenuScreen.back()`
+      owns one step out — rebind, then subpage, then the pause menu — and
+      Escape has exactly one owner, which is why the key branch in `_input`
+      deliberately ignores it.
+- [x] **P2 A stale index entry occupied a slot for ever.** `list()` hid a slot
+      whose payload was deleted from outside, but `first_free` still counted
+      it: six stale entries would show nothing to load *and* refuse NEW GAME.
+      The file decides now, not the index.
+- [x] **P2 Running the tests erased the player's controls.** `reset_all()`
+      writes the store on every call and the suite calls it in `after_each`, so
+      the first headless run on a machine wiped `user://binds.json`. This is
+      the exact hazard the save tests avoid with slots 90–92 and I did not
+      carry the reasoning across to the keyboard. `STORE` is a `static var`
+      now, redirected for the duration of each case, and a test asserts the
+      real file is byte-for-byte untouched.
+- [x] **P2 `primary_label` had no callers.** The HUD still said `E`, `Q` and
+      `K` in string literals, so rebinding changed what worked without
+      changing what the game told you to press. **I claimed the opposite in the
+      commit message and in PROJECT.md before it was true.** All three go
+      through `KeyBinds` now, and the driving controls moved out of a
+      `sim.notify` — the sim has no business naming keys it cannot see
+      (invariant 1) — into a HUD hint built from the bindings.
+
+Two things worth keeping from the fixing:
+
+- **`_rows()` returns only what is on screen**, so the smoke's row-clicker now
+  scrolls to find its target the way a player does. The map binding is twenty
+  rows down; the first version of this step set `menu.rebinding` by hand and
+  never touched the list at all.
+- **The smoke had been writing to a real save slot.** It quick-saved into slot
+  0. `SMOKE_SLOT` is 93, outside `MAX_SLOTS`, for the same reason the tests use
+  90–92.
+
+Numbers: 309 tests / 4416 assertions fast, 339 / 4529 with `--all`, 42 smoke
+checkpoints, zero failures. The fast tier measured 15.9s this sitting against
+12.8s for the same suite earlier — the machine drifts, so the still-open budget
+question is about the shape of the suite, not about any one measurement.

@@ -148,21 +148,56 @@ func _rows() -> Array[Dictionary]:
 
 # ------------------------------------------------------------------- input --
 
+## Waiting for a key: the next one pressed becomes the binding.
+##
+## This is `_input` rather than `_gui_input` deliberately. `_gui_input` only
+## receives key events when the Control has keyboard focus, and this one is
+## drawn immediate-mode with `FOCUS_NONE` — so the rebind row lit up, waited,
+## and never saw the key. The smoke missed it by calling `_gui_input` directly,
+## which is the same mistake as the 4c review: a test that calls the function
+## instead of pressing the key.
+##
+## Escape is not handled here. It is the one key with a single owner (the
+## scene's pause poll, which calls `back()`), so that "get me out of here"
+## cannot mean two things on one frame.
+func _input(event: InputEvent) -> void:
+	if not visible or rebinding.is_empty():
+		return
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	var k: int = (event as InputEventKey).physical_keycode
+	if k != KEY_ESCAPE and KeyBinds.rebind(rebinding, k):
+		rebinding = ""
+	queue_redraw()
+	get_viewport().set_input_as_handled()
+
+
+## One step out: an active rebind, then a subpage, then the pause menu itself.
+## Returns false when there is nothing left to back out of, which is the title
+## screen — Escape there means nothing rather than quitting the game by
+## accident. This is what Escape does while the menu is up, and it lives here
+## because the menu is what knows which page it is on.
+func back() -> bool:
+	if not rebinding.is_empty():
+		rebinding = ""
+		queue_redraw()
+		return true
+	match page:
+		Page.CONTROLS:
+			open(came_from)
+			return true
+		Page.LOAD, Page.NEW_GAME:
+			open(Page.PAUSE if over_game else Page.TITLE)
+			return true
+		Page.PAUSE:
+			if over_game:
+				close()
+				return true
+	return false
+
+
 func _gui_input(event: InputEvent) -> void:
 	if not visible:
-		return
-
-	# Waiting for a key: the next one pressed becomes the binding. Escape
-	# cancels rather than binding, because it is the one key that must always
-	# mean "out of here".
-	if not rebinding.is_empty() and event is InputEventKey and event.pressed and not event.echo:
-		var k: int = event.physical_keycode
-		if k == KEY_ESCAPE:
-			rebinding = ""
-		elif KeyBinds.rebind(rebinding, k):
-			rebinding = ""
-		queue_redraw()
-		accept_event()
 		return
 
 	if event is InputEventMouseMotion:

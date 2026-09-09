@@ -5,6 +5,10 @@ extends Node2D
 ## changes game state except through Intent.
 
 const WORLD_SEED := 20240917
+## The slot the smoke run writes to, deliberately outside `Saves.MAX_SLOTS`.
+## `user://` is shared with the real game, and a headless run that claimed the
+## first free slot would land on somebody's save.
+const SMOKE_SLOT := 93
 
 var sim: GameSim
 var terrain: TerrainRenderer
@@ -113,8 +117,11 @@ func _physics_process(dt: float) -> void:
 	# reads the keyboard, so Escape is the only way back and the horde is not
 	# eating you while you read the controls.
 	if menu.visible:
-		if Input.is_action_just_pressed("pause") and not at_title and menu.page == MenuScreen.Page.PAUSE:
-			menu.close()
+		# The menu owns Escape while it is up, and knows what one step out of
+		# where it is means: cancel a rebind, leave a subpage, close the pause
+		# menu. Only the title screen has nothing to back out of.
+		if Input.is_action_just_pressed("pause"):
+			menu.back()
 		return
 
 	_tick_autosave(dt)
@@ -161,10 +168,9 @@ func _physics_process(dt: float) -> void:
 			menu.came_from = MenuScreen.Page.PAUSE
 			menu.open(MenuScreen.Page.PAUSE)
 	elif Input.is_action_just_pressed("quick_save"):
-		var r := SaveGame.save_to(sim, 0)
-		sim.notify("Saved" if r.ok else r.reason, "#b7e08a" if r.ok else "#c96a5a", true)
+		_save_current()
 	elif Input.is_action_just_pressed("quick_load"):
-		_load_slot(0)
+		_quick_load()
 
 	var intent := sim.players[0].intent
 	# An open panel owns the mouse: you can still walk, but a click belongs to
@@ -805,7 +811,7 @@ func smoke_run(smoke: Node) -> void:
 	# The front door. The smoke run starts in the world rather than at the
 	# title, so this drives the menu directly — but through the same rows and
 	# the same signal a click goes through, not by calling the handlers.
-	var test_slot := 93
+	var test_slot := SMOKE_SLOT
 	Saves.delete(test_slot)
 
 	# Escape with nothing open is the pause menu.
@@ -829,12 +835,19 @@ func smoke_run(smoke: Node) -> void:
 		smoke.fail("CONTROLS did not open")
 	await smoke.checkpoint("controls")
 
-	# Rebinding: pick a row, press a key, and the InputMap moves with it.
-	menu.rebinding = "map"
-	var rebound := InputEventKey.new()
-	rebound.physical_keycode = KEY_N
-	menu._gui_input(rebound_pressed(rebound))
+	# Rebinding: click the row, press a key for real, and the InputMap moves
+	# with it. The key goes through the viewport rather than into `_gui_input`,
+	# because "the menu never gets the key" is exactly the bug this step exists
+	# to catch — the first cut called the handler and missed it.
+	if not smoke_click_menu("bind", -1, "map"):
+		smoke.fail("no rebind row for the map key")
 	await smoke.frames(2)
+	if menu.rebinding != "map":
+		smoke.fail("clicking the row did not start a rebind")
+	get_viewport().push_input(rebound_pressed(KEY_N))
+	await smoke.frames(2)
+	if not menu.rebinding.is_empty():
+		smoke.fail("the menu is still waiting for a key it was already sent")
 	if KeyBinds.codes_for("map") != [KEY_N]:
 		smoke.fail("rebinding did not take: %s" % str(KeyBinds.codes_for("map")))
 	if KeyBinds.primary_label("map") != "N":
@@ -842,6 +855,14 @@ func smoke_run(smoke: Node) -> void:
 	KeyBinds.reset_all()
 	await smoke.checkpoint("rebound")
 
+	# Escape backs out of a subpage rather than doing nothing.
+	await smoke.tap("pause")
+	await smoke.frames(3)
+	if menu.page != MenuScreen.Page.PAUSE:
+		smoke.fail("Escape on CONTROLS did not go back to the pause menu")
+	if not smoke_click_menu("controls_page"):
+		smoke.fail("no CONTROLS row on the pause menu")
+	await smoke.frames(2)
 	if not smoke_click_menu("back"):
 		smoke.fail("no BACK row on CONTROLS")
 	await smoke.frames(3)
@@ -914,8 +935,11 @@ func _on_menu(what: String, arg: int) -> void:
 		"save":
 			_save_current()
 		"quit_to_title":
-			_save_current()
-			_enter_title()
+			# Only if it actually got to disk. A full disk turning "save and quit"
+			# into "quit" would take the session with it and leave CONTINUE
+			# pointing at an older payload.
+			if _save_current():
+				_enter_title()
 		"quit":
 			get_tree().quit()
 
@@ -937,18 +961,38 @@ func _leave_title() -> void:
 
 
 ## Writes the game into its slot, or says why it cannot. A run with no slot —
-## the smoke path, or a world started before the title screen existed — is
-## given one rather than silently doing nothing.
-func _save_current() -> void:
+## a world started with F5 before anything named it — is given one rather than
+## silently doing nothing. Returns whether the payload actually reached disk,
+## because the one caller that leaves the game afterwards must not.
+func _save_current() -> bool:
 	if slot < 0:
-		slot = Saves.first_free()
+		# The smoke run writes outside the player's six, for the same reason
+		# the tests use 90-92: `user://` is shared with the real game, and a
+		# headless run must never land on somebody's first save.
+		slot = SMOKE_SLOT if Smoke.enabled else Saves.first_free()
 	if slot < 0:
 		sim.notify("Every save slot is full — delete one from the title screen", "#c96a5a", true)
-		return
+		return false
 	var r := Saves.save_to(sim, slot)
 	sim.notify("Saved" if r.ok else r.reason, "#b7e08a" if r.ok else "#c96a5a", true)
+	return r.ok
 
 
+## F9 reopens the game you are in, not slot 0. With no slot yet it takes the
+## same one CONTINUE would — quick load is a shortcut past the title screen,
+## so it has to agree with the title screen about which game that is.
+func _quick_load() -> void:
+	var which := slot
+	if which < 0:
+		var s := Saves.latest()
+		if s.is_empty():
+			sim.notify("Nothing saved yet", "#c96a5a", true)
+			return
+		which = int(s.slot)
+	if _load_slot(which):
+		slot = which
+		Saves.mark_current(which)
+		_autosave_t = 0.0
 ## A game with a slot writes itself down on a timer. One without does not:
 ## autosave must never invent a slot behind the player's back.
 func _tick_autosave(dt: float) -> void:
@@ -964,19 +1008,36 @@ func _tick_autosave(dt: float) -> void:
 
 ## Presses a menu row by id, the way a click does. Returns false when the row
 ## is not on the page — which is a failure worth reporting rather than a
-## silent no-op.
-func smoke_click_menu(id: String, arg := -1) -> bool:
-	for r in menu._rows():
-		if String(r.id) != id:
-			continue
-		if arg >= 0 and int(r.arg) != arg:
-			continue
-		menu._press(r)
-		return true
+## silent no-op. `action` picks between the many rows that share an id: every
+## binding row is a "bind".
+##
+## Scrolls to find it, because `_rows()` returns only what is on screen and the
+## map binding is twenty rows down a list of twenty-three. `_rows()` clamps
+## `scroll` itself, so the bottom of the list is where the clamp stops moving.
+func smoke_click_menu(id: String, arg := -1, action := "") -> bool:
+	var last := -1
+	while true:
+		var rows := menu._rows()
+		if menu.scroll == last:
+			break
+		last = menu.scroll
+		for r in rows:
+			if String(r.id) != id:
+				continue
+			if arg >= 0 and int(r.arg) != arg:
+				continue
+			if not action.is_empty() and String(r.get("action", "")) != action:
+				continue
+			menu._press(r)
+			return true
+		menu.scroll += 1
+	menu.scroll = 0
 	return false
-
-
-## The key event the CONTROLS page waits for, marked pressed.
-func rebound_pressed(ev: InputEventKey) -> InputEventKey:
+## A real key-down event, for pushing through the viewport the way a keyboard
+## does.
+func rebound_pressed(code: int) -> InputEventKey:
+	var ev := InputEventKey.new()
+	ev.physical_keycode = code
+	ev.keycode = code
 	ev.pressed = true
 	return ev

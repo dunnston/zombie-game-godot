@@ -81,7 +81,11 @@ const ACTIONS := [
 ## screen you opened by accident with a key you have just reassigned.
 const RESERVED := [KEY_ESCAPE]
 
-const STORE := "user://binds.json"
+## Where the binds are written. A `static var` rather than a `const` for one
+## reason: `user://` is shared with the real game, so a headless run that reset
+## the bindings would erase the controls of whoever is sitting at this machine.
+## The tests point this somewhere else for the duration.
+static var STORE := "user://binds.json"
 
 ## action id -> Array of physical keycodes. Empty means "the default".
 ##
