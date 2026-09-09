@@ -190,11 +190,13 @@ func pick_random_spawn(near: Vector2 = Vector2.INF, radius: float = 0.0, min_ene
 # -------------------------------------------------------------- questions --
 
 ## The nearest player an enemy could go for, or null if nobody qualifies.
+## Somebody down is not a target: the horde moves on to whoever is still
+## standing, which is what makes going back for them a decision.
 func nearest_player(at: Vector2) -> PlayerSim:
 	var best: PlayerSim = null
 	var bd := INF
 	for p in players:
-		if p.dead:
+		if p.dead or p.away or p.downed:
 			continue
 		var d := p.pos.distance_squared_to(at)
 		if d < bd:
@@ -206,9 +208,109 @@ func nearest_player(at: Vector2) -> PlayerSim:
 func living_players() -> Array[PlayerSim]:
 	var out: Array[PlayerSim] = []
 	for p in players:
-		if not p.dead:
+		if not p.dead and not p.away:
 			out.append(p)
 	return out
+
+
+## Everyone actually here: not parked. What "full" and "alone" are measured
+## against.
+func present_players() -> Array[PlayerSim]:
+	var out: Array[PlayerSim] = []
+	for p in players:
+		if not p.away:
+			out.append(p)
+	return out
+
+
+## Whether anyone else is here to pick `p` up. The difference between going
+## down and dying.
+func has_teammate_for(p: PlayerSim) -> bool:
+	for q in players:
+		if q != p and not q.away and not q.dead and not q.downed:
+			return true
+	return false
+
+
+func player_by_seat(seat: int) -> PlayerSim:
+	for p in players:
+		if p.seat == seat:
+			return p
+	return null
+
+
+func player_by_identity(identity: String) -> PlayerSim:
+	if identity.is_empty():
+		return null
+	for p in players:
+		if p.identity == identity:
+			return p
+	return null
+
+
+## A guest arriving for the first time: a new seat, the starting kit, and a
+## spot beside the host so the two of you begin together. Returns null when
+## every seat is taken. `Config.NET.max_players` seats exist in total and a
+## parked character keeps its seat — the roster is who has ever been here,
+## and "full" is who is here now (see NetHost.admit).
+func join_player(identity: String, name_ := "") -> PlayerSim:
+	var taken := {}
+	for q in players:
+		taken[q.seat] = true
+	var seat := -1
+	for i in range(Config.NET.max_players):
+		if not taken.has(i):
+			seat = i
+			break
+	if seat < 0:
+		return null
+	var p := PlayerSim.new()
+	p.seat = seat
+	p.identity = identity
+	p.display_name = name_ if not name_.is_empty() else Config.PLAYER.names[mini(seat, Config.PLAYER.names.size() - 1)]
+	var anchor := host()
+	var near: Vector2 = anchor.pos if anchor != null else Vector2(Config.WORLD_SIZE / 2.0, Config.WORLD_SIZE / 2.0)
+	p.pos = pick_random_spawn(near, 6.0 * Config.TILE, 300.0)
+	p.intent.aim = p.pos + Vector2.RIGHT
+	give_kit(p)
+	players.append(p)
+	notify("%s joined" % p.display_name, "#9fd0ff", true)
+	return p
+
+
+## A guest leaving, or dropping: their character is parked where they stood,
+## out of the world until they come back. Whatever they were mid-way through
+## stops. A driver gets out first, or the car is stranded with a ghost at the
+## wheel.
+func park_player(p: PlayerSim) -> void:
+	if p.driving_id > 0:
+		cars.exit(self, p)
+	p.away = true
+	p.intent.clear_edges()
+	p.intent.mx = 0.0
+	p.intent.my = 0.0
+	p.intent.fire = false
+	p.intent.sprint = false
+	p.intent.interact_held = false
+	p.searching = {}
+	p.reviving = {}
+	p.using = {}
+	p.swing = {}
+	p.reloading = {}
+	# Somebody bleeding out who leaves is not rescued by leaving.
+	if p.downed:
+		Damage.kill_player(self, p)
+	_nav.erase(p.seat)
+
+
+## The same person back. The character wakes where it was parked, alive.
+func unpark_player(p: PlayerSim, name_ := "") -> void:
+	p.away = false
+	if not name_.is_empty():
+		p.display_name = name_
+	p.prev_pos = p.pos
+	p.intent.aim = p.pos + Vector2.RIGHT
+	notify("%s is back" % p.display_name, "#9fd0ff", true)
 
 
 ## What the dark is worth, off the clock. Four callers had been reading this
@@ -277,7 +379,7 @@ func notify(text: String, color := "#ebe6d6", important := false) -> void:
 ## stay where the loot already is — and it is what fills in the town map: an
 ## undiscovered district shows as `? ? ?` until somebody has stood in it.
 func _discover(p: PlayerSim) -> void:
-	if p.dead:
+	if p.dead or p.away:
 		return
 	var loc := world.location_at_px(p.pos.x, p.pos.y)
 	if loc.is_empty() or loc.discovered:

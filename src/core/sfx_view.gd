@@ -15,6 +15,8 @@ extends RefCounted
 ## raid on the far side of the map from being a wall of noise.
 
 var sim: GameSim
+## Whose ears these are.
+var player: PlayerSim = null
 
 ## The pitch spread on a horde's growls, so one buffer is a dozen throats.
 const GROWL_SPREAD := 0.35
@@ -119,7 +121,7 @@ func _at(cue: String, ev: Dictionary, pitch := 1.0) -> String:
 func gain_at(at: Vector2) -> float:
 	if sim.players.is_empty():
 		return 1.0
-	var d := sim.players[0].pos.distance_to(at)
+	var d := (player if player != null else sim.players[0]).pos.distance_to(at)
 	var near: float = Config.SFX_NEAR
 	var far: float = Config.SFX_RANGE
 	if d <= near:

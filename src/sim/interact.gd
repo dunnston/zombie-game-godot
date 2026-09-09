@@ -35,6 +35,16 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 	# walk away from the car first.
 	var best_person := {}
 	var person_d := reach2
+	# A teammate first of all: they have thirty seconds, and they are the
+	# other half of the game.
+	for q in sim.players:
+		if q == p or q.away or q.dead or not q.downed:
+			continue
+		var d: float = p.pos.distance_squared_to(q.pos)
+		if d < person_d:
+			person_d = d
+			best_person = {"kind": "revive_player", "ref": q,
+				"label": "Get %s up  (hold — %.0fs left)" % [q.display_name, maxf(0.0, q.down_t)]}
 	for s in sim.crew.list:
 		if s.dead or not s.downed:
 			continue
@@ -138,8 +148,26 @@ static func _nearest_hand_prop(sim: GameSim, p: PlayerSim, reach: float) -> Dict
 static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 	if p.dead:
 		p.searching = {}
+		p.reviving = {}
 		return
 	var it := p.intent
+
+	# Getting somebody up is a held channel like searching is: two and a half
+	# seconds beside them with the key down. They can be dragged out from
+	# under you — by dying, or by somebody else finishing first.
+	if not p.reviving.is_empty():
+		var q := sim.player_by_seat(int(p.reviving.seat))
+		var reach: float = Config.PLAYER.interact_range
+		var gone: bool = q == null or not q.downed or q.dead or q.away \
+			or p.pos.distance_squared_to(q.pos) > reach * reach
+		if gone or (not it.interact_held and p.reviving.t > 0.12):
+			p.reviving = {}
+			return
+		p.reviving.t += dt
+		if p.reviving.t >= p.reviving.dur:
+			p.reviving = {}
+			Damage.revive_player(sim, q, p)
+		return
 
 	if not p.searching.is_empty():
 		var c: Dictionary = p.searching.container
@@ -172,6 +200,9 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 			gather_prop(sim, p, target.ref)
 		"revive":
 			sim.crew.revive(sim, target.ref, p)
+		"revive_player":
+			var q: PlayerSim = target.ref
+			p.reviving = {"seat": q.seat, "t": 0.0, "dur": Config.PLAYER.revive_time}
 		"recruit":
 			sim.crew.recruit(sim, target.ref, p)
 		"vehicle":

@@ -15,7 +15,7 @@ extends Control
 
 signal chose(what: String, arg: int)
 
-enum Page { TITLE, PAUSE, LOAD, CONTROLS, NEW_GAME }
+enum Page { TITLE, PAUSE, LOAD, CONTROLS, NEW_GAME, MULTIPLAYER, JOIN, HOST }
 
 var page: int = Page.TITLE
 ## Where CONTROLS should go back to. The page is shared; its exit is not.
@@ -27,6 +27,22 @@ var scroll := 0
 ## Set by the scene: a pause menu is drawn over a live game, a title screen
 ## over nothing.
 var over_game := false
+
+## What the scene knows about the connection, refreshed every frame it is up:
+## role ("solo", "host", "guest", "joining"), a status line, the last error,
+## the guests' names and the port.
+var net := {"role": "solo", "status": "", "error": "", "guests": [], "port": 0}
+## What the HOST and JOIN pages type into. Loaded from this machine's
+## `NetPrefs`, written back when a game is hosted or joined.
+var fields := {"address": "", "name": "", "password": ""}
+## The field being typed into, or "".
+var editing := ""
+## What START HOSTING should host: -2 the game running behind the pause
+## menu, -3 a new game, or a slot number to load first.
+var host_arg := -2
+## Where JOIN and HOST go back to: the MULTIPLAYER page from the title, the
+## pause menu from a game.
+var came_from_net: int = Page.MULTIPLAYER
 
 
 func _init() -> void:
@@ -51,6 +67,7 @@ func open(to: int) -> void:
 	page = to
 	scroll = 0
 	rebinding = ""
+	editing = ""
 	visible = true
 	queue_redraw()
 
@@ -58,6 +75,16 @@ func open(to: int) -> void:
 func close() -> void:
 	visible = false
 	rebinding = ""
+	editing = ""
+
+
+func _row(id: String, label: String, note := "", enabled := true, arg := 0) -> Dictionary:
+	return {"id": id, "label": label, "arg": arg, "note": note, "enabled": enabled}
+
+
+## A line you type into. `field` is the key in `fields`.
+func _text_row(field: String, label: String, note := "") -> Dictionary:
+	return {"id": "text", "label": label, "arg": 0, "note": note, "enabled": true, "field": field}
 
 
 # ------------------------------------------------------------------ layout --
@@ -88,16 +115,60 @@ func _rows() -> Array[Dictionary]:
 				"enabled": Saves.first_free() >= 0})
 			out.append({"id": "load_page", "label": "LOAD GAME", "arg": 0,
 				"note": "%d saved" % Saves.list().size(), "enabled": Saves.has_any()})
+			out.append(_row("multiplayer_page", "MULTIPLAYER", "Host a game for friends, or join one"))
 			out.append({"id": "controls_page", "label": "CONTROLS", "arg": 0, "note": "", "enabled": true})
 			out.append(_sound_row())
 			out.append({"id": "quit", "label": "QUIT", "arg": 0, "note": "", "enabled": true})
 		Page.PAUSE:
+			var role := String(net.role)
 			out.append({"id": "resume", "label": "RESUME", "arg": 0, "note": "", "enabled": true})
-			out.append({"id": "save", "label": "SAVE", "arg": 0, "note": "", "enabled": true})
+			if role == "guest":
+				# A guest's world is the host's to save. Nothing here writes.
+				out.append(_row("host_page", "PLAYING IN %s'S GAME" % String(net.status).to_upper(), "", false))
+			else:
+				out.append({"id": "save", "label": "SAVE", "arg": 0, "note": "", "enabled": true})
+				if role == "host":
+					var n: int = (net.guests as Array).size()
+					out.append(_row("host_page", "HOSTING  ·  %d CONNECTED" % n, ", ".join(net.guests) if n > 0 else "Port %d — nobody has joined yet" % int(net.port)))
+				else:
+					out.append(_row("host_page", "HOST THIS GAME", "Let friends join the world you are in"))
 			out.append({"id": "controls_page", "label": "CONTROLS", "arg": 0, "note": "", "enabled": true})
 			out.append(_sound_row())
-			out.append({"id": "quit_to_title", "label": "SAVE AND QUIT TO TITLE", "arg": 0,
-				"note": "Writes the game down first", "enabled": true})
+			if role == "guest":
+				out.append(_row("leave_game", "LEAVE GAME", "Your character stays in the host's save"))
+			else:
+				out.append({"id": "quit_to_title", "label": "SAVE AND QUIT TO TITLE", "arg": 0,
+					"note": "Writes the game down first" + ("  ·  ends the session for everyone" if role == "host" else ""), "enabled": true})
+		Page.MULTIPLAYER:
+			var latest := Saves.latest()
+			out.append(_row("host_slot", "HOST — CONTINUE", "%s  ·  %s" % [latest.get("name", ""), Saves.summary_line(latest)] if not latest.is_empty() else "No saved game",
+				not latest.is_empty(), int(latest.get("slot", -1))))
+			out.append(_row("host_new", "HOST — NEW GAME", "A fresh town, in slot %d" % Saves.first_free() if Saves.first_free() >= 0 else "Every slot is full",
+				Saves.first_free() >= 0, Saves.first_free()))
+			out.append(_row("join_page", "JOIN A GAME", "Dial a friend who is hosting"))
+		Page.HOST:
+			if String(net.role) == "host":
+				var n: int = (net.guests as Array).size()
+				out.append(_row("info", "HOSTING ON UDP PORT %d" % int(net.port),
+					"%d connected: %s" % [n, ", ".join(net.guests)] if n > 0 else "Nobody has joined yet — give them your address and this port", false))
+				out.append(_row("host_stop", "STOP HOSTING", "Guests are dropped; their characters stay in the save"))
+			else:
+				out.append(_text_row("name", "YOUR NAME", "What the others see over your head"))
+				out.append(_text_row("password", "PASSWORD", "Optional. Guests must type the same one"))
+				out.append(_row("host_start", "START HOSTING", "Listens on UDP port %d  ·  LAN, VPN or a forwarded port" % int(net.port), true, host_arg))
+				if not String(net.error).is_empty():
+					out.append(_row("info", String(net.error), "", false))
+		Page.JOIN:
+			var busy := String(net.role) == "joining"
+			out.append(_text_row("address", "HOST ADDRESS", "IP or hostname, with :port if it is not %d" % int(net.port)))
+			out.append(_text_row("name", "YOUR NAME", ""))
+			out.append(_text_row("password", "PASSWORD", "If the host set one"))
+			if busy:
+				out.append(_row("join_cancel", "CANCEL", String(net.status)))
+			else:
+				out.append(_row("join_start", "JOIN", String(net.status), not String(fields.address).strip_edges().is_empty()))
+			if not String(net.error).is_empty():
+				out.append(_row("info", String(net.error), "", false))
 		Page.NEW_GAME:
 			var free := Saves.first_free()
 			out.append({"id": "new_confirm", "label": "START", "arg": free,
@@ -123,7 +194,7 @@ func _rows() -> Array[Dictionary]:
 	if page == Page.CONTROLS:
 		pinned.append({"id": "reset", "label": "RESET TO DEFAULTS", "arg": 0, "note": "", "enabled": true})
 		pinned.append({"id": "back", "label": "BACK", "arg": 0, "note": "", "enabled": true})
-	elif page == Page.LOAD or page == Page.NEW_GAME:
+	elif page == Page.LOAD or page == Page.NEW_GAME or page == Page.MULTIPLAYER or page == Page.JOIN or page == Page.HOST:
 		pinned.append({"id": "back", "label": "BACK", "arg": 0, "note": "", "enabled": true})
 
 	# Lay the scrolling rows out. CONTROLS is the only page long enough to
@@ -163,11 +234,28 @@ func _rows() -> Array[Dictionary]:
 ## scene's pause poll, which calls `back()`), so that "get me out of here"
 ## cannot mean two things on one frame.
 func _input(event: InputEvent) -> void:
-	if not visible or rebinding.is_empty():
+	if not visible or (rebinding.is_empty() and editing.is_empty()):
 		return
-	if not (event is InputEventKey) or not event.pressed or event.echo:
+	if not (event is InputEventKey) or not event.pressed:
 		return
-	var k: int = (event as InputEventKey).physical_keycode
+	var key := event as InputEventKey
+	if not editing.is_empty():
+		# Typing into a field. Escape is the scene's, and ends the edit
+		# through `back()`; Enter ends it here.
+		if key.physical_keycode == KEY_ESCAPE:
+			return
+		if key.physical_keycode == KEY_ENTER or key.physical_keycode == KEY_KP_ENTER or key.physical_keycode == KEY_TAB:
+			editing = ""
+		elif key.physical_keycode == KEY_BACKSPACE:
+			fields[editing] = String(fields[editing]).left(-1)
+		elif key.unicode >= 32 and key.unicode < 127 and String(fields[editing]).length() < 48:
+			fields[editing] = String(fields[editing]) + char(key.unicode)
+		queue_redraw()
+		get_viewport().set_input_as_handled()
+		return
+	if key.echo:
+		return
+	var k: int = key.physical_keycode
 	if k != KEY_ESCAPE and KeyBinds.rebind(rebinding, k):
 		rebinding = ""
 	queue_redraw()
@@ -184,12 +272,19 @@ func back() -> bool:
 		rebinding = ""
 		queue_redraw()
 		return true
+	if not editing.is_empty():
+		editing = ""
+		queue_redraw()
+		return true
 	match page:
 		Page.CONTROLS:
 			open(came_from)
 			return true
-		Page.LOAD, Page.NEW_GAME:
+		Page.LOAD, Page.NEW_GAME, Page.MULTIPLAYER:
 			open(Page.PAUSE if over_game else Page.TITLE)
+			return true
+		Page.JOIN, Page.HOST:
+			open(came_from_net)
 			return true
 		Page.PAUSE:
 			if over_game:
@@ -254,8 +349,26 @@ func _press(r: Dictionary) -> void:
 			open(Page.LOAD)
 		"new":
 			open(Page.NEW_GAME)
+		"text":
+			editing = String(r.field)
+		"info":
+			pass
+		"multiplayer_page":
+			open(Page.MULTIPLAYER)
+		"join_page":
+			came_from_net = page
+			open(Page.JOIN)
+		"host_page", "host_slot", "host_new":
+			# Which game to host is decided here; the scene only hears
+			# START HOSTING, with that as its argument.
+			host_arg = -2 if String(r.id) == "host_page" else (-3 if String(r.id) == "host_new" else int(r.arg))
+			came_from_net = page
+			open(Page.HOST)
 		"back":
-			open(came_from if page == Page.CONTROLS else (Page.PAUSE if over_game else Page.TITLE))
+			if page == Page.JOIN or page == Page.HOST:
+				open(came_from_net)
+			else:
+				open(came_from if page == Page.CONTROLS else (Page.PAUSE if over_game else Page.TITLE))
 		_:
 			chose.emit(String(r.id), int(r.arg))
 
@@ -289,6 +402,15 @@ func _draw() -> void:
 		Page.NEW_GAME:
 			title = "NEW GAME"
 			sub = "the world is the same town every time; what you do in it is not"
+		Page.MULTIPLAYER:
+			title = "MULTIPLAYER"
+			sub = "up to four in one town  ·  the host runs the world and keeps the save"
+		Page.HOST:
+			title = "HOST A GAME"
+			sub = "friends dial your address  ·  click a line to type into it"
+		Page.JOIN:
+			title = "JOIN A GAME"
+			sub = "click a line to type into it  ·  Enter to finish"
 	draw_string(font, panel.position + Vector2(32, 46), title, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color("#d8e8c0"))
 	if not sub.is_empty():
 		draw_string(font, panel.position + Vector2(32, 68), sub, HORIZONTAL_ALIGNMENT_LEFT,
@@ -297,8 +419,34 @@ func _draw() -> void:
 	for r in _rows():
 		if String(r.id) == "bind":
 			_draw_bind_row(font, r)
+		elif String(r.id) == "text":
+			_draw_text_row(font, r)
 		else:
 			_draw_row(font, r)
+
+
+func _draw_text_row(font: Font, r: Dictionary) -> void:
+	var rect: Rect2 = r.rect
+	var field := String(r.field)
+	var hot: bool = rect.has_point(mouse)
+	var active := editing == field
+	draw_rect(rect, Color("#2a3038") if active else (Color("#242a32") if hot else Color("#181b20")))
+	draw_rect(rect, Color("#d8e8c0") if active or hot else Color("#3a4048"), false, 1.0)
+	draw_string(font, rect.position + Vector2(12, 20), String(r.label), HORIZONTAL_ALIGNMENT_LEFT,
+		rect.size.x - 24, 14, Color("#ebe6d6"))
+	var note := String(r.get("note", ""))
+	if not note.is_empty():
+		draw_string(font, rect.position + Vector2(12, 34), note, HORIZONTAL_ALIGNMENT_LEFT,
+			rect.size.x - 24, 10, Color(1, 1, 1, 0.3))
+	var value := String(fields.get(field, ""))
+	if field == "password":
+		value = "•".repeat(value.length())
+	if active and int(Time.get_ticks_msec() / 400) % 2 == 0:
+		value += "_"
+	elif value.is_empty():
+		value = "click to type"
+	draw_string(font, rect.position + Vector2(0, 20), value, HORIZONTAL_ALIGNMENT_RIGHT, rect.size.x - 12, 13,
+		Color("#ffe08a") if active else (Color("#9fd0ff") if not String(fields.get(field, "")).is_empty() else Color(1, 1, 1, 0.3)))
 
 
 func _draw_row(font: Font, r: Dictionary) -> void:

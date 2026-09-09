@@ -74,6 +74,29 @@ const PLAYER := {
 	"names": ["Survivor", "Ash", "Bex", "Cole", "Dee"],
 }
 
+# --------------------------------------------------------------- co-op --
+
+## Phase 5. The host runs the simulation exactly as solo does; guests send
+## intent up and get snapshots down. Every number the wire depends on is
+## here, so the tests and the game agree about what "late" means.
+const NET := {
+	"max_players": 4,
+	## The UDP port a host listens on and a guest dials. ENet, built into the
+	## engine: no plugin, no broker. Works across a LAN, a VPN or a forwarded
+	## port; see PROJECT.md §6 for what internet play without any of those
+	## would take.
+	"port": 27333,
+	"snap_every": 3,            # simulation steps between snapshots: 20Hz at 60
+	"interest_radius": 1600.0,  # px around a guest that a snapshot describes
+	"sync_interval": 0.5,       # seconds between inventory / store / world diffs
+	"intent_timeout": 0.4,      # a silent guest is holding nothing after this
+	"snap_over": 48.0,          # a predicted position this far off snaps to the host's
+	"lerp_rate": 6.0,           # ... and closer than that leans toward it at this rate
+	"ease_rate": 14.0,          # everyone and everything else eases at this rate
+	"hello_timeout": 15.0,      # seconds a guest waits for the host to answer
+	"guest_view_radius": 880.0, # what the spawner assumes a guest can see
+}
+
 ## view_height is world pixels of height on screen at zoom 1; the camera
 ## zooms so that the viewport shows about that much world vertically.
 const CAMERA := {"follow": 7.5, "view_height": 580.0, "min_zoom": 0.9, "max_zoom": 2.6, "lead": 0.22, "lead_max": 170.0}

@@ -166,3 +166,25 @@ redirected when `--smoke` is on the command line.
 The corollary that cost the third one: **check the cmdline, not another
 autoload.** Autoloads run in declaration order, so `Smoke.enabled` is not set
 yet when an earlier autoload's `_ready` wants to know.
+
+## 2026-09-09 (Phase 5)
+
+- Two player records as Dictionaries put a snapshot over ENet's MTU on their
+  own. The engine warned in the socket test; the loopback never would have.
+  Pack entities as flat float arrays and assert the byte count in a test.
+- Read the inbox before checking whether the link is open: a reject and the
+  hang-up that follows it arrive in the same poll.
+- Loopback ends that reference each other, and a hub and its links, are
+  reference cycles: `close()` must break them or every session leaks.
+- `ENetMultiplayerPeer.poll()` on a disconnected peer is an engine error per
+  frame. Check `get_connection_status()` first.
+- The smoke cannot run `--headless`: `frame_post_draw` never fires. Xvfb
+  runs the real thing on a headless Linux box.
+- `var x := t.sim.structs.count()` where `t` is a Dictionary is a Variant and
+  fails to parse: type anything pulled out of a Dictionary.
+- A `var` declared inside an `else` at function scope still clashes with a
+  later `var` of the same name in the same function: GDScript scopes are the
+  function's, not the block's, for the parser's duplicate check.
+- The prop renderers hold references to the world's prop dictionaries from
+  build time, so removing a prop from `world.props` did not stop it drawing.
+  Solo had this bug all along; the guest mirror made it visible.

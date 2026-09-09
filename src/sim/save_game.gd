@@ -1,6 +1,6 @@
 class_name SaveGame
 extends RefCounted
-## Saving and loading. Payload version 5.
+## Saving and loading. Payload version 7.
 ##
 ## **Containers are identified by tile position, never by ordinal index**
 ## (invariant 7). The prototype keyed them by their position in an array,
@@ -13,7 +13,7 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 6
+const VERSION := 7
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
@@ -49,7 +49,15 @@ static func to_dict(sim: GameSim) -> Dictionary:
 	for p in sim.players:
 		players.append({
 			"seat": p.seat, "name": p.display_name,
-			"x": p.pos.x, "y": p.pos.y, "hp": p.hp, "stam": p.stam,
+			# Who the character belongs to and whether they are here. The
+			# host's save keeps every player by identity (v7), so a guest who
+			# comes back next week gets their character, level and pack.
+			"identity": p.identity, "away": p.away,
+			"x": p.pos.x, "y": p.pos.y,
+			# Somebody on the ground when the game was written down gets up
+			# when it is read back: a save is not a bleed-out clock.
+			"hp": p.hp if not p.downed else maxf(1.0, p.max_hp * Config.PLAYER.revive_hp_frac),
+			"stam": p.stam,
 			# The build, and only the build: level, what has been spent and what
 			# it was spent on. Every derived stat is rebuilt on load by the same
 			# recompute that produced it, so a save can never carry a stale one.
@@ -146,9 +154,15 @@ static func read_slot(slot: int) -> Dictionary:
 ## Rebuilds `sim` from a payload. The world is regenerated from its seed and
 ## then walked back to the state that was saved: containers marked looted by
 ## tile, chopped props removed by tile, structures re-placed.
-static func apply(sim: GameSim, data: Dictionary) -> Dictionary:
+##
+## `reuse` is a world already generated from the same seed — the tests hand
+## one in because generating one costs a third of a second per guest join.
+## It is walked back to the payload's state like a fresh one would be, but
+## nothing un-fells a tree: a reused world is only right for a run that has
+## not changed it, which is what a test guarantees and a game never does.
+static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictionary:
 	var world_seed := int(data.get("world_seed", 20240917))
-	var world := World.new(world_seed)
+	var world := reuse if reuse != null and reuse.world_seed == world_seed else World.new(world_seed)
 	if int(data.get("fingerprint", 0)) != world.fingerprint():
 		return {"ok": false, "reason": "This save was made by a different world generator (fingerprint mismatch); it cannot be loaded"}
 
@@ -210,6 +224,11 @@ static func apply(sim: GameSim, data: Dictionary) -> Dictionary:
 		var p := PlayerSim.new()
 		p.seat = int(rec.get("seat", 0))
 		p.display_name = String(rec.get("name", Config.PLAYER.names[0]))
+		p.identity = String(rec.get("identity", ""))
+		# A guest's character loads parked, whatever it was doing when the
+		# game was saved: the person is not here until they connect. The
+		# host's own (seat 0) is never away — somebody is at this keyboard.
+		p.away = p.seat != 0
 		p.pos = Vector2(float(rec.x), float(rec.y))
 		p.intent.aim = p.pos + Vector2.RIGHT
 		p.xp = float(rec.xp)

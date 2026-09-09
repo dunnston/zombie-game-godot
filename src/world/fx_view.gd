@@ -59,6 +59,8 @@ func on_event(ev: Dictionary) -> void:
 			particles.append({"kind": "ring", "pos": Vector2(ev.x, ev.y), "life": 0.6, "max": 0.6, "r0": 6.0, "r1": 90.0, "color": Color("#9fd0ff")})
 		"raid_end":
 			for p in sim.players:
+				if p.away:
+					continue
 				particles.append({"kind": "ring", "pos": p.pos, "life": 0.9, "max": 0.9, "r0": 10.0, "r1": 200.0, "color": Color("#b7e08a") if ev.repelled else Color("#d9c46a")})
 
 

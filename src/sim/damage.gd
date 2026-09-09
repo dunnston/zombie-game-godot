@@ -91,7 +91,7 @@ static func kill_enemy(sim: GameSim, e: EnemySim, source: Variant = null) -> voi
 
 
 static func damage_player(sim: GameSim, p: PlayerSim, amount: float, from: Vector2, label := "") -> float:
-	if p == null or p.dead or p.invuln > 0.0 or p.god_mode:
+	if p == null or p.dead or p.downed or p.away or p.invuln > 0.0 or p.god_mode:
 		return 0.0
 	var dealt := maxf(1.0, amount * (1.0 - p.armor_dr))
 	p.hp -= dealt
@@ -119,22 +119,78 @@ static func damage_player(sim: GameSim, p: PlayerSim, amount: float, from: Vecto
 		sim.emit({"t": "second_wind", "x": p.pos.x, "y": p.pos.y})
 		return dealt
 	if p.hp <= 0.0:
-		kill_player(sim, p)
+		_fall(sim, p)
 	return dealt
 
 
-## Alone, running out of health is the death it always was: three seconds,
-## then a respawn on safe ground. Downed-not-dead arrives with co-op.
+## Out of health. With a teammate standing, that is going down; alone it is
+## death. One place decides, so fire and a bite agree.
+static func _fall(sim: GameSim, p: PlayerSim) -> void:
+	if sim.has_teammate_for(p):
+		down_player(sim, p)
+	else:
+		kill_player(sim, p)
+
+
+## Downed, not dead (Phase 5). Thirty seconds on the ground; a teammate
+## holding E beside you brings you back at a fraction of your health. The
+## horde loses interest in you — `nearest_player` skips the downed — which is
+## what makes the walk back for them a decision rather than a sacrifice.
+static func down_player(sim: GameSim, p: PlayerSim) -> void:
+	if p.dead or p.downed:
+		return
+	p.downed = true
+	p.hp = 0.0
+	p.down_t = Config.PLAYER.downed_time
+	p.vel = Vector2.ZERO
+	p.reloading = {}
+	p.using = {}
+	p.swing = {}
+	p.searching = {}
+	p.reviving = {}
+	if p.driving_id > 0:
+		sim.cars.exit(sim, p)
+	sim.emit({"t": "player_down", "seat": p.seat, "x": p.pos.x, "y": p.pos.y})
+	sim.notify("%s IS DOWN — somebody get them up" % p.display_name.to_upper(), "#e05a4a", true)
+
+
+## The bleed-out clock. Runs from the downed player's own tick.
+static func tick_downed(sim: GameSim, p: PlayerSim, dt: float) -> void:
+	p.down_t -= dt
+	if p.down_t <= 0.0:
+		p.downed = false
+		kill_player(sim, p)
+
+
+## A teammate finished getting `p` up.
+static func revive_player(sim: GameSim, p: PlayerSim, by: PlayerSim) -> bool:
+	if not p.downed or p.dead:
+		return false
+	p.downed = false
+	p.down_t = 0.0
+	p.hp = maxf(1.0, roundf(p.max_hp * Config.PLAYER.revive_hp_frac))
+	p.invuln = maxf(p.invuln, 1.2)
+	sim.emit({"t": "player_up", "seat": p.seat, "x": p.pos.x, "y": p.pos.y})
+	sim.notify("%s is back on their feet" % p.display_name, "#b7e08a", true)
+	if by != null:
+		Progression.add_xp(sim, by, 20, "REVIVE")
+	return true
+
+
+## Running out of health with nobody to help is the death it always was:
+## three seconds, then a respawn on safe ground. Bleeding out ends here too.
 static func kill_player(sim: GameSim, p: PlayerSim) -> void:
 	if p.dead:
 		return
 	p.dead = true
+	p.downed = false
 	p.hp = 0.0
 	p.respawn_t = Config.PLAYER.respawn_time
 	p.reloading = {}
 	p.using = {}
 	p.swing = {}
 	p.searching = {}
+	p.reviving = {}
 	sim.stats.deaths += 1
 	sim.emit({"t": "player_died", "seat": p.seat, "x": p.pos.x, "y": p.pos.y})
 	# Everything you were carrying stays where you fell, in a pack you can
@@ -156,7 +212,7 @@ static func kill_player(sim: GameSim, p: PlayerSim) -> void:
 ## So this applies the exact amount, respects armour, and touches neither the
 ## invulnerability window nor the healing interrupt.
 static func burn_player(sim: GameSim, p: PlayerSim, amount: float, from: Vector2) -> float:
-	if p == null or p.dead or p.god_mode or amount <= 0.0:
+	if p == null or p.dead or p.downed or p.away or p.god_mode or amount <= 0.0:
 		return 0.0
 	var dealt := amount * (1.0 - p.armor_dr)
 	p.hp -= dealt
@@ -175,7 +231,7 @@ static func burn_player(sim: GameSim, p: PlayerSim, amount: float, from: Vector2
 	if p.hp <= 0.0:
 		sim.emit({"t": "player_hit", "seat": p.seat, "x": p.pos.x, "y": p.pos.y,
 			"dx": 0.0, "dy": -1.0, "dmg": dealt, "label": "fire"})
-		kill_player(sim, p)
+		_fall(sim, p)
 	return dealt
 
 
@@ -206,6 +262,7 @@ static func respawn_player(sim: GameSim, p: PlayerSim) -> void:
 	p.stam = p.max_stam
 	p.winded = false
 	p.dead = false
+	p.downed = false
 	p.invuln = 2.2
 	p.reloading = {}
 	p.using = {}

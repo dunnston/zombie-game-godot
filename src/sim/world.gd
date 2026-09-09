@@ -1234,6 +1234,10 @@ func remove_prop(prop: Dictionary) -> void:
 	var i := props.find(prop)
 	if i >= 0:
 		props.remove_at(i)
+	# The prop renderers bucket these dictionaries once at build time and
+	# hold the references; the flag is how a felled tree stops being drawn
+	# without a rebuild of six hundred props per swing.
+	prop["gone"] = true
 	var ti: int = prop.ty * W + prop.tx
 	prop_grid.erase(ti)
 	chopped.append(ti)

@@ -8,6 +8,10 @@ extends Control
 const TIER_COLORS := [Color.WHITE, Color("#9fd07a"), Color("#e0c24a"), Color("#e07a3a"), Color("#d4403a")]
 
 var sim: GameSim
+## Whose bars these are: the local player, whatever seat they hold.
+var player: PlayerSim = null
+## What the scene knows about the connection, for the corner line.
+var net_line := ""
 var notices: Array[Dictionary] = []
 var hurt := 0.0
 
@@ -40,7 +44,7 @@ func tick(dt: float) -> void:
 
 func _draw() -> void:
 	var font := ThemeDB.fallback_font
-	var p := sim.players[0]
+	var p: PlayerSim = player if player != null else sim.players[0]
 	var vp := get_viewport_rect().size
 
 	# Hurt vignette.
@@ -183,6 +187,13 @@ func _draw() -> void:
 		draw_string(font, Vector2(0, sy - 70), "Searching %s" % c.label, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#ebe6d6"))
 		draw_rect(Rect2(vp.x / 2.0 - 60, sy - 62, 120, 6), Color(0, 0, 0, 0.6))
 		draw_rect(Rect2(vp.x / 2.0 - 60, sy - 62, 120 * k, 6), Color("#c9a227"))
+	elif not p.reviving.is_empty():
+		var k := clampf(p.reviving.t / p.reviving.dur, 0.0, 1.0)
+		var who := sim.player_by_seat(int(p.reviving.seat))
+		draw_string(font, Vector2(0, sy - 70), "Getting %s up" % (who.display_name if who != null else "them"),
+			HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#ebe6d6"))
+		draw_rect(Rect2(vp.x / 2.0 - 60, sy - 62, 120, 6), Color(0, 0, 0, 0.6))
+		draw_rect(Rect2(vp.x / 2.0 - 60, sy - 62, 120 * k, 6), Color("#9fd0ff"))
 	elif not target.is_empty():
 		draw_string(font, Vector2(0, sy - 70), "%s  %s" % [KeyBinds.primary_label("interact"), target.label], HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#d8e8c0"))
 
@@ -200,6 +211,29 @@ func _draw() -> void:
 	if p.dead:
 		draw_string(font, Vector2(0, vp.y / 2.0 - 10), "YOU DIED", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 34, Color("#e05a4a"))
 		draw_string(font, Vector2(0, vp.y / 2.0 + 16), "respawning in %.1f" % maxf(0.0, p.respawn_t), HORIZONTAL_ALIGNMENT_CENTER, vp.x, 13, Color("#ebe6d6"))
+	elif p.downed:
+		draw_rect(Rect2(Vector2.ZERO, vp), Color("#3a0a0a", 0.35))
+		draw_string(font, Vector2(0, vp.y / 2.0 - 10), "YOU ARE DOWN", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 34, Color("#e05a4a"))
+		draw_string(font, Vector2(0, vp.y / 2.0 + 16), "a teammate can get you up  ·  %.0fs" % maxf(0.0, p.down_t),
+			HORIZONTAL_ALIGNMENT_CENTER, vp.x, 13, Color("#ebe6d6"))
+
+	# The others at the table, under your own bars: name and a sliver of
+	# health, so you know who needs you before they say so.
+	var ry := vp.y - 62.0 - 18.0
+	for q in sim.players:
+		if q == p or q.away:
+			continue
+		var col := Color(Config.PLAYER.colors[q.seat % Config.PLAYER.colors.size()])
+		var state := "DOWN" if q.downed else ("DEAD" if q.dead else "")
+		draw_rect(Rect2(20.0, ry - 9.0, 120.0, 4.0), Color(0, 0, 0, 0.55))
+		draw_rect(Rect2(20.0, ry - 9.0, 120.0 * clampf(q.hp / maxf(1.0, q.max_hp), 0.0, 1.0), 4.0),
+			Color("#e05a4a") if q.downed else Color("#c8423a"))
+		draw_string(font, Vector2(20.0, ry - 12.0), "%s  %s" % [q.display_name, state], HORIZONTAL_ALIGNMENT_LEFT, 220.0, 10,
+			Color("#e05a4a") if q.downed else col)
+		ry -= 20.0
+	if not net_line.is_empty():
+		draw_string(font, Vector2(vp.x - 350, vp.y - Config.MAP.corner - 52.0), net_line,
+			HORIZONTAL_ALIGNMENT_RIGHT, 334, 10, Color("#9fd0ff", 0.7))
 
 	# Debug readout. Above the minimap rather than in the corner: the corner is
 	# a real piece of UI now, and a developer line does not outrank it.
