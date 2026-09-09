@@ -116,6 +116,59 @@ func test_merge_keeps_an_edge_until_a_step_sees_it() -> void:
 	eq(it.mx, 0.0)
 
 
+## The generalisation of the test above, and the one that would have caught
+## the bug it was written for: `suppress` was packed and sent, and then both
+## merges dropped it, so a guest's brain matter did nothing while solo worked
+## (Codex review, PR #20). Every edge, every leg of the journey, so the next
+## one added is covered before it is written.
+func test_every_edge_survives_packing_and_both_merges() -> void:
+	for field in Intent.EDGES:
+		var pressed := Intent.new()
+		pressed.set(field, true)
+		ok(NetProtocol.has_edges(pressed), "%s does not count as an edge" % field)
+
+		# Packed and unpacked: it arrives.
+		var back := NetProtocol.unpack_intent(NetProtocol.pack_intent(pressed), Intent.new())
+		ok(back.get(field), "%s did not survive the wire" % field)
+		# And with_edges false is the STATE packet, which carries none of them.
+		var held := NetProtocol.unpack_intent(NetProtocol.pack_intent(pressed, false), Intent.new())
+		ok(not held.get(field), "%s rode a STATE packet that is supposed to be edge-free" % field)
+
+		# The host's fresh merge: an edge already standing outlives a packet
+		# that does not carry it.
+		var it := Intent.new()
+		NetProtocol.merge_intent(it, NetProtocol.pack_intent(pressed))
+		ok(it.get(field), "merge_intent lost %s on the way in" % field)
+		NetProtocol.merge_intent(it, NetProtocol.pack_intent(Intent.new()))
+		ok(it.get(field), "merge_intent dropped %s before a step could see it" % field)
+
+		# And the reliable path, which is the one a guest's press actually
+		# takes: `NetGuest` sends edges as their own message.
+		var late := Intent.new()
+		NetProtocol.merge_late_intent(late, NetProtocol.pack_intent(pressed))
+		ok(late.get(field), "merge_late_intent dropped %s — a guest pressing it does nothing" % field)
+
+		# Nothing else came along for the ride.
+		for other in Intent.EDGES:
+			if other != field:
+				ok(not late.get(other), "%s arrived when only %s was pressed" % [other, field])
+
+
+func test_clearing_edges_clears_all_of_them() -> void:
+	var it := Intent.new()
+	for field in Intent.EDGES:
+		it.set(field, true)
+	it.slot = 3
+	it.wheel = 1
+	it.build_action = "place"
+	it.clear_edges()
+	for field in Intent.EDGES:
+		ok(not it.get(field), "%s survived clear_edges — it would fire twice" % field)
+	eq(it.slot, -1)
+	eq(it.wheel, 0)
+	eq(it.build_action, "")
+
+
 func test_password_is_hashed_and_a_blank_one_is_no_password() -> void:
 	eq(NetProtocol.hash_password(""), "")
 	eq(NetProtocol.hash_password("  "), "")

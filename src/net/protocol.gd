@@ -205,8 +205,10 @@ static func msg_edges(seq: int, it: Intent) -> Dictionary:
 
 
 static func has_edges(it: Intent) -> bool:
-	return it.fire_pressed or it.reload or it.interact or it.use or it.suppress or it.light \
-		or it.slot >= 0 or it.wheel != 0 or not it.build_action.is_empty()
+	for e in Intent.EDGES:
+		if it.get(e):
+			return true
+	return it.slot >= 0 or it.wheel != 0 or not it.build_action.is_empty()
 
 
 static func msg_cmd(name_: String, args: Dictionary) -> Dictionary:
@@ -274,22 +276,21 @@ static func unpack_intent(p: Dictionary, into: Intent) -> Intent:
 ## seen them, even if a later packet without the edge lands first. Merging
 ## ORs the edges and takes the held state from the newest packet.
 static func merge_intent(into: Intent, fresh: Dictionary) -> void:
-	var fp := into.fire_pressed
-	var rl := into.reload
-	var ia := into.interact
-	var us := into.use
-	var li := into.light
+	# Held over the unpack, which overwrites everything: an edge that was
+	# already standing must survive a packet that does not carry it. Driven by
+	# `Intent.EDGES` rather than by a list here, so the next edge added to the
+	# game cannot be dropped by this function the way `suppress` was.
+	var held := {}
+	for e in Intent.EDGES:
+		held[e] = into.get(e)
 	var sl := into.slot
 	var wh := into.wheel
 	var ba := into.build_action
 	var bt := into.build_type
 	var bl := into.build_tile
 	unpack_intent(fresh, into)
-	into.fire_pressed = into.fire_pressed or fp
-	into.reload = into.reload or rl
-	into.interact = into.interact or ia
-	into.use = into.use or us
-	into.light = into.light or li
+	for e in Intent.EDGES:
+		into.set(e, into.get(e) or held[e])
 	if into.slot < 0:
 		into.slot = sl
 	if into.wheel == 0:
@@ -305,11 +306,8 @@ static func merge_intent(into: Intent, fresh: Dictionary) -> void:
 ## were real presses that no other packet carries. Only those are taken.
 static func merge_late_intent(into: Intent, fresh: Dictionary) -> void:
 	var late := unpack_intent(fresh, Intent.new())
-	into.fire_pressed = into.fire_pressed or late.fire_pressed
-	into.reload = into.reload or late.reload
-	into.interact = into.interact or late.interact
-	into.use = into.use or late.use
-	into.light = into.light or late.light
+	for e in Intent.EDGES:
+		into.set(e, into.get(e) or late.get(e))
 	if into.slot < 0 and late.slot >= 0:
 		into.slot = late.slot
 	if into.wheel == 0:

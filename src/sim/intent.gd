@@ -13,6 +13,14 @@ var sneak := false
 var fire := false
 var interact_held := false   # searching a container is a channel, not a tap
 
+## Every one-step boolean edge, named once. The wire enumerates these in three
+## places — packing, merging a late packet, merging a fresh one — and it used
+## to do it by hand: adding `suppress` for the Mutation dose meant a guest's G
+## press was packed, sent, and then quietly dropped by both merges, so brain
+## matter worked in solo and did nothing in co-op (Codex review, PR #20).
+## Anything added here is carried by all of them.
+const EDGES := ["fire_pressed", "reload", "interact", "use", "suppress", "light"]
+
 # edges — true for exactly one simulation step
 var fire_pressed := false    # a fresh click: an empty gun reloads on this, not on the hold
 var interact := false
@@ -28,12 +36,8 @@ var wheel := 0               # +1 / -1 cycles the hotbar
 
 
 func clear_edges() -> void:
-	fire_pressed = false
-	interact = false
-	reload = false
-	use = false
-	suppress = false
-	light = false
+	for e in EDGES:
+		set(e, false)
 	slot = -1
 	wheel = 0
 	build_action = ""

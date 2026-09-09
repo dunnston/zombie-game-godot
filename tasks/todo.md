@@ -1642,3 +1642,21 @@ where hydration lands.
 **Open, and the owner's call.** The bar is the main status but it sits third,
 under health and stamina. It may want to be first, or bigger. That is a feel
 question and the gate above is where it gets answered.
+
+### Addressing the Codex review on PR #20
+
+One P1, and it was right: **a guest's `G` did nothing.** `NetGuest` sends an
+edge on the RELIABLE channel as its own message, and `merge_late_intent`
+listed the edges it preserved by hand — so `suppress` was packed, sent, and
+dropped on arrival. `merge_intent` had the same hole. Brain matter worked in
+solo and was inert in co-op.
+
+The fix is not four more lines. `Intent.EDGES` now names every one-step
+boolean edge once, and `clear_edges`, `has_edges` and both merges are driven
+from it, so the next edge added to the game cannot be dropped by a function
+that forgot to mention it. `pack_intent` still enumerates by hand on purpose —
+its bit values are the wire format and must not move with the list order —
+and `test_every_edge_survives_packing_and_both_merges` covers that leg too.
+
+The test was checked against the bug before being kept: putting the omission
+back into `merge_late_intent` fails it with the message a reader would need.
