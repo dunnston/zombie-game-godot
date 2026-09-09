@@ -711,8 +711,14 @@ func _draw_tooltip(font: Font, stack: Dictionary) -> void:
 	elif kind == "weapon":
 		var w: Dictionary = Config.WEAPONS[id]
 		lines.append("%.0f damage  ·  %s" % [w.dmg, w.kind])
-	elif kind == "consumable" and float(Config.CONSUMABLES[id].heal) > 0.0:
-		lines.append("heals %d" % roundi(float(Config.CONSUMABLES[id].heal)))
+	elif kind == "consumable":
+		var c: Dictionary = Config.CONSUMABLES[id]
+		if float(c.heal) > 0.0:
+			lines.append("heals %d" % roundi(float(c.heal)))
+		if Mutation.is_suppressant(id):
+			lines.append("−%d Mutation  ·  %s" % [roundi(float(c.mut)), KeyBinds.primary_label("use_suppress")])
+			if c.has("effect"):
+				lines.append("side effect: %s" % String(Config.EFFECTS[c.effect].name))
 
 	var w := 220.0
 	var h := 18.0 * lines.size() + 10.0

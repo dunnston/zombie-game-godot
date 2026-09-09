@@ -90,13 +90,18 @@ static func kill_enemy(sim: GameSim, e: EnemySim, source: Variant = null) -> voi
 		sim.quiet.add_quiet(e.pos.x, e.pos.y)
 
 
-static func damage_player(sim: GameSim, p: PlayerSim, amount: float, from: Vector2, label := "") -> float:
+## `bite` says the blow came from something with teeth — the one caller that
+## passes it is a zombie's melee. It is what the Mutation meter listens for:
+## a bullet or a fall can be heavy, but only a bite is a bite.
+static func damage_player(sim: GameSim, p: PlayerSim, amount: float, from: Vector2, label := "", bite := false) -> float:
 	if p == null or p.dead or p.downed or p.away or p.invuln > 0.0 or p.god_mode:
 		return 0.0
 	var dealt := maxf(1.0, amount * (1.0 - p.armor_dr))
 	p.hp -= dealt
 	p.invuln = Config.PLAYER.invuln_after_hit
-	p.hurt_flash = 0.35
+	# Further along, you feel it less: the flash, the shove and the shake all
+	# come off `stagger_mul`, which is 1.0 until the change takes hold.
+	p.hurt_flash = 0.35 * p.stagger_mul
 	p.last_hurt = 0.0
 	# Being hit interrupts healing: no free patching mid-fight.
 	p.using = {}
@@ -105,8 +110,13 @@ static func damage_player(sim: GameSim, p: PlayerSim, amount: float, from: Vecto
 	var dv := p.pos - from
 	var len := dv.length()
 	var dir := dv / len if len > 0.0 else Vector2.RIGHT
-	p.vel += dir * 90.0
+	p.vel += dir * 90.0 * p.stagger_mul
 	sim.emit({"t": "player_hit", "seat": p.seat, "x": p.pos.x, "y": p.pos.y, "dx": dir.x, "dy": dir.y, "dmg": dealt, "label": label})
+	# Before Second Wind and before falling: a bite that fills the meter turns
+	# you, and turning is its own death rather than one Second Wind can catch.
+	Mutation.on_damage(sim, p, dealt, bite)
+	if p.dead:
+		return dealt
 
 	# Second Wind catches the blow that would have killed you, once every two
 	# minutes. It is checked here rather than in kill_player so that the
@@ -142,6 +152,11 @@ static func down_player(sim: GameSim, p: PlayerSim) -> void:
 	p.downed = true
 	p.hp = 0.0
 	p.down_t = Config.PLAYER.downed_time
+	# The body being overwhelmed. Before the rest of the bookkeeping, because
+	# it can finish the meter and turn you where you lie.
+	Mutation.on_down(sim, p)
+	if p.dead:
+		return
 	p.vel = Vector2.ZERO
 	p.reloading = {}
 	p.using = {}
@@ -179,7 +194,10 @@ static func revive_player(sim: GameSim, p: PlayerSim, by: PlayerSim) -> bool:
 
 ## Running out of health with nobody to help is the death it always was:
 ## three seconds, then a respawn on safe ground. Bleeding out ends here too.
-static func kill_player(sim: GameSim, p: PlayerSim) -> void:
+## `cause` is what the banner says. There is one other death in the game now —
+## the Mutation meter reaching the top — and it deserves its own word without
+## a second way to die growing beside this one.
+static func kill_player(sim: GameSim, p: PlayerSim, cause := "died") -> void:
 	if p.dead:
 		return
 	p.dead = true
@@ -192,12 +210,14 @@ static func kill_player(sim: GameSim, p: PlayerSim) -> void:
 	p.searching = {}
 	p.reviving = {}
 	sim.stats.deaths += 1
-	sim.emit({"t": "player_died", "seat": p.seat, "x": p.pos.x, "y": p.pos.y})
+	sim.emit({"t": "player_died", "seat": p.seat, "x": p.pos.x, "y": p.pos.y, "cause": cause})
 	# Everything you were carrying stays where you fell, in a pack you can
 	# walk back to. You keep the starting weapon, so a respawn is never
 	# completely toothless.
 	var pack := Loot.drop_backpack(sim, p)
-	sim.notify("YOU DIED" if pack.is_empty() else "YOU DIED — your pack is where you fell", "#e05a4a", true)
+	var head := "YOU TURNED" if cause == "turned" else "YOU DIED"
+	var col := "#b07ad0" if cause == "turned" else "#e05a4a"
+	sim.notify(head if pack.is_empty() else head + " — your pack is where you fell", col, true)
 
 
 ## Damage over time on a player: fire, and whatever else ticks every frame.
@@ -266,6 +286,13 @@ static func respawn_player(sim: GameSim, p: PlayerSim) -> void:
 	p.invuln = 2.2
 	p.reloading = {}
 	p.using = {}
+	# Whatever was working through you is not: a bad brain does not follow you
+	# past your own death. The Mutation meter does — that is the point of it.
+	if not p.effects.is_empty():
+		p.effects.clear()
+		Equipment.recompute_stats(p)
+		p.hp = p.max_hp
+		p.stam = p.max_stam
 	p.slot = clampi(p.slot, 0, maxi(0, p.hotbar.size() - 1))
 	sim.emit({"t": "respawn", "seat": p.seat, "x": p.pos.x, "y": p.pos.y})
 	sim.notify("You wake up at your bedroll" if at_bedroll else "Respawned somewhere in the wild", "#9fd0ff", true)

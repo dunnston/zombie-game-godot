@@ -270,7 +270,11 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 		var d_player2 := INF if p == null else e.pos.distance_squared_to(p.pos)
 		# Crouching halves what they notice; carrying a light (Phase 3) does
 		# the opposite.
+		# ...and the further along the change is, the less there is to notice:
+		# `sense_mul` is 1.0 for a human and falls with the Mutation band.
 		var sense_r: float = e.sense * (S.sneak_sense_mul if p != null and p.sneaking else 1.0) * night.sense
+		if p != null:
+			sense_r *= p.sense_mul
 		if p != null and p.lit:
 			sense_r += S.light_sense_bonus
 
@@ -347,7 +351,8 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 					if not e.pending_survivor.dead and e.pos.distance_squared_to(e.pending_survivor.pos) < reach2 * reach2:
 						sim.crew.damage(sim, e.pending_survivor, e.dmg, e.pos)
 				elif p != null and d_player2 < (e.atk_range + p.r + 6.0) * (e.atk_range + p.r + 6.0):
-					Damage.damage_player(sim, p, e.dmg, e.pos, e.def.name)
+					# The one caller that passes `bite`: teeth are what spread it.
+					Damage.damage_player(sim, p, e.dmg, e.pos, e.def.name, true)
 				e.pending_struct = {}
 				e.pending_survivor = null
 			e.last_pos = e.pos

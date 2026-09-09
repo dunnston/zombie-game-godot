@@ -680,6 +680,38 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 		smoke.fail("the gathered prop still occupies its tile")
 	await smoke.checkpoint("litter_gathered")
 
+	# The Mutation meter, through the real HUD and the real key. Twenty
+	# minutes of standing still is what fills it in play, so the climb is
+	# asserted in `mutation_test` and what is checked here is the half only
+	# the running game can show: that the bands are legible on the bar and
+	# that G takes a dose.
+	Mutation.add(sim, p, 40.0 - p.mutation)
+	await smoke.frames(3)
+	if p.mut_band != 1:
+		smoke.fail("40 points in and the player is still band %d" % p.mut_band)
+	await smoke.checkpoint("mutation_turning")
+
+	Mutation.add(sim, p, 35.0)
+	await smoke.frames(3)
+	if p.mut_band != 2:
+		smoke.fail("75 points in and the player is still band %d" % p.mut_band)
+	await smoke.checkpoint("mutation_feral")
+
+	p.bag.add("serum", 1)
+	var before_mut := p.mutation
+	await smoke.tap("use_suppress")
+	await smoke.frames(2)
+	if p.using.is_empty():
+		smoke.fail("G did not start a dose")
+	await smoke.frames(140)
+	if p.count_carried("serum") > 0:
+		smoke.fail("the dose finished without spending the serum")
+	if p.mutation >= before_mut - 1.0:
+		smoke.fail("the dose landed and the meter did not move (%.1f -> %.1f)" % [before_mut, p.mutation])
+	if p.mut_band != 1:
+		smoke.fail("a 30-point dose from 75 left the player in band %d" % p.mut_band)
+	await smoke.checkpoint("mutation_dosed")
+
 
 ## The scripted session: walk, sprint, photograph the districts, then fight.
 func smoke_run(smoke: Node) -> void:

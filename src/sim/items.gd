@@ -37,9 +37,13 @@ static func _build() -> void:
 		_reg[id] = {"id": id, "name": g.name, "kind": "gear", "stack": 1,
 			"wt": g.wt, "color": g.color, "slot": g.slot, "def": g}
 	for id in Config.CONSUMABLES:
+		# The two globals are the default rather than the law: brain matter
+		# stacks deeper and weighs less than a medkit, and saying so in the
+		# item's own row beats a second table of exceptions.
 		var c: Dictionary = Config.CONSUMABLES[id]
-		_reg[id] = {"id": id, "name": c.name, "kind": "consumable", "stack": Config.CONSUMABLE_STACK,
-			"wt": Config.CONSUMABLE_WT, "color": c.color, "slot": "", "def": c}
+		_reg[id] = {"id": id, "name": c.name, "kind": "consumable",
+			"stack": int(c.get("stack", Config.CONSUMABLE_STACK)),
+			"wt": float(c.get("wt", Config.CONSUMABLE_WT)), "color": c.color, "slot": "", "def": c}
 
 
 static func has(id: String) -> bool:

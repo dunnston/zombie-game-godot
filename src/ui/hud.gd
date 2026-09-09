@@ -14,6 +14,8 @@ var player: PlayerSim = null
 var net_line := ""
 var notices: Array[Dictionary] = []
 var hurt := 0.0
+## What the death screen calls it. Turning is a death with its own word.
+var death_cause := "died"
 
 
 func _init(sim_: GameSim) -> void:
@@ -32,6 +34,7 @@ func on_event(ev: Dictionary) -> void:
 			hurt = clampf(ev.dmg / 45.0, 0.18, 0.7)
 		"player_died":
 			hurt = 0.9
+			death_cause = String(ev.get("cause", "died"))
 
 
 func tick(dt: float) -> void:
@@ -70,9 +73,10 @@ func _draw() -> void:
 			var text := "%s — WAVE %d/%d — %d left" % [raid.spec.name, raid.wave, raid.spec.waves, raid.total - raid.killed]
 			draw_string(font, Vector2(0, y), text, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 18, Color("#e05a4a"))
 
-	# Bars, bottom left.
+	# Bars, bottom left. The block grows upward from the hotbar row, so adding
+	# one does not push the others into it.
 	var x := 20.0
-	var y := vp.y - 62.0
+	var y := vp.y - 92.0
 	var w := 220.0
 	draw_rect(Rect2(x, y, w, 14), Color(0, 0, 0, 0.55))
 	draw_rect(Rect2(x, y, w * clampf(p.hp / p.max_hp, 0, 1), 14), Color("#c8423a"))
@@ -82,6 +86,29 @@ func _draw() -> void:
 	var stam_col := Color("#8a8a7a") if p.winded else Color("#e0c24a")
 	draw_rect(Rect2(x, y, w * clampf(p.stam / p.max_stam, 0, 1), 14), stam_col)
 	draw_string(font, Vector2(x + 6, y + 11), "STAMINA" + ("  —  WINDED" if p.winded else ""), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color.WHITE)
+
+	# Mutation. The main status: how far along the change is, and which band
+	# you are in — which is what is actually moving your numbers. Human at the
+	# left end, gone at the right, and the fill takes the band's colour so a
+	# glance is enough.
+	y += 20
+	var band := Mutation.band_of(p)
+	var mcol := Color(String(band.color))
+	draw_rect(Rect2(x, y, w, 14), Color(0, 0, 0, 0.55))
+	draw_rect(Rect2(x, y, w * Mutation.fraction(p), 14), mcol)
+	for b in Config.MUTATION.bands:
+		var bx := x + w * float(b.at) / float(Config.MUTATION.max)
+		if bx > x:
+			draw_line(Vector2(bx, y), Vector2(bx, y + 14), Color(1, 1, 1, 0.35), 1.0)
+	draw_string(font, Vector2(x + 6, y + 11), "MUTATION  %s" % String(band.name), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color.WHITE)
+	draw_string(font, Vector2(x, y + 11), "%d%%" % roundi(p.mutation), HORIZONTAL_ALIGNMENT_RIGHT, w - 6, 11, Color.WHITE)
+	# What is working through you, if anything: a buff, or a raw brain still
+	# being regretted.
+	if not p.effects.is_empty():
+		var chips := PackedStringArray()
+		for id in p.effects:
+			chips.append("%s %ds" % [String(Config.EFFECTS[id].name), ceili(float(p.effects[id]))])
+		draw_string(font, Vector2(x + w + 10, y + 11), "  ·  ".join(chips), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.7))
 
 	# Level and progress to the next one, under the other two bars. A point
 	# waiting to be spent says so here, because the character sheet is behind
@@ -154,6 +181,15 @@ func _draw() -> void:
 		draw_string(font, Vector2(0, sy - 8), "RELOADING", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 11, Color("#ffe6a8"))
 	var meds := "%s  bandage x%d  medkit x%d" % [KeyBinds.primary_label("use_heal"), p.count_carried("bandage"), p.count_carried("medkit")]
 	draw_string(font, Vector2(sx + slot_w * n_slots + 8, sy + 30), meds, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.6))
+	# What you have to hold the change back with, on the same shelf as the
+	# medical supplies: it is the other thing you go looking for.
+	var doses := 0
+	for id in Config.CONSUMABLES:
+		if Mutation.is_suppressant(id):
+			doses += p.count_carried(id)
+	draw_string(font, Vector2(sx + slot_w * n_slots + 8, sy + 42),
+		"%s  brain matter x%d" % [KeyBinds.primary_label("use_suppress"), doses],
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("#c07f9a", 0.75))
 
 	# Carry weight, beside the hotbar. Grey is fine, amber is nearly full,
 	# red means you are over and it is costing you.
@@ -209,7 +245,9 @@ func _draw() -> void:
 		ny += size + 6
 
 	if p.dead:
-		draw_string(font, Vector2(0, vp.y / 2.0 - 10), "YOU DIED", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 34, Color("#e05a4a"))
+		var turned := death_cause == "turned"
+		draw_string(font, Vector2(0, vp.y / 2.0 - 10), "YOU TURNED" if turned else "YOU DIED",
+			HORIZONTAL_ALIGNMENT_CENTER, vp.x, 34, Color("#b07ad0") if turned else Color("#e05a4a"))
 		draw_string(font, Vector2(0, vp.y / 2.0 + 16), "respawning in %.1f" % maxf(0.0, p.respawn_t), HORIZONTAL_ALIGNMENT_CENTER, vp.x, 13, Color("#ebe6d6"))
 	elif p.downed:
 		draw_rect(Rect2(Vector2.ZERO, vp), Color("#3a0a0a", 0.35))
@@ -219,7 +257,7 @@ func _draw() -> void:
 
 	# The others at the table, under your own bars: name and a sliver of
 	# health, so you know who needs you before they say so.
-	var ry := vp.y - 62.0 - 18.0
+	var ry := vp.y - 92.0 - 18.0
 	for q in sim.players:
 		if q == p or q.away:
 			continue

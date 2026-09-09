@@ -422,6 +422,24 @@ static func enemy_drop(sim: GameSim, e: EnemySim, killer: PlayerSim = null) -> v
 	_roll_enemy_drop(sim, e)
 	if killer != null and killer.double_drop_chance > 0.0 and sim.loot_rng.chance(killer.double_drop_chance):
 		_roll_enemy_drop(sim, e)
+	# Outside the lucky re-roll on purpose: a corpse has one head in it,
+	# whatever your perks say. This is the drop that makes a Brute worth
+	# walking toward, so it does not share a roll with the ammunition either.
+	_roll_brain_drop(sim, e)
+
+
+## Brain matter, by what the body was. The Mutation meter is fed from here and
+## from containers that were somebody's medicine cabinet — never from a
+## recipe made of nothing, because the supply line running through the horde
+## is the whole point of the theme.
+static func _roll_brain_drop(sim: GameSim, e: EnemySim) -> void:
+	var d: Dictionary = Config.BRAIN_DROPS.get(e.type, {})
+	if d.is_empty() or not sim.loot_rng.chance(float(d.chance)):
+		return
+	spawn_pickup(sim, e.pos, "item", String(d.id), sim.loot_rng.irange(int(d.min), int(d.max)))
+	if d.has("also"):
+		var a: Dictionary = d.also
+		spawn_pickup(sim, e.pos, "item", String(a.id), sim.loot_rng.irange(int(a.min), int(a.max)))
 
 
 static func _roll_enemy_drop(sim: GameSim, e: EnemySim) -> void:

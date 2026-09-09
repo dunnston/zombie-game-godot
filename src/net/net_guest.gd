@@ -361,6 +361,13 @@ func _apply_player(pr: Dictionary) -> void:
 	if p == null:
 		return
 	var f := int(n[NetProtocol.PL_FLAGS])
+	# The meter first, because a band change rebuilds this player's stats and
+	# the numbers the host is sending — health, its ceiling — have to be what
+	# survives that. The band is what makes a guest at FERAL predict its own
+	# footsteps at the speed the host is actually giving it.
+	p.mutation = n[NetProtocol.PL_MUT]
+	Mutation.sync_band(p)
+	Mutation.unpack_effects(p, strs[3] if strs.size() > 3 else "")
 	p.hp = n[NetProtocol.PL_HP]
 	p.max_hp = n[NetProtocol.PL_MAX_HP]
 	p.stam = n[NetProtocol.PL_STAM]

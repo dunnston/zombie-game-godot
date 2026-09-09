@@ -33,11 +33,14 @@ to WebRTC", "room codes", "UPnP didn't work", "my friend can't connect",
 1. Simulation classes are `RefCounted` and never touch nodes or `Input`. `Intent` is the only way input reaches them.
 2. Static collision is one tile bitmap; player structures are a separate destructible map.
 3. Bullets collide with terrain only. Water and fences: solid to feet, transparent to shots.
-4. `recompute_stats()` is the only source of player stat modifiers.
+4. `recompute_stats()` is the only source of player stat modifiers — the
+   Mutation band and the effect table included. Change `mut_band`, never a stat.
 5. Every tunable and content table lives in `config.gd`.
 6. There is no pathfinding without give-up logic.
 7. Container identity in saves is derived from tile position, never ordinal index.
 8. A screen that changes shared state calls `Actions`, never a sim function directly: on a guest that is the command to the host.
+9. Every write to the Mutation meter goes through `Mutation.add`. It derives
+   the band, decides you have turned, and is what makes a guest agree with the host.
 
 ## Design pillars
 
