@@ -64,6 +64,9 @@ const PLAYER := {
 	"pickup_range": 46.0,
 	"interact_range": 76.0,
 	"search_time": 1.05,
+	# How long E must stay down beside a car before it opens the boot instead
+	# of driving. Long enough that an ordinary tap is never read as a hold.
+	"boot_hold": 0.35,
 	"invuln_after_hit": 0.32,
 	"respawn_time": 3.0,
 	"downed_time": 30.0,
@@ -416,6 +419,19 @@ const CONSUMABLES := {
 }
 
 # --------------------------------------------------------------------- gear --
+
+## Where ground litter — sticks, fiber, a loose stone — is allowed to lie, and
+## how thickly. Nature stays in nature: a stick on a tarmac road or a tuft of
+## dry grass on a kitchen floor reads as a bug, because it is one. Any surface
+## missing from this table takes no litter at all, which is what keeps building
+## interiors clear without every caller having to remember to check.
+const LITTER_SURFACES := {
+	T.GRASS: 0.045,
+	T.DIRT: 0.045,
+	T.GRAVEL: 0.03,
+	T.SAND: 0.03,
+	T.FIELD: 0.03,
+}
 
 const GEAR_SLOTS := ["head", "body", "hands", "legs", "feet", "offhand"]
 const GEAR_SLOT_NAMES := {"head": "Head", "body": "Body", "hands": "Hands", "legs": "Legs", "feet": "Feet", "offhand": "Off-hand"}

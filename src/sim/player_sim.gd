@@ -147,6 +147,10 @@ var car_keys: Array[String] = []
 
 var using := {}                  # {id, t, dur} or empty
 var searching := {}              # {container, t, dur} or empty
+## Tap E to drive, hold it for the boot. Both answer the same key, so the
+## choice cannot be made on the press frame — `interact_held` is already true
+## then, which is what made tap-to-drive unreachable. {car, t, dur} or empty.
+var car_hold := {}
 var swing := {}                  # {t, dur, angle, arc, range} for the view
 var recoil := 0.0
 var recoil_dir := 1.0
@@ -365,6 +369,7 @@ func tick(sim: GameSim, dt: float) -> void:
 		using = {}
 		searching = {}
 		reviving = {}
+		car_hold = {}
 		Damage.tick_downed(sim, self, dt)
 		return
 

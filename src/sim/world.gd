@@ -462,8 +462,10 @@ func _plant_litter(x: int, y: int, res: String) -> Dictionary:
 	var i := y * W + x
 	if blocked[i] or prop_grid.has(i):
 		return {}
-	var t := tiles[i]
-	if t == T.WATER or t == T.WALL:
+	# The surface policy lives here rather than in each caller. The camp
+	# starter-cache used to plant through this function without one, which is
+	# how sticks ended up on kitchen floors and stones on the highway.
+	if not Config.LITTER_SURFACES.has(tiles[i]):
 		return {}
 	var prop := {
 		"kind": "litter", "res": res, "si": rng.irange(0, 2), "rot": rng.frange(0, 6.28), "tx": x, "ty": y,
@@ -1059,17 +1061,8 @@ func _gen_litter() -> void:
 		var ti := y * W + x
 		if blocked[ti] or prop_grid.has(ti):
 			continue
-		var t := tiles[ti]
-		var p: float
-		if t == T.GRASS or t == T.DIRT:
-			p = 0.045
-		elif t == T.GRAVEL or t == T.SAND or t == T.FIELD:
-			p = 0.03
-		elif t == T.ROAD or t == T.SIDEWALK or t == T.LOT or t == T.RUBBLE:
-			p = 0.01
-		else:
-			continue                                   # not indoors
-		if not rng.chance(p):
+		var p: float = Config.LITTER_SURFACES.get(tiles[ti], 0.0)
+		if p <= 0.0 or not rng.chance(p):
 			continue
 		var r := rng.next()
 		_plant_litter(x, y, "sticks" if r < 0.42 else ("fiber" if r < 0.78 else "stone"))

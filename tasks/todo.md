@@ -1288,3 +1288,49 @@ PR, one dispatch away.
 
 Numbers: 338 tests / 4811 assertions fast, 368 / 4924 with `--all`, 45 smoke
 checkpoints, zero failures.
+
+## Bugfix round 1 — the Notion bug queue (branch `bugfix-round-1`)
+
+Pulled from **DEADLINE → Ideas & Roadmap → 🐞 Open bugs**. Each card was
+reproduced against the Godot build before any code was touched; two did not
+reproduce in the sim and are being chased in the view layer instead.
+
+Owner triage: skip DL-44 (bench split — it is the Notion content work and
+belongs in its own PR per `PROJECT.md` §10) and DL-38 (survivor RTS — a system,
+not a bug). Dev menu is wanted first because it makes the rest verifiable.
+
+- [ ] **DL-56 — dev menu.** Spawn items and resources, spawn enemies, teleport,
+      set time of day, refill stamina/HP. Gated behind a debug flag so it can
+      never ship on. Built first: the owner needs it to confirm the rest.
+- [ ] **DL-45a — a tap of E on a car opens the boot instead of driving.**
+      Confirmed by test: `local_input.gd` sets `interact_held` from
+      `is_action_pressed`, which is *already true* on the frame
+      `is_action_just_pressed` fires, so `Interact.tick`'s vehicle branch always
+      takes the held path. Tap-to-drive has been unreachable since it shipped.
+      Fix: the boot is a hold with a threshold, like every other held channel.
+- [ ] **DL-45b — containers can be searched through a wall.** Confirmed by test:
+      standing 51px away with a solid tile between still offers "Search".
+      `Interact.best_target` ranks by distance with no line-of-sight test.
+- [ ] **DL-42 — nature litter on roads and indoors.** Confirmed by test: 135
+      litter props sit on ROAD/SIDEWALK tiles on the default seed. Two causes —
+      the map-wide scatter deliberately seeds roads, and `_plant_litter` has no
+      surface policy at all, so the camp starter-cache loop plants on anything
+      that is not water or wall, building floors included.
+      Fix: one surface table in `config.gd`, enforced inside `_plant_litter`.
+- [ ] **DL-43 — zombies spawn inside the player's base.** The ambient ring spawn
+      knows nothing about the base. Needs the new "player base" concept:
+      owner chose a radius around a base anchor (bedroll, else workbench),
+      tunable in `config.gd`. Exclude the radius from ambient spawning.
+- [ ] **DL-46 / DL-55 — chopped trees and gathered litter stay on screen, and
+      nothing drops.** Does **not** reproduce headless: `remove_prop` clears the
+      tile, flags `gone`, unblocks solid tiles, and `PropRenderer` skips `gone`
+      every frame. Owner sees otherwise in the running game, so the defect is in
+      the view layer or in the interaction never registering. Chase with the
+      smoke harness screenshots once the dev menu exists.
+      Note: "nothing drops on the ground" is partly by design —
+      `Loot.give_res_or_drop` only drops when the pack is full. DL-46 also asks
+      for visible drops, which is a separate readability change.
+
+### Review
+
+_(filled in when the work lands)_
