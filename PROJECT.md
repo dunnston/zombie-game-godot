@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-08, Phase 4d: the front door — title screen, save slots, autosave, pause menu, rebindable keys
+- **Last updated:** 2026-09-09, the content catalogue in Notion (Items & Crafting) and how it syncs into `config.gd`
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -17,6 +17,7 @@ contradicts it, the code is right — fix this file and say so.
 | `tasks/todo.md` | The phase plan with checkboxes, and per-phase review notes. |
 | `tasks/port-inventory.md` | **The spec.** Every system in the prototype, what it does, its numbers. |
 | `tasks/lessons.md` | Raw running log of lessons. §8 here is the distilled version. |
+| **Notion → DEADLINE → Items & Crafting** | **The content catalogue.** Every item, recipe, bench and loot source, owner-editable. §10 says how it is synced into `config.gd`. |
 
 ---
 
@@ -795,6 +796,7 @@ Phases 1–4 respecting it.
 | 2026-09-08 | The pack screen is drawn immediate-mode, not built from Control nodes | One `_cells()` function produces the rectangles that both the drawing and the hit test use, so they cannot describe different grids. It is also how the HUD already works, and how the prototype's canvas inventory worked. | Yes, but it is a rewrite |
 | 2026-09-08 | Panels are polled, not handled as input events | `Input.action_press` sets action state without synthesising an `InputEvent`, so a scripted Tab never reached `_unhandled_input` and the smoke run could not open the pack. Polling `is_action_just_pressed` matches every other key here and keeps the smoke path honest. | Yes |
 | 2026-09-08 | Anti-stall relocation gated at 400px, and the no-base centre follows you | The gate was a bare 240 and the centre froze at the warning, so a raider legitimately chasing a player who had moved read as stalled and got warped out of the fight. 400 sits below the 520px spawn ring (a raider wedged where it spawned is still rescued) and past half a screen (nothing you are watching is teleported). | Yes, one number |
+| 2026-09-09 | Content tables are designed in Notion (DEADLINE → Items & Crafting) and mirrored into `config.gd` by a sync, rather than edited in the code first | The owner wants to see and reorganise every item, recipe, bench and loot source in one place, on a phone, without a text editor — and to add benches and weapon classes before they exist in code. Notion owns *what exists and what it costs*; the code owns *how it behaves*; the sync procedure in §10 keeps the seam honest. Invariant 5 still holds: `config.gd` is the only place the game reads from. | Yes — the tables are a mirror, and `config.gd` stays the truth for the running game |
 
 ---
 
@@ -1071,6 +1073,42 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 6. **`gh pr create --base main`.** Then check nothing has drifted:
    `gh pr list --json number,baseRefName` — every open PR must say `main`.
 
+### Syncing content from Notion
+
+The owner designs content in Notion, on the **Items & Crafting** page under
+DEADLINE (page `3d610d456b16816fbf35d781eeaccb11`). Three tables:
+
+| Table | Data source | Mirrors in `config.gd` |
+| --- | --- | --- |
+| Items | `collection://23c90712-6033-4bf5-b835-114704efbdc6` | `WEAPONS`, `GEAR`, `CONSUMABLES`, `RES`, `RECIPES`, `STRUCTURES` |
+| Benches | `collection://98144f5b-c2b1-475d-960e-0efbe4895f44` | the `bench` field on `RECIPES` (0 = Hand, 1/2 = Workbench tiers today) |
+| Loot Sources | `collection://915ca948-b8e7-45a8-bca4-a3d621cf5e30` | `CONTAINERS`, `LOOT`, `HARVEST` |
+
+When the owner says **"look at Notion and update the game"**:
+
+1. Query all three data sources (`notion-query-data-sources`, SQL mode) and
+   fetch any row whose Notes look long. Read `Recipe` for quantities and
+   `Ingredients` for the links; the two should agree, and a mismatch is a
+   question for the owner, not a coin toss.
+2. Diff against `config.gd` by `Code ID`. Rows with a blank `Code ID` and
+   `Status = Planned` are new content. Rows whose `Recipe`, `Crafted at`,
+   `Found in` or `Breaks down into` differ from the code are changes. Rows
+   marked `Cut` come out.
+3. **Report before changing anything**: what will be built, what will change,
+   and what does not add up (an ingredient with no row, a bench that is not in
+   the game yet, a weapon class the code has no stats for).
+4. Build it on a branch from `main`, as ever. A new *system* (a Recycling
+   bench, a stamina cost on axes) is its own roadmap card and its own PR; a
+   sync never smuggles one in.
+5. Write back: fill in `Code ID`, flip `Status` to `In game`, and refresh
+   `Stats` from the code. Stats are a mirror of the code, not a control — feel
+   numbers are tuned by playing.
+
+Notion owns *what exists, what it costs, where it is made and where it is
+found*. The code owns *how it behaves*. The tables were seeded from
+`config.gd` on 2026-09-09, so the first sync should find nothing to do
+except the Planned rows.
+
 ### `main` is the only merge target
 
 A branch cut from another open branch produces a PR that merges into that
@@ -1090,6 +1128,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-09 | **Content catalogue in Notion.** Three linked databases under DEADLINE → Items & Crafting, seeded from `config.gd`: Items (every weapon, armour piece, ammo, consumable, material, utility item and structure — 104 rows — with recipe, bench, loot sources, recycling output, stats and status), Benches (Hand plus the planned Wood Work Bench, Scrap Work Bench, Tech Bench and Recycling, each in-game recipe placed on the bench it will move to), and Loot Sources (all 30 container kinds, 6 harvest scenery kinds, car trunks and stripped cars, with which buildings they furnish). Ten views on Items: Weapons by class, Armor by slot, Ammo & Consumables, Materials with what they are used for, Structures, By bench board, Craft by hand, Findable, Planned, Everything. The 27 melee weapons from the owner's class list (Improvised, Blunt, Bladed, Axes, Polearms, Heavy) are in as Planned. No code change; §10 gains the sync procedure |
 | 2026-09-08 | Phase 4d (audio) — **Phase 4 complete**: `Config.SFX` (35 cues as recipes), `SFX_THROTTLE`, `SFX_RATE`/`SFX_GAIN`/`SFX_NEAR`/`SFX_RANGE`; `Sfx` — tone and filtered-noise synthesis rendered to PCM at boot rather than a graph per shot, a Chamberlin state-variable filter for the lowpass/highpass/bandpass with a per-sample cutoff sweep, a 24-voice pool, the per-kind rate limit, and mute persisted to `user://audio.json`; `SfxView` maps sim events to cues so `src/sim` never learns that sound exists; the gunshot rides the muzzle flash rather than the bullet, so a shotgun is one bang and not eight; distance falloff, which the prototype had none of; the hit event gained a `kind` so a pipe thumps and a bullet pings; SOUND on the pause menu and the title; 19 new tests (338 fast, 368 with `--all`); a smoke checkpoint that plays every cue and checks a voice actually started. The bank was 205ms at boot until the per-sample `exp` and `pow` became stepped multipliers giving the identical curve: 91ms. The autoload is `Audio`, not `Sfx` — an autoload whose name matches a `class_name` shadows the class, and under `-s` the name then resolves to a bare GDScript with no static methods, which is the second time this project has hit that |
 | 2026-09-08 | Phase 4d (the map): `Config.MAP`; `MapScreen` — the corner minimap and the town map behind `M` off one `_draw`, a 320x320 one-pixel-per-tile ground image tinted by danger and cached on the generator's fingerprint (41ms, once per world), structures, packs, crew, enemies, the pulsing raid marker and the player's facing; district discovery in `GameSim` paying 25 XP per danger tier — the tenth XP site — with undiscovered districts drawn as `? ? ?`; `SaveGame` v6 carries what you have found, by id; **Sixth Sense loses its `needs` gate and `radar_mul` becomes a reveal radius**, which is a deliberate balance change from the prototype, where the minimap showed every enemy in the world and the perk did nothing; the debug readout moved off the corner the minimap now owns; 10 new tests (319 fast, 349 with `--all`); smoke opens the town map, buys the perk and watches the reveal widen. Two existing tests changed with it, both correctly: no perk carries a `needs` any more, and the raid test searched the notices for INCOMING instead of assuming it was first, because a discovery notice can now arrive on the same tick |
 | 2026-09-08 | Phase 4d (the front door): `Saves` — six slots behind a small `user://saves/index.json` so listing six games does not parse six worlds, with the file as the truth about existence and the index as the truth about the summary, `latest()` preferring the slot last chosen over the one last written, and the play time and "3 hours ago" labels; autosave every two minutes for a game that has a slot, and never for one that does not; `KeyBinds` rewritten as static state on a `class_name` — full rebinding to `user://binds.json`, conflicts reported rather than refused, Escape reserved, unknown actions from an old file dropped, and every prompt built from `primary_label`; `MenuScreen` with TITLE, PAUSE, LOAD, CONTROLS and NEW GAME off one `_rows()` that is both the hit test and the paint, footer rows pinned so BACK cannot scroll away; `scenes/main.gd` boots to the title (except under smoke), Escape closes innermost-first and then pauses with the world frozen, and SAVE AND QUIT TO TITLE writes before it leaves; 21 new tests (309 fast, 339 with `--all`); 6 new smoke checkpoints — pause, CONTROLS, a key rebound, a save written, the title, and that slot loaded from it. The menu never repainted after a page change: the assertions passed because they read `menu.page`, and only the screenshot showed CONTROLS still on screen |
