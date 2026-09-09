@@ -144,3 +144,25 @@ add it; `SfxView.on_event` returns a cue name for exactly this reason.
 The check: break the mapping and re-run. If nothing fails, the test was
 watching the wrong end. Reverting `"shot"` to `"muzzle"` fails twelve
 assertions now and failed none before.
+
+## Anything a headless run writes under user:// needs its own path (2026-09-08)
+
+`user://` is shared with the real game the owner plays. Three times in Phase 4
+a test or a smoke run wrote into it:
+
+- The save-slot tests used slots 3/4/5 — real player slots — before moving to
+  90–92, outside `Saves.MAX_SLOTS`.
+- The binding tests called `reset_all()` in `after_each`, which writes the
+  store, so the first headless run on a machine erased the player's controls.
+- The smoke run called `set_muted(false)` at the end of its audio step, which
+  wrote into the player's `user://audio.json` — and a player who *was* muted
+  would also have seen the run fail for it.
+
+**Rule:** every `user://` path a headless run can write is a `static var`, not
+a `const`, and the test or the smoke redirects it. `Saves` uses slots above
+`MAX_SLOTS`; `KeyBinds.STORE` is redirected per test case; `Sfx.STORE` is
+redirected when `--smoke` is on the command line.
+
+The corollary that cost the third one: **check the cmdline, not another
+autoload.** Autoloads run in declaration order, so `Smoke.enabled` is not set
+yet when an earlier autoload's `_ready` wants to know.

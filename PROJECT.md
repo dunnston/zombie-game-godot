@@ -876,6 +876,11 @@ summarised in `tasks/port-inventory.md`.
 
 ### New in Godot
 
+- **Anything a headless run writes under `user://` needs its own path.**
+  `user://` is shared with the game the owner plays, and three times in Phase
+  4 a test or the smoke wrote into it — real save slots, the player's key
+  bindings, the player's mute setting. Every such path is a `static var` the
+  test or the smoke redirects, never a `const`. (2026-09-08)
 - **Assert on what the code decided, not on what fed it.** Three times in
   Phase 4 a test watched the thing feeding the code rather than the choice the
   code made — the bow had a sound cue and made no noise, while a test happily
