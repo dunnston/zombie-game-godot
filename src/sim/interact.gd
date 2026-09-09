@@ -137,7 +137,12 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 static func _in_sight(sim: GameSim, p: PlayerSim, at: Vector2) -> bool:
 	var from_t := Vector2i(floori(p.pos.x / Config.TILE), floori(p.pos.y / Config.TILE))
 	var to_t := Vector2i(floori(at.x / Config.TILE), floori(at.y / Config.TILE))
-	if from_t == to_t:
+	# Anything on the next tile is simply within arm's reach: there is no room
+	# for a wall to be *between* two touching tiles, so no line is drawn. This
+	# is not a nicety — furniture is placed against walls, and six containers
+	# on the default map stand in alcoves whose only standable spot is a
+	# diagonal neighbour. Without this they became impossible to open.
+	if absi(from_t.x - to_t.x) <= 1 and absi(from_t.y - to_t.y) <= 1:
 		return true
 	var d := at - p.pos
 	var n := maxi(2, ceili(d.length() / 8.0))
