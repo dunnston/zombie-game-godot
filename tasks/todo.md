@@ -243,7 +243,7 @@ Split from vehicles: two systems in one PR is one review of neither.
 - [x] Save slots with an index (day, level, kills, play time); autosave
 - [x] Full key rebinding written over `src/core/bindings.gd` from `user://`
 - [x] Pause menu that saves before it quits
-- [ ] Synthesised audio, rate-limited per kind (4d part three)
+- [x] Synthesised audio, rate-limited per kind (4d part three)
 
 ### 4d part two — the map
 
@@ -1107,3 +1107,97 @@ it failed eleven checkpoints. The smoke step presses `B` rather than calling
 `build_bar.toggle()`, which is the whole reason it catches this.
 
 Numbers: 319 tests / 4434 assertions fast, 44 smoke checkpoints, zero failures.
+
+## Review — Phase 4d part three, audio (2026-09-08)
+
+**Phase 4 is complete.** Everything the prototype had is in Godot.
+
+**Built.** `Config.SFX` (34 cues as recipes, not files), `SFX_THROTTLE` and
+the four gain/rate constants; `src/core/sfx.gd` (synthesis, the voice pool,
+the rate limit, mute persisted per machine); `src/core/sfx_view.gd` (sim event
+→ cue, and distance); a `kind` on the hit event; SOUND on the pause menu and
+the title. 15 tests, one smoke checkpoint that plays all 34 cues and checks a
+voice actually started.
+
+**The architecture question, and why it went this way.** The prototype built a
+WebAudio graph — oscillator, envelope, biquad — on *every single sound*. Godot
+has no cheap equivalent. But these cues never change, so the graph does not
+need to exist at play time at all: each recipe renders to a PCM buffer once at
+boot and playing it is a `play()` on a pooled voice. That also makes the whole
+thing testable without a speaker, which is why there are fifteen tests on
+something that is fundamentally "does it sound good".
+
+- [x] **205ms at boot, fixed to 91ms.** `exp(-9k)` and `pow(ratio, k)` per
+      sample per op is three transcendentals a sample. Stepping the envelope
+      and the pitch glide by a constant multiplier gives the *identical* curve
+      for one multiply. Measured both ways rather than assumed.
+- [x] **The autoload could not be called `Sfx`.** An autoload whose name
+      matches a `class_name` shadows the class with its instance, and under
+      `-s` there is no autoload, so the name resolves to a bare GDScript and
+      every static call fails — 91 failures that read like a broken script.
+      `Bindings`/`KeyBinds` had established the working pattern one PR
+      earlier and I did not carry it across. It is `Audio` now, and the
+      lesson is in `tasks/lessons.md`.
+- [x] **`test_every_weapon_has_a_voice` caught a real gap on its first run:**
+      the Military Carbine had no cue and would have fired with the pistol's
+      bang. That is the kind of thing nothing else would ever have noticed.
+- [x] **The gunshot is on the muzzle flash, not the bullet.** A shotgun spawns
+      eight pellets and fires once; a cue on `shot` would be eight bangs a
+      trigger pull, which is precisely what the rate limit exists to stop and
+      would have hidden the mistake instead of fixing it.
+- [x] **A/B'd the smoke.** Removing `attach(self)` from the autoload — the one
+      line that makes the bank audible rather than merely built — fails three
+      smoke checks. The step is real.
+
+**Two deliberate additions the prototype did not have**, both flagged as feel
+questions: **distance falloff** (340px full, silent at 1500px — web audio gave
+a turret across town the same volume as the gun in your hand), and a **`kind`
+on the hit event** so a pipe thumps and a bullet pings. Nothing in the
+simulation reads `kind`; it exists for the ears alone.
+
+**Now the owner's turn.** Phase 4 is finished and none of it has been played.
+The feel questions are listed in §7 of `PROJECT.md`, and the test budget
+decision (the fast tier is 17s against a ten-second rule) is still open.
+
+Numbers: 334 tests / 4789 assertions fast, 364 / 4902 with `--all`, 45 smoke
+checkpoints, zero failures.
+
+## Review — Phase 4d audio Codex pass on PR #14 (2026-09-08)
+
+Two findings, both P2, both real, and the first one is the same failure this
+file has now named three times.
+
+- [x] **P2 The bow was silent, and I wrote it a cue.** Every gun sound hung on
+      the `muzzle` event, and `Combat.fire_gun` deliberately suppresses the
+      muzzle flash for a bow — a flash is a light source at night, and a bow
+      that lit up the treeline would give away the one thing it is for. So
+      `Config.SFX.bow` was written, tested for existence, and never once
+      reached in play. The `shot` event was the right home all along: it
+      already carries the weapon id **on the first pellet only**, with a
+      comment beside it in `combat.gd` reading "one sound per shot, not per
+      pellet". The field was asking to be used and I did not read it.
+- [x] **P2 The smoke wrote to the player's mute setting.** `set_muted(false)`
+      at the end of the step wrote `{"muted": false}` into the real
+      `user://audio.json`, and a player who had muted the game would have had
+      the smoke both fail spuriously *and* unmute them. Third time for this
+      exact hazard — save slots, key binds, now audio. `STORE` is a
+      `static var` redirected to `user://audio_smoke.json` when `--smoke` is
+      on the command line, checked from the cmdline rather than off the
+      `Smoke` autoload because autoloads run in declaration order and `Smoke`
+      has not loaded yet. Verified by hand: a real `{"muted":true}` survives a
+      full smoke run byte for byte, and the run passes.
+
+**The lesson underneath the first one, made structural.** My bow test asserted
+that firing a bow emits a `shot` event — which was true the entire time the
+bow was silent. That is the third time a test has checked the thing feeding
+the code instead of what the code decided. So `SfxView.on_event` now **returns
+the cue it chose**, and every mapping test asserts on that return value.
+Reverting the one word `"shot"` back to `"muzzle"` now fails twelve
+assertions across four tests; before, it failed none.
+
+Also found while fixing: a survivor's gun had no cue either and would have
+fallen back to the pistol — the same gap the carbine test caught, in the same
+PR, one dispatch away.
+
+Numbers: 338 tests / 4811 assertions fast, 368 / 4924 with `--all`, 45 smoke
+checkpoints, zero failures.

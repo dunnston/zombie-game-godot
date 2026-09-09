@@ -648,6 +648,177 @@ static func raid_spec(index: int) -> Dictionary:
 	return spec
 
 
+
+# -------------------------------------------------------------------- audio --
+
+## Every sound in the game, as a recipe rather than a file. Nothing is loaded
+## from disk: `Sfx` renders each of these to a small PCM buffer once at boot
+## and plays the buffer, which is the prototype's WebAudio graph with the
+## synthesis moved from play time to build time.
+##
+## An op is either a `tone` — an oscillator with an optional pitch sweep — or a
+## `noise` — white noise through a state-variable filter with an optional
+## sweep. Both have a 5ms attack and an exponential decay across `dur`, and
+## `at` delays one op inside the cue so a reload can be a click and then a
+## clack.
+const SFX_RATE := 22050
+## Master gain. Everything below is relative to this.
+const SFX_GAIN := 0.35
+## Distance falloff, in world pixels. Inside `near` a sound is at full volume;
+## past `range` it is not played at all. The prototype had neither — every
+## sound was equally loud wherever it happened, so a turret across town was as
+## close as the gun in your hand.
+const SFX_NEAR := 340.0
+const SFX_RANGE := 1500.0
+
+const SFX := {
+	# ------------------------------------------------------------- gunfire --
+	"pistol": [
+		{"kind": "noise", "dur": 0.09, "gain": 0.34, "filter": "hp", "freq": 900.0, "q": 0.6},
+		{"kind": "tone", "freq": 320.0, "to": 60.0, "wave": "square", "dur": 0.08, "gain": 0.22},
+	],
+	"smg": [
+		{"kind": "noise", "dur": 0.06, "gain": 0.24, "filter": "hp", "freq": 1100.0, "q": 0.6},
+		{"kind": "tone", "freq": 380.0, "to": 90.0, "wave": "square", "dur": 0.05, "gain": 0.15},
+	],
+	"shotgun": [
+		{"kind": "noise", "dur": 0.26, "gain": 0.5, "filter": "lp", "freq": 2600.0, "to": 180.0},
+		{"kind": "tone", "freq": 150.0, "to": 40.0, "wave": "saw", "dur": 0.22, "gain": 0.3},
+	],
+	"rifle": [
+		{"kind": "noise", "dur": 0.14, "gain": 0.42, "filter": "hp", "freq": 700.0, "q": 0.8},
+		{"kind": "tone", "freq": 520.0, "to": 70.0, "wave": "square", "dur": 0.13, "gain": 0.26},
+	],
+	## Between the SMG and the rifle, which is what it is: fast, and it carries.
+	"carbine": [
+		{"kind": "noise", "dur": 0.08, "gain": 0.36, "filter": "hp", "freq": 850.0, "q": 0.7},
+		{"kind": "tone", "freq": 440.0, "to": 80.0, "wave": "square", "dur": 0.07, "gain": 0.2},
+	],
+	## Somebody else's gun, from a tower across the base. Flatter and drier
+	## than yours so a firefight you are in the middle of still reads as
+	## yours — and it is a separate cue rather than a fallback because the
+	## fallback is how the carbine nearly shipped with the pistol's bang.
+	"survivor": [
+		{"kind": "noise", "dur": 0.07, "gain": 0.26, "filter": "hp", "freq": 1000.0, "q": 0.8},
+		{"kind": "tone", "freq": 360.0, "to": 90.0, "wave": "square", "dur": 0.06, "gain": 0.14},
+	],
+	"turret": [
+		{"kind": "noise", "dur": 0.05, "gain": 0.14, "filter": "hp", "freq": 1500.0, "q": 0.7},
+		{"kind": "tone", "freq": 620.0, "to": 200.0, "wave": "square", "dur": 0.05, "gain": 0.08},
+	],
+	## The bow has no bang. A limb creak and the string letting go, quiet
+	## enough that using it instead of the pistol still sounds like a choice.
+	"bow": [
+		{"kind": "tone", "freq": 240.0, "to": 150.0, "wave": "tri", "dur": 0.05, "gain": 0.1},
+		{"kind": "noise", "dur": 0.09, "gain": 0.13, "filter": "bp", "freq": 1800.0, "to": 700.0, "q": 1.6},
+	],
+	"dryfire": [{"kind": "tone", "freq": 900.0, "to": 500.0, "wave": "square", "dur": 0.04, "gain": 0.09}],
+	"reload": [
+		{"kind": "tone", "freq": 220.0, "to": 160.0, "wave": "square", "dur": 0.06, "gain": 0.14},
+		{"kind": "noise", "dur": 0.05, "gain": 0.14, "filter": "bp", "freq": 2200.0, "q": 2.0, "at": 0.11},
+	],
+	"reload_done": [{"kind": "tone", "freq": 340.0, "to": 520.0, "wave": "square", "dur": 0.07, "gain": 0.16}],
+
+	# --------------------------------------------------------------- melee --
+	"swing": [{"kind": "noise", "dur": 0.13, "gain": 0.16, "filter": "bp", "freq": 900.0, "to": 320.0, "q": 1.2}],
+	"melee_hit": [
+		{"kind": "noise", "dur": 0.11, "gain": 0.34, "filter": "lp", "freq": 900.0, "to": 200.0},
+		{"kind": "tone", "freq": 130.0, "to": 55.0, "wave": "tri", "dur": 0.1, "gain": 0.22},
+	],
+	"bullet_hit": [{"kind": "noise", "dur": 0.07, "gain": 0.2, "filter": "bp", "freq": 1400.0, "q": 1.4}],
+	"hit_wall": [{"kind": "noise", "dur": 0.06, "gain": 0.14, "filter": "hp", "freq": 2400.0, "q": 2.0}],
+
+	# ---------------------------------------------------------------- them --
+	"zombie_die": [
+		{"kind": "tone", "freq": 210.0, "to": 62.0, "wave": "saw", "dur": 0.34, "gain": 0.2},
+		{"kind": "noise", "dur": 0.3, "gain": 0.16, "filter": "lp", "freq": 700.0, "to": 120.0},
+	],
+	## The pitch wobble the prototype rolled per call is `pitch_scale` on the
+	## player instead — one buffer, a different voice every time.
+	"growl": [{"kind": "tone", "freq": 115.0, "to": 60.0, "wave": "saw", "dur": 0.5, "gain": 0.1}],
+
+	# ------------------------------------------------------------------ you --
+	"player_hurt": [
+		{"kind": "tone", "freq": 260.0, "to": 130.0, "wave": "tri", "dur": 0.18, "gain": 0.24},
+		{"kind": "noise", "dur": 0.12, "gain": 0.16, "filter": "lp", "freq": 600.0},
+	],
+	"player_die": [
+		{"kind": "tone", "freq": 340.0, "to": 55.0, "wave": "saw", "dur": 1.1, "gain": 0.3},
+		{"kind": "noise", "dur": 1.0, "gain": 0.2, "filter": "lp", "freq": 900.0, "to": 90.0},
+	],
+	"heal": [{"kind": "tone", "freq": 420.0, "to": 700.0, "wave": "sine", "dur": 0.28, "gain": 0.2}],
+
+	# ---------------------------------------------------------------- stuff --
+	"pickup": [
+		{"kind": "tone", "freq": 640.0, "wave": "square", "dur": 0.05, "gain": 0.14},
+		{"kind": "tone", "freq": 960.0, "wave": "square", "dur": 0.06, "gain": 0.12, "at": 0.05},
+	],
+	"loot": [
+		{"kind": "noise", "dur": 0.2, "gain": 0.16, "filter": "bp", "freq": 1100.0, "q": 1.1},
+		{"kind": "tone", "freq": 480.0, "to": 720.0, "wave": "square", "dur": 0.1, "gain": 0.12, "at": 0.08},
+	],
+	"build": [
+		{"kind": "tone", "freq": 180.0, "to": 300.0, "wave": "square", "dur": 0.09, "gain": 0.2},
+		{"kind": "noise", "dur": 0.1, "gain": 0.2, "filter": "lp", "freq": 1400.0, "at": 0.02},
+	],
+	"craft": [
+		{"kind": "tone", "freq": 300.0, "wave": "square", "dur": 0.06, "gain": 0.14},
+		{"kind": "tone", "freq": 450.0, "wave": "square", "dur": 0.06, "gain": 0.14, "at": 0.07},
+		{"kind": "tone", "freq": 680.0, "wave": "square", "dur": 0.1, "gain": 0.15, "at": 0.14},
+	],
+	"chop": [
+		{"kind": "noise", "dur": 0.12, "gain": 0.24, "filter": "lp", "freq": 1200.0, "to": 260.0},
+		{"kind": "tone", "freq": 190.0, "to": 90.0, "wave": "tri", "dur": 0.09, "gain": 0.14},
+	],
+	"deny": [{"kind": "tone", "freq": 200.0, "to": 120.0, "wave": "square", "dur": 0.12, "gain": 0.16}],
+	"ui": [{"kind": "tone", "freq": 700.0, "wave": "square", "dur": 0.03, "gain": 0.07}],
+
+	# ------------------------------------------------------------- moments --
+	"level_up": [
+		{"kind": "tone", "freq": 523.0, "wave": "tri", "dur": 0.22, "gain": 0.2},
+		{"kind": "tone", "freq": 659.0, "wave": "tri", "dur": 0.22, "gain": 0.2, "at": 0.09},
+		{"kind": "tone", "freq": 784.0, "wave": "tri", "dur": 0.22, "gain": 0.2, "at": 0.18},
+		{"kind": "tone", "freq": 1047.0, "wave": "tri", "dur": 0.22, "gain": 0.2, "at": 0.27},
+	],
+	"raid_warn": [
+		{"kind": "tone", "freq": 220.0, "to": 150.0, "wave": "saw", "dur": 0.75, "gain": 0.26},
+		{"kind": "tone", "freq": 224.0, "to": 154.0, "wave": "saw", "dur": 0.75, "gain": 0.2, "at": 0.02},
+	],
+	"raid_win": [
+		{"kind": "tone", "freq": 392.0, "wave": "tri", "dur": 0.3, "gain": 0.22},
+		{"kind": "tone", "freq": 523.0, "wave": "tri", "dur": 0.3, "gain": 0.22, "at": 0.11},
+		{"kind": "tone", "freq": 659.0, "wave": "tri", "dur": 0.3, "gain": 0.22, "at": 0.22},
+		{"kind": "tone", "freq": 784.0, "wave": "tri", "dur": 0.3, "gain": 0.22, "at": 0.33},
+		{"kind": "tone", "freq": 1047.0, "wave": "tri", "dur": 0.3, "gain": 0.22, "at": 0.44},
+	],
+	"struct_hit": [{"kind": "noise", "dur": 0.1, "gain": 0.2, "filter": "lp", "freq": 700.0, "to": 200.0}],
+	"struct_break": [
+		{"kind": "noise", "dur": 0.45, "gain": 0.34, "filter": "lp", "freq": 1600.0, "to": 100.0},
+		{"kind": "tone", "freq": 160.0, "to": 45.0, "wave": "saw", "dur": 0.4, "gain": 0.2},
+	],
+	## A car. The prototype had none of these — it had no cars when the audio
+	## was written — so they are new and they are quiet, because an engine that
+	## announces itself twice (Threat already does) gets old on a long drive.
+	"engine_start": [
+		{"kind": "tone", "freq": 60.0, "to": 130.0, "wave": "saw", "dur": 0.55, "gain": 0.2},
+		{"kind": "noise", "dur": 0.5, "gain": 0.12, "filter": "lp", "freq": 400.0, "to": 900.0},
+	],
+	"engine_stop": [{"kind": "tone", "freq": 130.0, "to": 45.0, "wave": "saw", "dur": 0.4, "gain": 0.16}],
+	"car_wreck": [
+		{"kind": "noise", "dur": 0.6, "gain": 0.4, "filter": "lp", "freq": 2200.0, "to": 90.0},
+		{"kind": "tone", "freq": 120.0, "to": 38.0, "wave": "saw", "dur": 0.5, "gain": 0.24},
+	],
+}
+
+## Some cues fire many times in one frame. A shotgun hitting twelve zombies has
+## to be one impact, not twelve, so an identical cue inside this many
+## milliseconds is dropped. Anything not listed can fire as often as it likes.
+const SFX_THROTTLE := {
+	"bullet_hit": 28, "hit_wall": 40, "struct_hit": 45, "zombie_die": 30,
+	"melee_hit": 25, "turret": 45, "growl": 260, "player_hurt": 140,
+	"chop": 60, "pickup": 40, "ui": 30,
+}
+
 # ---------------------------------------------------------------------- map --
 
 ## The minimap and the town map.

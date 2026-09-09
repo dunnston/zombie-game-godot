@@ -329,7 +329,7 @@ func _drive(sim: GameSim, v: Dictionary, dt: float, p: PlayerSim) -> void:
 				continue
 			var force := absf(v.speed) / C.max_speed
 			# The driver made this kill: their XP, and their Luck on the drop.
-			Damage.damage_enemy(sim, e, C.ram_damage * force * 2.0, v.pos, 340.0 * force, true, p)
+			Damage.damage_enemy(sim, e, C.ram_damage * force * 2.0, v.pos, 340.0 * force, true, p, false, false, "melee")
 			damage(sim, v, C.ram_self_damage * (1.0 + force), "ram")
 			v.speed *= 0.86
 			sim.emit({"t": "shake", "amount": 3.0})

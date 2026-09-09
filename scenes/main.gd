@@ -25,6 +25,7 @@ var player_view: PlayerView
 var camera: Camera2D
 var hud: Hud
 var map: MapScreen
+var ears: SfxView
 var inventory: InventoryScreen
 var build_bar: BuildBar
 var menu: MenuScreen
@@ -98,6 +99,7 @@ func _ready() -> void:
 	# looking at, and the pack is something you opened over it.
 	map = MapScreen.new(sim)
 	layer.add_child(map)
+	ears = SfxView.new(sim)
 	inventory = InventoryScreen.new(sim)
 	layer.add_child(inventory)
 	build_bar = BuildBar.new(sim)
@@ -268,6 +270,7 @@ func _process(dt: float) -> void:
 		fx.on_event(ev)
 		lights.on_event(ev)
 		hud.on_event(ev)
+		ears.on_event(ev)
 	sim.events.clear()
 	fx.tick(dt)
 	lights.tick()
@@ -825,6 +828,37 @@ func smoke_run(smoke: Node) -> void:
 		await smoke.checkpoint("parked")
 
 
+
+	# The ears. Everything above has been making noise; this is the check that
+	# it reached a voice rather than a silent bank — the audio equivalent of
+	# reading the screenshot instead of the variable.
+	if not Sfx.has("pistol"):
+		smoke.fail("the sound bank never got built")
+	var voiced := 0
+	for cue in Config.SFX:
+		Sfx._last.clear()
+		if Sfx.play(cue):
+			voiced += 1
+	if voiced != Config.SFX.size():
+		smoke.fail("only %d of %d cues reached a voice" % [voiced, Config.SFX.size()])
+	await smoke.frames(2)
+	var heard := 0
+	for pl in Sfx._players:
+		if pl.playing:
+			heard += 1
+	if heard == 0:
+		smoke.fail("nothing is actually coming out of a player")
+
+	# Muting is a setting on the menu, and it has to stop the sound.
+	Sfx.set_muted(true)
+	Sfx._last.clear()
+	if Sfx.play("pistol"):
+		smoke.fail("muted and still firing")
+	Sfx.set_muted(false)
+	Sfx._last.clear()
+	if not Sfx.play("pistol"):
+		smoke.fail("unmuting did not bring it back")
+	await smoke.checkpoint("sound")
 
 	# The map. The corner one has been on screen since the first checkpoint;
 	# this is the one behind M, and the districts it has filled in.

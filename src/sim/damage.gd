@@ -15,7 +15,10 @@ class_name Damage
 ## with seven blood particles and a damage number, so one enemy surviving a
 ## 6.5-second burn would otherwise leave three thousand particles behind it
 ## and a burning horde would drop the frame rate through the floor.
-static func damage_enemy(sim: GameSim, e: EnemySim, dmg: float, from: Vector2, knock := 0.0, crit := false, source: Variant = null, no_alert := false, no_fx := false) -> float:
+## `hit_kind` is for the ears alone: a pipe connecting and a bullet landing
+## are different sounds, and the hit event is the only place that knows which
+## one happened. Nothing in the simulation reads it.
+static func damage_enemy(sim: GameSim, e: EnemySim, dmg: float, from: Vector2, knock := 0.0, crit := false, source: Variant = null, no_alert := false, no_fx := false, hit_kind := "bullet") -> float:
 	if e.dead or dmg <= 0.0:
 		return 0.0
 	e.hp -= dmg
@@ -31,7 +34,7 @@ static func damage_enemy(sim: GameSim, e: EnemySim, dmg: float, from: Vector2, k
 	if knock > 0.0:
 		e.vel += dir * knock * (1.0 - e.knock_resist)
 	if not no_fx:
-		sim.emit({"t": "hit", "x": e.pos.x, "y": e.pos.y, "dx": dir.x, "dy": dir.y, "dmg": dmg, "crit": crit, "r": e.r})
+		sim.emit({"t": "hit", "x": e.pos.x, "y": e.pos.y, "dx": dir.x, "dy": dir.y, "dmg": dmg, "crit": crit, "r": e.r, "kind": hit_kind})
 
 	if e.hp <= 0.0:
 		kill_enemy(sim, e, source)

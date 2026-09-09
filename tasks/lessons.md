@@ -107,3 +107,62 @@ Distilled into `PROJECT.md` §8. Append here first.
   chase — a bug that survived Phase 2's review and the prototype.
 - A free tile is not room for a body. Check the radius, not the centre: 56
   of 400 ambient spawns were starting inside geometry.
+
+## An autoload must never share its name with a class_name (2026-09-08)
+
+Registering `Sfx="*res://src/core/sfx.gd"` while the script says
+`class_name Sfx` makes the autoload's *instance* shadow the class. In the
+running game that mostly works. Under `godot --headless -s` there is no
+autoload, so `Sfx` resolves to a bare GDScript resource and every static call
+fails with "Nonexistent function 'build' in base 'GDScript'" — 91 test
+failures that look like the script is broken rather than the name.
+
+`Bindings`/`KeyBinds` had already established the working pattern, one PR
+earlier, for exactly this reason, and I did not carry it across.
+
+**Rule:** when a script needs both an autoload and a `class_name`, the two
+names must differ. `Bindings`/`KeyBinds`, `Audio`/`Sfx`.
+
+## Assert on what the code decided, not on what fed it (2026-09-08)
+
+Three times in Phase 4:
+
+- 4c: features built and not connected, with tests calling the function
+  instead of pressing the key.
+- 4d: `KeyBinds.primary_label` had no callers; the HUD still said "E".
+- 4d audio: the bow had a cue, and every gun sound hung on the `muzzle` event
+  — which a bow deliberately never emits. My test asserted "firing a bow emits
+  a shot event", which was true the whole time the bow was silent.
+
+The shape is always the same: the assertion sits *upstream* of the decision.
+
+**Rule:** for anything that maps input to a choice — an event to a sound, a
+key to an action, a binding to a prompt — the function must **return the
+choice**, and the test must assert on that return. If the seam does not exist,
+add it; `SfxView.on_event` returns a cue name for exactly this reason.
+
+The check: break the mapping and re-run. If nothing fails, the test was
+watching the wrong end. Reverting `"shot"` to `"muzzle"` fails twelve
+assertions now and failed none before.
+
+## Anything a headless run writes under user:// needs its own path (2026-09-08)
+
+`user://` is shared with the real game the owner plays. Three times in Phase 4
+a test or a smoke run wrote into it:
+
+- The save-slot tests used slots 3/4/5 — real player slots — before moving to
+  90–92, outside `Saves.MAX_SLOTS`.
+- The binding tests called `reset_all()` in `after_each`, which writes the
+  store, so the first headless run on a machine erased the player's controls.
+- The smoke run called `set_muted(false)` at the end of its audio step, which
+  wrote into the player's `user://audio.json` — and a player who *was* muted
+  would also have seen the run fail for it.
+
+**Rule:** every `user://` path a headless run can write is a `static var`, not
+a `const`, and the test or the smoke redirects it. `Saves` uses slots above
+`MAX_SLOTS`; `KeyBinds.STORE` is redirected per test case; `Sfx.STORE` is
+redirected when `--smoke` is on the command line.
+
+The corollary that cost the third one: **check the cmdline, not another
+autoload.** Autoloads run in declaration order, so `Smoke.enabled` is not set
+yet when an earlier autoload's `_ready` wants to know.

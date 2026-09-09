@@ -89,11 +89,13 @@ func _rows() -> Array[Dictionary]:
 			out.append({"id": "load_page", "label": "LOAD GAME", "arg": 0,
 				"note": "%d saved" % Saves.list().size(), "enabled": Saves.has_any()})
 			out.append({"id": "controls_page", "label": "CONTROLS", "arg": 0, "note": "", "enabled": true})
+			out.append(_sound_row())
 			out.append({"id": "quit", "label": "QUIT", "arg": 0, "note": "", "enabled": true})
 		Page.PAUSE:
 			out.append({"id": "resume", "label": "RESUME", "arg": 0, "note": "", "enabled": true})
 			out.append({"id": "save", "label": "SAVE", "arg": 0, "note": "", "enabled": true})
 			out.append({"id": "controls_page", "label": "CONTROLS", "arg": 0, "note": "", "enabled": true})
+			out.append(_sound_row())
 			out.append({"id": "quit_to_title", "label": "SAVE AND QUIT TO TITLE", "arg": 0,
 				"note": "Writes the game down first", "enabled": true})
 		Page.NEW_GAME:
@@ -228,12 +230,23 @@ func _gui_input(event: InputEvent) -> void:
 		return
 
 
+## The sound toggle, on both the title screen and the pause menu — it is the
+## same setting, and it belongs wherever you happen to be when it annoys you.
+func _sound_row() -> Dictionary:
+	return {"id": "mute", "label": "SOUND: OFF" if Sfx.muted() else "SOUND: ON",
+		"arg": 0, "note": "", "enabled": true}
+
+
 func _press(r: Dictionary) -> void:
 	match String(r.id):
 		"bind":
 			rebinding = String(r.action)
 		"reset":
 			KeyBinds.reset_all()
+		"mute":
+			# A setting, not a key: whether your speakers are on is not something
+			# you should have to remember a letter for.
+			Sfx.set_muted(not Sfx.muted())
 		"controls_page":
 			came_from = page
 			open(Page.CONTROLS)
