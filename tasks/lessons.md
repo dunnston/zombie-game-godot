@@ -107,3 +107,18 @@ Distilled into `PROJECT.md` §8. Append here first.
   chase — a bug that survived Phase 2's review and the prototype.
 - A free tile is not room for a body. Check the radius, not the centre: 56
   of 400 ambient spawns were starting inside geometry.
+
+## An autoload must never share its name with a class_name (2026-09-08)
+
+Registering `Sfx="*res://src/core/sfx.gd"` while the script says
+`class_name Sfx` makes the autoload's *instance* shadow the class. In the
+running game that mostly works. Under `godot --headless -s` there is no
+autoload, so `Sfx` resolves to a bare GDScript resource and every static call
+fails with "Nonexistent function 'build' in base 'GDScript'" — 91 test
+failures that look like the script is broken rather than the name.
+
+`Bindings`/`KeyBinds` had already established the working pattern, one PR
+earlier, for exactly this reason, and I did not carry it across.
+
+**Rule:** when a script needs both an autoload and a `class_name`, the two
+names must differ. `Bindings`/`KeyBinds`, `Audio`/`Sfx`.

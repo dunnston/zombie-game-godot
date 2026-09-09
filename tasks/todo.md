@@ -243,7 +243,7 @@ Split from vehicles: two systems in one PR is one review of neither.
 - [x] Save slots with an index (day, level, kills, play time); autosave
 - [x] Full key rebinding written over `src/core/bindings.gd` from `user://`
 - [x] Pause menu that saves before it quits
-- [ ] Synthesised audio, rate-limited per kind (4d part three)
+- [x] Synthesised audio, rate-limited per kind (4d part three)
 
 ### 4d part two — the map
 
@@ -1107,3 +1107,57 @@ it failed eleven checkpoints. The smoke step presses `B` rather than calling
 `build_bar.toggle()`, which is the whole reason it catches this.
 
 Numbers: 319 tests / 4434 assertions fast, 44 smoke checkpoints, zero failures.
+
+## Review — Phase 4d part three, audio (2026-09-08)
+
+**Phase 4 is complete.** Everything the prototype had is in Godot.
+
+**Built.** `Config.SFX` (34 cues as recipes, not files), `SFX_THROTTLE` and
+the four gain/rate constants; `src/core/sfx.gd` (synthesis, the voice pool,
+the rate limit, mute persisted per machine); `src/core/sfx_view.gd` (sim event
+→ cue, and distance); a `kind` on the hit event; SOUND on the pause menu and
+the title. 15 tests, one smoke checkpoint that plays all 34 cues and checks a
+voice actually started.
+
+**The architecture question, and why it went this way.** The prototype built a
+WebAudio graph — oscillator, envelope, biquad — on *every single sound*. Godot
+has no cheap equivalent. But these cues never change, so the graph does not
+need to exist at play time at all: each recipe renders to a PCM buffer once at
+boot and playing it is a `play()` on a pooled voice. That also makes the whole
+thing testable without a speaker, which is why there are fifteen tests on
+something that is fundamentally "does it sound good".
+
+- [x] **205ms at boot, fixed to 91ms.** `exp(-9k)` and `pow(ratio, k)` per
+      sample per op is three transcendentals a sample. Stepping the envelope
+      and the pitch glide by a constant multiplier gives the *identical* curve
+      for one multiply. Measured both ways rather than assumed.
+- [x] **The autoload could not be called `Sfx`.** An autoload whose name
+      matches a `class_name` shadows the class with its instance, and under
+      `-s` there is no autoload, so the name resolves to a bare GDScript and
+      every static call fails — 91 failures that read like a broken script.
+      `Bindings`/`KeyBinds` had established the working pattern one PR
+      earlier and I did not carry it across. It is `Audio` now, and the
+      lesson is in `tasks/lessons.md`.
+- [x] **`test_every_weapon_has_a_voice` caught a real gap on its first run:**
+      the Military Carbine had no cue and would have fired with the pistol's
+      bang. That is the kind of thing nothing else would ever have noticed.
+- [x] **The gunshot is on the muzzle flash, not the bullet.** A shotgun spawns
+      eight pellets and fires once; a cue on `shot` would be eight bangs a
+      trigger pull, which is precisely what the rate limit exists to stop and
+      would have hidden the mistake instead of fixing it.
+- [x] **A/B'd the smoke.** Removing `attach(self)` from the autoload — the one
+      line that makes the bank audible rather than merely built — fails three
+      smoke checks. The step is real.
+
+**Two deliberate additions the prototype did not have**, both flagged as feel
+questions: **distance falloff** (340px full, silent at 1500px — web audio gave
+a turret across town the same volume as the gun in your hand), and a **`kind`
+on the hit event** so a pipe thumps and a bullet pings. Nothing in the
+simulation reads `kind`; it exists for the ears alone.
+
+**Now the owner's turn.** Phase 4 is finished and none of it has been played.
+The feel questions are listed in §7 of `PROJECT.md`, and the test budget
+decision (the fast tier is 17s against a ten-second rule) is still open.
+
+Numbers: 334 tests / 4789 assertions fast, 364 / 4902 with `--all`, 45 smoke
+checkpoints, zero failures.

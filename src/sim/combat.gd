@@ -155,7 +155,7 @@ static func melee_attack(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 		sim.emit({"t": "shake", "amount": w.get("shake", 1.6)})
 		for e in hits:
 			var crit := sim.rng.chance(p.crit_chance + 0.06)
-			Damage.damage_enemy(sim, e, dmg * (1.9 if crit else 1.0), p.pos, w.knock, crit, p)
+			Damage.damage_enemy(sim, e, dmg * (1.9 if crit else 1.0), p.pos, w.knock, crit, p, false, false, "melee")
 	elif chop_prop(sim, p, w, dmg):
 		p.stam = maxf(0.0, p.stam - chop_stam_cost(p))
 		p.stam_lock = P.stam_chop_delay
