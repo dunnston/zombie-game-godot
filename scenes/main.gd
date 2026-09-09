@@ -1350,6 +1350,36 @@ func smoke_run(smoke: Node) -> void:
 			if smoke_guest.sim.players.size() != sim.players.size():
 				smoke.fail("the mirror's roster does not match the host's")
 			await smoke.checkpoint("coop_walked")
+			# The HOST page as the owner reads it. A smoke run opens no real
+			# door — there is no router in CI and no reason to poke one — so a
+			# `NetDoor` is stood up already answered, the way a router with
+			# UPnP switched off leaves it. `_process` reads it from there; the
+			# menu's own fields cannot be set directly, because a frame later
+			# it overwrites them from the door or clears them.
+			door = NetDoor.new()
+			door.port = Config.NET.port
+			door.state = "none"
+			door.status = NetDoor.by_hand_note(int(Config.NET.port), "UPnP is off at your router")
+			door.public = "203.0.113.5:%d" % int(Config.NET.port)
+			menu.open(MenuScreen.Page.HOST)
+			await smoke.frames(4)
+			# What is under test is the last step of the chain: an address the
+			# door found has to arrive as a row that can be copied, because a
+			# host made to retype their own public address was not given it.
+			var internet := {}
+			for row in menu._rows():
+				if String(row.get("label", "")).begins_with("INTERNET"):
+					internet = row
+			if internet.is_empty():
+				smoke.fail("the HOST page shows no INTERNET row while hosting")
+			elif String(internet.get("id", "")) != "copy_address":
+				smoke.fail("an address the owner cannot copy: id=%s" % String(internet.get("id", "")))
+			elif not String(internet.get("label", "")).contains("203.0.113.5"):
+				smoke.fail("the INTERNET row does not carry the address: %s" % String(internet.get("label", "")))
+			await smoke.checkpoint("coop_host_page")
+			menu.close()
+			door.close()
+			door = null
 			smoke_guest.leave()
 			await smoke.frames(6)
 			if not gp.away:
@@ -1470,9 +1500,12 @@ func _start_hosting(which: int) -> void:
 	net_host = NetHost.new(sim, name_ if not name_.is_empty() else "Host", NetProtocol.hash_password(String(menu.fields.password)))
 	role = "host"
 	sim.notify("Hosting on UDP port %d" % Config.NET.port, "#9fd0ff", true)
-	if Config.NET.upnp:
-		door = NetDoor.new()
-		door.open(Config.NET.port)
+	# Opened either way. With UPnP switched off in config the door asks the
+	# router for nothing, but it still asks the internet what this machine's
+	# address is — a host with UPnP off is precisely the host who forwarded
+	# the port by hand, and the one with no other way to learn it.
+	door = NetDoor.new()
+	door.open(Config.NET.port)
 	# The room-code road, when it is switched on: a broker named and the
 	# native extension present. Either missing is said on the HOST page.
 	if not String(Config.NET.broker).is_empty() and WebRtcHub.available():

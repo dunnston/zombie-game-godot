@@ -1373,3 +1373,71 @@ Fixed in passing, both pre-existing:
 
 `tools/test.cmd`: 386 tests, 5137 asserts, 0 failures.
 `tools/smoke.cmd`: 52 checkpoints, 0 failures.
+## The HOST page shows a public address without UPnP (2026-09-09)
+
+The owner's router has UPnP switched off and will stay that way — there is a
+Foundry server on the same network and widening the blast radius for a game
+was not worth it. UDP 27333 is forwarded by hand instead. That works, but
+`NetDoor` only ever learned the public address from `query_external_address()`
+on the UPnP success path, so the HOST page had nothing to copy and the owner
+had to go find the address on a website.
+
+- [x] `src/net/stun.gd`: one UDP binding request, XOR-MAPPED-ADDRESS parsed out
+- [x] `Config.NET.stun_timeout_ms`, and skip `turn:` entries in `Config.NET.stun`
+- [x] `door.gd`: fall back to STUN on the `none`, `refused` and
+      opened-but-would-not-say paths; word each line so it does not promise a
+      door that is not open
+- [x] `tests/stun_test.gd` for the parse, `door_slow_test.gd` for the real one
+- [ ] `tools\test.cmd`, then `--all`
+
+### Review
+
+Done. `Stun` sends one binding request and reads XOR-MAPPED-ADDRESS back;
+`NetDoor` asks it on all three paths where the router does not name an
+address, and `menu_screen.gd` needed no change at all — the INTERNET row was
+already a click-to-copy row the moment `net.public` was non-empty. On the
+owner's machine the HOST page now reads
+`INTERNET: <public>:27333 · works only if you forwarded UDP 27333 — UPnP is
+off at your router`, verified against the address found independently from
+the network side.
+
+Two things found on the way that were not the job:
+
+- **A pre-existing engine error on any router with UPnP off.** `discover()`
+  answers SUCCESS having found nothing, and `get_gateway()` then raises
+  rather than returning null. `run.gd`'s ErrorSpy counts an engine error as a
+  failure, so `door_slow_test` failed on such a machine and passed only where
+  a router answered. Counting devices before asking for the gateway fixes it;
+  it is in this branch because the branch could not be tested without it.
+- **`saves_slots_test::test_a_stale_index_entry_does_not_occupy_a_slot` fails
+  on `origin/main`.** Reproduced on a clean worktree of `main` before
+  touching anything. Not this branch's, not fixed here.
+
+Also worth knowing: the smoke is timing-fragile under load. Three runs failed
+in three different places (repair, demolish, a save round trip) while a second
+Godot instance was importing and running beside it, and passed 3/3 once the
+machine was quiet. It cost an hour of bisection that found nothing, because
+there was nothing to find. A smoke that fails differently each time under load
+is worth hardening or marking.
+
+### Addressing the Codex review on PR #18
+
+Both P2 comments were right and both are fixed.
+
+- **STUN never ran when `Config.NET.upnp` was false.** `_start_hosting` built
+  no `NetDoor` at all in that case, so the one configuration a hand-forwarding
+  host would actually choose was the one where the address never appeared.
+  The door is now built either way and decides for itself: `use_upnp` false
+  asks the router nothing and goes straight to STUN, reporting state `off`.
+  The flag doubles as the test seam, since a `const` Dictionary cannot be
+  written to.
+- **A conflicting mapping was being advertised.** `CONFLICT_WITH_OTHER_MAPPING`
+  means the external port already belongs to another device on this network,
+  so `<public>:27333` reaches them and not this host — a friend dialling it
+  lands on somebody else's machine. `may_advertise()` singles that code out;
+  every other refusal still shows the hedged address, because the host may
+  well have forwarded the port by hand.
+
+`tests/door_test.gd` is new and fast: both decisions are pure functions now,
+and both are asserted there rather than only inside a thread that needs a
+router. `door_slow_test` covers the `off` path end to end.

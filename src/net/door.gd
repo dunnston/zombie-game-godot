@@ -8,16 +8,23 @@ extends RefCounted
 ## have it switched off, and carrier-grade NAT defeats it entirely — so this
 ## reports what happened, in words, and the LAN address beside it either way.
 ##
+## When it does not work, `Stun` still finds the public address, so a host who
+## forwarded the port by hand has a line to copy rather than a shrug. Nobody
+## remembers their own public address.
+##
 ## Discovery blocks for up to two seconds, so it runs on a thread; the scene
 ## polls `status` each frame. Nothing here touches the sim.
 
 var port := 0
-## "asking", "open", "refused", "none", "closed".
+## "asking", "open", "refused", "none", "off", "closed".
 var state := "asking"
 ## One sentence for the HOST page.
 var status := "asking the router to open the port…"
 ## The address friends type, once the router said yes: "203.0.113.5:27333".
 var public := ""
+## Whether to ask the router at all. `Config.NET.upnp` by default, and a
+## seam for the test: a const Dictionary cannot be written to.
+var use_upnp := bool(Config.NET.upnp)
 var _thread: Thread = null
 var _mutex := Mutex.new()
 var _upnp: UPNP = null
@@ -66,16 +73,46 @@ func _report(state_: String, status_: String, public_ := "") -> void:
 
 
 func _work() -> void:
+	if not use_upnp:
+		# Switched off in config. Never ask the router — but a host who turned
+		# UPnP off is the host who forwarded the port by hand, so the address
+		# is worth more here than anywhere.
+		var only := _outside()
+		if only.is_empty():
+			_report("off", "UPnP is switched off — friends need a forwarded port, or a VPN")
+		else:
+			_report("off", by_hand_note(port, "UPnP is switched off"), only)
+		return
 	var u := UPNP.new()
 	var r := u.discover(int(Config.NET.upnp_timeout_ms), 2, "InternetGatewayDevice")
-	if r != UPNP.UPNP_RESULT_SUCCESS or u.get_gateway() == null or not u.get_gateway().is_valid_gateway():
-		_report("none", "no UPnP router answered — friends on the internet need a forwarded port, or a VPN")
+	# `discover` answers SUCCESS having found nothing at all when the router
+	# has UPnP switched off, and `get_gateway` then raises an engine error
+	# rather than returning null. Counting the devices first is what keeps a
+	# switched-off router a sentence on screen instead of an error in the log.
+	var gateway: UPNPDevice = null
+	if r == UPNP.UPNP_RESULT_SUCCESS and u.get_device_count() > 0:
+		gateway = u.get_gateway()
+	if gateway == null or not gateway.is_valid_gateway():
+		var by_hand := _outside()
+		if by_hand.is_empty():
+			_report("none", "no UPnP router answered — friends on the internet need a forwarded port, or a VPN")
+		else:
+			_report("none", by_hand_note(port, "UPnP is off at your router"), by_hand)
 		return
 	if _closing:
 		return                                  # nobody is hosting any more
 	var m := u.add_port_mapping(port, port, "DEADLINE", "UDP", int(Config.NET.upnp_lease_s))
 	if m != UPNP.UPNP_RESULT_SUCCESS:
-		_report("refused", "the router refused to open UDP %d (%s) — forward it by hand, or use a VPN" % [port, reason(m)])
+		# A conflicting mapping means the external port already belongs to
+		# another device here. Whatever answers the internet at that port, it
+		# is not this host — handing the address out would send a friend to
+		# somebody else's machine. Every other refusal leaves the port
+		# unclaimed, where an address is still worth showing, hedged.
+		var refused := _outside() if may_advertise(m) else ""
+		if refused.is_empty():
+			_report("refused", "the router refused to open UDP %d (%s) — forward it by hand, or use a VPN" % [port, reason(m)])
+		else:
+			_report("refused", by_hand_note(port, "the router refused: %s" % reason(m)), refused)
 		return
 	if _closing:
 		u.delete_port_mapping(port, "UDP")
@@ -83,10 +120,53 @@ func _work() -> void:
 	_upnp = u
 	_mapped = true
 	var ip := u.query_external_address()
-	if ip.is_empty():
+	if not ip.is_empty():
+		_report("open", "open to the internet — friends type this address", "%s:%d" % [ip, port])
+		return
+	# The router opened the port and then would not name itself. It is open
+	# either way, so ask the internet what it sees instead of showing nothing.
+	var seen := _outside()
+	if seen.is_empty():
 		_report("open", "the router opened UDP %d, but would not say its public address" % port)
 	else:
-		_report("open", "open to the internet — friends type this address", "%s:%d" % [ip, port])
+		_report("open", "open to the internet — friends type this address", seen)
+
+
+## The address the internet would reach this machine's port at, asked of a
+## STUN server rather than of the router. "" when none answers.
+##
+## STUN sees the source port of its own socket, never the game's, so only the
+## IP half is its to report; the port is ours. That pairing is right exactly
+## when the mapping is one-to-one, which is what UPnP and a hand-written
+## forward both make and what ENet needs anyway. It is a guess about the
+## router's rules, so every sentence that carries one says so.
+func _outside() -> String:
+	if _closing:
+		return ""
+	var ip := Stun.public_ip(Config.NET.stun, int(Config.NET.stun_timeout_ms))
+	return "" if ip.is_empty() else "%s:%d" % [ip, port]
+
+
+
+
+
+
+## Whether a refusal leaves the external port free for this host to claim.
+## Only the conflict says it does not: another device on this network already
+## holds that port, so the public address would reach them, not us.
+static func may_advertise(code: int) -> bool:
+	return code != UPNP.UPNP_RESULT_CONFLICT_WITH_OTHER_MAPPING
+
+
+## The sentence that goes beside an address STUN found rather than the router.
+## Short on purpose, and the caveat leads: the row appends "click to copy"
+## and the panel clips the tail, so what is lost is the cause, not the warning.
+##
+## It hedges because it has to. STUN reports the address the internet sees,
+## which is true whether or not anything is listening behind it — only a
+## forward makes it dialable, and this cannot see one.
+static func by_hand_note(port_: int, cause: String) -> String:
+	return "works only if you forwarded UDP %d — %s" % [port_, cause]
 
 
 ## Takes the mapping down again. Never waits on a router: a discovery still
