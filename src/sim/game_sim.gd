@@ -16,6 +16,9 @@ var crew := Survivors.new()
 var cars := Vehicles.new()
 var raid: Raid = null
 var raids_done := 0
+## Human raids are counted separately: surviving four hordes should not send a
+## Purge Squad the first time the living come for you.
+var human_raids_done := 0
 var time := 0.0
 var rng: Rng
 var stats := {"kills": 0, "deaths": 0, "damage_dealt": 0.0, "damage_taken": 0.0, "looted": 0}
@@ -92,6 +95,7 @@ func start(world_: World, run_seed: int = 1) -> void:
 	# bullets already in the air would arrive at the restored player.
 	raid = null
 	raids_done = 0
+	human_raids_done = 0
 	bullets.clear()
 	enemies.list.clear()
 	enemies.corpses.clear()
@@ -445,7 +449,7 @@ func tick(dt: float) -> void:
 	if raid != null:
 		raid.tick(self, dt)
 	elif threat.raid_ready(self):
-		Raid.start(self)
+		Raid.start(self, Raid.humans_come_for(self))
 	for c in enemies.corpses:
 		c.t += dt
 	while not enemies.corpses.is_empty() and enemies.corpses[0].t > enemies.corpses[0].life:

@@ -28,12 +28,34 @@ var inter_wave := R.inter_wave
 var rng := Rng.new(0xF00DBEEF)
 var ended := false
 var repelled := false
+## Whether the people arriving are people. Everything below runs the same
+## either way — the difference is who spawns, why they came, and what is left
+## when they are put down.
+var human := false
 
 
-static func start(sim: GameSim) -> Raid:
+## True when the raid Threat has just scheduled should arrive carrying rifles
+## rather than teeth. Rolled against the base owner's Mutation band: a human
+## crew comes for a base run by something that is turning, and never for one
+## run by a person. Pure enough for the tests to drive both sides of it.
+static func humans_come_for(sim: GameSim) -> bool:
+	var owner := sim.host()
+	if owner == null:
+		return false
+	var odds: Array = Config.MUTATION.human_raid.chance
+	var chance := float(odds[clampi(owner.mut_band, 0, odds.size() - 1)])
+	return chance > 0.0 and sim.rng.chance(chance)
+
+
+static func start(sim: GameSim, human := false) -> Raid:
 	var raid := Raid.new()
 	raid.index = sim.raids_done
-	raid.spec = Config.raid_spec(raid.index)
+	raid.human = human
+	# The two tracks count separately: a human crew is not "the next horde",
+	# so surviving four hordes does not send a Purge Squad on your first
+	# meeting with the living.
+	raid.spec = Config.HUMAN_RAIDS[clampi(sim.human_raids_done, 0, Config.HUMAN_RAIDS.size() - 1)] if human \
+		else Config.raid_spec(raid.index)
 	var c := sim.base_centre()
 	raid.centre = c.pos
 	raid.has_base = c.has_base
@@ -41,9 +63,13 @@ static func start(sim: GameSim) -> Raid:
 	for w in range(raid.spec.waves):
 		raid.total += raid.spec.base + raid.spec.growth * w
 	sim.raid = raid
-	sim.emit({"t": "raid_warn"})
+	sim.emit({"t": "raid_warn", "human": human})
 	sim.notify("%s INCOMING — %ds" % [raid.spec.name, int(R.warning_time)], "#e05a4a", true)
-	sim.notify("They are heading for your base" if c.has_base else "They are coming for you", "#d98a4a", true)
+	if human:
+		# They say why. A horde has no reason and needs no line; people do.
+		sim.notify("They know what you are becoming. They are coming for the stash.", "#d0a06a", true)
+	else:
+		sim.notify("They are heading for your base" if c.has_base else "They are coming for you", "#d98a4a", true)
 	return raid
 
 
@@ -54,7 +80,7 @@ func _pick_type() -> String:
 		acc += spec.mix[t]
 		if r <= acc:
 			return t
-	return "walker"
+	return String(spec.mix.keys()[0])
 
 
 func _start_wave(sim: GameSim) -> void:
@@ -175,13 +201,13 @@ func tick(sim: GameSim, dt: float) -> void:
 		idle = idle + 1 if sig == last_sig else 0
 		last_sig = sig
 	if idle >= R.breakoff_time:
-		_scatter(sim, "The horde loses interest and drifts away" if has_base else "Nothing left to take — the horde scatters")
+		_scatter(sim, ("They take what they have and pull out" if human else ("The horde loses interest and drifts away" if has_base else "Nothing left to take — the horde scatters")))
 		return
 
 	# Hard backstop: no raid may outlast this, whatever goes wrong.
 	elapsed += dt
 	if elapsed > R.max_seconds:
-		_scatter(sim, "The horde breaks off and scatters")
+		_scatter(sim, "They pull out" if human else "The horde breaks off and scatters")
 		return
 
 	# ------------------------------------------------------------ wave / end --
@@ -212,7 +238,10 @@ func _finish(sim: GameSim, repelled_: bool) -> void:
 	ended = true
 	repelled = repelled_
 	sim.raid = null
-	sim.raids_done += 1
+	if human:
+		sim.human_raids_done += 1
+	else:
+		sim.raids_done += 1
 	sim.threat.reset_after_raid()
 
 	# Salvage is the base's payout, so it goes into the base's stash where

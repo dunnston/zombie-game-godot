@@ -63,6 +63,10 @@ var god_mode := false
 ## Everything that writes either of these goes through `Mutation`.
 var mutation := 0.0
 var mut_band := 0
+## The Lurch: seconds left of your legs not being yours, and seconds until the
+## next one. Both are ticked by `Mutation` and read by nobody else.
+var lurch_t := 0.0
+var lurch_cd := 0.0
 ## Buffs and debuffs, id -> seconds left. Applied inside the recompute like
 ## everything else that modifies a stat (invariant 4).
 var effects := {}
@@ -335,8 +339,11 @@ func use_healing(sim: GameSim) -> bool:
 	if pick.is_empty():
 		sim.notify("No medical supplies", "#c96a5a")
 		return false
-	var c: Dictionary = Config.CONSUMABLES[pick]
-	using = {"id": pick, "t": 0.0, "dur": c.time * heal_speed_mul}
+	if not start_use(sim, pick):
+		return false
+	# Field Medic is a healing perk, so it shortens a bandage and not a meal:
+	# the multiplier is applied here rather than inside the shared channel.
+	using.dur *= heal_speed_mul
 	return true
 
 
@@ -355,7 +362,56 @@ func use_suppressant(sim: GameSim) -> bool:
 	if pick.is_empty():
 		sim.notify("No brain matter", "#c96a5a")
 		return false
-	using = {"id": pick, "t": 0.0, "dur": float(Config.CONSUMABLES[pick].time)}
+	return start_use(sim, pick)
+
+
+## Eat or drink something, for the buff. There is no hunger meter under this
+## and there never will be (pillar 1) — so the rule for what a tap of the key
+## reaches for is "the commonest thing that would actually do something":
+## lowest `rank` first, and never a second helping of a buff already running.
+func use_food(sim: GameSim) -> bool:
+	if not using.is_empty() or dead:
+		return false
+	var pick := ""
+	var pick_rank := INF
+	for id in Config.CONSUMABLES:
+		var c: Dictionary = Config.CONSUMABLES[id]
+		if not c.get("food", false) or count_carried(id) <= 0:
+			continue
+		if effects.has(String(c.get("effect", ""))):
+			continue                     # already running: do not waste it
+		if float(c.get("rank", 0)) < pick_rank:
+			pick_rank = float(c.get("rank", 0))
+			pick = id
+	if pick.is_empty():
+		# Two different refusals, because they mean opposite things: nothing
+		# to eat is a supply problem, everything already running is not.
+		var carried := false
+		for id in Config.CONSUMABLES:
+			if Config.CONSUMABLES[id].get("food", false) and count_carried(id) > 0:
+				carried = true
+				break
+		sim.notify("Nothing left to eat" if not carried else "Everything you are carrying is already working", "#8a8f84")
+		return false
+	return start_use(sim, pick)
+
+
+## One consumable, through the one channel. Everything that consumes anything
+## ends up here — the two quick keys, and the pack screen's right-click — so
+## being hit interrupts all of it the same way, and a guest's use is the same
+## code path as the host's.
+func start_use(sim: GameSim, id: String) -> bool:
+	if not using.is_empty() or dead:
+		return false
+	var c: Dictionary = Config.CONSUMABLES.get(id, {})
+	if c.is_empty() or c.get("tool", false) or count_carried(id) <= 0:
+		return false
+	# A bandage at full health is the one refusal worth explaining; the rest
+	# of the table always does something.
+	if float(c.get("heal", 0.0)) > 0.0 and not c.has("effect") and float(c.get("mut", 0.0)) <= 0.0 and hp >= max_hp:
+		sim.notify("Already at full health", "#8a8f84")
+		return false
+	using = {"id": id, "t": 0.0, "dur": float(c.time)}
 	return true
 
 
@@ -373,10 +429,16 @@ func _finish_use(sim: GameSim) -> void:
 	var id := String(using.id)
 	var c: Dictionary = Config.CONSUMABLES[id]
 	if take_carried(id, 1) > 0:
+		# One item can do more than one of these — a Hot Meal both patches you
+		# up and steadies your hands — so these are three questions, not a
+		# match with three branches.
+		if float(c.get("heal", 0.0)) > 0.0:
+			Damage.heal_player(sim, self, float(c.heal))
 		if Mutation.is_suppressant(id):
 			Mutation.take_dose(sim, self, id)
-		else:
-			Damage.heal_player(sim, self, c.heal)
+		elif c.has("effect"):
+			Mutation.give_effect(sim, self, String(c.effect), float(c.get("effect_mul", 1.0)))
+			sim.emit({"t": "ate", "seat": seat, "x": pos.x, "y": pos.y, "id": id})
 	using = {}
 
 
@@ -405,6 +467,10 @@ func tick(sim: GameSim, dt: float) -> void:
 	Mutation.tick(sim, self, dt)
 	if dead:
 		return                          # turning is a death, and it happens here
+	# ...and if it is driving, everything below this reads its intent, not
+	# yours. Rewritten once here rather than guarded in twenty branches.
+	if lurch_t > 0.0 and not downed:
+		Mutation.hijack_intent(sim, self)
 
 	if downed:
 		# Bleeding out. Nothing else happens to you: you cannot move, swing,
@@ -508,6 +574,8 @@ func tick(sim: GameSim, dt: float) -> void:
 			use_healing(sim)
 		if it.suppress:
 			use_suppressant(sim)
+		if it.eat:
+			use_food(sim)
 
 	if it.light:
 		Equipment.toggle_light(sim, self)

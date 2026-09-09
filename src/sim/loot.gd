@@ -432,7 +432,26 @@ static func enemy_drop(sim: GameSim, e: EnemySim, killer: PlayerSim = null) -> v
 ## from containers that were somebody's medicine cabinet — never from a
 ## recipe made of nothing, because the supply line running through the horde
 ## is the whole point of the theme.
+## What a Looter had in its pockets when you put it down: your own stash,
+## back on the ground where it fell. This is the only reason killing one in
+## time is worth anything, so it happens on every human death rather than as
+## part of the loot roll — a body with nothing else worth taking still gives
+## your things back.
+static func _drop_cargo(sim: GameSim, e: EnemySim) -> void:
+	if e.cargo.is_empty():
+		return
+	for id in e.cargo:
+		spawn_entry_pickup(sim, e.pos, item_entry_id(String(id)), int(e.cargo[id]))
+	e.cargo.clear()
+	sim.notify("You got it back", "#b7e08a", true)
+
+
 static func _roll_brain_drop(sim: GameSim, e: EnemySim) -> void:
+	# The living carry nothing worth eating. The whole supply line runs
+	# through the dead, which is why killing people is never a way to hold the
+	# meter down.
+	if e.def.get("human", false):
+		return
 	var d: Dictionary = Config.BRAIN_DROPS.get(e.type, {})
 	if d.is_empty() or not sim.loot_rng.chance(float(d.chance)):
 		return
@@ -443,6 +462,18 @@ static func _roll_brain_drop(sim: GameSim, e: EnemySim) -> void:
 
 
 static func _roll_enemy_drop(sim: GameSim, e: EnemySim) -> void:
+	# A person was carrying things, and a named table says what. Two rolls off
+	# the same weighted picker a cupboard uses, so a body is loot the same way
+	# a locker is — and whatever they had already taken from you comes back
+	# with it (`_drop_cargo`).
+	if e.def.has("loot_table"):
+		var table: Array = Config.LOOT.get(String(e.def.loot_table), [])
+		if not table.is_empty():
+			for i in range(2):
+				var pick := _weighted_pick(sim, table)
+				spawn_entry_pickup(sim, e.pos, String(pick.id), sim.loot_rng.irange(int(pick.min), int(pick.max)))
+		_drop_cargo(sim, e)
+		return
 	if e.def.get("boss", false):
 		spawn_pickup(sim, e.pos, "res", "mil", sim.loot_rng.irange(4, 8))
 		spawn_pickup(sim, e.pos, "res", "parts", sim.loot_rng.irange(2, 4))

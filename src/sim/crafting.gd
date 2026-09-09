@@ -16,6 +16,40 @@ static func bench_tier_at(sim: GameSim, p: PlayerSim) -> int:
 	return 0 if bench.is_empty() else int(bench.tier)
 
 
+## The specialised benches within reach, as a set of station ids. A separate
+## gate to `bench` on purpose: chemistry is different work, not harder
+## metalwork, and a recipe that names a `station` is unreachable at any
+## workbench tier without one standing beside you.
+static func stations_at(sim: GameSim, p: PlayerSim) -> Dictionary:
+	var out := {}
+	for id in STATIONS:
+		if not sim.structs.near_station(p.pos, id).is_empty():
+			out[id] = true
+	return out
+
+
+## Every station a structure offers. Derived rather than listed, so building
+## a second kind of bench is a `STRUCTURES` edit and nothing else.
+static var STATIONS: Array:
+	get:
+		if _stations.is_empty():
+			for id in Config.STRUCTURES:
+				var s := String(Config.STRUCTURES[id].get("station", ""))
+				if not s.is_empty() and not _stations.has(s):
+					_stations.append(s)
+		return _stations
+
+static var _stations: Array = []
+
+
+## What a station is called, for the refusal a player actually reads.
+static func station_name(station: String) -> String:
+	for id in Config.STRUCTURES:
+		if String(Config.STRUCTURES[id].get("station", "")) == station:
+			return String(Config.STRUCTURES[id].name)
+	return station
+
+
 ## Whether the player is carrying a tool with the given flag ("knife",
 ## "hammer"). Carried, not held: you do not have to swap to it.
 static func has_tool(p: PlayerSim, flag: String) -> bool:
@@ -30,10 +64,18 @@ static func has_tool(p: PlayerSim, flag: String) -> bool:
 ## The recipes worth showing at this bench. A Stone Hammer in the pack shows
 ## the simple bench-1 work too, so the tool advertises what it is for instead
 ## of the list silently growing when you happen to look.
-static func visible_recipes(p: PlayerSim, bench: int) -> Array:
+static func visible_recipes(p: PlayerSim, bench: int, stations := {}) -> Array:
 	var hammer := has_tool(p, "hammer")
 	var out: Array = []
 	for r in Config.RECIPES:
+		# A station recipe is shown only at its station: it is not the top of
+		# the workbench ladder, so listing it greyed out beside the guns would
+		# read as "keep upgrading" and send the player the wrong way.
+		var st := String(r.get("station", ""))
+		if not st.is_empty():
+			if stations.has(st):
+				out.append(r)
+			continue
 		if r.bench <= bench or (r.get("hammer", false) and hammer and r.bench <= 1):
 			out.append(r)
 	return out
@@ -47,6 +89,12 @@ static func status(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> Dic
 	var effective := maxi(bench, 1) if r.get("hammer", false) and has_tool(p, "hammer") else bench
 	if r.bench > effective:
 		return {"ok": false, "reason": "Needs a Workbench" if r.bench == 1 else "Needs Workbench II"}
+	# Asked of the world rather than taken from the caller: on a guest this
+	# same function runs on the host, where standing beside the station is the
+	# only thing that can be checked honestly.
+	var station := String(r.get("station", ""))
+	if not station.is_empty() and sim.structs.near_station(p.pos, station).is_empty():
+		return {"ok": false, "reason": "Needs a %s" % station_name(station)}
 	if r.has("tool") and not has_tool(p, r.tool):
 		return {"ok": false, "reason": "Needs a %s" % Config.WEAPONS[r.tool].name}
 	# Duplicates are allowed: gear and guns are ordinary items you can carry,

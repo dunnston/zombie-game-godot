@@ -712,6 +712,91 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 		smoke.fail("a 30-point dose from 75 left the player in band %d" % p.mut_band)
 	await smoke.checkpoint("mutation_dosed")
 
+	# Phase 6b, through the real keys and the real panel: a meal, a chemistry
+	# bench, and the two things only the running game can show — what a Lurch
+	# looks like, and what a person with a rifle looks like coming at you.
+	p.bag.add("cannedFood", 1)
+	await smoke.tap("use_food")
+	await smoke.frames(2)
+	if p.using.is_empty():
+		smoke.fail("F did not start a meal")
+	await smoke.frames(120)
+	if not p.effects.has("fed"):
+		smoke.fail("the meal finished and no buff arrived")
+	await smoke.checkpoint("ate")
+
+	# The Chemistry Station, built where the player stands, and the recipe it
+	# unlocks appearing in the pack's CRAFT tab.
+	# Into the stash, not the pack: thirty slots are long since full by this
+	# point in the run, and `add` on a full grid quietly does nothing — which
+	# is what "Not enough materials" meant the first time this leg ran.
+	if sim.stash == null:
+		sim.stash = Slots.new(Config.STASH_SLOTS)
+	for id in ["scrap", "elec", "parts", "med", "wood"]:
+		sim.stash.add(id, 60)
+	sim.structs.bench_tier = 2
+	# Somewhere it will actually fit: the ground the player happens to be
+	# stood on is as likely to be a wall or a tree as not.
+	var chem_tile := Vector2i(-1, -1)
+	var why := "no tiles tried"
+	for i in [2, 3, 4, -2, -3, -4]:
+		for j in [0, -1, 1, -2, 2]:
+			var t := Vector2i(int(p.pos.x / 32) + i, int(p.pos.y / 32) + j)
+			var can := sim.structs.can_place(sim, "chemStation", t.x, t.y, p)
+			if can.ok:
+				chem_tile = t
+				break
+			why = String(can.reason)
+		if chem_tile.x >= 0:
+			break
+	if chem_tile.x < 0:
+		smoke.fail("nowhere to put a Chemistry Station (last refusal: %s)" % why)
+	else:
+		sim.structs.place(sim, "chemStation", chem_tile.x, chem_tile.y, p)
+		p.pos = Vector2(chem_tile.x * 32 + 16, chem_tile.y * 32 + 48)
+	await smoke.frames(3)
+	if sim.structs.at_tile(chem_tile.x, chem_tile.y).is_empty():
+		smoke.fail("the Chemistry Station would not go up")
+	if not Crafting.stations_at(sim, p).has("chem"):
+		smoke.fail("standing beside the station, the station is not in reach")
+	await smoke.tap("inventory")
+	await smoke.frames(2)
+	inventory.mode = "craft"
+	await smoke.frames(3)
+	var listed := false
+	for row in inventory._recipe_rows():
+		if String(row.recipe.id) == "suppressant":
+			listed = true
+	if not listed:
+		smoke.fail("the Refined Suppressant is not listed at its own bench")
+	await smoke.checkpoint("chem_station")
+	await smoke.tap("inventory")
+	await smoke.frames(2)
+
+	# A Lurch: the intent comes off the player and the screen says so.
+	Mutation.add(sim, p, 90.0 - p.mutation)
+	p.lurch_t = 1.6
+	sim.enemies.spawn("walker", p.pos + Vector2(220, 0), true)
+	await smoke.frames(3)
+	await smoke.checkpoint("lurching")
+	await smoke.frames(120)
+	if p.lurch_t > 0.0:
+		smoke.fail("the Lurch never let go")
+
+	# And the living. A Raider spawned at its own standoff should still be at
+	# arm's length a few seconds later, having spent the time shooting.
+	Mutation.suppress(sim, p, 100.0)
+	p.god_mode = true
+	var raider := sim.enemies.spawn("raider", p.pos + Vector2(300, 0), true)
+	await smoke.frames(4)
+	await smoke.checkpoint("raider")
+	await smoke.frames(180)
+	if raider.dead:
+		smoke.fail("the Raider died before it could show what it does")
+	elif raider.pos.distance_to(p.pos) < 100.0:
+		smoke.fail("the Raider closed to %.0f px — it is fighting like a walker" % raider.pos.distance_to(p.pos))
+	await smoke.checkpoint("raider_standoff")
+
 
 ## The scripted session: walk, sprint, photograph the districts, then fight.
 func smoke_run(smoke: Node) -> void:

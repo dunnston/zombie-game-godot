@@ -54,6 +54,23 @@ func _draw() -> void:
 	if hurt > 0.0:
 		draw_rect(Rect2(Vector2.ZERO, vp), Color("#8c1a1a", hurt * 0.45))
 
+	# The change, on the screen itself. It starts at the top band and grows
+	# with how far into it you are, and it *breathes* — a still tint reads as
+	# a bug, a slow pulse reads as something inside you. A Lurch is the same
+	# colour turned all the way up, so the moment your legs stop being yours
+	# looks like the thing that took them.
+	var feral_at := float(Config.MUTATION.bands[Config.MUTATION.bands.size() - 1].at)
+	var over := clampf((p.mutation - feral_at) / maxf(1.0, float(Config.MUTATION.max) - feral_at), 0.0, 1.0)
+	if over > 0.0 or p.lurch_t > 0.0:
+		var pulse := 0.62 + 0.38 * sin(sim.time * 2.4)
+		var a := 0.06 + 0.14 * over * pulse
+		if p.lurch_t > 0.0:
+			a = 0.34
+		draw_rect(Rect2(Vector2.ZERO, vp), Color("#b07ad0", a))
+		if p.lurch_t > 0.0:
+			draw_string(font, Vector2(0, vp.y * 0.34), "SOMETHING ELSE IS DRIVING",
+				HORIZONTAL_ALIGNMENT_CENTER, vp.x, 26, Color("#e0c0ff"))
+
 	# Where you are.
 	var loc := sim.world.location_at_px(p.pos.x, p.pos.y)
 	var label: String = loc.name if not loc.is_empty() else "THE OUTSKIRTS"
@@ -66,12 +83,16 @@ func _draw() -> void:
 	var raid := sim.raid
 	if raid != null:
 		var y := 70.0
+		# The living get their own colour. A horde and a raiding party want
+		# completely different answers, and the banner is where you find out
+		# which one is coming.
+		var rcol := Color("#d0a06a") if raid.human else Color("#e05a4a")
 		if raid.phase == "warning":
 			var text := "%s INCOMING — %ds" % [raid.spec.name, ceili(raid.timer)]
-			draw_string(font, Vector2(0, y), text, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 18, Color("#e05a4a"))
+			draw_string(font, Vector2(0, y), text, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 18, rcol)
 		else:
 			var text := "%s — WAVE %d/%d — %d left" % [raid.spec.name, raid.wave, raid.spec.waves, raid.total - raid.killed]
-			draw_string(font, Vector2(0, y), text, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 18, Color("#e05a4a"))
+			draw_string(font, Vector2(0, y), text, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 18, rcol)
 
 	# Bars, bottom left. The block grows upward from the hotbar row, so adding
 	# one does not push the others into it.
@@ -102,13 +123,15 @@ func _draw() -> void:
 			draw_line(Vector2(bx, y), Vector2(bx, y + 14), Color(1, 1, 1, 0.35), 1.0)
 	draw_string(font, Vector2(x + 6, y + 11), "MUTATION  %s" % String(band.name), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color.WHITE)
 	draw_string(font, Vector2(x, y + 11), "%d%%" % roundi(p.mutation), HORIZONTAL_ALIGNMENT_RIGHT, w - 6, 11, Color.WHITE)
-	# What is working through you, if anything: a buff, or a raw brain still
-	# being regretted.
+	# What is working through you, if anything: a meal, a Surge, or a raw
+	# brain still being regretted. Above the block rather than beside it —
+	# to the right is the weight bar, and two readouts sharing a line is how
+	# you get "Fed 300s" written through "221 / 225".
 	if not p.effects.is_empty():
 		var chips := PackedStringArray()
 		for id in p.effects:
 			chips.append("%s %ds" % [String(Config.EFFECTS[id].name), ceili(float(p.effects[id]))])
-		draw_string(font, Vector2(x + w + 10, y + 11), "  ·  ".join(chips), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.7))
+		draw_string(font, Vector2(x, vp.y - 96.0), "  ·  ".join(chips), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.7))
 
 	# Level and progress to the next one, under the other two bars. A point
 	# waiting to be spent says so here, because the character sheet is behind

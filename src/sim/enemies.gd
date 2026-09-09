@@ -232,6 +232,151 @@ static func _adjacent_structure(structs: Structures, e: EnemySim) -> Dictionary:
 	return {}
 
 
+# ------------------------------------------------------------------ humans --
+#
+# Everything the living do that the dead do not. Kept together here, and out
+# of the AI loop, because the loop is long enough already and because these
+# three are the whole difference between a Raider and a Walker with a hat on.
+
+## Fire if there is something to fire at, and hold the range the gun wants.
+## Returns true when this enemy is holding position — the loop then skips its
+## movement, which is what "does not run at you" actually means.
+static func _gun_tick(sim: GameSim, e: EnemySim, p: PlayerSim, dt: float) -> bool:
+	var g: Dictionary = e.def.gun
+	e.burst_t = maxf(0.0, e.burst_t - dt)
+	if not (e.aggro or e.raid):
+		return false
+	var target := _gun_target(sim, e, p, float(g.range))
+	if target == Vector2.INF:
+		# Nothing in the sights: walk like everything else does, which is how
+		# it closes the ground to get something in them.
+		e.burst_left = 0
+		return false
+
+	# In range is the whole behaviour, not just the frame it fires on. Getting
+	# this wrong is how the first cut shipped a Raider that walked into melee
+	# between shots and fought like a walker with a rifle.
+	e.angle = (target - e.pos).angle()
+	if e.burst_left > 0:
+		if e.burst_t <= 0.0:
+			_fire(sim, e, target)
+			e.burst_left -= 1
+			e.burst_t = float(g.get("burst_gap", 0.12))
+	elif e.atk_cd <= 0.0:
+		e.atk_cd = float(g.cd)
+		e.burst_left = maxi(1, int(g.get("burst", 1)))
+		_fire(sim, e, target)
+		e.burst_left -= 1
+		e.burst_t = float(g.get("burst_gap", 0.12))
+
+	# Standoff: it keeps the range its gun wants. A shotgun's is short, so an
+	# Enforcer walks in where a Raider backs off — one rule, two numbers.
+	var d := e.pos.distance_to(target)
+	var want := float(g.standoff)
+	var dir := 0.0
+	if d < want * 0.8:
+		dir = -1.0
+	elif d > want * 1.25:
+		dir = 1.0
+	if dir != 0.0:
+		var toward := (target - e.pos).normalized() * dir
+		e.vel += toward * e.speed * 6.0 * dt
+	e.vel *= exp(-7.5 * dt)
+	e.prev_pos = e.pos
+	e.pos = sim.world.move_circle(e.pos, e.vel * dt, e.r, sim.structs)
+	e.anim += dt * 5.0
+	return true
+
+
+## What this gun can see, or INF. Players first, then a survivor standing in
+## the way — the same order the melee code uses, and for the same reason.
+static func _gun_target(sim: GameSim, e: EnemySim, p: PlayerSim, range_: float) -> Vector2:
+	var r2 := range_ * range_
+	if p != null and e.pos.distance_squared_to(p.pos) < r2 \
+		and sim.world.has_terrain_line_of_sight(e.pos, p.pos):
+		return p.pos
+	for s in sim.crew.list:
+		if s.dead:
+			continue
+		if e.pos.distance_squared_to(s.pos) < r2 and sim.world.has_terrain_line_of_sight(e.pos, s.pos):
+			return s.pos
+	return Vector2.INF
+
+
+## One shot, or one shell's worth of pellets. `hostile` is what makes the
+## round belong to them: `Combat.tick_bullets` looks for people rather than
+## for enemies when it sees it, and nothing else in the game changes.
+static func _fire(sim: GameSim, e: EnemySim, at: Vector2) -> void:
+	var g: Dictionary = e.def.gun
+	var base := (at - e.pos).angle()
+	var muzzle := e.pos + Vector2.from_angle(base) * (e.r + 10.0)
+	for i in range(int(g.get("pellets", 1))):
+		var a := base + (sim.rng.next() - 0.5) * float(g.spread) * 2.0
+		var b := Combat.spawn_bullet(sim, muzzle, a, float(g.speed) * (0.94 + sim.rng.next() * 0.12),
+			float(g.dmg), float(g.range) / float(g.speed) * 1.2, 0.0, 0, e, false, "", String(g.get("color", "#ffd08a")))
+		b.hostile = true
+	# Gunfire is gunfire. Theirs carries to the horde exactly as yours does,
+	# which is the one honest piece of three-way fighting in here: a firefight
+	# in your yard brings the dead to it.
+	Sound.make_noise(sim, e.pos.x, e.pos.y, float(g.get("noise", 400.0)))
+
+
+## A Looter beside something worth emptying. Takes what it can carry, then
+## runs — so the way to get your stash back is to put it down before it gets
+## off the map.
+static func _try_steal(sim: GameSim, e: EnemySim) -> bool:
+	if not e.cargo.is_empty():
+		return false
+	var reach: float = e.r + Config.TILE
+	var best := sim.structs.nearest(e.pos, reach, func(s: Dictionary) -> bool:
+		return s.store != null and s.store.used() > 0)
+	if best.is_empty():
+		return false
+	var store: Slots = best.store
+	var took := 0
+	for i in range(store.size()):
+		if took >= int(e.def.steal.stacks):
+			break
+		var st := store.at(i)
+		if st.is_empty():
+			continue
+		var id := String(st.id)
+		var got := store.take(id, int(st.n))
+		if got > 0:
+			Items.map_add(e.cargo, id, got)
+			took += 1
+	if took == 0:
+		return false
+	e.flee_t = float(e.def.steal.flee)
+	e.aggro = false
+	sim.emit({"t": "stolen", "x": e.pos.x, "y": e.pos.y})
+	sim.notify("SOMEONE IS IN YOUR %s — put them down" % String(best.def.name).to_upper(), "#e05a4a", true)
+	return true
+
+
+## Running for the edge with your things. Not fighting, not stopping, and
+## still killable — which is the whole point of the timer.
+static func _flee(sim: GameSim, e: EnemySim, dt: float, night: Dictionary) -> void:
+	e.flee_t -= dt
+	e.aggro = false
+	var from := sim.raid.centre if sim.raid != null else e.last_pos
+	var away := (e.pos - from)
+	if away.length_squared() < 1.0:
+		away = Vector2.from_angle(e.wander_a)
+	var head := steer(sim.world, e, away.angle(), sim.structs)
+	e.angle += clampf(angle_delta(e.angle, head), -9.0 * dt, 9.0 * dt)
+	e.vel += Vector2.from_angle(head) * e.speed * night.speed * 1.15 * 8.0 * dt
+	e.vel *= exp(-7.5 * dt)
+	e.prev_pos = e.pos
+	e.pos = sim.world.move_circle(e.pos, e.vel * dt, e.r, sim.structs)
+	e.anim += dt * 6.0
+	e.last_pos = e.pos
+	# Gone. Whatever it was carrying goes with it.
+	if e.flee_t <= 0.0:
+		e.dead = true
+		sim.notify("They got away with it", "#c96a5a", true)
+
+
 static func angle_delta(a: float, b: float) -> float:
 	var d := fmod(b - a, TAU)
 	if d > PI:
@@ -335,6 +480,23 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 			tgt = e.pos + Vector2.from_angle(e.wander_a) * 80.0
 
 		var want_angle := (tgt - e.pos).angle()
+
+		# ------------------------------------------------------------- humans --
+		#
+		# Two things the dead do not do: shoot, and steal. Both are answered
+		# before the melee code below, and both can take the whole tick — a
+		# Raider holding its distance is not walking anywhere, and a Looter
+		# that has your stash in its pockets is not fighting.
+		if e.flee_t > 0.0:
+			_flee(sim, e, dt, night)
+			continue
+		if e.def.has("steal") and _try_steal(sim, e):
+			continue
+		if e.def.has("gun"):
+			var held := _gun_tick(sim, e, p, dt)
+			if held:
+				e.last_pos = e.pos
+				continue
 
 		# ---------------------------------------------------------- attacking --
 		if e.windup > 0.0:

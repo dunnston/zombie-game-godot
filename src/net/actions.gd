@@ -117,6 +117,19 @@ static func drop_stack(sim: GameSim, p: PlayerSim, cont_kind: String, index: int
 	return Equipment.drop_stack(sim, p, cont_kind, index, all, at, car)
 
 
+## Use the thing in this slot: a bandage, a meal, a dose. The slot rather than
+## the item id, because a slot is what was clicked and an id would let a guest
+## consume something it is not carrying.
+static func use_slot(sim: GameSim, p: PlayerSim, cont_kind: String, index: int) -> bool:
+	if _remote("use_slot", {"c": cont_kind, "i": index}):
+		return false
+	var cont := Equipment.container(p, cont_kind, null)
+	if cont == null:
+		return false
+	var id := cont.id_at(index)
+	return false if id.is_empty() else p.start_use(sim, id)
+
+
 static func drop_equipped(sim: GameSim, p: PlayerSim, slot: String) -> bool:
 	if _remote("drop_eq", {"slot": slot}):
 		return false
@@ -195,4 +208,10 @@ static func execute(sim: GameSim, p: PlayerSim, name_: String, a: Dictionary) ->
 			return Equipment.drop_stack(sim, p, String(a.get("c", "")), int(a.get("i", -1)), bool(a.get("all", true)), at, car)
 		"drop_eq":
 			return Equipment.drop_equipped(sim, p, String(a.get("slot", "")))
+		"use_slot":
+			var cont := Equipment.container(p, String(a.get("c", "")), null)
+			if cont == null:
+				return false
+			var id := cont.id_at(int(a.get("i", -1)))
+			return false if id.is_empty() else p.start_use(sim, id)
 	return false

@@ -59,14 +59,29 @@ func _draw_enemy(e: EnemySim) -> void:
 	var bob := sin(e.anim) * 1.5
 
 	draw_circle(c + Vector2(3, 4), e.r, SHADOW)
-	# Arms: out in front, raised wide during the wind-up.
-	var reach := e.r + (10.0 if e.windup > 0.0 else 6.0)
-	var spread := 0.55 if e.windup > 0.0 else 0.35
-	for s: float in [-1.0, 1.0]:
-		var a := c + side * (e.r * 0.6 * s)
-		var tip := c + (dir.rotated(spread * s)) * reach + side * (e.r * 0.3 * s)
-		draw_line(a, tip, dark, 3.0)
-		draw_circle(tip, 2.5, body)
+	# A person does not walk with its arms out. Readability first (pillar 4):
+	# the dead reach, the living hold something, and that silhouette is what
+	# has to say which one is coming at you across a dark field.
+	if e.def.get("human", false):
+		var held: float = e.r + (16.0 if e.def.has("gun") else 9.0)
+		draw_line(c + side * (e.r * 0.35), c + dir * held + side * (e.r * 0.2), dark, 3.0)
+		if e.def.has("gun"):
+			# The barrel, and the muzzle flash while the burst is running.
+			draw_line(c + dir * (e.r * 0.6), c + dir * held, dark.lightened(0.35), 4.0)
+			if e.burst_left > 0:
+				draw_circle(c + dir * (held + 3.0), 3.4, Color("#ffe6a8"))
+		if not e.cargo.is_empty():
+			# Carrying your things. Worth seeing from across the compound.
+			draw_circle(c - dir * (e.r * 0.7), 4.5, Color("#c9a227"))
+	else:
+		# Arms: out in front, raised wide during the wind-up.
+		var reach := e.r + (10.0 if e.windup > 0.0 else 6.0)
+		var spread := 0.55 if e.windup > 0.0 else 0.35
+		for s: float in [-1.0, 1.0]:
+			var a := c + side * (e.r * 0.6 * s)
+			var tip := c + (dir.rotated(spread * s)) * reach + side * (e.r * 0.3 * s)
+			draw_line(a, tip, dark, 3.0)
+			draw_circle(tip, 2.5, body)
 	draw_circle(c, e.r, body)
 	draw_circle(c, e.r, dark, false, 2.0)
 	# Head, leaning toward where it faces.
