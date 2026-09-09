@@ -92,6 +92,24 @@ func base_centre() -> Dictionary:
 	return {"pos": sum / n, "has_base": true}
 
 
+## Is `at` inside somebody's base? True within `Config.BASE.radius` of any
+## piece worth protecting — see the note on that constant for why the anchor is
+## every such piece rather than one centre.
+##
+## `base_centre` answers a different question and stays: it is where a raid
+## converges, which is a single point by definition. This is an area, and a
+## base with two compounds is two areas.
+func in_base(at: Vector2) -> bool:
+	var r: float = Config.BASE.radius
+	var r2 := r * r
+	for s in list:
+		if s.destroyed or not s.def.get("protect", false):
+			continue
+		if at.distance_squared_to(s.pos) <= r2:
+			return true
+	return false
+
+
 ## What a raider walks toward. Deliberately the *nearest* piece rather than
 ## the most valuable: that is what makes a horde break on the perimeter,
 ## which is the whole reason to build one. Protected pieces pull a little

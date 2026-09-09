@@ -76,7 +76,7 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 		if c.looted:
 			continue
 		var d: float = p.pos.distance_squared_to(Vector2(c.x, c.y))
-		if d < best_d:
+		if d < best_d and _in_sight(sim, p, Vector2(c.x, c.y)):
 			best_d = d
 			best = {"kind": "container", "ref": c, "label": "Search " + c.label}
 
@@ -123,6 +123,39 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 	return {}
 
 
+## Can `p` actually reach `at`, or is there a wall in the way? Reach was
+## distance alone, which let a player stand outside a house and empty the
+## cabinet on the other side of its wall.
+##
+## Only tiles *between* the two count. Both ends are excluded on purpose: the
+## player is standing in their own tile whatever it holds, and a cabinet is
+## itself a solid tile, so a line drawn to its centre would always report a
+## wall and nothing would ever be searchable.
+##
+## Sight uses the rule bullets use, so a fence you can shoot over is a fence you
+## can lean across, and a river is not a wall (invariant 3).
+static func _in_sight(sim: GameSim, p: PlayerSim, at: Vector2) -> bool:
+	var from_t := Vector2i(floori(p.pos.x / Config.TILE), floori(p.pos.y / Config.TILE))
+	var to_t := Vector2i(floori(at.x / Config.TILE), floori(at.y / Config.TILE))
+	# Anything on the next tile is simply within arm's reach: there is no room
+	# for a wall to be *between* two touching tiles, so no line is drawn. This
+	# is not a nicety — furniture is placed against walls, and six containers
+	# on the default map stand in alcoves whose only standable spot is a
+	# diagonal neighbour. Without this they became impossible to open.
+	if absi(from_t.x - to_t.x) <= 1 and absi(from_t.y - to_t.y) <= 1:
+		return true
+	var d := at - p.pos
+	var n := maxi(2, ceili(d.length() / 8.0))
+	for i in range(1, n):
+		var s := p.pos + d * (float(i) / n)
+		var t := Vector2i(floori(s.x / Config.TILE), floori(s.y / Config.TILE))
+		if t == from_t or t == to_t:
+			continue
+		if sim.world.bullet_blocks_px(s.x, s.y):
+			return false
+	return true
+
+
 ## Hand-gatherable scenery whose tile is within reach: litter, bushes, loose
 ## rocks. The big scenery is gated behind a tool and answers a swing, not a key.
 static func _nearest_hand_prop(sim: GameSim, p: PlayerSim, reach: float) -> Dictionary:
@@ -137,7 +170,7 @@ static func _nearest_hand_prop(sim: GameSim, p: PlayerSim, reach: float) -> Dict
 			if prop.is_empty() or not prop.get("hand", false):
 				continue
 			var d: float = p.pos.distance_squared_to(Vector2(prop.x, prop.y))
-			if d < best_d:
+			if d < best_d and _in_sight(sim, p, Vector2(prop.x, prop.y)):
 				best_d = d
 				best = prop
 	return best
@@ -149,6 +182,7 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 	if p.dead:
 		p.searching = {}
 		p.reviving = {}
+		p.car_hold = {}
 		return
 	var it := p.intent
 
@@ -167,6 +201,28 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 		if p.reviving.t >= p.reviving.dur:
 			p.reviving = {}
 			Damage.revive_player(sim, q, p)
+		return
+
+	# A car answers the same key twice: a tap drives, a hold opens the boot.
+	# The press frame cannot tell them apart — `interact_held` is already true
+	# on it — so the decision waits out `boot_hold` instead. Letting go first
+	# is the tap, and that is the common case, so it is the one that drives.
+	if not p.car_hold.is_empty():
+		var v: Dictionary = p.car_hold.car
+		var range_: float = Config.CAR.enter_range
+		if v.destroyed or p.pos.distance_squared_to(v.pos) > range_ * range_:
+			p.car_hold = {}
+			return
+		p.car_hold.t += dt
+		if not it.interact_held:
+			p.car_hold = {}
+			sim.cars.enter(sim, p, v)
+			return
+		if p.car_hold.t >= p.car_hold.dur:
+			p.car_hold = {}
+			# The sim does not know about screens: it says the boot was opened
+			# and the presentation decides what that looks like.
+			sim.emit({"t": "open_boot", "seat": p.seat, "id": int(v.id)})
 		return
 
 	if not p.searching.is_empty():
@@ -209,12 +265,11 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 			var v: Dictionary = target.ref
 			if v.destroyed:
 				sim.cars.salvage(sim, v, p)
-			elif it.interact_held:
+			else:
 				# Hold for the boot, tap to drive — the same tap/hold split a
 				# container already uses, so it is a habit rather than a rule.
-				sim.emit({"t": "open_boot", "seat": p.seat, "id": int(v.id)})
-			else:
-				sim.cars.enter(sim, p, v)
+				# Opening the channel is all the press frame may decide.
+				p.car_hold = {"car": v, "t": 0.0, "dur": Config.PLAYER.boot_hold}
 		"gate":
 			sim.structs.toggle_gate(sim, target.ref)
 		"generator":

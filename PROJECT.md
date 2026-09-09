@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-09, Phase 5: co-op — host-authoritative, up to four, over ENet; downed-not-dead; UPnP opens the port; room codes over WebRTC built and switched off. Then the content catalogue in Notion (Items & Crafting), and how it syncs into `config.gd`
+- **Last updated:** 2026-09-09, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -975,6 +975,40 @@ persistent shared worlds. Carried over from the prototype and still right.
 Distilled. The raw log is `tasks/lessons.md`; the prototype's full §8 is
 summarised in `tasks/port-inventory.md`.
 
+### A bug report describes an experience, not a cause
+
+DL-46 said felled trees stay on screen and drop nothing; DL-55 said gathered
+litter stays on the map. Neither reproduces. `remove_prop` clears the tile,
+flags `gone` and unblocks; the smoke run now fells a tree and gathers a stick
+with a photograph either side, and both are plainly gone with WOOD +11 and
+FIBER +3 over them.
+
+What does reproduce is the *experience*, and the smoke run hit both by
+accident while being written:
+
+- Two hundred axe swings took a tree from 470hp to 387, because the aim had
+  been set once before the camera settled and nearly every swing hit air. The
+  player faces the mouse. A swing that misses a tree is completely silent —
+  there is no way to tell it from a swing that is not working. That is DL-46.
+- The gather step failed with "E offers 'vehicle', not a gather". Gathering is
+  offered last by design, so a car or a shelf nearby takes the key and the
+  stick stays on the ground. That is DL-55.
+
+Both are readability, not removal, and neither is visible from the code or
+from a headless test that calls `chop_prop` directly. **Reproduce a report
+through the same surface the reporter used** — the mouse, the key, the
+screen — before deciding it is wrong.
+
+### A test that passes because of the bug
+
+The smoke run stood the player at `(container.tx, container.ty + 1)` to search
+a container. For the nightstand it picks, that tile is the *wall*: `unstick`
+shoved the player outside the building and the search worked anyway, through
+it. Fixing the wall-looting bug broke the test, and five more steps cascaded
+off it. A test whose setup relies on a bug will defend that bug, and it reads
+as a regression when the bug is fixed. The five cascading failures were one
+root cause; the temptation to revert was strongest at exactly the wrong moment.
+
 ### From the prototype, still true here
 
 - **Test by running the game.** Review finds nothing that matters in this
@@ -1272,6 +1306,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-09 | Bugfix round one, from the Notion 🐞 Open bugs view. **DL-45**: a tap of E beside a car opened the boot instead of driving — `interact_held` is already true on the frame `interact` fires, so the vehicle branch read every press as a hold and tap-to-drive had been unreachable since it shipped; the choice now waits out `Config.PLAYER.boot_hold` on a `car_hold` channel. **DL-45 (body)**: containers could be searched through a wall; reach now needs sight as well, using the rule bullets use, counting only tiles strictly between and exempting touching tiles. **DL-42**: 135 litter props on road and pavement tiles — `_plant_litter` had no surface policy, so the camp starter-cache planted on kitchen floors; `Config.LITTER_SURFACES` is now the one table and is enforced inside the planter. **DL-43**: zombies spawned inside the base because nothing knew what a base was — `Config.BASE.radius` and `Structures.in_base()`, anchored on every piece marked `protect`, excluded from ambient spawning (raids are untouched). **DL-56**: a dev menu behind F1, built only in a debug build or under `--dev`. **DL-46 / DL-55 do not reproduce** — see §8. 19 new tests (386 fast), 4 new smoke checkpoints |
 | 2026-09-09 | **Content catalogue in Notion.** Three linked databases under DEADLINE → Items & Crafting, seeded from `config.gd`: Items (every weapon, armour piece, ammo, consumable, material, utility item and structure — 98 rows, 27 of them the planned melee weapons — with recipe, bench, loot sources, recycling output, stats and status), Benches (Hand plus the planned Wood Work Bench, Scrap Work Bench, Tech Bench and Recycling, each in-game recipe placed on the bench it will move to), and Loot Sources (all 30 container kinds, 6 harvest scenery kinds, car trunks and stripped cars, with which buildings they furnish). Ten views on Items: Weapons by class, Armor by slot, Ammo & Consumables, Materials with what they are used for, Structures, By bench board, Craft by hand, Findable, Planned, Everything. The 27 melee weapons from the owner's class list (Improvised, Blunt, Bladed, Axes, Polearms, Heavy) are in as Planned. No code change; §10 gains the sync procedure |
 | 2026-09-09 | Phase 5 Codex pass on PR #15: intent **edges travel on the reliable channel** as their own message (`msg_edges`), once, and the state packet carries held state only — a dropped datagram no longer swallows a press and a duplicate cannot toggle a gate twice; **seats belong to who is present**: a parked character gives its seat up to a newcomer and gets one back on return, so three absent friends cannot make a game "full"; `open_boot` names its seat and is gated like `open_store`; an emptied boot sends one empty record so a guest's copy clears; automated kills and raid payouts pay `present_players()` only. Also: the test runner now fails a file that loads but cannot instantiate (a parse error had been counting as zero tests, zero failures — `net_test.gd` vanished from a run that reported green). 7 new tests |
 | 2026-09-09 | Phase 5, the room-code road (off): `PeerHub` — the `MultiplayerPeer`-behind-`NetLink` half of `EnetHub` pulled out as a base, with the "no answer" text reserved for a dial nobody answered; `EnetHub` extends it; `WebRtcHub` — rooms and joins over `WebRTCMultiplayerPeer`, signalling over `WebSocketPeer` to `server/signal.js`, room codes, gid→peer id, a connection factory, `available()`; `server/` — the prototype's broker with a `package.json` and a README for free-tier hosting; `tools/fetch-webrtc` for the native extension into gitignored `addons/webrtc/`; `Config.NET.broker`, `stun`, `rtc_timeout`; the HOST page's ROOM CODE row and JOIN taking a code; `tests/support/fake_rtc.gd` and `fake_broker.gd`; `webrtc_test` (4, fast: the handshake through the real multiplayer peer) and `webrtc_slow_test` (1: the real broker under Node, and real WebRTC on localhost when the extension is present) |

@@ -135,6 +135,14 @@ func tick_spawning(sim: GameSim, dt: float) -> void:
 			continue
 		if sim.quiet.suppressed(spot.x, spot.y, sim.structs):
 			continue
+		# Never inside somebody's home. The ring sits a screen out, so this
+		# bites when the player is standing at the edge of their base or just
+		# outside it and the ring lands on the far side of the walls — which
+		# is exactly how zombies were appearing in the kitchen. A raid is how
+		# a base is supposed to be attacked, and raids do not come through
+		# here at all.
+		if sim.structs != null and sim.structs.in_base(spot):
+			continue
 		var spot_tier := sim.world.danger_at_px(spot.x, spot.y)
 		# The type comes from where the spot landed, so the body is only
 		# known now — and an open tile centre is not room for every body. A

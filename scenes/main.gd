@@ -29,6 +29,8 @@ var ears: SfxView
 var inventory: InventoryScreen
 var build_bar: BuildBar
 var menu: MenuScreen
+## The dev menu, or null in a release build.
+var dev: DevScreen = null
 var shake := 0.0
 
 ## Co-op (Phase 5). `me` is the local player whatever seat it holds; every
@@ -125,6 +127,12 @@ func _ready() -> void:
 	build_bar = BuildBar.new(sim)
 	layer.add_child(build_bar)
 	structure_view.build_bar = build_bar
+	# The dev menu exists only where a developer is: a debug build, or an
+	# export run with --dev. A release build never constructs it, so there is
+	# nothing to remember to switch off before shipping.
+	if OS.is_debug_build() or OS.get_cmdline_args().has("--dev"):
+		dev = DevScreen.new(sim)
+		layer.add_child(dev)
 	menu = MenuScreen.new()
 	menu.chose.connect(_on_menu)
 	layer.add_child(menu)
@@ -170,6 +178,34 @@ func _physics_process(dt: float) -> void:
 	# Polled rather than handled as an event, like every other key here: the
 	# smoke run presses actions through `Input`, which sets the action state
 	# without ever synthesising an InputEvent.
+	# The dev menu is typed into, so while it is up it owns the keyboard: none
+	# of the screen keys below may fire, or looking for "bandage" would open
+	# the build bar, the pack and the character sheet on the way. F1 itself is
+	# read here rather than in the panel, because these are polled actions and
+	# the panel only sees real InputEvents.
+	if dev != null:
+		if Input.is_action_just_pressed("dev_menu"):
+			dev.toggle()
+		if dev.open:
+			# The world keeps running underneath, so you can watch what you
+			# just did. It only stops answering this keyboard.
+			var held := me.intent
+			held.clear_edges()
+			held.mx = 0.0
+			held.my = 0.0
+			held.sprint = false
+			held.sneak = false
+			held.fire = false
+			held.interact_held = false
+			held.aim = me.pos + Vector2.from_angle(me.angle) * 64.0
+			if role == "guest":
+				net_guest.poll()
+				net_guest.tick(dt)
+				_after_guest_step()
+			else:
+				_host_step(dt)
+			return
+
 	if Input.is_action_just_pressed("inventory"):
 		inventory.mode = "pack"
 		inventory.toggle()
@@ -374,6 +410,8 @@ func _set_local(p: PlayerSim) -> void:
 	props_below.player = p
 	props_above.player = p
 	ears.player = p
+	if dev != null:
+		dev.player = p
 
 
 func _process(dt: float) -> void:
@@ -511,6 +549,138 @@ func smoke_nearest_container(at: Vector2) -> Dictionary:
 	return best
 
 
+## Puts the player somewhere he can actually search `c` from: an open tile
+## beside it with nothing in the way. Returns false if there is no such spot.
+##
+## This used to be `teleport(tx, ty + 1)`, which assumed the tile under a
+## container is standable. Furniture is placed against walls, so for the
+## nightstand the smoke picks, that tile *is* the wall — `unstick` shoved the
+## player outside the building and the search worked anyway, through it. That
+## was the bug in DL-45, and the smoke run was leaning on it.
+func smoke_stand_beside(c: Dictionary) -> bool:
+	var p := sim.players[0]
+	var at := Vector2(c.x, c.y)
+	var best := Vector2.INF
+	var best_d := INF
+	for dy in range(-2, 3):
+		for dx in range(-2, 3):
+			if dx == 0 and dy == 0:
+				continue
+			var stand := Vector2((int(c.tx) + dx) * 32 + 16, (int(c.ty) + dy) * 32 + 16)
+			if stand.distance_to(at) > Config.PLAYER.interact_range:
+				continue
+			if sim.world.circle_hits_solid(stand.x, stand.y, p.r, sim.structs):
+				continue
+			var was := p.pos
+			p.pos = stand
+			var sees := String(Interact.best_target(sim, p).get("kind", "")) == "container"
+			p.pos = was
+			if not sees:
+				continue
+			var d := stand.distance_to(at)
+			if d < best_d:
+				best_d = d
+				best = stand
+	if best == Vector2.INF:
+		return false
+	p.pos = best
+	p.vel = Vector2.ZERO
+	camera.position = p.pos
+	return true
+
+
+## The nearest prop to a point matching `pred`, still standing.
+func smoke_nearest_prop(at: Vector2, pred: Callable) -> Dictionary:
+	var best := {}
+	var bd := INF
+	for prop in sim.world.props:
+		if prop.get("gone", false) or not pred.call(prop):
+			continue
+		var d: float = at.distance_squared_to(Vector2(prop.x, prop.y))
+		if d < bd:
+			bd = d
+			best = prop
+	return best
+
+
+## Chop a tree down and gather a stick, photographing each before and after.
+## Asserts on the world *and* on the picture: a prop that is gone from
+## `world.props` but still on screen is exactly the bug being chased, and only
+## the screenshots can tell the two apart.
+func smoke_chop_and_gather(smoke: Node) -> void:
+	var p := sim.players[0]
+
+	var tree := smoke_nearest_prop(p.pos, func(pr): return String(pr.get("kind", "")) == "tree")
+	if tree.is_empty():
+		smoke.fail("no tree in the world to chop")
+		return
+	var at := Vector2(tree.x, tree.y)
+	p.pos = sim.world.unstick(at + Vector2(0, 44), p.r)
+	camera.position = p.pos
+	smoke_aim(at)
+	# A hatchet, so the swing is a chop rather than a bounce.
+	Loot.give_entry(sim, p, {"id": "weapon:axe", "n": 1})
+	var axe_slot := p.hotbar_index("axe")
+	if axe_slot < 0:
+		smoke.fail("the hatchet did not reach the hotbar")
+	else:
+		p.slot = axe_slot
+	await smoke.frames(3)
+	await smoke.checkpoint("tree_standing")
+
+	# Aim inside the loop, not once before it. The player faces wherever the
+	# mouse points, and the canvas transform is only right once the camera has
+	# settled — aiming once before that let almost every swing hit air.
+	var swings := 0
+	while not tree.get("gone", false) and swings < 200:
+		swings += 1
+		p.stam = p.max_stam
+		smoke_aim(at)
+		await smoke.frames(1)
+		Input.action_press("fire")
+		await smoke.frames(3)
+		Input.action_release("fire")
+		await smoke.frames(3)
+	if not tree.get("gone", false):
+		smoke.fail("the tree would not fall after %d swings (hp %.0f)" % [swings, tree.hp])
+	if not sim.world.prop_at_tile(int(tree.tx), int(tree.ty)).is_empty():
+		smoke.fail("the felled tree still occupies its tile")
+	if p.count_carried("wood") <= 0:
+		smoke.fail("felling the tree gave no wood")
+	await smoke.frames(6)
+	await smoke.checkpoint("tree_felled")
+
+	# Gathering is offered last, only when nothing else wants the key, so the
+	# stick has to be one with no car, container or neighbour beside it —
+	# otherwise this measures the priority order rather than the gather.
+	var stick := smoke_nearest_prop(p.pos, func(pr):
+		if not pr.get("hand", false):
+			return false
+		var was := p.pos
+		p.pos = Vector2(pr.x, pr.y)
+		var alone := String(Interact.best_target(sim, p).get("kind", "")) == "gather"
+		p.pos = was
+		return alone)
+	if stick.is_empty():
+		smoke.fail("no hand-gatherable prop standing on its own to pick up")
+		return
+	p.pos = sim.world.unstick(Vector2(stick.x, stick.y), p.r)
+	camera.position = p.pos
+	await smoke.frames(3)
+	var target := Interact.best_target(sim, p)
+	if String(target.get("kind", "")) != "gather":
+		smoke.fail("E beside the litter offers '%s', not a gather" % String(target.get("kind", "<none>")))
+	await smoke.checkpoint("litter_there")
+
+	await smoke.tap("interact")
+	await smoke.frames(6)
+	if not stick.get("gone", false):
+		smoke.fail("the gathered prop is still in the world")
+	if not sim.world.prop_at_tile(int(stick.tx), int(stick.ty)).is_empty():
+		smoke.fail("the gathered prop still occupies its tile")
+	await smoke.checkpoint("litter_gathered")
+
+
 ## The scripted session: walk, sprint, photograph the districts, then fight.
 func smoke_run(smoke: Node) -> void:
 	var p := sim.players[0]
@@ -538,7 +708,8 @@ func smoke_run(smoke: Node) -> void:
 	if box.is_empty():
 		smoke.fail("no container in the world to search")
 	else:
-		smoke_teleport(int(box.tx), int(box.ty) + 1)
+		if not smoke_stand_beside(box):
+			smoke.fail("nowhere to stand that can search the %s" % box.label)
 		await smoke.frames(3)
 		var before := p.bag.used()
 		await smoke.hold("interact", 150)
@@ -626,8 +797,17 @@ func smoke_run(smoke: Node) -> void:
 			smoke.fail("walked straight through the wall")
 		if p.pos.x <= before_x:
 			smoke.fail("did not walk toward the wall at all")
-		# Damage it, then repair it with the tool.
+		# Damage it, then repair it with the tool. Stock the bill first: the
+		# top-up before the build step goes into whatever room the pack has
+		# left, and by here a lucky run has filled it, so `bag.add` quietly
+		# takes less than it was given. Repair is all-or-nothing, so a run that
+		# looted well would fail on materials and read as a broken sweep.
+		for id in ["wood", "stone", "sticks", "scrap"]:
+			p.bag.add(id, 40)
 		sim.structs.damage(sim, wall, wall.max_hp * 0.6)
+		if not p.can_afford(sim, Structures.repair_cost(wall, p.build_cost_mul)):
+			smoke.fail("could not stock the repair bill: %s" %
+				Structures.cost_label(Structures.repair_cost(wall, p.build_cost_mul)))
 		build_bar.selected = build_bar.cards().find("repair")
 		# REPAIR is the tool you may hold: press and keep holding, and the
 		# sweep fixes what is under the cursor.
@@ -1177,6 +1357,14 @@ func smoke_run(smoke: Node) -> void:
 			await smoke.checkpoint("coop_left")
 	smoke_guest = null
 	_stop_hosting()
+
+	# Last, because it moves the player and changes what is in his hands, and
+	# every step above depends on where it left him. Felling a tree and picking
+	# up a stick, photographed either side: the owner reported that neither ever
+	# left the screen, the headless tests said both leave the world, and nothing
+	# in the smoke run had ever chopped or gathered anything — which is how a gap
+	# that size stayed open.
+	await smoke_chop_and_gather(smoke)
 
 # --------------------------------------------------------------- the menu --
 

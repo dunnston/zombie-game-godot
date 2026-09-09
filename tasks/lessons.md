@@ -208,3 +208,29 @@ yet when an earlier autoload's `_ready` wants to know.
 - `UPNP.discover` outlasts its own timeout on a machine with no router:
   eight seconds to say "nobody". Run it on a thread, and never join that
   thread from STOP HOSTING — orphan it and reap it from `_process`.
+- `is_action_pressed` is already true on the frame `is_action_just_pressed`
+  fires. Any tap/hold split that reads the held flag on the press frame will
+  always take the hold branch. `Interact`'s vehicle case did, so tap-to-drive
+  was unreachable from the day it shipped and only a bug report found it. A
+  hold is a channel with a duration, never a flag read once.
+- Reproduce a bug report through the surface the reporter used. "Trees stay
+  after chopping and drop nothing" does not reproduce when you call
+  `chop_prop` directly — it reproduces when you swing at where the mouse is
+  pointing and miss, which is silent. The headless test and the owner were
+  both right about different things.
+- A test whose setup depends on a bug will defend that bug. The smoke run
+  stood the player on the wall beside a nightstand and searched through it;
+  fixing wall-looting broke that step and cascaded into five more, all one
+  root cause. Read the first failure before believing the other five.
+- Measure a rule's cost before believing a survey that says it is expensive.
+  A first pass said the new sight rule stranded six containers; it had been
+  measuring `best_target`, which was answering "recruit" because a survivor
+  was standing there. Isolating the predicate showed it stranded none.
+- Anything on a touching tile is in reach — no line is drawn. Furniture
+  stands against walls and some of it in alcoves whose only standable spot is
+  a diagonal neighbour, so a sight rule that samples the whole segment makes
+  those impossible to open.
+- The global RNG stream is shared. Changing how many draws happen anywhere —
+  a `continue` that skips a `pick_type` — changes every roll after it, so a
+  smoke step that depends on having looted well will fail for reasons that
+  have nothing to do with it. Steps should stock their own preconditions.

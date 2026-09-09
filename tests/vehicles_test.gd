@@ -569,16 +569,26 @@ func test_the_boot_and_the_refuel_button_are_reachable() -> void:
 	# All three of stow, unload and refuel had no caller but a test. Hold E at
 	# a car opens the boot in the same two-panel screen a chest uses, and the
 	# refuel button lives on it.
+	#
+	# The hold has to be a real one. This used to pass with a single tick,
+	# because the press frame was read as a hold — which is exactly what made
+	# tap-to-drive unreachable (DL-45). The boot now waits out `boot_hold`.
 	var v := _open_car()
 	p.pos = v.pos
 	p.intent.interact = true
 	p.intent.interact_held = true
 	Interact.tick(sim, p, 1.0 / 60.0)
 	p.intent.interact = false
+	for i in range(240):
+		if not events_of(sim, "open_boot").is_empty():
+			break
+		p.intent.interact_held = true
+		Interact.tick(sim, p, 1.0 / 60.0)
 	p.intent.interact_held = false
 	var opened := events_of(sim, "open_boot")
 	eq(opened.size(), 1, "holding E at a car asks for the boot")
 	eq(int(opened[0].id), int(v.id))
+	eq(p.driving_id, 0, "and holding does not also drive off")
 
 
 func test_a_downed_survivor_beats_the_car_they_are_lying_next_to() -> void:
