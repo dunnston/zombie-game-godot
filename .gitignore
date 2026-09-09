@@ -6,3 +6,6 @@
 # Third-party binaries and packages: fetched, not committed
 server/node_modules/
 addons/webrtc/
+
+# Personal Claude Code settings (permissions, not project config)
+.claude/settings.local.json
