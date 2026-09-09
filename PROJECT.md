@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-09, Phase 5: co-op — host-authoritative, up to four, over ENet; downed-not-dead; UPnP opens the port
+- **Last updated:** 2026-09-09, Phase 5: co-op — host-authoritative, up to four, over ENet; downed-not-dead; UPnP opens the port; room codes over WebRTC built and switched off
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -290,6 +290,19 @@ The spec for each row is in `tasks/port-inventory.md`.
   router — a discovery still running is orphaned and takes its own mapping
   down. Carrier-grade NAT and routers with UPnP off are the two things it
   cannot get past; those are the VPN or the WebRTC road (§6).
+- **The room-code road, built and switched off.** `WebRtcHub` is the same
+  `PeerHub` face over `WebRTCMultiplayerPeer`: the host registers with the
+  broker (`server/signal.js`, the prototype's, unchanged) and gets a
+  six-letter code, a guest joins with the code, and the broker relays the
+  offer, the answer and the ICE candidates until the two machines talk
+  directly. The signalling is a `NetSignaller` over the engine's own
+  `WebSocketPeer`; the connection comes from a factory. It is off until
+  `Config.NET.broker` names a broker **and** the native `webrtc-native`
+  extension is in `addons/webrtc/` (`tools/fetch-webrtc`, gitignored) —
+  the engine ships the WebRTC API and not the implementation. With both,
+  START HOSTING opens a room beside the port and shows the code, and JOIN
+  takes a code where it takes an address. The switch is those three steps;
+  `server/README.md` has the free-tier deployment.
 - **The transport is a face.** `NetLink` is bytes in on a channel, bytes out
   with the channel they came on. `Loopback` is a pair of queues — optionally
   lossy and out of order — and is what the tests and the smoke run join a
@@ -867,6 +880,7 @@ Phases 1–4 respecting it.
 | 2026-09-08 | A dropped pile ignores its dropper until they step clear | It lands at your feet, inside collection range, so without the hold-off the magnet hands it straight back and dropping does nothing. A state, not a timer: it waits as long as you stand there. Teammates may take it immediately — that is how you hand something over. | Yes |
 | 2026-09-08 | The pack screen is drawn immediate-mode, not built from Control nodes | One `_cells()` function produces the rectangles that both the drawing and the hit test use, so they cannot describe different grids. It is also how the HUD already works, and how the prototype's canvas inventory worked. | Yes, but it is a rewrite |
 | 2026-09-08 | Panels are polled, not handled as input events | `Input.action_press` sets action state without synthesising an `InputEvent`, so a scripted Tab never reached `_unhandled_input` and the smoke run could not open the pack. Polling `is_action_just_pressed` matches every other key here and keeps the smoke path honest. | Yes |
+| 2026-09-09 | The WebRTC road is built to the last step and left switched off | The owner wants to flip to it quickly if UPnP fails, so everything that can be written and tested without the native binaries is: the hub, the broker wire over the real WebSocket, the menu rows, the fetch script and the deployment notes. The binaries stay out of git (`addons/webrtc/` is ignored) because they are per-platform, several megabytes, and a download away; and the broker URL stays empty in `Config` because there is no broker yet. A GDScript `WebRTCPeerConnectionExtension` stands in for the native one in tests — it carries the handshake and the connection through the real `WebRTCMultiplayerPeer`, but not bytes: the engine hands that layer raw pointers. | Yes — one config value and one script |
 | 2026-09-09 | UPnP before WebRTC for internet play | The owner asked for the cheap way. UPnP is twenty lines against a class the engine ships, no binaries to vendor and no broker to keep alive; it fails only on routers with it switched off and on carrier-grade NAT. WebRTC stays the road for those cases: an extension, a broker on a free tier, and TURN money if STUN is not enough. Try the free thing with real friends before paying for the sure thing. | Yes — additive |
 | 2026-09-09 | Co-op transport is ENet, built into the engine, not WebRTC | The plan said WebRTC because the browser had no choice. Godot's WebRTC is a GDExtension that is not in the engine — tens of megabytes of binaries to vendor per platform — and it still needs the signalling broker to introduce two peers. ENet is in the box, needs no broker, and is the same `MultiplayerPeer` face; every session object above the hub is transport-blind, so WebRTC is an additive change when the owner wants internet play without port forwarding. What ENet does not do is punch through two home routers on its own. | Yes — `EnetHub` gets a sibling |
 | 2026-09-09 | A guest holds a real `GameSim` as its mirror, never ticked | Every view already reads a `GameSim`; teaching them a second shape would have meant a second view layer. The mirror is built by `SaveGame.apply` (so joining is the load path, invariant 7 keeps container identity honest) and snapshots write into its lists. Its clock, stats and threat are whatever the host last said. | Expensive later |
@@ -934,8 +948,11 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    router has not answered it yet; the HOST page will say whether it did.
    If it says no, or a friend is behind carrier-grade NAT, the roads left
    are a VPN (no code) or the WebRTC GDExtension plus the prototype's
-   `server/signal.js` broker on a free host (a session; `EnetHub` gets a
-   sibling, the sessions do not change) — see §6.
+   `server/signal.js` broker on a free host — **already built**: run
+   `tools/fetch-webrtc`, deploy `server/` (README), set `Config.NET.broker`.
+   The one thing untested until the extension is fetched is bytes over a
+   real WebRTC channel; `webrtc_slow_test` runs that leg on localhost the
+   moment `WebRtcHub.available()` is true — see §6.
 1. **The test budget.** The fast tier is ~20s against a ten-second rule.
    `save_test.gd` regenerates worlds and belongs in the slow tier, and
    `net_test.gd` opens a real UDP socket once; both are owner decisions
@@ -1101,7 +1118,7 @@ All must report **zero failures**. Current expected output:
 
 ```
 tests: 362  asserts: 4989  failures: 0
-tests: 394  asserts: 5115  failures: 0   (--all)
+tests: 399  asserts: 5153  failures: 0   (--all)
 SMOKE done checkpoints=48 failures=0 exit=0
 ```
 
@@ -1212,6 +1229,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-09 | Phase 5, the room-code road (off): `PeerHub` — the `MultiplayerPeer`-behind-`NetLink` half of `EnetHub` pulled out as a base, with the "no answer" text reserved for a dial nobody answered; `EnetHub` extends it; `WebRtcHub` — rooms and joins over `WebRTCMultiplayerPeer`, signalling over `WebSocketPeer` to `server/signal.js`, room codes, gid→peer id, a connection factory, `available()`; `server/` — the prototype's broker with a `package.json` and a README for free-tier hosting; `tools/fetch-webrtc` for the native extension into gitignored `addons/webrtc/`; `Config.NET.broker`, `stun`, `rtc_timeout`; the HOST page's ROOM CODE row and JOIN taking a code; `tests/support/fake_rtc.gd` and `fake_broker.gd`; `webrtc_test` (4, fast: the handshake through the real multiplayer peer) and `webrtc_slow_test` (1: the real broker under Node, and real WebRTC on localhost when the extension is present) |
 | 2026-09-09 | Phase 5, the door: `NetDoor` — UPnP port mapping on a thread when hosting starts, the public address queried and shown on the HOST page as a click-to-copy row, the LAN addresses beside it, refusal reasons in words, and a close that never blocks on a router (an unfinished discovery is orphaned, reaped from `_process`, and takes its own mapping down); `Config.NET.upnp`, `upnp_timeout_ms`, `upnp_lease_s`; `door_slow_test.gd` (2 tests, slow tier: discovery on a box with no router takes eight seconds to say so) |
 | 2026-09-09 | Phase 5 (co-op) — **every phase built**: `Config.NET`; `src/net/` — `NetProtocol` (framing with zstd over 900 bytes, packed intents with edge merging, flat-array snapshots, structure and inventory records, the join refusal), `NetLink` with `Loopback` (lossy, reordering, seeded), `EnetHub` over `ENetMultiplayerPeer`, `NetHost` (admission by identity, intent expiry, snapshots at 20Hz, inventory and store diffs, world diffs, event relay by interest), `NetGuest` (the mirror via `SaveGame.apply`, prediction with `PlayerSim.move`, easing, cosmetic tracers, the roster), `Actions` (the command seam the pack screen now calls) and `NetPrefs`; `PlayerSim` gains identity, away, downed, down_t and reviving; `GameSim` gains join, park, unpark, present players and `has_teammate_for`; `Damage` gains down, bleed-out and revive; `Interact` offers a downed teammate first and runs the revive channel; `SaveGame` v7; `Equipment.move_stack` and `drop_stack` resolve a car boot by id (dragging in and out of a boot works now); `PlayerView` draws every player with names and the downed pose; the HUD shows teammates, the downed state and the revive bar; the map shows teammates; MULTIPLAYER, HOST and JOIN pages with typed fields; the host and guest loops in `main.gd`; 24 new tests (362 fast, 392 with `--all`) including a real UDP handshake on localhost and a 30%-loss loopback; three smoke checkpoints with a loopback guest joined, walked and parked. Fixed in passing: a felled tree kept being drawn until a reload |
 | 2026-09-08 | Phase 4d (audio) — **Phase 4 complete**: `Config.SFX` (35 cues as recipes), `SFX_THROTTLE`, `SFX_RATE`/`SFX_GAIN`/`SFX_NEAR`/`SFX_RANGE`; `Sfx` — tone and filtered-noise synthesis rendered to PCM at boot rather than a graph per shot, a Chamberlin state-variable filter for the lowpass/highpass/bandpass with a per-sample cutoff sweep, a 24-voice pool, the per-kind rate limit, and mute persisted to `user://audio.json`; `SfxView` maps sim events to cues so `src/sim` never learns that sound exists; the gunshot rides the muzzle flash rather than the bullet, so a shotgun is one bang and not eight; distance falloff, which the prototype had none of; the hit event gained a `kind` so a pipe thumps and a bullet pings; SOUND on the pause menu and the title; 19 new tests (338 fast, 368 with `--all`); a smoke checkpoint that plays every cue and checks a voice actually started. The bank was 205ms at boot until the per-sample `exp` and `pow` became stepped multipliers giving the identical curve: 91ms. The autoload is `Audio`, not `Sfx` — an autoload whose name matches a `class_name` shadows the class, and under `-s` the name then resolves to a bare GDScript with no static methods, which is the second time this project has hit that |

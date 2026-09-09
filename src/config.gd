@@ -99,6 +99,14 @@ const NET := {
 	"upnp": true,
 	"upnp_timeout_ms": 2000,    # how long to wait for a router to answer discovery
 	"upnp_lease_s": 0,          # 0 is "until removed"; some routers refuse a lease
+	## Room codes over WebRTC (`WebRtcHub`): built, tested, and OFF until this
+	## names a broker — `server/signal.js` on a public host, e.g.
+	## "wss://deadline-signal.fly.dev". Also needs the native extension in
+	## `addons/webrtc/` (`tools/fetch-webrtc`). With both, START HOSTING opens
+	## a room beside the UDP port and JOIN accepts a six-letter code.
+	"broker": "",
+	"stun": ["stun:stun.l.google.com:19302"],
+	"rtc_timeout": 25.0,        # seconds a WebRTC dial may take: broker, offer, ICE
 	"guest_view_radius": 880.0, # what the spawner assumes a guest can see
 }
 

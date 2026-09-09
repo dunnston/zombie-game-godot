@@ -190,6 +190,14 @@ yet when an earlier autoload's `_ready` wants to know.
   Solo had this bug all along; the guest mirror made it visible.
 - `_set` is a virtual on Object; naming a method `_set` with a different
   signature is a parse error in the caller's script chain, not in the file.
+- A GDScript `WebRTCPeerConnectionExtension` can carry the real
+  `WebRTCMultiplayerPeer` through offer, answer and peer-connected — but a
+  `WebRTCDataChannelExtension` gets `_put_packet(pointer, size)`, which a
+  script cannot fill. Test the handshake with the fake; test bytes with the
+  native extension.
+- GitHub's pages and API are 403 through this session's proxy; only exact
+  release download URLs pass. A release asset whose name you do not know
+  cannot be found from here — leave a fetch script and the URL to the owner.
 - `UPNP.discover` outlasts its own timeout on a machine with no router:
   eight seconds to say "nobody". Run it on a thread, and never join that
   thread from STOP HOSTING — orphan it and reap it from `_process`.

@@ -275,9 +275,12 @@ Split from vehicles: two systems in one PR is one review of neither.
 - [x] Loopback link for tests and smoke; a real UDP handshake in the suite
 - [x] UPnP: the host asks its router to open the port and shows the public
       address (the cheap road onto the internet — no server, no extension)
-- [ ] Signalling broker + WebRTC extension (`server/signal.js` from the
-      prototype) — only if UPnP says no for the owner's router or a
-      friend's carrier-grade NAT
+- [x] Room codes over WebRTC: `WebRtcHub`, the broker in `server/`, the
+      fetch script, the menu rows, tests with a stand-in connection —
+      **switched off** (`Config.NET.broker` empty, no binaries in git)
+- [ ] Switch it on if UPnP says no: `tools/fetch-webrtc`, deploy `server/`
+      to a free tier, set `Config.NET.broker`, run `tools/test --all` (the
+      slow test then walks a guest over real WebRTC on localhost)
 - [ ] Owner plays with a friend (the Phase 5 gate)
 
 ## Open decisions (owner)
@@ -325,9 +328,13 @@ play across two NATs — ENet does not do that alone.
   drift, so an animation keyed to it can hitch on a bad link.
 - The host's pause menu keeps the world running while anyone is connected;
   the host's own body stands still. The guests are not told.
-- No broker, no room codes: an address and a port. UPnP asks the router to
-  open it; whether the owner's router agrees is the first thing to look at
-  on the HOST page.
+- No broker deployed, so no room codes yet: an address and a port. UPnP
+  asks the router to open it; whether the owner's router agrees is the
+  first thing to look at on the HOST page. The room-code road is built
+  behind `Config.NET.broker`.
+- Bytes over a real WebRTC channel are untested until the native extension
+  is fetched; the test that walks a guest over it is written and gated on
+  `WebRtcHub.available()`.
 
 ## Review — Phase 1 (2026-09-08)
 

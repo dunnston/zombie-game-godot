@@ -32,7 +32,7 @@ var over_game := false
 ## role ("solo", "host", "guest", "joining"), a status line, the last error,
 ## the guests' names and the port.
 var net := {"role": "solo", "status": "", "error": "", "guests": [], "port": 0,
-	"door": "", "public": "", "lan": []}
+	"door": "", "public": "", "lan": [], "code": "", "room": ""}
 ## What the HOST and JOIN pages type into. Loaded from this machine's
 ## `NetPrefs`, written back when a game is hosted or joined.
 var fields := {"address": "", "name": "", "password": ""}
@@ -152,6 +152,12 @@ func _rows() -> Array[Dictionary]:
 				var n: int = (net.guests as Array).size()
 				out.append(_row("info", "HOSTING ON UDP PORT %d" % int(net.port),
 					"%d connected: %s" % [n, ", ".join(net.guests)] if n > 0 else "Nobody has joined yet", false))
+				# The room code, when the broker road is switched on: the
+				# thing to read out over voice chat.
+				if not String(net.code).is_empty():
+					out.append(_row("copy_code", "ROOM CODE:  %s" % String(net.code), String(net.room) + "  ·  click to copy"))
+				elif not String(net.room).is_empty():
+					out.append(_row("info", "ROOM", String(net.room), false))
 				# The internet door: what the router said, and the address to
 				# hand out if it said yes. The LAN address is always there.
 				var pub := String(net.public)
@@ -172,7 +178,7 @@ func _rows() -> Array[Dictionary]:
 					out.append(_row("info", String(net.error), "", false))
 		Page.JOIN:
 			var busy := String(net.role) == "joining"
-			out.append(_text_row("address", "HOST ADDRESS", "IP or hostname, with :port if it is not %d" % int(net.port)))
+			out.append(_text_row("address", "HOST ADDRESS", "IP or hostname, with :port if it is not %d — or a six-letter room code" % int(net.port)))
 			out.append(_text_row("name", "YOUR NAME", ""))
 			out.append(_text_row("password", "PASSWORD", "If the host set one"))
 			if busy:

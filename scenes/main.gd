@@ -39,7 +39,10 @@ var me: PlayerSim
 var role := "solo"                  # solo / host / guest / joining
 var net_host: NetHost = null
 var net_guest: NetGuest = null
-var hub: EnetHub = null
+var hub: PeerHub = null
+## The room-code road (WebRTC through a broker), open beside the port while
+## hosting when `Config.NET.broker` names one. Null otherwise.
+var room: WebRtcHub = null
 ## The router's answer to "open the port": the cheap way onto the internet.
 var door: NetDoor = null
 var prefs := {}
@@ -255,13 +258,15 @@ func _host_step(dt: float) -> void:
 	if net_host == null:
 		sim.tick(dt)
 		return
-	if hub != null:
-		hub.poll()
-		for id in hub.joined:
-			if hub.links.has(id):
-				net_host.attach(hub.links[id])
-		hub.joined.clear()
-		hub.left.clear()
+	for h: PeerHub in [hub, room]:
+		if h == null:
+			continue
+		h.poll()
+		for id in h.joined:
+			if h.links.has(id):
+				net_host.attach(h.links[id])
+		h.joined.clear()
+		h.left.clear()
 	net_host.poll()
 	sim.tick(dt)
 	net_host.after_tick(dt)
@@ -299,9 +304,12 @@ func _net_menu_step(dt: float) -> void:
 			# land even if nobody else is here yet.
 			if hub != null:
 				hub.poll()
+			if room != null:
+				room.poll()
 			# Guests are playing: the world goes on without the host's hands
 			# on it. Alone, a pause is a pause.
-			if net_host.connected_count() > 0 or (hub != null and not hub.joined.is_empty()):
+			if net_host.connected_count() > 0 or (hub != null and not hub.joined.is_empty()) \
+					or (room != null and not room.joined.is_empty()):
 				NetProtocol.clear_intent(me.intent)
 				_host_step(dt)
 		"joining":
@@ -1141,6 +1149,13 @@ func smoke_run(smoke: Node) -> void:
 			gp.prev_pos = beside
 			smoke_guest.me.pos = beside
 			smoke_guest.me.prev_pos = beside
+			# The walk below measures the wire, not a fight: a walker's bite
+			# knocks the guest back and once cost the step six pixels of its
+			# forty. Nothing may touch them, and nothing is close enough to try.
+			gp.god_mode = true
+			for i in range(sim.enemies.list.size() - 1, -1, -1):
+				if sim.enemies.list[i].pos.distance_to(beside) < 400.0:
+					sim.enemies.list.remove_at(i)
 			await smoke.frames(6)
 			await smoke.checkpoint("coop_joined")
 			var from := gp.pos
@@ -1191,6 +1206,10 @@ func _on_menu(what: String, arg: int) -> void:
 		"host_stop":
 			_stop_hosting()
 			menu.open(MenuScreen.Page.PAUSE if menu.over_game else MenuScreen.Page.TITLE)
+		"copy_code":
+			if not String(menu.net.code).is_empty():
+				DisplayServer.clipboard_set(String(menu.net.code))
+				sim.notify("Copied room code %s" % String(menu.net.code), "#9fd0ff")
 		"copy_address":
 			# A public address is a thing you paste to a friend, not retype.
 			var text := String(menu.net.public)
@@ -1253,12 +1272,12 @@ func _start_hosting(which: int) -> void:
 		slot = which
 		Saves.mark_current(which)
 	_stop_hosting()
-	hub = EnetHub.new()
-	var err := hub.host(Config.NET.port, Config.NET.max_players - 1)
+	var door_hub := EnetHub.new()
+	var err := door_hub.host(Config.NET.port, Config.NET.max_players - 1)
 	if not err.is_empty():
-		hub = null
 		menu.net.error = err
 		return
+	hub = door_hub
 	var name_ := String(menu.fields.name).strip_edges()
 	net_host = NetHost.new(sim, name_ if not name_.is_empty() else "Host", NetProtocol.hash_password(String(menu.fields.password)))
 	role = "host"
@@ -1266,6 +1285,14 @@ func _start_hosting(which: int) -> void:
 	if Config.NET.upnp:
 		door = NetDoor.new()
 		door.open(Config.NET.port)
+	# The room-code road, when it is switched on: a broker named and the
+	# native extension present. Either missing is said on the HOST page.
+	if not String(Config.NET.broker).is_empty() and WebRtcHub.available():
+		room = WebRtcHub.new()
+		var rerr := room.host(String(Config.NET.broker))
+		if not rerr.is_empty():
+			menu.net.error = rerr
+			room = null
 	if at_title:
 		_leave_title()
 	else:
@@ -1282,6 +1309,9 @@ func _stop_hosting() -> void:
 	if door != null:
 		door.close()
 		door = null
+	if room != null:
+		room.close()
+		room = null
 	if role == "host":
 		role = "solo"
 		if sim != null:
@@ -1303,8 +1333,24 @@ func _start_join() -> void:
 	if address.is_empty():
 		menu.net.error = "Type the host's address first"
 		return
-	hub = EnetHub.new()
-	var err := hub.join(address, port)
+	var err := ""
+	if WebRtcHub.is_code(WebRtcHub.normalise_code(text)) and not text.contains("."):
+		# Six letters is a room code: the broker road, if it is switched on.
+		if String(Config.NET.broker).is_empty():
+			menu.net.error = "Room codes need a broker (Config.NET.broker) — type the host's address instead"
+			return
+		if not WebRtcHub.available():
+			menu.net.error = "Room codes need the WebRTC extension (tools/fetch-webrtc) — type the host's address instead"
+			return
+		var r := WebRtcHub.new()
+		err = r.join(String(Config.NET.broker), text)
+		hub = r
+		menu.net.status = "asking the broker for room %s…" % WebRtcHub.normalise_code(text)
+	else:
+		var e := EnetHub.new()
+		err = e.join(address, port)
+		hub = e
+		menu.net.status = "dialling %s:%d…" % [address, port]
 	if not err.is_empty():
 		hub = null
 		menu.net.error = err
@@ -1312,7 +1358,6 @@ func _start_join() -> void:
 	role = "joining"
 	_join_t = 0.0
 	menu.net.error = ""
-	menu.net.status = "dialling %s:%d…" % [address, port]
 
 
 func _join_step(dt: float) -> void:
@@ -1327,10 +1372,12 @@ func _join_step(dt: float) -> void:
 			net_guest = NetGuest.new(link, String(prefs.identity), name_ if not name_.is_empty() else "Guest",
 				NetProtocol.hash_password(String(menu.fields.password)), sim)
 			menu.net.status = "connected — waiting for the host…"
-		elif not hub.error.is_empty() or _join_t > Config.NET.hello_timeout:
+		elif not hub.error.is_empty() or _join_t > (Config.NET.rtc_timeout if hub is WebRtcHub else Config.NET.hello_timeout):
 			var why := hub.error if not hub.error.is_empty() else "no answer"
 			_leave_game()
 			menu.net.error = "Could not reach the host (%s)" % why
+		elif hub is WebRtcHub and not (hub as WebRtcHub).status.is_empty():
+			menu.net.status = (hub as WebRtcHub).status
 		return
 	net_guest.poll()
 	net_guest.tick(dt, true)
@@ -1397,6 +1444,8 @@ func _refresh_net_lines() -> void:
 			menu.net.door = ""
 			menu.net.public = ""
 		menu.net.lan = NetDoor.lan_addresses(Config.NET.port)
+		menu.net.code = room.code if room != null else ""
+		menu.net.room = room.status if room != null else ""
 		hud.net_line = "hosting  ·  %d connected  ·  ↑%s ↓%s" % [net_host.connected_count(),
 			String.humanize_size(net_host.stats.sent), String.humanize_size(net_host.stats.received)]
 	elif role == "guest" and net_guest != null:

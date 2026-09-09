@@ -1,0 +1,16 @@
+{
+  "name": "deadline-signal",
+  "version": "1.0.0",
+  "description": "DEADLINE's room-code broker. Introduces a host and its guests over WebSocket, then gets out of the way.",
+  "type": "module",
+  "main": "signal.js",
+  "scripts": {
+    "start": "node signal.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
