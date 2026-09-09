@@ -57,6 +57,13 @@ func _draw_player(font: Font, p: PlayerSim, is_local: bool) -> void:
 	draw_arc(c + Vector2(0, 8), 15, 0, TAU, 28, Color(ring, alpha), 2.0)
 	draw_circle(c + Vector2(2, 3), 13, Color(0, 0, 0, 0.25 * alpha))
 	var body := Color("#6c7a4b")
+	# What you are becoming, on the body itself. The tint follows the meter
+	# rather than the band, so the change creeps rather than switching on —
+	# but the band's colour is what it creeps toward, so the sprite and the
+	# bar always agree about what you are.
+	var mut := Mutation.fraction(p)
+	if mut > 0.0:
+		body = body.lerp(Color(String(Mutation.band_of(p).color)), mut * 0.55)
 	if p.hurt_flash > 0.0:
 		body = body.lerp(Color("#c04040"), p.hurt_flash * 2.0)
 	if p.sneaking:
@@ -64,7 +71,9 @@ func _draw_player(font: Font, p: PlayerSim, is_local: bool) -> void:
 	body.a = alpha
 	draw_circle(c, 13, body)
 	draw_circle(c, 13, Color("#3f4830", alpha), false, 2.0)
-	draw_circle(c + Vector2(0, -3), 6, Color("#d9b48f", alpha))
+	# The head goes with it, a little further: it is the readable half at a
+	# glance in a crowd of four.
+	draw_circle(c + Vector2(0, -3), 6, Color(Color("#d9b48f").lerp(Color(String(Mutation.band_of(p).color)), mut * 0.7), alpha))
 	var dir := Vector2.from_angle(p.angle)
 	var w := p.weapon()
 	var wcol := Color(w.get("color", "#2b2b2b"))

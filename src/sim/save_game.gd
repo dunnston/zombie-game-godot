@@ -1,6 +1,6 @@
 class_name SaveGame
 extends RefCounted
-## Saving and loading. Payload version 7.
+## Saving and loading. Payload version 8.
 ##
 ## **Containers are identified by tile position, never by ordinal index**
 ## (invariant 7). The prototype keyed them by their position in an array,
@@ -13,7 +13,7 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 7
+const VERSION := 8
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
@@ -64,6 +64,10 @@ static func to_dict(sim: GameSim) -> Dictionary:
 			"xp": p.xp, "level": p.level, "xp_next": p.xp_next,
 			"skill_points": p.skill_points, "attrs": p.attrs.duplicate(), "perks": p.perks.duplicate(),
 			"second_wind_cd": p.second_wind_cd,
+			# The meter, and whatever is still working through you (v8). The
+			# band is not stored: it is derived from the value on load, the
+			# same way it is derived from it in play.
+			"mutation": p.mutation, "effects": p.effects.duplicate(),
 			"slot": p.slot, "bag": p.bag.to_record(), "hotbar": p.hotbar.to_record(),
 			"equip": p.equip.duplicate(), "mag": p.mag.duplicate(),
 			"light_on": p.light_on, "light_fuel": p.light_fuel, "light_id": p.light_id,
@@ -257,6 +261,15 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 		p.driving_id = int(rec.get("driving_id", 0))
 		for k in rec.get("car_keys", []):
 			p.car_keys.append(String(k))
+		# Before the recompute: the band is one of the things the recompute
+		# reads, so setting it afterwards would load a Feral character with a
+		# human's stats until the meter next moved.
+		p.mutation = clampf(float(rec.get("mutation", 0.0)), 0.0, float(Config.MUTATION.max))
+		p.mut_band = Mutation.band_index(p.mutation)
+		p.effects.clear()
+		for k in rec.get("effects", {}):
+			if Config.EFFECTS.has(k):
+				p.effects[String(k)] = float(rec.effects[k])
 		Equipment.recompute_stats(p)
 		# After the recompute, never before: the ceiling has to exist before
 		# what is standing under it is restored, or a Constitution build loads

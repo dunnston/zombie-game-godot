@@ -38,7 +38,12 @@ func test_every_recipe_makes_something_that_exists() -> void:
 		ok(r.bench >= 0 and r.bench <= 2, r.id)
 		ok(not r.cost.is_empty(), "%s costs nothing" % r.id)
 		for c in r.cost:
-			has(Config.RES, c, "%s: %s" % [r.id, c])
+			# A cost is anything that stacks. It used to be "anything in RES",
+			# and then processing brain matter arrived: the Serum is paid for
+			# in a consumable, which `can_afford` and `spend` handle already
+			# because both of them only ever ask a `Slots` for a count.
+			ok(Items.has(c) and Items.stack_limit(c) > 1,
+				"%s: %s is not something you can pay with" % [r.id, c])
 			gt(r.cost[c], 0, r.id)
 		if r.has("tool"):
 			has(Config.WEAPONS, r.tool, r.id)

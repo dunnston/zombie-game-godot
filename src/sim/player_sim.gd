@@ -56,6 +56,17 @@ var hurt_flash := 0.0
 var last_hurt := 99.0
 var god_mode := false
 
+## The main status. You were bitten before the game started and there is no
+## cure; brain matter is what holds it back. `mut_band` is the derived half —
+## which of `Config.MUTATION.bands` this value falls in — and it is what
+## `recompute_stats` reads, so the meter can drift without touching a stat.
+## Everything that writes either of these goes through `Mutation`.
+var mutation := 0.0
+var mut_band := 0
+## Buffs and debuffs, id -> seconds left. Applied inside the recompute like
+## everything else that modifies a stat (invariant 4).
+var effects := {}
+
 var max_stam := 110.0
 var stam := 110.0
 var stam_regen := 21.2
@@ -74,6 +85,12 @@ var crit_chance := 0.08
 var free_shot_chance := 0.0
 var noise_mul := 1.0
 var threat_mul := 1.0
+## How far a zombie senses you, how hard a hit rocks you, and how fast the
+## change takes hold. Written by the recompute from the Mutation band and by
+## nothing else.
+var sense_mul := 1.0
+var stagger_mul := 1.0
+var mut_rate_mul := 1.0
 var chop_mul := 1.06
 var chop_stam_mul := 1.0
 var loot_mul := 1.0
@@ -323,6 +340,25 @@ func use_healing(sim: GameSim) -> bool:
 	return true
 
 
+# ------------------------------------------------------------- suppressing --
+
+## Take something for the Mutation meter. The same held channel healing uses,
+## so being hit interrupts a dose exactly as it interrupts a bandage — and so
+## a guest's press travels as intent rather than as a command.
+func use_suppressant(sim: GameSim) -> bool:
+	if not using.is_empty() or dead:
+		return false
+	if mutation <= 0.0:
+		sim.notify("Nothing to suppress", "#8a8f84")
+		return false
+	var pick := Mutation.pick_suppressant(self)
+	if pick.is_empty():
+		sim.notify("No brain matter", "#c96a5a")
+		return false
+	using = {"id": pick, "t": 0.0, "dur": float(Config.CONSUMABLES[pick].time)}
+	return true
+
+
 func _finish_use(sim: GameSim) -> void:
 	# Hotwiring is a held action like healing is, so it rides the same timer —
 	# and is interrupted the same way, by being hit.
@@ -334,9 +370,13 @@ func _finish_use(sim: GameSim) -> void:
 		sim.cars.finish_pick(sim, self, sim.cars.by_id(int(using.vehicle)))
 		using = {}
 		return
-	var c: Dictionary = Config.CONSUMABLES[using.id]
-	if take_carried(using.id, 1) > 0:
-		Damage.heal_player(sim, self, c.heal)
+	var id := String(using.id)
+	var c: Dictionary = Config.CONSUMABLES[id]
+	if take_carried(id, 1) > 0:
+		if Mutation.is_suppressant(id):
+			Mutation.take_dose(sim, self, id)
+		else:
+			Damage.heal_player(sim, self, c.heal)
 	using = {}
 
 
@@ -358,6 +398,13 @@ func tick(sim: GameSim, dt: float) -> void:
 		if respawn_t <= 0.0:
 			Damage.respawn_player(sim, self)
 		return
+
+	# The change, and the clocks on whatever you have taken. Above the downed
+	# branch on purpose: bleeding out on the ground is exactly when it gets on
+	# with it.
+	Mutation.tick(sim, self, dt)
+	if dead:
+		return                          # turning is a death, and it happens here
 
 	if downed:
 		# Bleeding out. Nothing else happens to you: you cannot move, swing,
@@ -459,6 +506,8 @@ func tick(sim: GameSim, dt: float) -> void:
 			cycle_slot(it.wheel)
 		if it.use:
 			use_healing(sim)
+		if it.suppress:
+			use_suppressant(sim)
 
 	if it.light:
 		Equipment.toggle_light(sim, self)

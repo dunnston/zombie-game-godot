@@ -86,6 +86,10 @@ func _build_catalogue() -> void:
 		["stamina", "Refill stamina", "you"],
 		["xp", "Grant 1000 XP", "you"],
 		["res", "50 of every resource", "you"],
+		# The meter takes twenty minutes to fill on its own, which is right in
+		# play and useless at a keyboard trying to see what FERAL feels like.
+		["mutate", "+20 Mutation", "you"],
+		["human", "Clear the Mutation meter", "you"],
 		["day", "Set the clock to noon", "world"],
 		["night", "Set the clock to midnight", "world"],
 		["clear", "Kill every enemy loaded", "world"],
@@ -168,6 +172,10 @@ func _verb(id: String) -> void:
 			sim.notify("DEV  stamina", "#b7e08a")
 		"xp":
 			Progression.add_xp(sim, player, 1000, "DEV")
+		"mutate":
+			Mutation.add(sim, player, 20.0, "dev")
+		"human":
+			Mutation.suppress(sim, player, Config.MUTATION.max)
 		"res":
 			# Fifty of everything is more than a pack holds. Overflow lands at
 			# the player's feet rather than vanishing, which is the same rule

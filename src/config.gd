@@ -265,6 +265,14 @@ const STAT_BASE := {
 	"heal_mul": 1.0, "heal_speed_mul": 1.0,
 	"threat_mul": 1.0, "noise_mul": 1.0, "xp_mul": 1.0, "radar_mul": 1.0,
 
+	# How far a zombie senses you, and how hard a hit rocks you. Both are 1.0
+	# for a human and both fall as the change takes hold: the half of Mutation
+	# that is a reward.
+	"sense_mul": 1.0, "stagger_mul": 1.0,
+	# How fast the change takes hold. Nothing lowers it yet; hydration and
+	# the deeper chemistry will, and they will do it by writing here.
+	"mut_rate_mul": 1.0,
+
 	# Read by Phase 4c. Produced here because a perk that quietly does nothing
 	# is worse than a field whose reader has not been written yet.
 	"survivor_cap": 0, "survivor_dmg_mul": 1.0, "survivor_hp_mul": 1.0,
@@ -340,6 +348,89 @@ const NIGHT := {
 ## Above this darkness a light is worth carrying — what the HUD hint and the
 ## torch prompt read.
 const DARK_ENOUGH := 0.35
+
+# ----------------------------------------------------------------- mutation --
+
+## The one meter the player manages, and the theme of the whole game.
+##
+## You were bitten before the first frame and there is no cure. What there is
+## is control: something in a zombie's brain suppresses the change, so the
+## supply line that keeps you human runs through the horde. Food and drink are
+## buffs and nothing else — there is still no hunger bar (pillar 1), because
+## this replaces the chore rather than adding one.
+##
+## It is deliberately slow. A full cycle left alone is `days_to_full` in-game
+## days, so brains are something you stock rather than something you think
+## about every five minutes. And it is a two-sided bet: further along you hit
+## harder and are noticed less, and you are also worse with a gun, worse to
+## look at, and closer to gone.
+const MUTATION := {
+	"max": 100.0,
+	## Nothing to full, untouched, in in-game days. `DAY_LENGTH` is 540s, so
+	## 2.5 of them is about twenty-two minutes of play.
+	"days_to_full": 2.5,
+	## Multiplied into the base rate by the danger tier under your feet: worse
+	## ground turns you faster, which is the cost of going somewhere good.
+	## Indexed by tier; 0 is the tierless outskirts.
+	"tier_mul": [1.0, 1.0, 1.15, 1.35, 1.6],
+	## What full darkness is worth on top, scaled by the darkness curve.
+	"night_mul": 1.2,
+	## A zombie's melee connecting is a *bite* this often. Every hit adding
+	## mutation would make this a second health bar; one in seven makes a
+	## crowd something you get out of rather than trade with.
+	"bite_chance": 0.14,
+	"per_bite": 12.0,
+	## Any single hit this big — bite or not, a Behemoth's swing or a fall —
+	## is the body being overwhelmed.
+	"heavy_damage": 25.0,
+	"per_heavy": 5.0,
+	"per_down": 10.0,
+	## Where you wake up after turning. Never zero: letting the bar fill must
+	## not become the cheapest way to empty it.
+	"after_turn": 55.0,
+	## A suppressant may overshoot by this much before a weaker one is
+	## preferred, so a Serum is not spent to clear four points.
+	"overshoot": 8.0,
+	## The three bands, low to high. `at` is the value the band starts at, and
+	## the modifiers are applied by `Perks.recompute_stats` and by nothing
+	## else (invariant 4) — a band change is what triggers the recompute, so
+	## the meter moving a tenth of a point costs nothing.
+	"bands": [
+		{
+			"id": "human", "name": "HUMAN", "at": 0.0, "color": "#9fd07a",
+			"add": {}, "mul": {},
+			"desc": "Normal. You pass for a person.",
+		},
+		{
+			"id": "turning", "name": "TURNING", "at": 35.0, "color": "#d9c46a",
+			"add": {"melee_mul": 0.20, "speed_mul": 0.06, "max_stam": 15.0},
+			"mul": {"spread_mul": 1.25, "gun_mul": 0.95, "sense_mul": 0.9},
+			"desc": "Stronger, faster, and worse with a gun. People notice.",
+		},
+		{
+			"id": "feral", "name": "FERAL", "at": 70.0, "color": "#b07ad0",
+			# Toughness rather than damage reduction: `armor_dr` is summed from
+			# worn gear and capped, and a band adding to it after the cap
+			# would either break the cap or be silently inert on the exact
+			# player most likely to be Feral. Pain shows up as `stagger_mul`.
+			"add": {"melee_mul": 0.45, "speed_mul": 0.12, "max_stam": 25.0, "max_hp": 15.0},
+			"mul": {"spread_mul": 1.6, "gun_mul": 0.88, "sense_mul": 0.6, "stagger_mul": 0.5},
+			"desc": "Dangerous. The dead barely notice you. The living do.",
+		},
+	],
+}
+
+## Buffs and debuffs, all of them, in one table. What raw brain matter does to
+## you on the way down, what a meal is worth, what an experimental dose buys —
+## every one of them is an id and a number of seconds on `PlayerSim.effects`,
+## applied inside the one function that writes stats (invariant 4).
+const EFFECTS := {
+	"nausea": {
+		"id": "nausea", "name": "Nausea", "dur": 60.0, "good": false, "color": "#8aa06a",
+		"add": {}, "mul": {"speed_mul": 0.92, "spread_mul": 1.25, "stam_regen": 0.8},
+		"desc": "Raw brain matter fighting back.",
+	},
+}
 
 # --------------------------------------------------------------------- fire --
 
@@ -417,6 +508,22 @@ const RES := {
 const CONSUMABLES := {
 	"bandage": {"id": "bandage", "name": "Bandage", "heal": 28.0, "time": 0.9, "color": "#d8cfc0"},
 	"medkit":  {"id": "medkit",  "name": "Medkit",  "heal": 80.0, "time": 1.6, "color": "#d9575f"},
+	# Brain matter, and what it is worth. `mut` is how much eating it takes
+	# off the Mutation meter; `effect` is what it does to you on the way down.
+	# Quality is why a Brute is worth walking toward and a Behemoth is worth
+	# a magazine: the tissue a body gives up depends on what the body was.
+	"brainRaw": {"id": "brainRaw", "name": "Raw Brain Matter", "heal": 0.0, "time": 2.0,
+		"mut": 10.0, "effect": "nausea", "color": "#c07f9a", "stack": 20, "wt": 0.4},
+	"brainMut": {"id": "brainMut", "name": "Mutated Brain Matter", "heal": 0.0, "time": 2.2,
+		"mut": 20.0, "effect": "nausea", "effect_mul": 1.5, "color": "#b06ad0", "stack": 20, "wt": 0.4},
+	# Not eaten: this is the ingredient the chemistry is built on. `tool`
+	# keeps it out of every "use what is to hand" path, the way a lockpick is.
+	"brainSpec": {"id": "brainSpec", "name": "Neural Tissue", "heal": 0.0, "time": 0.0,
+		"color": "#7fd0c4", "stack": 10, "wt": 0.3, "tool": true},
+	# What a base does with raw tissue: three times the suppression and none
+	# of the nausea. The first step of a chain that ends at a chemistry bench.
+	"serum": {"id": "serum", "name": "Stabilized Neural Serum", "heal": 0.0, "time": 1.6,
+		"mut": 30.0, "color": "#8fd08a", "stack": 10, "wt": 0.5},
 	# Not a healing item — it opens car doors (Phase 4). It lives here so it
 	# rides along in the same inventory the rest of the small stuff uses.
 	"lockpick": {"id": "lockpick", "name": "Lockpick", "heal": 0.0, "time": 0.0, "color": "#9aa2ab", "tool": true},
@@ -587,6 +694,23 @@ const ENEMIES := {
 	"runner":   {"id": "runner",   "name": "Runner",   "hp": 44.0,   "speed": 132.0, "dmg": 11.0, "atk_cd": 0.65, "atk_range": 25.0, "r": 11.0, "xp": 18,  "sense": 430.0, "knock_resist": 0.15, "struct_mul": 0.4, "threat": 0.5,  "body": "#7a5a3c", "dark": "#513a26"},
 	"brute":    {"id": "brute",    "name": "Brute",    "hp": 300.0,  "speed": 52.0,  "dmg": 34.0, "atk_cd": 1.35, "atk_range": 34.0, "r": 19.0, "xp": 55,  "sense": 380.0, "knock_resist": 0.75, "struct_mul": 2.2, "threat": 1.1,  "body": "#6b4b52", "dark": "#452f34"},
 	"behemoth": {"id": "behemoth", "name": "Behemoth", "hp": 1100.0, "speed": 46.0,  "dmg": 58.0, "atk_cd": 1.6,  "atk_range": 44.0, "r": 27.0, "xp": 200, "sense": 900.0, "knock_resist": 0.95, "struct_mul": 4.0, "threat": 2.5,  "body": "#7d4348", "dark": "#4a262b", "boss": true},
+}
+
+
+## What a body gives up, by what it was. One head, one roll: a kill drops
+## brain matter at most once, however many loot perks are stacked on top,
+## because the joke only works if a corpse has one brain in it.
+##
+## This is the whole reason to prefer one fight over another. A Walker is
+## small change; a Brute carries the tissue a Refined dose is made of; a
+## Behemoth is a chemistry set that has to be shot forty times first.
+const BRAIN_DROPS := {
+	"walker":   {"chance": 0.45, "id": "brainRaw",  "min": 1, "max": 1},
+	"runner":   {"chance": 0.55, "id": "brainRaw",  "min": 1, "max": 2},
+	"brute":    {"chance": 0.85, "id": "brainMut",  "min": 1, "max": 1,
+		"also": {"id": "brainRaw", "min": 1, "max": 2}},
+	"behemoth": {"chance": 1.0,  "id": "brainSpec", "min": 1, "max": 2,
+		"also": {"id": "brainMut", "min": 2, "max": 2}},
 }
 
 ## The ambient spawner. A standing population per danger tier near each
@@ -843,6 +967,24 @@ const SFX := {
 	"ui": [{"kind": "tone", "freq": 700.0, "wave": "square", "dur": 0.03, "gain": 0.07}],
 
 	# ------------------------------------------------------------- moments --
+	## The change taking a step. Two notes a minor third apart, sagging: it
+	## should sound like something going wrong inside you rather than like a
+	## warning somebody else is giving you.
+	"mutate_up": [
+		{"kind": "tone", "freq": 196.0, "to": 155.0, "wave": "tri", "dur": 0.5, "gain": 0.2},
+		{"kind": "tone", "freq": 98.0, "to": 78.0, "wave": "saw", "dur": 0.6, "gain": 0.14, "at": 0.06},
+	],
+	## And a dose landing: the same shape, rising, and cleaner.
+	"mutate_down": [
+		{"kind": "tone", "freq": 165.0, "to": 262.0, "wave": "tri", "dur": 0.35, "gain": 0.18},
+		{"kind": "tone", "freq": 330.0, "wave": "tri", "dur": 0.22, "gain": 0.12, "at": 0.14},
+	],
+	## Gone. Low, long, and not musical.
+	"turned": [
+		{"kind": "noise", "dur": 0.9, "gain": 0.3, "filter": "lp", "freq": 900.0, "to": 90.0},
+		{"kind": "tone", "freq": 110.0, "to": 41.0, "wave": "saw", "dur": 1.1, "gain": 0.26},
+		{"kind": "tone", "freq": 73.0, "to": 38.0, "wave": "tri", "dur": 1.2, "gain": 0.2, "at": 0.1},
+	],
 	"level_up": [
 		{"kind": "tone", "freq": 523.0, "wave": "tri", "dur": 0.22, "gain": 0.2},
 		{"kind": "tone", "freq": 659.0, "wave": "tri", "dur": 0.22, "gain": 0.2, "at": 0.09},
@@ -1085,6 +1227,9 @@ const RECIPES := [
 	{"id": "pipe", "name": "Steel Pipe", "bench": 1, "hammer": true, "cost": {"wood": 6, "scrap": 10}, "give": {"weapon": "pipe"}, "xp": 12},
 	{"id": "ammoP", "name": "9mm x24", "bench": 1, "cost": {"scrap": 9, "parts": 1}, "give": {"res": {"ammoP": 24}}, "xp": 6},
 	{"id": "medkit", "name": "Medkit", "bench": 1, "cost": {"med": 5, "cloth": 5}, "give": {"item": "medkit", "n": 1}, "xp": 8},
+	# Processing raw tissue is the first thing a base does for you that your
+	# hands cannot: three times the suppression, none of the nausea.
+	{"id": "serum", "name": "Stabilized Neural Serum", "bench": 1, "cost": {"brainRaw": 3, "med": 2, "cloth": 1}, "give": {"item": "serum", "n": 1}, "xp": 10},
 	{"id": "machete", "name": "Machete", "bench": 1, "cost": {"scrap": 24, "parts": 1}, "give": {"weapon": "machete"}, "xp": 25},
 	# The metal tool tier: the workbench costs wood and wood costs a Hatchet,
 	# so these sit exactly one step past the stone tools that got you here.

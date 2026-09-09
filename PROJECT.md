@@ -54,6 +54,12 @@ A top-down survival, scavenging and base-defence game.
 Influences: Project Zomboid, 7 Days to Die, ARK, They Are Billions. Not a
 clone of any of them, and explicitly **not a realism simulator**.
 
+You are also already infected. The bite happened before the first frame,
+there is no cure, and what holds the change back is something in a zombie's
+brain — so the one status you manage runs *through* the horde rather than
+around it. Further along you hit harder and the dead barely notice you; you
+are also worse with a gun and closer to gone.
+
 **The loop:** Explore → Scavenge → Fight → Build → Defend → push somewhere worse.
 
 ---
@@ -64,7 +70,13 @@ These settle arguments. When a decision is close, the pillar wins.
 
 1. **Survival without survival-game chores.** No thirst bars, no hunger
    micromanagement, no sleep, no long crafting timers. Upkeep lives at the
-   base (survivor Rations), not on a bar above the player.
+   base (survivor Rations), not on a bar above the player. **There is exactly
+   one meter you manage, and it is Mutation** — you were bitten before the
+   game started, brain matter holds it back, and it is measured in days rather
+   than minutes. Food and drink are buffs and nothing else. The pillar is not
+   "no meters"; it is "no chores": a meter earns its place by being a decision
+   with two good answers, which is why letting Mutation climb is sometimes the
+   right play. Hunger has one answer, so hunger stays out.
 2. **Danger is the only gate.** Nothing is level-locked. The map shades
    districts by danger so you can *see* where you want to go before you can
    survive it.
@@ -242,6 +254,60 @@ The spec for each row is in `tasks/port-inventory.md`.
 ---
 
 ## 4. What is built
+
+### What you are becoming (Phase 6a — Mutation)
+
+**The theme moved.** You were bitten before the first frame and there is no
+cure. What there is, is control: something in a zombie's brain suppresses the
+change, so the supply line that keeps you human runs through the horde. That
+is the one meter the player manages, and it is not food.
+
+- **The meter.** `PlayerSim.mutation`, 0–100, climbing on its own. A full
+  cycle untouched is 2.5 in-game days — about twenty-two minutes of play — so
+  brains are something you stock, not something you think about every five
+  minutes. Worse ground turns you faster (×1.6 in tier 4), so does the dark
+  (×1.2 at full night), and so do teeth: one zombie melee hit in seven is a
+  **bite** (+12), any hit of 25 or more is +5, and going down is +10.
+- **Three bands, and one door.** HUMAN (0–35), TURNING (35–70), FERAL
+  (70–100). A band is a table of modifiers in `Config.MUTATION.bands`, and it
+  reaches the player through `recompute_stats` and nothing else (invariant 4).
+  A **band change** is the only thing that triggers a recompute, so the meter
+  drifting a tenth of a point costs nothing. TURNING is +20% melee, +6% speed,
+  +15 stamina, 25% worse spread and 10% harder to sense. FERAL is +45% melee,
+  +12% speed, +15 health, 60% worse spread, **sensed at 0.6× the radius**, and
+  half the stagger — the flash, the shove and the shake all come off
+  `stagger_mul`.
+- **The bargain.** Further along you hit harder and the dead barely notice
+  you; you are also worse with a gun and closer to gone. Letting it climb is
+  sometimes the play, which is the whole reason it is a meter and not a timer.
+- **Turning.** At 100 you die with your own banner — `YOU TURNED` — and come
+  back at **55**, never at 0: letting the bar fill must not be the cheapest way
+  to empty it. `Damage.kill_player` grew a `cause` so there is still one death
+  path and one place that says what happened.
+- **Brains, by what the body was.** A kill drops brain matter at most once,
+  whatever loot perks are stacked on it — a corpse has one head in it. Walker
+  45% → Raw; Runner 55% → Raw ×1–2; Brute 85% → **Mutated** plus Raw;
+  Behemoth always → **Neural Tissue** plus Mutated ×2. This is why one fight
+  is now worth more than another.
+- **The chain.** Raw Brain Matter is the field answer: −10, and Nausea for a
+  minute. A Workbench turns three of them into a **Stabilized Neural Serum**:
+  −30 and no side effect. (Refined and Experimental doses, and the Chemistry
+  Station they are made at, are Phase 6b.) `G` takes the strongest dose that
+  does not overshoot by more than 8 points, so a Serum is never spent to clear
+  four — the rule is written against the table, not against three item ids.
+- **Buffs and debuffs are one table.** `Config.EFFECTS`, `PlayerSim.effects`
+  as id → seconds, applied inside the same recompute. Nausea is the only
+  entry today; the food and drink table lands on it in Phase 6b, buff-only,
+  with no hunger bar underneath.
+- **It travels.** Saves carry the meter and the clocks (payload v8, the band
+  is *derived* on load, before the recompute). The snapshot carries mutation
+  in the player stride and the effect clocks as a fourth string, and a guest
+  rebuilds its own band from them — so a guest at FERAL predicts its own
+  footsteps at the speed the host is actually giving it.
+- **You can see it.** A third bar under health and stamina, with the band
+  name and its colour, and ticks where the bands start. The body tint follows
+  the *meter* toward the *band's* colour, so the change creeps rather than
+  switching on. The smoke run photographs TURNING, FERAL and a dose landing.
 
 ### Other people at the table (Phase 5 — co-op)
 
@@ -834,8 +900,9 @@ Phases 1–4 respecting it.
    (pillar 3). Water and fences go the other way: solid to feet, transparent
    to shots.
 4. **`recompute_stats()` is the only source of player stat modifiers.**
-   Base → attributes → perks, rebuilt from scratch. Never mutate a stat on
-   purchase.
+   Base → attributes → perks → gear → Mutation band → effects, rebuilt from
+   scratch. Never mutate a stat on purchase, and never on a band change
+   either: change `mut_band` and let the one door open.
 5. **Every tunable and content table lives in `config.gd`.**
 6. **Anything that walks toward a target needs give-up logic**, even with
    navigation. The prototype's stuck-AI bugs all came from the absence of it.
@@ -843,7 +910,11 @@ Phases 1–4 respecting it.
    ordinal index. The prototype's ordinal scheme invalidated every save twice.
 8. **Simulation code takes the acting player as a parameter.** A system that
    means "whoever did this" — damage, XP, threat, cost, loot — takes `p`.
-9. **The class_name cache goes stale** whenever a script is added outside the
+9. **Every write to the Mutation meter goes through `Mutation.add`.** It is
+   what derives the band, what decides you have turned, and what emits the
+   notice. A `p.mutation = x` anywhere else is a character whose stats are a
+   band behind — which is exactly the bug `mutation_test` was written around.
+10. **The class_name cache goes stale** whenever a script is added outside the
    editor. `tools\test` runs `--import` first for exactly this reason. If a
    headless run says "Could not find type", that is why.
 
@@ -920,6 +991,8 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 | 3 | Items, inventory, loot, crafting, building, raids, saves | Owner builds and holds a base |
 | 4 | Progression, day/night, survivors, vehicles, fire, menus, audio | Owner plays a full session |
 | 5 | Online co-op | Built 2026-09-09 — **owner plays with a friend** |
+| 6a | Mutation: the meter, the bands, brains, the first two doses | Built 2026-09-09 — **owner feels the bar** |
+| 6b | Chemistry Station, the deeper doses, the Lurch, food and drink, human raiders | Planned |
 
 ### Next up
 
@@ -945,6 +1018,16 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    peaks at 0.82 alpha, which is the prototype's number, and the tint is now
    applied the way the prototype applied it — so this is the real curve
    rather than the too-dark one the first cut of `LightView` produced.
+1. **Feel the bar.** Phase 6a's gate, and the one that has to be answered
+   before 6b is built on top of it. Is 2.5 days the right length — does a
+   full cycle feel like a supply line or like a countdown? Is one bite in
+   seven at +12 frightening or annoying? Are the bands far enough apart to
+   *feel* different, and is FERAL a bargain you would actually take: is
+   +45% melee and being half-invisible worth 60% worse spread? Does the body
+   tint read at a glance in a crowd, and is the bar in the right place — it
+   is the main status but it is sitting third, under health and stamina.
+   The dev menu has `+20 Mutation` and `Clear the Mutation meter` so none of
+   this needs twenty-two minutes of waiting.
 1. **Play it.** Phase 4 is done and none of it has been played by the owner.
    The outstanding feel questions are in `tasks/todo.md`; the biggest are
    whether night is dark enough to matter and light enough to play in, whether
@@ -975,10 +1058,16 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 
 ### Deliberately not building
 
-Thirst, detailed hunger, temperature, illness, sleep, long crafting timers,
-many ammo calibres, farming, factions, dialogue, quests, huge procedural
+Thirst, hunger, temperature, illness, sleep, long crafting timers,
+many ammo calibres, farming, dialogue, quests, huge procedural
 worlds, realistic electrics or plumbing. PvP, dedicated servers and
-persistent shared worlds. Carried over from the prototype and still right.
+persistent shared worlds. Carried over from the prototype and still right —
+with two amendments, both from 2026-09-09: **Mutation is a meter and it
+stays** (it is the one the whole theme hangs on, and food and drink are
+buffs on top of it rather than bars of their own), and **factions are back
+on the list** — hostile humans who come for a base whose owner has gone too
+far are Phase 6b, because "the living turn on you" is half of what makes the
+meter a bet.
 
 ---
 
@@ -1342,6 +1431,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-09 | **The theme moved: Mutation is the main status** (Phase 6a). The player was bitten before the first frame, there is no cure, and brain matter is what holds the change back — so the meter you manage runs through the horde. 0–100, a full cycle in 2.5 in-game days, faster in worse districts and in the dark, and moved by teeth: one zombie hit in seven is a bite. Three bands (HUMAN / TURNING / FERAL) whose modifiers live in `Config.MUTATION.bands` and reach the player through `recompute_stats` and nowhere else; a **band change** is the only thing that triggers a recompute. FERAL is the bargain stated plainly: +45% melee, +12% speed, half the stagger, sensed at 0.6× the radius — and 60% worse spread and a worse gun multiplier. At 100 you turn: your own banner, and you come back at 55 rather than 0. Kills drop brain matter by what the body was (Walker 45% Raw → Behemoth always Neural Tissue), once per corpse whatever the loot perks say. Raw is −10 and Nausea; a Workbench makes the Stabilized Neural Serum, −30 and clean. `G` picks the dose that fits the hole. `Config.EFFECTS` is one table for every buff and debuff, ticked on the player and applied inside the same recompute. Save payload v8, snapshot stride 20 plus a fourth string for the effect clocks, protocol 2. Pillar 1 rewritten (the pillar was never "no meters", it was "no chores"), invariant 4 extended, invariant 9 added, `mutation_test.gd` (29 tests) and three smoke checkpoints |
 | 2026-09-09 | Notion catalogue restructured to the owner's taxonomy. Eleven categories replace the first seven, each with its own tab on the Items table: Building (needs no bench, and is where a bench is crafted), Materials, Tools, Weapons, Clothing/Armor, Consumables food, Consumables misc, Ammo, Medical Items, Special Items, Misc Items. Weapons split into six melee classes and eight ranged, with the ranged identities written down (handgun as backup, shotgun as "get off me", bow as the quiet answer rather than a worse gun) and **noise as a first-class weapon stat**. Ten 1-5 design-intent columns added. Five are already per-weapon in `WEAPONS`; Stamina Cost, Crit Chance and Cleave name mechanics that exist but are not per-weapon (a flat `stam_swing`, a player-stat crit, cleave derived from `arc`); only Stagger and Durability are absent entirely. Codex caught the first draft calling all five missing, which would have sent a future pass rebuilding combat systems that already work. The benches became Player Menu, Basic, Advanced, Tech and Recycle, and each is now also a buildable row under Building. 19 rows added: the ranged weapons the owner enumerated, plus the four benches. 117 item rows, 42 of them Planned. Renaming a Notion select option drops the value on every row that held it, so all 98 existing rows were re-mapped from a dump taken first; §10 gains the taxonomy note |
 | 2026-09-09 | Bugfix round one, from the Notion 🐞 Open bugs view. **DL-45**: a tap of E beside a car opened the boot instead of driving — `interact_held` is already true on the frame `interact` fires, so the vehicle branch read every press as a hold and tap-to-drive had been unreachable since it shipped; the choice now waits out `Config.PLAYER.boot_hold` on a `car_hold` channel. **DL-45 (body)**: containers could be searched through a wall; reach now needs sight as well, using the rule bullets use, counting only tiles strictly between and exempting touching tiles. **DL-42**: 135 litter props on road and pavement tiles — `_plant_litter` had no surface policy, so the camp starter-cache planted on kitchen floors; `Config.LITTER_SURFACES` is now the one table and is enforced inside the planter. **DL-43**: zombies spawned inside the base because nothing knew what a base was — `Config.BASE.radius` and `Structures.in_base()`, anchored on every piece marked `protect`, excluded from ambient spawning (raids are untouched). **DL-56**: a dev menu behind F1, built only in a debug build or under `--dev`. **DL-46 / DL-55 do not reproduce** — see §8. 19 new tests (386 fast), 4 new smoke checkpoints |
 | 2026-09-09 | **Content catalogue in Notion.** Three linked databases under DEADLINE → Items & Crafting, seeded from `config.gd`: Items (every weapon, armour piece, ammo, consumable, material, utility item and structure — 98 rows, 27 of them the planned melee weapons — with recipe, bench, loot sources, recycling output, stats and status), Benches (Hand plus the planned Wood Work Bench, Scrap Work Bench, Tech Bench and Recycling, each in-game recipe placed on the bench it will move to), and Loot Sources (all 30 container kinds, 6 harvest scenery kinds, car trunks and stripped cars, with which buildings they furnish). Ten views on Items: Weapons by class, Armor by slot, Ammo & Consumables, Materials with what they are used for, Structures, By bench board, Craft by hand, Findable, Planned, Everything. The 27 melee weapons from the owner's class list (Improvised, Blunt, Bladed, Axes, Polearms, Heavy) are in as Planned. No code change; §10 gains the sync procedure |

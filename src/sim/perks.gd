@@ -56,6 +56,14 @@ static func recompute_stats(p: PlayerSim) -> void:
 		if rank > 0:
 			_apply_perk(p, String(k.id), rank)
 	_apply_gear(p)
+	# Last, and in this order: what you are becoming outranks what you are
+	# wearing, and what you have taken is the thing sitting on top of all of
+	# it. Both read tables rather than naming stats, so a new band or a new
+	# buff is a `Config` edit and nothing else.
+	_apply_mods(p, Config.MUTATION.bands[clampi(p.mut_band, 0, Config.MUTATION.bands.size() - 1)])
+	for id in p.effects:
+		if Config.EFFECTS.has(id):
+			_apply_mods(p, Config.EFFECTS[id])
 
 	p.max_hp = roundf(p.max_hp)
 	p.max_stam = roundf(p.max_stam)
@@ -164,6 +172,17 @@ static func _apply_perk(p: PlayerSim, id: String, rank: int) -> void:
 		"fortune":        p.double_drop_chance += 0.35
 		_:
 			push_error("Perks._apply_perk: no branch for perk id '%s'" % id)
+
+
+## A table of modifiers — a Mutation band, an effect — applied to the player.
+## `add` is summed in, `mul` is multiplied through, and every key has to be a
+## real stat: a typo here would be a modifier that silently never arrives, and
+## `mutation_test` asserts every table names fields that exist.
+static func _apply_mods(p: PlayerSim, table: Dictionary) -> void:
+	for key in table.get("add", {}):
+		p.set(key, p.get(key) + float(table.add[key]))
+	for key in table.get("mul", {}):
+		p.set(key, p.get(key) * float(table.mul[key]))
 
 
 ## Damage reduction from the five armour slots, capped. The off-hand holds a

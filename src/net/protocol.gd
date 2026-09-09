@@ -16,7 +16,7 @@ extends RefCounted
 
 ## Bumped whenever anything in here changes shape. A guest whose number
 ## differs is refused before it can misread a byte.
-const PROTOCOL := 1
+const PROTOCOL := 2
 
 const RELIABLE := 1
 const STATE := 2
@@ -205,7 +205,7 @@ static func msg_edges(seq: int, it: Intent) -> Dictionary:
 
 
 static func has_edges(it: Intent) -> bool:
-	return it.fire_pressed or it.reload or it.interact or it.use or it.light \
+	return it.fire_pressed or it.reload or it.interact or it.use or it.suppress or it.light \
 		or it.slot >= 0 or it.wheel != 0 or not it.build_action.is_empty()
 
 
@@ -233,6 +233,7 @@ static func pack_intent(it: Intent, with_edges := true) -> Dictionary:
 		if it.interact: f |= 32
 		if it.use: f |= 128
 		if it.light: f |= 256
+		if it.suppress: f |= 512
 	var out := {"mx": snappedf(it.mx, 0.01), "my": snappedf(it.my, 0.01),
 		"ax": roundi(it.aim.x), "ay": roundi(it.aim.y), "f": f,
 		"s": it.slot if with_edges else -1, "w": it.wheel if with_edges else 0}
@@ -256,6 +257,7 @@ static func unpack_intent(p: Dictionary, into: Intent) -> Intent:
 	into.interact_held = bool(f & 64)
 	into.use = bool(f & 128)
 	into.light = bool(f & 256)
+	into.suppress = bool(f & 512)
 	into.slot = clampi(int(p.get("s", -1)), -1, Config.PLAYER.hotbar_slots - 1)
 	into.wheel = clampi(int(p.get("w", 0)), -1, 1)
 	into.build_action = ""
@@ -359,7 +361,8 @@ const PL_XP_NEXT := 15
 const PL_SKILL := 16
 const PL_CHANNEL := 17
 const PL_LIGHT_FUEL := 18
-const PL_STRIDE := 19
+const PL_MUT := 19
+const PL_STRIDE := 20
 
 
 static func pack_player(p: PlayerSim) -> Dictionary:
@@ -396,9 +399,12 @@ static func pack_player(p: PlayerSim) -> Dictionary:
 		r1(p.hp), p.max_hp, r1(p.stam), p.max_stam,
 		float(p.slot), float(f), r1(p.down_t), r1(p.respawn_t), float(p.driving_id),
 		float(p.level), float(roundi(p.xp)), float(p.xp_next), float(p.skill_points),
-		snappedf(ch, 0.01), r1(p.light_fuel),
+		snappedf(ch, 0.01), r1(p.light_fuel), r1(p.mutation),
 	])
-	return {"n": n, "s": PackedStringArray([p.held_id(), String(p.equip.get("offhand", "")), ck])}
+	# The fourth string is the effect clocks, "nausea:12.3" — a handful of
+	# short-lived ids that a guest needs for its own bars and its own stats,
+	# and far too few to be worth a stride of their own.
+	return {"n": n, "s": PackedStringArray([p.held_id(), String(p.equip.get("offhand", "")), ck, Mutation.pack_effects(p)])}
 
 
 static func pack_enemies(sim: GameSim, centre: Vector2, radius: float) -> PackedFloat32Array:

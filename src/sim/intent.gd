@@ -18,6 +18,7 @@ var fire_pressed := false    # a fresh click: an empty gun reloads on this, not 
 var interact := false
 var reload := false
 var use := false             # Q: use whatever healing is to hand
+var suppress := false        # G: take whatever brain matter is to hand
 var light := false           # T: strike or douse the off-hand light
 var slot := -1               # 0-5 selects a hotbar slot; -1 means no change
 var build_action := ""       # "place" / "repair" / "repair_all" / "demolish"
@@ -31,6 +32,7 @@ func clear_edges() -> void:
 	interact = false
 	reload = false
 	use = false
+	suppress = false
 	light = false
 	slot = -1
 	wheel = 0

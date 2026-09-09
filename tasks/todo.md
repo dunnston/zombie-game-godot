@@ -1441,3 +1441,204 @@ Both P2 comments were right and both are fixed.
 `tests/door_test.gd` is new and fast: both decisions are pure functions now,
 and both are asserted there rather than only inside a thread that needs a
 router. `door_slow_test` covers the `off` path end to end.
+
+---
+
+## Phase 6 — Mutation (the meter that replaces hunger)
+
+**Not started. This is a plan awaiting the owner's sign-off.**
+
+The theme moves. The player was bitten before the game starts and there is no
+cure; what there is, is control. Zombie brain matter suppresses the change,
+and the one meter you manage is **Mutation**, not food or water. Food and
+drink stay in the game as *buffs only* — there is still no hunger bar, which
+keeps pillar 1 intact by replacing the chore rather than adding one.
+
+The contradiction is the point: mutation makes you stronger and makes the
+world worse at the same time, so letting it climb is sometimes the play.
+
+### The meter
+
+`PlayerSim.mutation`, 0–100, ticking up on its own. One full cycle is about
+**2.5 in-game days** (`DAY_LENGTH` is 540s, so ~1350s of play) — slow enough
+that brains are a supply line, not a five-minute chore.
+
+What makes it climb faster:
+
+| Source | Effect |
+| --- | --- |
+| Time | `100 / (2.5 · DAY_LENGTH)` per second, the base |
+| Danger tier | ×1.0 / ×1.15 / ×1.35 / ×1.6 by the tier you are standing in |
+| Night | ×1.2 at full darkness, scaled by the darkness curve |
+| A bite | 14% of any zombie melee hit is a bite: **+12** |
+| Heavy damage | a single hit of 25 or more: **+5** |
+| Going down | **+10** on top of whatever put you there |
+
+### The three bands
+
+Thresholds in `Config.MUTATION.bands`. A band change is the only thing that
+triggers `Equipment.recompute_stats()` — mutation reaches the stats through
+the one door, so invariant 4 holds.
+
+- **HUMAN (0–35).** Nothing. You look like a person and read like one.
+- **TURNING (35–70).** `melee_mul` +0.20, `speed_mul` +0.06, `max_stam` +15;
+  `spread_mul` ×1.25 and `gun_mul` ×0.95 (you shoot worse); zombies sense you
+  at ×0.9; the player sprite takes a first tint. Survivors you have already
+  recruited stay; new rescues hesitate (a line, not a refusal).
+- **FERAL (70–100).** `melee_mul` +0.45, `speed_mul` +0.12, `armor_dr` +0.10
+  and stagger/flash cut by half (reduced pain); `spread_mul` ×1.6,
+  `gun_mul` ×0.88; zombies sense you at ×0.6; the sprite changes properly;
+  the HUD distorts and a low pulse plays; **rescues refuse you outright**;
+  and the Lurch: every 60–140s, 1.2–1.8s where the intent is taken off you
+  and your legs carry you at the nearest zombie. Host-rolled, mirrored to
+  guests.
+- **100 — you turn.** Death, the `YOU TURNED` banner rather than `YOU DIED`,
+  and you come back at 55 rather than 0. Something more interesting than
+  respawn is a later question; the hook is in `Damage.turn_player`.
+
+### Brains, and why zombie types stop being interchangeable
+
+Kills drop brain matter by type, so a Brute is worth walking toward:
+
+| Enemy | Drop | Chance |
+| --- | --- | --- |
+| Walker | Raw Brain Matter ×1 | 45% |
+| Runner | Raw Brain Matter ×1–2 | 55% |
+| Brute | Mutated Brain Matter ×1 + Raw ×1–2 | 85% |
+| Behemoth | Neural Tissue ×1–2 + Mutated ×2 | always |
+
+### Suppressants — the processing chain
+
+Raw is the field answer and it costs you something; the base turns it into
+something clean.
+
+| Item | Mutation | Made at | Side effect |
+| --- | --- | --- | --- |
+| Raw Brain Matter | −10 | eaten as found | Nausea, 60s |
+| Stabilized Neural Serum | −30 | Workbench | none |
+| Refined Suppressant | −50 | **Chemistry Station** | none, expensive |
+| Experimental Suppressant | −75 | Chemistry Station | Surge (+35% melee, +10% speed, 90s), 25% chance of Fever |
+
+**Chemistry Station** is a new tier-2 structure (`station: "chem"`), and
+recipes gain an optional `station` field. `Crafting.bench_tier_at` grows a
+sibling, `stations_at`, so the bench ladder is untouched.
+
+### Food and drink — buffs, nothing else
+
+One buff/debuff table (`Config.EFFECTS`) serves food, drink, suppressant side
+effects and the Surge. `PlayerSim.effects` is id → seconds left; it is
+applied inside `recompute_stats` and nowhere else, ticked in `PlayerSim.tick`,
+and expiry triggers one recompute. Starter set: **Fed** (eat Rations: +20%
+stamina regen, +10 max stamina, 300s), **Hydrated** (Clean Water, new loot
+res: mutation rate ×0.85, 300s), **Nausea**, **Surge**, **Fever**.
+
+### Decisions the owner made before any of this was written
+
+- **Turning at 100** kills you with its own banner and you come back at 55,
+  not 0. Letting the bar fill must never be the cheap way to empty it.
+- **Food and drink get a full table now**, not a placeholder. Cooked meals,
+  tinned goods, drink — every one a buff with a duration, no hunger meter
+  underneath. Notion owns what exists and what it costs, so the table is
+  designed here and pushed there once the owner says so.
+- **Human raiders are in scope**, as their own branch. High Mutation is what
+  brings them, which is what makes the meter a two-sided bet rather than a
+  chore with a bonus.
+- **Two branches**, so the meter can be felt and re-tuned before the deep end
+  is built on top of it.
+
+### Branch 1 — `mutation-meter`: the bar, the brains, the first two cures
+
+Playable and reviewable on its own. Nothing here needs a new station, a new
+faction or a food table.
+
+- [x] `config.gd`: `MUTATION` (rate, tier and night multipliers, band
+      thresholds, band stat tables, turn behaviour), `EFFECTS`, three brain
+      resources, Raw Brain Matter and Stabilized Neural Serum, the serum
+      recipe, the brain drop table, one SFX recipe
+- [x] `PlayerSim`: `mutation`, `mut_band`, `effects`, `sense_mul`; the tick
+      that raises it, the band-change recompute, effect expiry
+- [x] `Perks.recompute_stats`: `_apply_mutation` and `_apply_effects` at the
+      end of the one function that writes stats (invariant 4)
+- [x] `Mutation` (new sim class): add/suppress, band lookup, the turn.
+      Everything that changes the meter goes through it
+- [x] `Damage`: bite roll on enemy melee, heavy-hit bump, down bump,
+      `turn_player`, stagger and flash reduction at Feral
+- [x] `Enemies.tick_ai`: the sense radius reads `p.sense_mul`
+- [x] `Loot._roll_enemy_drop`: the brain table
+- [x] Consuming rides the existing `using` channel and `Actions`, so a guest's
+      use is a command to the host
+- [x] `Hud`: the Mutation bar under HP and stamina, with the band name and
+      the effect chips
+- [x] `PlayerView`: tint by band
+- [x] `SaveGame`: `mut` and `effects`, defaulted so old saves load as HUMAN
+- [x] `Protocol`: mutation and effects in the player snapshot
+- [x] `tests/mutation_test.gd`: the rate over a day, every accelerator, band
+      thresholds moving stats through the recompute, both cures, the turn at
+      100, brain drops by type, a save round trip, a guest mirroring the meter
+- [x] `PROJECT.md`: §1, pillar 1 rewritten, a new §4 section, §7, §11
+
+### Branch 2 — `mutation-depth`: the chemistry, the loss of control, the people
+
+- [ ] **Chemistry Station**: a tier-2 structure with `station: "chem"`;
+      recipes gain an optional `station`, and `Crafting.stations_at` sits
+      beside `bench_tier_at` so the bench ladder is untouched
+- [ ] **Refined Suppressant** (−50) and **Experimental Suppressant** (−75,
+      Surge, and a Fever roll), both at the station
+- [ ] **The Lurch**: at FERAL, every 60–140s, 1.2–1.8s where the intent is
+      taken off you and your legs carry you at the nearest zombie.
+      Host-rolled, mirrored to guests, its own banner and sound
+- [ ] **Distortion**: the HUD warps and a low pulse plays as the bar fills
+- [ ] **The food and drink table**: a dozen consumables, every one a buff on
+      the shared effects table — meals, tinned goods, drink, stimulants —
+      with their loot sources and their recipes. Hydration slows the mutation
+      rate; nothing here is ever a requirement
+- [ ] **Human raiders**: a hostile faction that comes for a base whose owner
+      has gone too far. A new AI kind rather than a reskinned walker — they
+      use cover, they carry guns, they take your stash rather than eat you.
+      A raid table of their own, gated on Mutation; survivors refuse to be
+      rescued by someone at FERAL, and hesitate at TURNING
+- [ ] Notion: the new items, the station and the loot sources go into the
+      Items & Crafting tables once the owner says so (an external write)
+
+### Review — Branch 1, 2026-09-09
+
+Built, green, and photographed. `tools\test` is 424 tests / 5365 asserts in
+20s; `--all` adds the slow tier with no new failures; the smoke is 56
+checkpoints, 0 failures, and three of them are the new ones.
+
+**What the meter turned out to be.** Two rules carry the whole feature, and
+both were worth more than the code they cost:
+
+1. Every write goes through `Mutation.add`, which is also the only place that
+   derives the band, decides you have turned and emits the notice. There is
+   no second path to be wrong on.
+2. A band is a table of modifiers, and it reaches the player through
+   `recompute_stats` and nothing else. A band *change* is the only thing that
+   triggers a recompute, so a meter that moves every frame costs nothing —
+   and `test_the_band_survives_a_recompute_from_anywhere_else` pins the bug
+   that would otherwise have shipped: equipping a hat quietly handing a Feral
+   character a human's stats back.
+
+**Three things the plan did not survive contact with.**
+
+- **`armor_dr` at FERAL was wrong.** It is summed from worn gear and capped
+  at 0.72, so a band adding to it after the cap either breaks the cap or is
+  silently inert on the exact player most likely to be Feral. Reduced pain is
+  `stagger_mul` (the flash, the shove, the shake) plus flat health instead.
+- **A recipe cost is not always a resource any more.** The Serum is paid for
+  in Raw Brain Matter, a consumable — which `can_afford` and `spend` already
+  handled, because both only ever ask a `Slots` for a count. The assertion in
+  `crafting_test` that every cost is in `RES` was the only thing that had to
+  move, and it moved to "anything that stacks".
+- **Consumables needed their own stack and weight.** Brain matter stacks 20
+  at 0.4 rather than the global 10 at 0.5; the two constants became the
+  default rather than the law.
+
+**Two carried into Branch 2.** Human raiders (the owner asked for them, and
+they are a faction rather than a reskin) and the full food and drink table.
+`mut_rate_mul` already exists on the player and nothing writes it — that is
+where hydration lands.
+
+**Open, and the owner's call.** The bar is the main status but it sits third,
+under health and stamina. It may want to be first, or bigger. That is a feel
+question and the gate above is where it gets answered.
