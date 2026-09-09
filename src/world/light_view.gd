@@ -97,7 +97,7 @@ func tick() -> void:
 
 func _carried_lights() -> void:
 	for p in sim.players:
-		if p.dead or not p.lit:
+		if p.dead or p.away or not p.lit:
 			continue
 		var g := Equipment.equipped_light(p)
 		if g.is_empty():

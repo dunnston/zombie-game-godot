@@ -16,6 +16,8 @@ const PAD := 16.0
 const TIER_COLORS := [Color("#8fae6a"), Color("#8fae6a"), Color("#d9c46a"), Color("#d98a4a"), Color("#e05a4a")]
 
 var sim: GameSim
+## Whose map this is: the local player, whatever seat they hold.
+var player: PlayerSim = null
 ## Full screen rather than the corner.
 var open := false
 
@@ -117,7 +119,7 @@ func _draw() -> void:
 ## the ground truth of what you built, then what is lying about, then people,
 ## then the things trying to kill you, then you.
 func _draw_markers(rect: Rect2, scale: float) -> void:
-	var p: PlayerSim = sim.players[0]
+	var p: PlayerSim = player if player != null else sim.players[0]
 	var big := 1.0 if open else 0.0
 	var to := func(v: Vector2) -> Vector2: return rect.position + v * scale
 
@@ -144,6 +146,15 @@ func _draw_markers(rect: Rect2, scale: float) -> void:
 	if sim.raid != null and sim.raid.has_base:
 		draw_arc(to.call(sim.raid.centre), 8.0 + sin(sim.time * 4.0) * 3.0, 0.0, TAU, 24, Color("#ff5a4a"), 1.0)
 
+	# Teammates in their ring colours, then you in white on top.
+	for q in sim.players:
+		if q == p or q.away or q.dead:
+			continue
+		var at: Vector2 = to.call(q.pos)
+		draw_circle(at, 2.6 + big, Color(Config.PLAYER.colors[q.seat % Config.PLAYER.colors.size()]))
+		if open:
+			draw_string(ThemeDB.fallback_font, at + Vector2(-40, -6), q.display_name, HORIZONTAL_ALIGNMENT_CENTER, 80, 9,
+				Color(Config.PLAYER.colors[q.seat % Config.PLAYER.colors.size()]))
 	var me: Vector2 = to.call(p.pos)
 	draw_circle(me, 2.6 + big, Color.WHITE)
 	draw_line(me, me + Vector2.from_angle(p.angle) * (8.0 + big * 4.0), Color(1, 1, 1, 0.67), 1.4)

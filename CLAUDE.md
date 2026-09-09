@@ -9,6 +9,17 @@ that repo's `PROJECT.md` is the design spec and is not edited from here.
 - Engine: Godot **4.7.2**, executable `C:\Users\ryans\OneDrive\Desktop\Godot_v4.7.2-stable_win64.exe`
 - Remote: https://github.com/dunnston/zombie-game-godot
 - Unit tests: `tools/test.cmd` (headless, under ten seconds). Smoke: `tools/smoke.cmd`.
+- On Linux: `GODOT=/path/to/Godot_v4.7.2-stable_linux.x86_64 tools/test.sh`; the
+  smoke needs Xvfb (`xvfb-run -a -s "-screen 0 1280x720x24" $GODOT --path . --rendering-driver opengl3 -- --smoke --smoke-out=$PWD/.smoke`). `--headless` hangs it.
+- Co-op: `src/net/`. Host-authoritative over ENet on UDP `Config.NET.port` (27333). Guests mirror a `GameSim` and never tick it. Screens change shared state only through `Actions`. `NetDoor` asks the router to open the port over UPnP.
+
+## If the owner asks to switch co-op to WebRTC / room codes
+
+**It is already built.** Do not design or rewrite anything. Read
+`tasks/switch-to-webrtc.md` and follow it: fetch the extension, deploy
+`server/`, set `Config.NET.broker`, run `tools\test --all`. Triggers: "switch
+to WebRTC", "room codes", "UPnP didn't work", "my friend can't connect",
+"no port forwarding".
 - The Godot MCP (`run_project`, `get_debug_output`) reads `GODOT_PATH` from `~/.claude.json`.
 
 ## Invariants (carried from the prototype, still true)
@@ -20,6 +31,7 @@ that repo's `PROJECT.md` is the design spec and is not edited from here.
 5. Every tunable and content table lives in `config.gd`.
 6. There is no pathfinding without give-up logic.
 7. Container identity in saves is derived from tile position, never ordinal index.
+8. A screen that changes shared state calls `Actions`, never a sim function directly: on a guest that is the command to the host.
 
 ## Design pillars
 

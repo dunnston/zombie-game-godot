@@ -315,7 +315,7 @@ func _click_chrome(at: Vector2) -> bool:
 			return true
 	for r in _recipe_rows():
 		if r.rect.has_point(at):
-			Crafting.craft(sim, player, r.recipe, bench())
+			Actions.craft(sim, player, r.recipe, bench())
 			return true
 	for r in _crew_rows():
 		if not r.rect.has_point(at):
@@ -325,7 +325,7 @@ func _click_chrome(at: Vector2) -> bool:
 		else:
 			var who := _selected_survivor()
 			if who != null:
-				sim.crew.assign_job(sim, who, String(r.job))
+				Actions.assign_job(sim, who, String(r.job))
 		return true
 	for r in _char_rows():
 		if not r.rect.has_point(at):
@@ -338,9 +338,9 @@ func _click_chrome(at: Vector2) -> bool:
 				char_attr = r.attr
 				char_top = 0
 			else:
-				Progression.raise_attribute(sim, player, String(r.attr))
+				Actions.raise_attribute(sim, player, String(r.attr))
 		else:
-			Progression.buy_perk(sim, player, String(r.perk))
+			Actions.buy_perk(sim, player, String(r.perk))
 		return true
 	return false
 
@@ -364,13 +364,13 @@ func _buttons() -> Array[Dictionary]:
 func _press_button(id: String) -> void:
 	match id:
 		"deposit":
-			sim.structs.deposit_all(sim, player, store())
+			Actions.deposit_all(sim, player, store_tile, store_car)
 		"withdraw":
-			sim.structs.withdraw_supplies(sim, player, store())
+			Actions.withdraw_supplies(sim, player, store_tile, store_car)
 		"refuel":
-			sim.cars.refuel(sim, sim.cars.by_id(store_car), player)
+			Actions.refuel(sim, player, store_car)
 		"equip_best":
-			Equipment.equip_best(sim, player)
+			Actions.equip_best(sim, player)
 
 
 func _press(cell: Dictionary, mb: InputEventMouseButton) -> void:
@@ -383,15 +383,15 @@ func _press(cell: Dictionary, mb: InputEventMouseButton) -> void:
 	# you already clicked, so neither starts a drag.
 	if mb.ctrl_pressed:
 		if cell.kind == "equip":
-			Equipment.drop_equipped(sim, player, cell.slot)
+			Actions.drop_equipped(sim, player, cell.slot)
 		else:
-			Equipment.drop_stack(sim, player, cell.kind, cell.index, true, store_tile)
+			Actions.drop_stack(sim, player, cell.kind, cell.index, true, store_tile, store_car)
 		return
 	if mb.shift_pressed and cell.kind != "equip":
 		var cont := Equipment.container(player, cell.kind, store())
-		var free := cont.first_empty()
+		var free := cont.first_empty() if cont != null else -1
 		if free >= 0:
-			cont.split(cell.index, free)
+			Actions.split_stack(sim, player, cell.kind, cell.index, free, store_tile, store_car)
 		return
 	drag = {"from": cell, "id": stack.id, "n": stack.n}
 
@@ -406,20 +406,20 @@ func _release(cell: Dictionary) -> void:
 		# dragging something out of the panel.
 		if not _panel().has_point(mouse):
 			if from.kind == "equip":
-				Equipment.drop_equipped(sim, player, from.slot)
+				Actions.drop_equipped(sim, player, from.slot)
 			else:
-				Equipment.drop_stack(sim, player, from.kind, from.index, true, store_tile)
+				Actions.drop_stack(sim, player, from.kind, from.index, true, store_tile, store_car)
 		return
 	if cell.kind == from.kind and cell.index == from.index and cell.slot == from.slot:
 		return
 	if from.kind == "equip" and cell.kind == "equip":
 		return
 	if from.kind == "equip":
-		Equipment.unequip_to(player, from.slot, cell.kind, cell.index)
+		Actions.unequip_to(sim, player, from.slot, cell.kind, cell.index)
 	elif cell.kind == "equip":
-		Equipment.equip_from_slot(player, from.kind, from.index, cell.slot)
+		Actions.equip_from_slot(sim, player, from.kind, from.index, cell.slot)
 	else:
-		Equipment.move_stack(sim, player, from.kind, from.index, cell.kind, cell.index, store_tile)
+		Actions.move_stack(sim, player, from.kind, from.index, cell.kind, cell.index, store_tile, store_car)
 
 
 ## Right-click: the obvious thing for what is under the cursor. Gear in the
@@ -432,10 +432,10 @@ func _quick_move(cell: Dictionary) -> void:
 	if stack.is_empty():
 		return
 	if cell.kind == "equip":
-		Equipment.unequip(sim, player, cell.slot)
+		Actions.unequip(sim, player, cell.slot)
 		return
 	if mode != "store" and not Items.gear_slot(stack.id).is_empty() and cell.kind == "bag":
-		Equipment.equip_from_bag(sim, player, cell.index)
+		Actions.equip_from_bag(sim, player, cell.index)
 		return
 	var to := ""
 	if mode == "store":
@@ -457,7 +457,7 @@ func _quick_move(cell: Dictionary) -> void:
 	if free < 0:
 		sim.notify("No room", "#c96a5a")
 		return
-	Equipment.move_stack(sim, player, cell.kind, cell.index, to, free, store_tile)
+	Actions.move_stack(sim, player, cell.kind, cell.index, to, free, store_tile, store_car)
 
 
 func _cancel_drag() -> void:

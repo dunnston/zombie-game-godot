@@ -255,11 +255,34 @@ Split from vehicles: two systems in one PR is one review of neither.
 - [x] `SaveGame` v6 carries what you have found
 - [x] Tests, and smoke checkpoints for the corner map and the open map
 
-## Phase 5 — co-op
+## Phase 5 — co-op (`claude/phase-5-completion-hif1bt`)
 
-- [ ] Godot high-level multiplayer over WebRTC, host-authoritative, up to four
-- [ ] Signalling broker (reuse `server/signal.js` from the prototype)
-- [ ] Guests: intent up, snapshots down, prediction for own player
+- [x] Host-authoritative, up to four, over the engine's `MultiplayerPeer` —
+      ENet rather than WebRTC (PROJECT.md §6: WebRTC is an extension plus a
+      broker; ENet is in the box and the sessions are transport-blind)
+- [x] Guests: intent up every step, snapshots down at 20Hz, prediction for
+      their own player only, 48px snap, everything else eased
+- [x] A guest joins through the save path; the host's save keeps every
+      player by identity (v7) and hands the character back on return
+- [x] Commands through one seam (`Actions`), validated on the host with the
+      functions solo uses; building, searching, driving and reviving are
+      intent edges as before
+- [x] World facts as reliable diffs (structures, stores, looted, chopped,
+      discovered, rescues, roster); events relayed by interest radius
+- [x] Downed-not-dead with a teammate standing; E beside them gets them up
+- [x] MULTIPLAYER on the title (host a save, host a new game, join); HOST
+      THIS GAME on the pause menu; LEAVE GAME for a guest; typed fields
+- [x] Loopback link for tests and smoke; a real UDP handshake in the suite
+- [x] UPnP: the host asks its router to open the port and shows the public
+      address (the cheap road onto the internet — no server, no extension)
+- [x] Room codes over WebRTC: `WebRtcHub`, the broker in `server/`, the
+      fetch script, the menu rows, tests with a stand-in connection —
+      **switched off** (`Config.NET.broker` empty, no binaries in git)
+- [ ] Switch it on if UPnP says no — **`tasks/switch-to-webrtc.md`** is the
+      runbook: `tools/fetch-webrtc`, deploy `server/` to a free tier, set
+      `Config.NET.broker`, run `tools/test --all` (the slow test then walks
+      a guest over real WebRTC on localhost)
+- [ ] Owner plays with a friend (the Phase 5 gate)
 
 ## Open decisions (owner)
 
@@ -271,6 +294,70 @@ Split from vehicles: two systems in one PR is one review of neither.
 ## Review
 
 (filled in as phases land)
+
+## Review — Phase 5 Codex pass on PR #15 (2026-09-09)
+
+Five findings, all real, all fixed with a test each:
+
+- **P1 — edges lost on the unreliable channel.** Presses now go on the
+  reliable channel as `msg_edges`, once, and the state packet carries held
+  state only. A single slot press and a single wall placement land exactly
+  once at 30% loss and reorder, without the retry loop the old test had.
+- **P1 — seats exhausted by parked characters.** `_free_seat` takes the seat
+  from an absent character and moves them above the four drawn seats;
+  `unpark_player` hands one back. Three friends who came and went no
+  longer make a game full for a fourth.
+- **P2 — `open_boot` reached everyone near the car.** It names its seat and
+  is gated like `open_store`, on the host's screen and in the relay.
+- **P2 — an emptied boot never cleared on guests.** One empty record is
+  sent after a boot is emptied (`_trunks_sent`).
+- **P2 — parked characters earned shared XP.** Automated kills and raid
+  payouts pay `present_players()`.
+
+Found while fixing: the test runner treated a file that fails to parse as
+zero tests and zero failures. It now fails the run.
+
+## Review — Phase 5, co-op (2026-09-09)
+
+**What landed.** `src/net/` (protocol, link + loopback, ENet hub, host,
+guest, actions, prefs); sim seats/identity/away/downed; save v7; the
+scene's host and guest loops; the menu pages; two test files.
+
+**What was measured.**
+- A guest walking east for two seconds ends within 12px of where the host
+  has it, with no loss; within 48px (the snap) at 30% loss and 30% reorder
+  on the state channel. Edges (a slot press) get through the same channel.
+- A silent guest stops inside a second of sim time; a paused one stops at
+  once.
+- A snapshot of sixty enemies and twenty piles is under 3000 bytes; the
+  first cut, with players as Dictionaries, tripped the engine's 1392-byte
+  MTU warning with one player and ten enemies.
+- The real UDP handshake on localhost connects on the first poll and a guest
+  walks over it.
+- A save with a connected guest, reloaded: the guest is parked, level kept;
+  rejoining with the same identity gets the same seat.
+
+**What was not.** Nobody has played it. Latency above loopback (the 6/s
+lerp and the 48px snap are the prototype's numbers, untried here). A guest
+driving. A guest at a raid. Four at once outside the refusal test. Internet
+play across two NATs — ENet does not do that alone.
+
+**Known gaps, deliberate.**
+- A guest's own gunshots are drawn when the host says so, one round trip
+  late; the prototype predicted its own tracers. Melee swings are predicted.
+- The spawner uses the host's view radius for every player's ring;
+  `Config.NET.guest_view_radius` is set on the mirror and read by nothing.
+- The mirror's `sim.time` free-runs between snapshots and snaps at 0.5s of
+  drift, so an animation keyed to it can hitch on a bad link.
+- The host's pause menu keeps the world running while anyone is connected;
+  the host's own body stands still. The guests are not told.
+- No broker deployed, so no room codes yet: an address and a port. UPnP
+  asks the router to open it; whether the owner's router agrees is the
+  first thing to look at on the HOST page. The room-code road is built
+  behind `Config.NET.broker`.
+- Bytes over a real WebRTC channel are untested until the native extension
+  is fetched; the test that walks a guest over it is written and gated on
+  `WebRtcHub.available()`.
 
 ## Review — Phase 1 (2026-09-08)
 

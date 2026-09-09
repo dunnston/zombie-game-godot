@@ -157,6 +157,24 @@ static func equip_best(sim: GameSim, p: PlayerSim) -> int:
 
 # -------------------------------------------------------------------- moves --
 
+## The chest a tile names, or the boot a car id names, if `p` is standing
+## close enough to be using it. Both kinds resolve here so that a boot can be
+## dragged in and out of like a chest — and so a guest's move, which carries
+## only the tile or the id, is checked against the same reach.
+static func _store(sim: GameSim, p: PlayerSim, at: Vector2i, car: int) -> Slots:
+	if sim == null:
+		return null
+	if car > 0:
+		var v := sim.cars.by_id(car)
+		if v.is_empty() or v.destroyed:
+			return null
+		var r: float = Config.CAR.enter_range
+		return v.trunk if p.pos.distance_squared_to(v.pos) <= r * r else null
+	if at.x >= 0:
+		return sim.structs.reachable_store(p, at.x, at.y)
+	return null
+
+
 static func container(p: PlayerSim, name: String, store: Slots = null) -> Slots:
 	match name:
 		"bag": return p.bag
@@ -171,10 +189,8 @@ static func container(p: PlayerSim, name: String, store: Slots = null) -> Slots:
 ## itself: the host resolves the structure and checks the player is standing
 ## beside it, instead of trusting a panel it cannot see. That is also what a
 ## guest's move will carry.
-static func move_stack(sim: GameSim, p: PlayerSim, from_cont: String, from_index: int, to_cont: String, to_index: int, at := Vector2i(-1, -1)) -> bool:
-	var store: Slots = null
-	if at.x >= 0 and sim != null:
-		store = sim.structs.reachable_store(p, at.x, at.y)
+static func move_stack(sim: GameSim, p: PlayerSim, from_cont: String, from_index: int, to_cont: String, to_index: int, at := Vector2i(-1, -1), car := 0) -> bool:
+	var store: Slots = _store(sim, p, at, car)
 	if (from_cont == "store" or to_cont == "store") and store == null:
 		return false
 	var from := container(p, from_cont, store)
@@ -217,10 +233,8 @@ static func split_stack(p: PlayerSim, cont_kind: String, from_index: int, to_ind
 ## Drops a stack at the player's feet, where it can be picked back up.
 ## `at` names a chest, so ctrl+click on a container slot drops on the ground
 ## rather than silently doing nothing.
-static func drop_stack(sim: GameSim, p: PlayerSim, cont_kind: String, index: int, all := true, at := Vector2i(-1, -1)) -> bool:
-	var store: Slots = null
-	if at.x >= 0 and sim != null:
-		store = sim.structs.reachable_store(p, at.x, at.y)
+static func drop_stack(sim: GameSim, p: PlayerSim, cont_kind: String, index: int, all := true, at := Vector2i(-1, -1), car := 0) -> bool:
+	var store: Slots = _store(sim, p, at, car)
 	if cont_kind == "store" and store == null:
 		return false
 	var c := container(p, cont_kind, store)
