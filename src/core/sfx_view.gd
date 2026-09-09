@@ -62,40 +62,57 @@ func _init(sim_: GameSim) -> void:
 	sim = sim_
 
 
-func on_event(ev: Dictionary) -> void:
+## Turns one event into one sound, and **returns the cue it chose** — or "" for
+## an event that makes no noise.
+##
+## The return value exists for the tests. Three times now a feature has shipped
+## built-but-not-connected because the test asserted on the thing feeding the
+## code rather than on what the code decided: asserting that a bow emits a
+## `shot` event proves nothing about whether the bow makes a sound. This is the
+## seam that lets a headless test ask the real question.
+func on_event(ev: Dictionary) -> String:
 	var t := String(ev.t)
 	match t:
-		"muzzle":
-			# The cue is on the muzzle flash, not on the bullet: a shotgun
-			# spawns eight pellets and fires once, and eight bangs for one
-			# trigger pull is exactly what the rate limit exists to prevent.
-			var w := String(ev.get("w", "pistol"))
-			_at(w if Sfx.has(w) else "pistol", ev)
+		"shot":
+			# On the *shot*, not the muzzle flash. `spawn_bullet` already puts
+			# the weapon id on the first pellet only and leaves it empty on the
+			# rest — `combat.gd` even says "one sound per shot, not per pellet"
+			# beside it — so this is the field asking to be used, and it is the
+			# only one that reaches a bow: a bow emits no muzzle flash, because
+			# a flash is a light source and a bow that lit up the treeline
+			# would give away the one thing it is for.
+			var w := String(ev.get("w", ""))
+			if w.is_empty():
+				return ""                   # pellets two through eight
+			return _at(w if Sfx.has(w) else "pistol", ev)
 		"hit":
-			_at("melee_hit" if String(ev.get("kind", "bullet")) == "melee" else "bullet_hit", ev)
+			return _at("melee_hit" if String(ev.get("kind", "bullet")) == "melee" else "bullet_hit", ev)
 		"growl":
 			# One recording, a horde of voices.
-			_at("growl", ev, 1.0 + (randf() - 0.5) * GROWL_SPREAD)
+			return _at("growl", ev, 1.0 + (randf() - 0.5) * GROWL_SPREAD)
 		"raid_end":
 			if bool(ev.get("repelled", false)):
 				Sfx.play("raid_win")
+				return "raid_win"
+			return ""
 		_:
 			if DIRECT.has(t):
-				_at(DIRECT[t], ev)
+				return _at(DIRECT[t], ev)
+	return ""
 
 
-## Plays a cue where it happened. An event with no position — a raid warning
-## belongs to the whole town — is played at full volume.
-func _at(cue: String, ev: Dictionary, pitch := 1.0) -> void:
+## Plays a cue where it happened, and names it. An event with no position — a
+## raid warning belongs to the whole town — is played at full volume. A cue too
+## far away to hear is still the cue that was chosen, so it is still named: the
+## decision and the volume are different questions.
+func _at(cue: String, ev: Dictionary, pitch := 1.0) -> String:
 	if not ev.has("x"):
 		Sfx.play(cue, pitch)
-		return
+		return cue
 	var g := gain_at(Vector2(ev.x, ev.y))
-	if g <= 0.0:
-		return
-	Sfx.play(cue, pitch, g)
-
-
+	if g > 0.0:
+		Sfx.play(cue, pitch, g)
+	return cue
 ## How loud something is from where you are standing: full up close, silent
 ## past the range, and squared in between so the fall-off sounds like distance
 ## rather than like a dimmer switch.

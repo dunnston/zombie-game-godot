@@ -694,6 +694,14 @@ const SFX := {
 		{"kind": "noise", "dur": 0.08, "gain": 0.36, "filter": "hp", "freq": 850.0, "q": 0.7},
 		{"kind": "tone", "freq": 440.0, "to": 80.0, "wave": "square", "dur": 0.07, "gain": 0.2},
 	],
+	## Somebody else's gun, from a tower across the base. Flatter and drier
+	## than yours so a firefight you are in the middle of still reads as
+	## yours — and it is a separate cue rather than a fallback because the
+	## fallback is how the carbine nearly shipped with the pistol's bang.
+	"survivor": [
+		{"kind": "noise", "dur": 0.07, "gain": 0.26, "filter": "hp", "freq": 1000.0, "q": 0.8},
+		{"kind": "tone", "freq": 360.0, "to": 90.0, "wave": "square", "dur": 0.06, "gain": 0.14},
+	],
 	"turret": [
 		{"kind": "noise", "dur": 0.05, "gain": 0.14, "filter": "hp", "freq": 1500.0, "q": 0.7},
 		{"kind": "tone", "freq": 620.0, "to": 200.0, "wave": "square", "dur": 0.05, "gain": 0.08},

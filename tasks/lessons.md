@@ -122,3 +122,25 @@ earlier, for exactly this reason, and I did not carry it across.
 
 **Rule:** when a script needs both an autoload and a `class_name`, the two
 names must differ. `Bindings`/`KeyBinds`, `Audio`/`Sfx`.
+
+## Assert on what the code decided, not on what fed it (2026-09-08)
+
+Three times in Phase 4:
+
+- 4c: features built and not connected, with tests calling the function
+  instead of pressing the key.
+- 4d: `KeyBinds.primary_label` had no callers; the HUD still said "E".
+- 4d audio: the bow had a cue, and every gun sound hung on the `muzzle` event
+  — which a bow deliberately never emits. My test asserted "firing a bow emits
+  a shot event", which was true the whole time the bow was silent.
+
+The shape is always the same: the assertion sits *upstream* of the decision.
+
+**Rule:** for anything that maps input to a choice — an event to a sound, a
+key to an action, a binding to a prompt — the function must **return the
+choice**, and the test must assert on that return. If the seam does not exist,
+add it; `SfxView.on_event` returns a cue name for exactly this reason.
+
+The check: break the mapping and re-run. If nothing fails, the test was
+watching the wrong end. Reverting `"shot"` to `"muzzle"` fails twelve
+assertions now and failed none before.

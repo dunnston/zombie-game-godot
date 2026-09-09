@@ -138,19 +138,70 @@ func test_every_weapon_has_a_voice() -> void:
 		ok(Config.SFX.has(id), "%s has no sound" % id)
 
 
-func test_a_shotgun_bangs_once_and_not_once_per_pellet() -> void:
-	# Eight pellets are eight `shot` events and one `muzzle`. The cue is on the
-	# muzzle for exactly this reason: it is the difference between a bang and a
-	# burst of static.
-	p.select_slot(p.hotbar_index("shotgun"))
+## Every cue `SfxView` chose for the events this weapon produced. Not the
+## events — the cues, which is the question that matters.
+func _cues_from_firing(id: String) -> Array[String]:
+	p.select_slot(p.hotbar_index(id))
 	p.attack_cd = 0.0
 	p.intent.fire = true
+	sim.events.clear()
 	run(sim, 1.0)
-	var muzzles := events_of(sim, "muzzle").size()
-	var shots := events_of(sim, "shot").size()
-	gt(muzzles, 0, "the shotgun did not go off at all")
-	eq(shots, muzzles * int(Config.WEAPONS.shotgun.pellets),
-		"eight pellets, one bang: %d shots, %d muzzles" % [shots, muzzles])
+	var out: Array[String] = []
+	for ev in events_of(sim, "shot"):
+		var cue := ears.on_event(ev)
+		if not cue.is_empty():
+			out.append(cue)
+	return out
+
+
+func test_a_shotgun_bangs_once_and_not_once_per_pellet() -> void:
+	var cues := _cues_from_firing("shotgun")
+	var all := events_of(sim, "shot").size()
+	gt(cues.size(), 0, "the shotgun did not go off at all")
+	for c in cues:
+		eq(c, "shotgun")
+	eq(all, cues.size() * int(Config.WEAPONS.shotgun.pellets),
+		"eight pellets, one bang: %d shots, %d bangs" % [all, cues.size()])
+
+
+func test_the_bow_is_not_silent() -> void:
+	# A bow emits no muzzle flash — a flash is a light source, and a bow that
+	# lit up the treeline would give away the one thing it is for. The first
+	# cut of this hung every gun sound on the muzzle event, so the bow made no
+	# sound at all and the cue written for it was never once reached.
+	#
+	# The assertion is on the cue `SfxView` chose, not on the event that fed
+	# it: "the bow emitted a shot" was true the whole time the bow was silent.
+	ok(Config.SFX.has("bow"))
+	var cues := _cues_from_firing("bow")
+	gt(cues.size(), 0, "the bow fired and said nothing")
+	eq(cues[0], "bow")
+
+
+func test_every_gun_reaches_its_own_cue() -> void:
+	# Not "has a cue" — reaches it. A weapon whose id does not match its cue
+	# name falls back to the pistol and sounds wrong in a way nothing else
+	# would catch.
+	for id in Config.WEAPONS:
+		var w: Dictionary = Config.WEAPONS[id]
+		if String(w.get("kind", "")) != "gun" and not w.get("bow", false):
+			continue
+		eq(ears.on_event({"t": "shot", "x": p.pos.x, "y": p.pos.y, "w": id}), id,
+			"%s does not reach a cue of its own" % id)
+
+
+func test_a_turret_and_a_survivor_have_voices_of_their_own() -> void:
+	# `spawn_bullet` is called with a weapon id by the player, by a turret and
+	# by a survivor, and all three arrive through the same field. A name with
+	# no cue falls back to the pistol — which is how the carbine nearly
+	# shipped sounding like a handgun.
+	for id in ["turret", "survivor"]:
+		eq(ears.on_event({"t": "shot", "x": p.pos.x, "y": p.pos.y, "w": id}), id)
+
+
+func test_a_pellet_after_the_first_makes_no_sound_at_all() -> void:
+	eq(ears.on_event({"t": "shot", "x": p.pos.x, "y": p.pos.y, "w": ""}), "",
+		"an unnamed shot is a pellet, not a bang")
 func test_a_pipe_thumps_and_a_bullet_pings() -> void:
 	# The hit event carries which it was, because nothing else can tell.
 	var e := EnemySim.new("walker", p.pos + Vector2(30, 0), 1)

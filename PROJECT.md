@@ -83,7 +83,7 @@ These settle arguments. When a decision is close, the pillar wins.
 **Status: Phase 4 is complete.** Everything the browser prototype had is in
 Godot, and several things are better than they were. Only co-op is left.
 
-**The ears.** Every sound in the game is synthesised at boot — thirty-four
+**The ears.** Every sound in the game is synthesised at boot — thirty-five
 recipes in `Config`, no audio file anywhere in the project — and rate-limited
 per kind, so a shotgun hitting twelve zombies is one impact rather than
 twelve. The gunshot rides the muzzle flash, not the bullet. And sounds fade
@@ -176,7 +176,7 @@ that will not fit is ever destroyed: it lands on the ground.
 | --- | --- |
 | Phase | **4 of 5 complete.** 4a progression, 4b day and fire, 4c survivors and vehicles, 4d the front door, the map and the audio. Only co-op is left |
 | Playable | The whole loop, it levels you, it gets dark, and you can hold it with other people. **E** searches and uses, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load. |
-| Unit tests | 334 tests, 4789 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials and the survivor combat tests: 364 tests, 4902 assertions. Wall-clock varies with the machine — see §9 |
+| Unit tests | 338 tests, 4811 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials and the survivor combat tests: 368 tests, 4924 assertions. Wall-clock varies with the machine — see §9 |
 | Smoke | 45 checkpoints: walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked , the town map with its districts, Sixth Sense widening the reveal, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it , and every cue reaching a voice |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
 | Save format | **v6** — the districts you have found (ids only: the rects are `Config`, so a save cannot carry a stale map), on top of v5's what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
@@ -227,7 +227,7 @@ The spec for each row is in `tasks/port-inventory.md`.
 ### The ears (Phase 4d — audio)
 
 - **Every sound is synthesised, and none of it is loaded.** There is not one
-  audio file in the project. `Config.SFX` is thirty-four recipes — a `tone` is
+  audio file in the project. `Config.SFX` is thirty-five recipes — a `tone` is
   an oscillator with a pitch glide, a `noise` is white noise through a filter,
   and both have a 5ms attack and an exponential decay — and `Sfx` renders each
   one to a PCM buffer at boot.
@@ -238,8 +238,10 @@ The spec for each row is in `tasks/port-inventory.md`.
   replaced by stepped multipliers that give the identical curve.
 - **A shotgun blast hitting twelve zombies is one impact.** Identical cues
   inside a per-kind window are dropped — bullet hit 28ms, growl 260ms, player
-  hurt 140ms — and the gunshot rides the *muzzle flash* rather than the
-  bullet, because a shotgun spawns eight pellets and fires once.
+  hurt 140ms — and the gunshot rides the `shot` event, which already carries
+  the weapon id on the first pellet only, so a shotgun blast is one bang and
+  not eight. It is also the only event a bow produces: a bow emits no muzzle
+  flash, because a flash is a light source at night.
 - **The simulation stays deaf.** `SfxView` maps events to cues, exactly as
   `FxView` maps them to particles and `LightView` to lights. Nothing in
   `src/sim` knows a sound exists, which is what lets the whole game run
@@ -874,6 +876,13 @@ summarised in `tasks/port-inventory.md`.
 
 ### New in Godot
 
+- **Assert on what the code decided, not on what fed it.** Three times in
+  Phase 4 a test watched the thing feeding the code rather than the choice the
+  code made — the bow had a sound cue and made no noise, while a test happily
+  confirmed that firing a bow emits a `shot` event. Anything that maps an
+  input to a choice should **return the choice** so a test can assert on it,
+  and the check is to break the mapping and see whether anything fails.
+  (2026-09-08)
 - **An autoload must never share its name with a `class_name`.** The autoload
   registers a global holding the *instance*, which shadows the class; under
   `godot --headless -s` there is no autoload, so the name resolves to a bare
@@ -970,8 +979,8 @@ summarised in `tasks/port-inventory.md`.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 334  asserts: 4789  failures: 0
-tests: 364  asserts: 4902  failures: 0   (--all)
+tests: 338  asserts: 4811  failures: 0
+tests: 368  asserts: 4924  failures: 0   (--all)
 SMOKE done checkpoints=45 failures=0 exit=0
 ```
 
@@ -1076,7 +1085,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
-| 2026-09-08 | Phase 4d (audio) — **Phase 4 complete**: `Config.SFX` (34 cues as recipes), `SFX_THROTTLE`, `SFX_RATE`/`SFX_GAIN`/`SFX_NEAR`/`SFX_RANGE`; `Sfx` — tone and filtered-noise synthesis rendered to PCM at boot rather than a graph per shot, a Chamberlin state-variable filter for the lowpass/highpass/bandpass with a per-sample cutoff sweep, a 24-voice pool, the per-kind rate limit, and mute persisted to `user://audio.json`; `SfxView` maps sim events to cues so `src/sim` never learns that sound exists; the gunshot rides the muzzle flash rather than the bullet, so a shotgun is one bang and not eight; distance falloff, which the prototype had none of; the hit event gained a `kind` so a pipe thumps and a bullet pings; SOUND on the pause menu and the title; 15 new tests (334 fast, 364 with `--all`); a smoke checkpoint that plays every cue and checks a voice actually started. The bank was 205ms at boot until the per-sample `exp` and `pow` became stepped multipliers giving the identical curve: 91ms. The autoload is `Audio`, not `Sfx` — an autoload whose name matches a `class_name` shadows the class, and under `-s` the name then resolves to a bare GDScript with no static methods, which is the second time this project has hit that |
+| 2026-09-08 | Phase 4d (audio) — **Phase 4 complete**: `Config.SFX` (35 cues as recipes), `SFX_THROTTLE`, `SFX_RATE`/`SFX_GAIN`/`SFX_NEAR`/`SFX_RANGE`; `Sfx` — tone and filtered-noise synthesis rendered to PCM at boot rather than a graph per shot, a Chamberlin state-variable filter for the lowpass/highpass/bandpass with a per-sample cutoff sweep, a 24-voice pool, the per-kind rate limit, and mute persisted to `user://audio.json`; `SfxView` maps sim events to cues so `src/sim` never learns that sound exists; the gunshot rides the muzzle flash rather than the bullet, so a shotgun is one bang and not eight; distance falloff, which the prototype had none of; the hit event gained a `kind` so a pipe thumps and a bullet pings; SOUND on the pause menu and the title; 19 new tests (338 fast, 368 with `--all`); a smoke checkpoint that plays every cue and checks a voice actually started. The bank was 205ms at boot until the per-sample `exp` and `pow` became stepped multipliers giving the identical curve: 91ms. The autoload is `Audio`, not `Sfx` — an autoload whose name matches a `class_name` shadows the class, and under `-s` the name then resolves to a bare GDScript with no static methods, which is the second time this project has hit that |
 | 2026-09-08 | Phase 4d (the map): `Config.MAP`; `MapScreen` — the corner minimap and the town map behind `M` off one `_draw`, a 320x320 one-pixel-per-tile ground image tinted by danger and cached on the generator's fingerprint (41ms, once per world), structures, packs, crew, enemies, the pulsing raid marker and the player's facing; district discovery in `GameSim` paying 25 XP per danger tier — the tenth XP site — with undiscovered districts drawn as `? ? ?`; `SaveGame` v6 carries what you have found, by id; **Sixth Sense loses its `needs` gate and `radar_mul` becomes a reveal radius**, which is a deliberate balance change from the prototype, where the minimap showed every enemy in the world and the perk did nothing; the debug readout moved off the corner the minimap now owns; 10 new tests (319 fast, 349 with `--all`); smoke opens the town map, buys the perk and watches the reveal widen. Two existing tests changed with it, both correctly: no perk carries a `needs` any more, and the raid test searched the notices for INCOMING instead of assuming it was first, because a discovery notice can now arrive on the same tick |
 | 2026-09-08 | Phase 4d (the front door): `Saves` — six slots behind a small `user://saves/index.json` so listing six games does not parse six worlds, with the file as the truth about existence and the index as the truth about the summary, `latest()` preferring the slot last chosen over the one last written, and the play time and "3 hours ago" labels; autosave every two minutes for a game that has a slot, and never for one that does not; `KeyBinds` rewritten as static state on a `class_name` — full rebinding to `user://binds.json`, conflicts reported rather than refused, Escape reserved, unknown actions from an old file dropped, and every prompt built from `primary_label`; `MenuScreen` with TITLE, PAUSE, LOAD, CONTROLS and NEW GAME off one `_rows()` that is both the hit test and the paint, footer rows pinned so BACK cannot scroll away; `scenes/main.gd` boots to the title (except under smoke), Escape closes innermost-first and then pauses with the world frozen, and SAVE AND QUIT TO TITLE writes before it leaves; 21 new tests (309 fast, 339 with `--all`); 6 new smoke checkpoints — pause, CONTROLS, a key rebound, a save written, the title, and that slot loaded from it. The menu never repainted after a page change: the assertions passed because they read `menu.page`, and only the screenshot showed CONTROLS still on screen |
 | 2026-09-08 | Phase 4c (vehicles): `CAR` in `Config`; `Vehicles` — about thirty cars rolled from their own per-spawn seeds, three ways into a locked one (a key planted in a nearby container, a lockpick that can snap and be heard, or Hotwire), arcade handling with speed-scaled steering, fuel, engine noise and Threat, roadkill credited to the driver, the 400-unit boot, refuelling, wrecking and stripping; a parked car blocks its tiles and a driven one does not, asking both collision maps; driving short-circuits the player tick entirely; a car key is learned rather than carried; `VehicleView`; `SaveGame` v5 stores only what a run changed about a car; Hotwire's `needs` gate comes off, leaving only Sixth Sense; 33 new tests; smoke finds a car, drives it and parks it. `plant_keys` buckets containers rather than scanning all six hundred per locked car — it ran on every `GameSim.start` and was five milliseconds of every test |

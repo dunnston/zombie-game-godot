@@ -32,10 +32,19 @@ static var _built := false
 ## impacts and a horde. Past this the oldest voice is taken, which is the right
 ## answer — the sound you are stealing is already a third of a second old.
 const VOICES := 24
-const STORE := "user://audio.json"
+## Where the mute setting lives. A `static var` rather than a `const` for the
+## same reason `KeyBinds.STORE` is one: `user://` is shared with the real game,
+## and a smoke run that wrote its own muting into it would silence the player.
+static var STORE := "user://audio.json"
 
 
 func _ready() -> void:
+	# Checked here rather than read off the `Smoke` autoload: autoloads run in
+	# declaration order and `Smoke` has not loaded yet. The setting must be
+	# redirected before `load_settings` reads and `set_muted` writes.
+	for a in OS.get_cmdline_user_args():
+		if a == "--smoke":
+			STORE = "user://audio_smoke.json"
 	build()
 	attach(self)
 	load_settings()

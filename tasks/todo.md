@@ -1161,3 +1161,43 @@ decision (the fast tier is 17s against a ten-second rule) is still open.
 
 Numbers: 334 tests / 4789 assertions fast, 364 / 4902 with `--all`, 45 smoke
 checkpoints, zero failures.
+
+## Review — Phase 4d audio Codex pass on PR #14 (2026-09-08)
+
+Two findings, both P2, both real, and the first one is the same failure this
+file has now named three times.
+
+- [x] **P2 The bow was silent, and I wrote it a cue.** Every gun sound hung on
+      the `muzzle` event, and `Combat.fire_gun` deliberately suppresses the
+      muzzle flash for a bow — a flash is a light source at night, and a bow
+      that lit up the treeline would give away the one thing it is for. So
+      `Config.SFX.bow` was written, tested for existence, and never once
+      reached in play. The `shot` event was the right home all along: it
+      already carries the weapon id **on the first pellet only**, with a
+      comment beside it in `combat.gd` reading "one sound per shot, not per
+      pellet". The field was asking to be used and I did not read it.
+- [x] **P2 The smoke wrote to the player's mute setting.** `set_muted(false)`
+      at the end of the step wrote `{"muted": false}` into the real
+      `user://audio.json`, and a player who had muted the game would have had
+      the smoke both fail spuriously *and* unmute them. Third time for this
+      exact hazard — save slots, key binds, now audio. `STORE` is a
+      `static var` redirected to `user://audio_smoke.json` when `--smoke` is
+      on the command line, checked from the cmdline rather than off the
+      `Smoke` autoload because autoloads run in declaration order and `Smoke`
+      has not loaded yet. Verified by hand: a real `{"muted":true}` survives a
+      full smoke run byte for byte, and the run passes.
+
+**The lesson underneath the first one, made structural.** My bow test asserted
+that firing a bow emits a `shot` event — which was true the entire time the
+bow was silent. That is the third time a test has checked the thing feeding
+the code instead of what the code decided. So `SfxView.on_event` now **returns
+the cue it chose**, and every mapping test asserts on that return value.
+Reverting the one word `"shot"` back to `"muzzle"` now fails twelve
+assertions across four tests; before, it failed none.
+
+Also found while fixing: a survivor's gun had no cue either and would have
+fallen back to the pistol — the same gap the carbine test caught, in the same
+PR, one dispatch away.
+
+Numbers: 338 tests / 4811 assertions fast, 368 / 4924 with `--all`, 45 smoke
+checkpoints, zero failures.
