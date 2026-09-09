@@ -16,12 +16,15 @@ extends RefCounted
 ## polls `status` each frame. Nothing here touches the sim.
 
 var port := 0
-## "asking", "open", "refused", "none", "closed".
+## "asking", "open", "refused", "none", "off", "closed".
 var state := "asking"
 ## One sentence for the HOST page.
 var status := "asking the router to open the port…"
 ## The address friends type, once the router said yes: "203.0.113.5:27333".
 var public := ""
+## Whether to ask the router at all. `Config.NET.upnp` by default, and a
+## seam for the test: a const Dictionary cannot be written to.
+var use_upnp := bool(Config.NET.upnp)
 var _thread: Thread = null
 var _mutex := Mutex.new()
 var _upnp: UPNP = null
@@ -70,6 +73,16 @@ func _report(state_: String, status_: String, public_ := "") -> void:
 
 
 func _work() -> void:
+	if not use_upnp:
+		# Switched off in config. Never ask the router — but a host who turned
+		# UPnP off is the host who forwarded the port by hand, so the address
+		# is worth more here than anywhere.
+		var only := _outside()
+		if only.is_empty():
+			_report("off", "UPnP is switched off — friends need a forwarded port, or a VPN")
+		else:
+			_report("off", by_hand_note(port, "UPnP is switched off"), only)
+		return
 	var u := UPNP.new()
 	var r := u.discover(int(Config.NET.upnp_timeout_ms), 2, "InternetGatewayDevice")
 	# `discover` answers SUCCESS having found nothing at all when the router
@@ -90,7 +103,12 @@ func _work() -> void:
 		return                                  # nobody is hosting any more
 	var m := u.add_port_mapping(port, port, "DEADLINE", "UDP", int(Config.NET.upnp_lease_s))
 	if m != UPNP.UPNP_RESULT_SUCCESS:
-		var refused := _outside()
+		# A conflicting mapping means the external port already belongs to
+		# another device here. Whatever answers the internet at that port, it
+		# is not this host — handing the address out would send a friend to
+		# somebody else's machine. Every other refusal leaves the port
+		# unclaimed, where an address is still worth showing, hedged.
+		var refused := _outside() if may_advertise(m) else ""
 		if refused.is_empty():
 			_report("refused", "the router refused to open UDP %d (%s) — forward it by hand, or use a VPN" % [port, reason(m)])
 		else:
@@ -129,6 +147,15 @@ func _outside() -> String:
 	return "" if ip.is_empty() else "%s:%d" % [ip, port]
 
 
+
+
+
+
+## Whether a refusal leaves the external port free for this host to claim.
+## Only the conflict says it does not: another device on this network already
+## holds that port, so the public address would reach them, not us.
+static func may_advertise(code: int) -> bool:
+	return code != UPNP.UPNP_RESULT_CONFLICT_WITH_OTHER_MAPPING
 
 
 ## The sentence that goes beside an address STUN found rather than the router.

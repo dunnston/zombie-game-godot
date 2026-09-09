@@ -1419,3 +1419,25 @@ Godot instance was importing and running beside it, and passed 3/3 once the
 machine was quiet. It cost an hour of bisection that found nothing, because
 there was nothing to find. A smoke that fails differently each time under load
 is worth hardening or marking.
+
+### Addressing the Codex review on PR #18
+
+Both P2 comments were right and both are fixed.
+
+- **STUN never ran when `Config.NET.upnp` was false.** `_start_hosting` built
+  no `NetDoor` at all in that case, so the one configuration a hand-forwarding
+  host would actually choose was the one where the address never appeared.
+  The door is now built either way and decides for itself: `use_upnp` false
+  asks the router nothing and goes straight to STUN, reporting state `off`.
+  The flag doubles as the test seam, since a `const` Dictionary cannot be
+  written to.
+- **A conflicting mapping was being advertised.** `CONFLICT_WITH_OTHER_MAPPING`
+  means the external port already belongs to another device on this network,
+  so `<public>:27333` reaches them and not this host — a friend dialling it
+  lands on somebody else's machine. `may_advertise()` singles that code out;
+  every other refusal still shows the hedged address, because the host may
+  well have forwarded the port by hand.
+
+`tests/door_test.gd` is new and fast: both decisions are pure functions now,
+and both are asserted there rather than only inside a thread that needs a
+router. `door_slow_test` covers the `off` path end to end.

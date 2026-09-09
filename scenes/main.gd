@@ -1500,9 +1500,12 @@ func _start_hosting(which: int) -> void:
 	net_host = NetHost.new(sim, name_ if not name_.is_empty() else "Host", NetProtocol.hash_password(String(menu.fields.password)))
 	role = "host"
 	sim.notify("Hosting on UDP port %d" % Config.NET.port, "#9fd0ff", true)
-	if Config.NET.upnp:
-		door = NetDoor.new()
-		door.open(Config.NET.port)
+	# Opened either way. With UPnP switched off in config the door asks the
+	# router for nothing, but it still asks the internet what this machine's
+	# address is — a host with UPnP off is precisely the host who forwarded
+	# the port by hand, and the one with no other way to learn it.
+	door = NetDoor.new()
+	door.open(Config.NET.port)
 	# The room-code road, when it is switched on: a broker named and the
 	# native extension present. Either missing is said on the HOST page.
 	if not String(Config.NET.broker).is_empty() and WebRtcHub.available():

@@ -79,3 +79,28 @@ func test_a_door_that_upnp_could_not_open_still_names_an_address() -> void:
 		eq(int(half[1]), int(Config.NET.port), "the port the host is actually listening on")
 		ok(not door.status.is_empty(), "an address never appears without a sentence saying what it is")
 	door.close()
+
+
+func test_upnp_switched_off_still_names_an_address() -> void:
+	# `Config.NET.upnp` false is the owner's own configuration once the router
+	# is doing the forwarding: nothing is asked of the router, but the HOST
+	# page must still have a line to copy, because there is no other way to
+	# learn it. Before this, that config built no door at all.
+	var door := NetDoor.new()
+	door.use_upnp = false
+	door.open(Config.NET.port)
+	var t0 := Time.get_ticks_msec()
+	while not door.done() and Time.get_ticks_msec() - t0 < 20000:
+		door.poll()
+		OS.delay_msec(20)
+	ok(door.done(), "answered without ever touching the router")
+	eq(door.state, "off")
+	ok(not door.status.is_empty(), "with a sentence for the screen")
+	ok(not door.status.contains("router answered"),
+		"never claims to have asked a router it did not ask: %s" % door.status)
+	if not door.public.is_empty():
+		ok(door.public.ends_with(":%d" % Config.NET.port), door.public)
+		ok(door.status.begins_with("works only if you forwarded"),
+			"an address off this path is a guess and says so: %s" % door.status)
+	door.close()
+	eq(door.state, "closed")

@@ -195,7 +195,7 @@ that will not fit is ever destroyed: it lands on the ground.
 | --- | --- |
 | Phase | **5 of 5 built.** 4a progression, 4b day and fire, 4c survivors and vehicles, 4d the front door, the map and the audio, 5 co-op. None of it has been played by the owner yet |
 | Playable | The whole loop, it levels you, it gets dark, you can hold it with other people, and a friend can join you in it. **E** searches, uses and gets a teammate up, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load, MULTIPLAYER on the title and HOST THIS GAME on the pause menu. |
-| Unit tests | 374 tests, 5060 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials, the survivor combat tests, the UPnP door and the real broker under Node: 409 tests, 5194 assertions. Wall-clock varies with the machine — see §9 |
+| Unit tests | 395 tests, 5167 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials, the survivor combat tests, the UPnP door and the real broker under Node: 431 tests, 5308 assertions. Wall-clock varies with the machine — see §9 |
 | Smoke | 48 checkpoints: a loopback guest joined, walked and parked, and before that walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked , the town map with its districts, Sixth Sense widening the reveal, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it , and every cue reaching a voice |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
 | Save format | **v7** — every player by identity, with whether they are here, so a guest's character comes back to them next week (a guest's seat loads parked; the host's never does), on top of v6's the districts you have found (ids only: the rects are `Config`, so a save cannot carry a stale map), on top of v5's what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
@@ -293,7 +293,13 @@ The spec for each row is in `tasks/port-inventory.md`.
   only if you forwarded UDP 27333" — because STUN reports an address, never
   whether anything is listening behind it. A host who forwarded the port by
   hand has a line to copy instead of a website to go find; nobody remembers
-  their own public address and it changes. The LAN addresses are on the page
+  their own public address and it changes. `Config.NET.upnp` false takes the
+  same path without asking the router anything — that setting is what a host
+  who forwarded the port by hand would reach for, and it used to build no
+  door at all. The one refusal that shows no address is a conflicting
+  mapping: the external port already belongs to another device here, so the
+  public address would reach them and not this host.
+  The LAN addresses are on the page
   either way. Closing never waits on a router — a discovery still running is
   orphaned and takes its own mapping down. Carrier-grade NAT is the one
   thing neither road gets past; that is the VPN or WebRTC (§6).
