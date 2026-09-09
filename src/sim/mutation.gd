@@ -112,6 +112,7 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 	if p.dead or p.away:
 		return
 	tick_effects(sim, p, dt)
+	tick_lurch(sim, p, dt)
 	add(sim, p, rate_per_sec() * rate_multiplier(sim, p) * dt)
 
 
@@ -130,6 +131,78 @@ static func rate_multiplier(sim: GameSim, p: PlayerSim) -> float:
 		var k := clampf(float(sim.clock.darkness().alpha) / Config.DARKNESS_FULL, 0.0, 1.0)
 		m *= lerpf(1.0, float(M.night_mul), k)
 	return m * p.mut_rate_mul
+
+
+# ------------------------------------------------------------- the lurch --
+
+## At the top band your legs occasionally stop being yours. Rolled on the
+## host's stream like everything else, and mirrored to guests as a flag — a
+## guest that predicted its own footsteps through one would fight the host for
+## a second and a half and lose, so `NetGuest` hands the body back for the
+## duration the same way it does while you are driving.
+static func tick_lurch(sim: GameSim, p: PlayerSim, dt: float) -> void:
+	var L: Dictionary = Config.MUTATION.lurch
+	if p.mut_band < int(L.band):
+		# Dropping out of the band disarms it: coming back should not fire one
+		# instantly off a clock that ran while you were human.
+		p.lurch_t = 0.0
+		p.lurch_cd = 0.0
+		return
+	if p.lurch_t > 0.0:
+		p.lurch_t = maxf(0.0, p.lurch_t - dt)
+		if p.lurch_t <= 0.0:
+			p.lurch_cd = sim.rng.frange(float(L.every_min), float(L.every_max))
+			sim.notify("You have your legs back", "#b07ad0")
+		return
+	if p.lurch_cd <= 0.0:
+		p.lurch_cd = sim.rng.frange(float(L.every_min), float(L.every_max))
+		return
+	p.lurch_cd -= dt
+	if p.lurch_cd > 0.0:
+		return
+	p.lurch_t = sim.rng.frange(float(L.dur_min), float(L.dur_max))
+	p.using = {}
+	p.searching = {}
+	p.reviving = {}
+	sim.emit({"t": "lurch", "seat": p.seat, "x": p.pos.x, "y": p.pos.y})
+	sim.notify("SOMETHING ELSE IS DRIVING", "#b07ad0", true)
+
+
+## What a lurching player wants, which is not what they pressed. Rewrites the
+## intent rather than guarding twenty branches: "the intent is taken off you"
+## is the rule, and this is the one place it is true.
+static func hijack_intent(sim: GameSim, p: PlayerSim) -> void:
+	var it := p.intent
+	it.fire = false
+	it.fire_pressed = false
+	it.reload = false
+	it.interact = false
+	it.interact_held = false
+	it.use = false
+	it.suppress = false
+	it.eat = false
+	it.sneak = false
+	it.sprint = true                    # it runs
+	it.build_action = ""
+	it.slot = -1
+	it.wheel = 0
+	# Toward the nearest living thing that is not you. Nothing in reach and it
+	# just runs the way it was already facing, which reads as worse rather
+	# than better.
+	var reach: float = float(Config.MUTATION.lurch.reach)
+	var best: Vector2 = p.pos + Vector2.from_angle(p.angle) * 100.0
+	var bd := reach * reach
+	for e in sim.enemies.list:
+		if e.dead:
+			continue
+		var d := e.pos.distance_squared_to(p.pos)
+		if d < bd:
+			bd = d
+			best = e.pos
+	var dir := (best - p.pos).normalized()
+	it.mx = dir.x
+	it.my = dir.y
+	it.aim = best
 
 
 # -------------------------------------------------------------- the price --
@@ -208,6 +281,13 @@ static func take_dose(sim: GameSim, p: PlayerSim, id: String) -> void:
 	var took := suppress(sim, p, float(c.get("mut", 0.0)))
 	if c.has("effect"):
 		give_effect(sim, p, String(c.effect), float(c.get("effect_mul", 1.0)))
+	# The gamble. An Experimental dose is three quarters of the bar and ninety
+	# seconds of Surge, and one time in four it costs you a Fever — which is
+	# on the same axis as the reward, because a Fever turns you faster. That
+	# is what stops it being a free win.
+	if c.has("risk") and sim != null and sim.rng.chance(float(c.risk.chance)):
+		give_effect(sim, p, String(c.risk.effect))
+		sim.notify("It fought back", "#c96a5a", true)
 	sim.emit({"t": "dosed", "seat": p.seat, "x": p.pos.x, "y": p.pos.y, "id": id})
 	sim.notify("%s  −%d Mutation" % [String(c.name), roundi(took)], "#8fd08a")
 

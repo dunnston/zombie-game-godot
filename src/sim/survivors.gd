@@ -169,7 +169,13 @@ func seed_rescues(world: World, count: int = Config.RESCUE_COUNT) -> int:
 ## Why this rescue cannot be taken in, in the player's terms, or "" if they
 ## can. Named separately from `recruit` so the interact prompt can show the
 ## reason before the player walks all the way over.
-func recruit_refusal(sim: GameSim) -> String:
+func recruit_refusal(sim: GameSim, p: PlayerSim = null) -> String:
+	# What you are is the first question, before any of the housekeeping: at
+	# the top band they will not go anywhere with you, and no number of Bunks
+	# changes that. `p` is optional so the roster's own checks — which are
+	# about beds and Charisma — need not know about any of this.
+	if p != null and p.mut_band >= int(Config.MUTATION.rescue_refuse_band):
+		return "They back away from you. Whatever you are, they want no part of it."
 	var lim := limits(sim)
 	var have := alive().size()
 	if have < int(lim.cap):
@@ -184,7 +190,7 @@ func recruit_refusal(sim: GameSim) -> String:
 
 
 func recruit(sim: GameSim, rescue: Dictionary, p: PlayerSim) -> SurvivorSim:
-	var why := recruit_refusal(sim)
+	var why := recruit_refusal(sim, p)
 	if not why.is_empty():
 		sim.notify(why, "#c96a5a", true)
 		return null

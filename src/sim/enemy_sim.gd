@@ -52,6 +52,17 @@ var raid_stall := 0.0
 # structure a raider is heading for; `blocker` is whatever player-built
 # thing is in the way right now; `pending_struct` is the one a committed
 # wind-up will land on. Empty Dictionary means none.
+## A human's gun state: rounds left in the burst, and the gap until the next
+## one. A burst is not a cooldown — the cooldown is between bursts, which is
+## what makes a Raider's fire read as two shots and a pause rather than a
+## metronome.
+var burst_left := 0
+var burst_t := 0.0
+## What a Looter has taken and where it is running. Emptied onto the ground
+## when it dies; gone for good when it gets away with it.
+var cargo := {}
+var flee_t := 0.0
+
 var objective := {}
 var blocker := {}
 var pending_struct := {}

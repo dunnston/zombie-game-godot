@@ -16,7 +16,7 @@ extends RefCounted
 
 ## Bumped whenever anything in here changes shape. A guest whose number
 ## differs is refused before it can misread a byte.
-const PROTOCOL := 2
+const PROTOCOL := 3
 
 const RELIABLE := 1
 const STATE := 2
@@ -56,6 +56,8 @@ const PF_AWAY := 128
 const PF_WINDED := 256
 const PF_INVULN := 512
 const PF_HURT := 1024
+## Mid-Lurch: the host is driving this body, so a guest stops predicting it.
+const PF_LURCH := 2048
 
 static var _enemy_types: PackedStringArray = PackedStringArray()
 static var _item_ids: PackedStringArray = PackedStringArray()
@@ -236,6 +238,7 @@ static func pack_intent(it: Intent, with_edges := true) -> Dictionary:
 		if it.use: f |= 128
 		if it.light: f |= 256
 		if it.suppress: f |= 512
+		if it.eat: f |= 1024
 	var out := {"mx": snappedf(it.mx, 0.01), "my": snappedf(it.my, 0.01),
 		"ax": roundi(it.aim.x), "ay": roundi(it.aim.y), "f": f,
 		"s": it.slot if with_edges else -1, "w": it.wheel if with_edges else 0}
@@ -260,6 +263,7 @@ static func unpack_intent(p: Dictionary, into: Intent) -> Intent:
 	into.use = bool(f & 128)
 	into.light = bool(f & 256)
 	into.suppress = bool(f & 512)
+	into.eat = bool(f & 1024)
 	into.slot = clampi(int(p.get("s", -1)), -1, Config.PLAYER.hotbar_slots - 1)
 	into.wheel = clampi(int(p.get("w", 0)), -1, 1)
 	into.build_action = ""
@@ -376,6 +380,7 @@ static func pack_player(p: PlayerSim) -> Dictionary:
 	if p.winded: f |= PF_WINDED
 	if p.invuln > 0.0: f |= PF_INVULN
 	if p.hurt_flash > 0.0: f |= PF_HURT
+	if p.lurch_t > 0.0: f |= PF_LURCH
 	# Whatever channel is running, as a fraction: searching, healing, getting
 	# somebody up, reloading. One bar on screen, whichever it is.
 	var ch := -1.0
@@ -513,7 +518,8 @@ static func pack_snapshot(sim: GameSim, for_player: PlayerSim, seq: int) -> Dict
 	if sim.raid != null:
 		raid = {"ph": sim.raid.phase, "w": sim.raid.wave, "ws": int(sim.raid.spec.waves), "k": sim.raid.killed,
 			"tot": sim.raid.total, "tmr": r1(sim.raid.timer), "nm": String(sim.raid.spec.name),
-			"cx": roundi(sim.raid.centre.x), "cy": roundi(sim.raid.centre.y), "hb": sim.raid.has_base}
+			"cx": roundi(sim.raid.centre.x), "cy": roundi(sim.raid.centre.y), "hb": sim.raid.has_base,
+			"hu": sim.raid.human}
 	return {
 		"t": "snap", "q": seq,
 		"tm": snappedf(sim.time, 0.01), "day": sim.clock.day, "dt": snappedf(sim.clock.t, 0.0001),

@@ -339,6 +339,7 @@ func _on_snapshot(m: Dictionary) -> void:
 		sim.raid.timer = float(raid.get("tmr", 0.0))
 		sim.raid.centre = Vector2(float(raid.get("cx", 0)), float(raid.get("cy", 0)))
 		sim.raid.has_base = bool(raid.get("hb", false))
+		sim.raid.human = bool(raid.get("hu", false))
 
 	for pr in m.get("pl", []):
 		_apply_player(pr)
@@ -386,6 +387,10 @@ func _apply_player(pr: Dictionary) -> void:
 	p.xp_next = int(n[NetProtocol.PL_XP_NEXT])
 	p.skill_points = int(n[NetProtocol.PL_SKILL])
 	p.invuln = 0.1 if f & NetProtocol.PF_INVULN else 0.0
+	# Mid-Lurch the host is driving this body. Kept as a real number rather
+	# than a bool so the views and the prediction check below read the same
+	# field they do in solo.
+	p.lurch_t = 0.2 if f & NetProtocol.PF_LURCH else 0.0
 	p.hurt_flash = maxf(p.hurt_flash, 0.2) if f & NetProtocol.PF_HURT else 0.0
 	p.light_fuel = n[NetProtocol.PL_LIGHT_FUEL]
 	var held := strs[0]
@@ -416,8 +421,10 @@ func _apply_player(pr: Dictionary) -> void:
 		_was_down = p.downed
 		_was_dead = p.dead
 		_level = p.level
-		# No prediction while dead, down or driving: the host owns you.
-		if p.dead or p.downed or p.driving_id > 0:
+		# No prediction while dead, down, driving or lurching: the host owns
+		# you. A guest predicting its own footsteps through a Lurch would
+		# fight the host for a second and a half and lose, visibly.
+		if p.dead or p.downed or p.driving_id > 0 or p.lurch_t > 0.0:
 			p.prev_pos = at
 			p.pos = at
 			p.angle = angle

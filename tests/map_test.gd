@@ -105,7 +105,7 @@ func test_what_you_found_survives_a_save() -> void:
 func test_an_old_payload_is_refused_by_version() -> void:
 	# Every phase that changes what a save has to hold bumps the version, and
 	# the refusal says so rather than loading half a world.
-	eq(SaveGame.VERSION, 8)
+	eq(SaveGame.VERSION, 9)
 
 
 # ----------------------------------------------------------------- the radar --

@@ -1,6 +1,6 @@
 class_name SaveGame
 extends RefCounted
-## Saving and loading. Payload version 8.
+## Saving and loading. Payload version 9.
 ##
 ## **Containers are identified by tile position, never by ordinal index**
 ## (invariant 7). The prototype keyed them by their position in an array,
@@ -13,7 +13,7 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 8
+const VERSION := 9
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
@@ -99,7 +99,7 @@ static func to_dict(sim: GameSim) -> Dictionary:
 		"rescues": _rescue_record(sim),
 		"ration_debt": sim.crew.debt,
 		"cars": _car_record(sim),
-		"raids_done": sim.raids_done,
+		"raids_done": sim.raids_done, "human_raids_done": sim.human_raids_done,
 		"threat": sim.threat.value,
 		"bench_tier": sim.structs.bench_tier,
 		"stats": sim.stats.duplicate(),
@@ -178,6 +178,7 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 	# announce dusk again at the player who was already standing in it.
 	sim.clock.phase = String(DayNight.phase_at(sim.clock.t).id)
 	sim.raids_done = int(data.get("raids_done", 0))
+	sim.human_raids_done = int(data.get("human_raids_done", 0))
 	sim.threat.value = float(data.get("threat", 0.0))
 	sim.threat.tier = Threat.tier_of(sim.threat.value)
 	sim.structs.bench_tier = int(data.get("bench_tier", 0))

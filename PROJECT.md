@@ -255,6 +255,56 @@ The spec for each row is in `tasks/port-inventory.md`.
 
 ## 4. What is built
 
+### The chemistry, the living, and losing control (Phase 6b)
+
+Everything built on top of the meter. The bar was Phase 6a; this is what
+makes it a bet.
+
+- **The Chemistry Station.** A tier-2 structure, and the only bench in the
+  game that is *not* a step up the workbench ladder. `station: "chem"` on the
+  structure, `station: "chem"` on the recipe, and `Crafting.stations_at`
+  sitting beside `bench_tier_at`. Recipe `bench` stays 0 for these on
+  purpose: the two gates are independent, and no amount of Workbench II ever
+  produces a suppressant.
+- **The full chain.** Raw Brain Matter −10 (Nausea) → Mutated −20 → Stabilized
+  Neural Serum −30 → **Refined Suppressant −50** → **Experimental −75**, and
+  the last one is a gamble: ninety seconds of **Surge** (+35% melee, +10%
+  speed) every time, and a **one-in-four Fever** that weakens you *and turns
+  you faster*. The risk sits on the same axis as the reward, which is what
+  stops it being a free win.
+- **Food and drink — buffs, and nothing else.** Nine items, every one an
+  entry in `Config.EFFECTS`: Fed, Sated, Steady, Hydrated, Wired, Drunk.
+  **There is no hunger meter under any of it and there never will be**
+  (pillar 1) — `mutation_depth_test` asserts no such field exists. Hydration
+  slows the change (`mut_rate_mul`, the stat Phase 6a left with no writer);
+  Drunk is +15% melee, −30% stagger and an aim you would not trust.
+  `F` eats the *commonest* thing that would actually help — lowest `rank`
+  first, never a second helping of a buff already running — so a tap never
+  spends the Field Ration you were saving. Right-click in the pack uses the
+  thing you clicked, through `Actions` like every other screen command.
+- **The Lurch.** At FERAL, every 60–140s, for 1.2–1.8 seconds your legs stop
+  being yours and carry you at the nearest zombie. `Mutation.hijack_intent`
+  rewrites the intent rather than guarding twenty branches, so "the intent is
+  taken off you" is literally true. Host-rolled; a guest stops predicting its
+  own footsteps for the duration exactly as it does while driving.
+- **The living.** Three human enemy types — **Looter**, **Raider**,
+  **Enforcer** — and a raid track of their own (`HUMAN_RAIDS`), rolled against
+  the base owner's Mutation band when Threat schedules a raid: never at HUMAN,
+  25% at TURNING, 55% at FERAL. They run on the same AI, the same raid code
+  and the same loot roller as everything else; what is new is three things.
+  They **shoot** (hostile bullets look for people, not for enemies, and their
+  gunfire brings the horde down on the fight). They **hold a range** —
+  `standoff` is what a Raider backs off to and what an Enforcer walks in to.
+  And a Looter **empties your stash and runs**: put it down and you get it
+  back, let it reach the edge and it is gone. They carry no brain matter, so
+  killing people is never a way to hold the meter down.
+- **And nobody will go anywhere with you.** At FERAL a rescue refuses
+  outright — the first answer, before beds or Charisma.
+- **What the living deliberately are not: zombie food.** Nothing in the game
+  has enemy-versus-enemy targeting and adding it for one faction would be a
+  system with one caller. The honest half — their rifles pulling the horde
+  onto them — costs nothing and is in.
+
 ### What you are becoming (Phase 6a — Mutation)
 
 **The theme moved.** You were bitten before the first frame and there is no
@@ -992,7 +1042,7 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 | 4 | Progression, day/night, survivors, vehicles, fire, menus, audio | Owner plays a full session |
 | 5 | Online co-op | Built 2026-09-09 — **owner plays with a friend** |
 | 6a | Mutation: the meter, the bands, brains, the first two doses | Built 2026-09-09 — **owner feels the bar** |
-| 6b | Chemistry Station, the deeper doses, the Lurch, food and drink, human raiders | Planned |
+| 6b | Chemistry Station, the deeper doses, the Lurch, food and drink, human raiders | Built 2026-09-09 — **owner meets the living** |
 
 ### Next up
 
@@ -1018,8 +1068,16 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    peaks at 0.82 alpha, which is the prototype's number, and the tint is now
    applied the way the prototype applied it — so this is the real curve
    rather than the too-dark one the first cut of `LightView` produced.
-1. **Feel the bar.** Phase 6a's gate, and the one that has to be answered
-   before 6b is built on top of it. Is 2.5 days the right length — does a
+1. **Meet the living.** Phase 6b's gate. Is a four-person Scavenger Crew a
+   harder fight than twenty walkers or just a fiddlier one; does a Raider
+   holding its distance read as cover-fighting or as running away; is losing
+   your stash to a Looter a good story or an annoyance — and is the Lurch,
+   at one every couple of minutes, frightening or irritating? The odds on a
+   human raid (25% at TURNING, 55% at FERAL) are the number most likely to
+   want moving. And the Experimental dose: is one Fever in four enough to
+   make you think twice?
+1. **Feel the bar.** Phase 6a's gate, and the one 6b is built on top of.
+   Is 2.5 days the right length — does a
    full cycle feel like a supply line or like a countdown? Is one bite in
    seven at +12 frightening or annoying? Are the bands far enough apart to
    *feel* different, and is FERAL a bargain you would actually take: is
@@ -1099,6 +1157,30 @@ Both are readability, not removal, and neither is visible from the code or
 from a headless test that calls `chop_prop` directly. **Reproduce a report
 through the same surface the reporter used** — the mouse, the key, the
 screen — before deciding it is wrong.
+
+### The smoke's flakiness was never "load". It was window focus.
+
+For two phases the smoke run has failed a few times a session, in different
+places each time — repair, then demolish, then a save round trip, then a
+pistol that would not kill a walker — and it was written up as timing
+fragility under load, because it always passed once the machine was quiet.
+
+It is not load. **Half this script steers with `Input.warp_mouse`, which does
+nothing at all on an unfocused window.** When the terminal or the editor
+keeps the focus, the cursor never moves: the build ghost stays on whatever
+tile it was over, the pistol fires at the last aim, the axe swings at air —
+six failures, one cause, and none of the messages says "mouse".
+
+The fix is two lines in `Smoke._run`: `window_move_to_foreground()` and
+`grab_focus()`, with a failure if the focus never arrives. Every checkpoint
+is reached now where runs used to stop at 55 of 61, and the build ghost's
+failure message carries the cursor position and the focus flag so the next
+one is diagnosed in a line rather than an hour.
+
+The general lesson is the one above, from the other side: a harness that
+drives real input inherits every constraint real input has. **When a
+scripted-input test fails somewhere unrelated to what it was testing, suspect
+the input, not the game.**
 
 ### A test that passes because of the bug
 
@@ -1431,6 +1513,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-09 | **The chemistry, the living, and losing control** (Phase 6b). A **Chemistry Station**: the first bench that is not a rung on the workbench ladder, gated by `station` rather than by `bench`, so no amount of upgrading ever produces a suppressant. The chain finishes — Refined −50, and **Experimental −75**, which always pays ninety seconds of Surge and charges a Fever one time in four; the Fever turns you *faster*, so the risk is on the same axis as the reward. **Food and drink arrive as a full table and as buffs only** — nine items, six effects, no hunger meter under any of it and a test that asserts no such field exists. Hydration is what finally writes `mut_rate_mul`. `F` eats the commonest thing that would help; right-click in the pack uses what you clicked, through `Actions`. **The Lurch**: at FERAL your legs stop being yours for a second and a half every couple of minutes, the intent is rewritten rather than guarded, and a guest hands the body to the host for the duration. And **the living**: Looter, Raider and Enforcer, a raid track of their own rolled against your Mutation band (never at HUMAN, 55% at FERAL), hostile bullets that look for people instead of enemies, a `standoff` a rifleman keeps and a shotgun closes, and a Looter that empties your stash and runs for the edge — kill it and you get it back. They carry no brain matter: killing people is never a way to hold the meter down. Two new test files (47 tests) and five more smoke checkpoints. Save v9, protocol 3 |
 | 2026-09-09 | **The theme moved: Mutation is the main status** (Phase 6a). The player was bitten before the first frame, there is no cure, and brain matter is what holds the change back — so the meter you manage runs through the horde. 0–100, a full cycle in 2.5 in-game days, faster in worse districts and in the dark, and moved by teeth: one zombie hit in seven is a bite. Three bands (HUMAN / TURNING / FERAL) whose modifiers live in `Config.MUTATION.bands` and reach the player through `recompute_stats` and nowhere else; a **band change** is the only thing that triggers a recompute. FERAL is the bargain stated plainly: +45% melee, +12% speed, half the stagger, sensed at 0.6× the radius — and 60% worse spread and a worse gun multiplier. At 100 you turn: your own banner, and you come back at 55 rather than 0. Kills drop brain matter by what the body was (Walker 45% Raw → Behemoth always Neural Tissue), once per corpse whatever the loot perks say. Raw is −10 and Nausea; a Workbench makes the Stabilized Neural Serum, −30 and clean. `G` picks the dose that fits the hole. `Config.EFFECTS` is one table for every buff and debuff, ticked on the player and applied inside the same recompute. Save payload v8, snapshot stride 20 plus a fourth string for the effect clocks, protocol 2. Pillar 1 rewritten (the pillar was never "no meters", it was "no chores"), invariant 4 extended, invariant 9 added, `mutation_test.gd` (29 tests) and three smoke checkpoints |
 | 2026-09-09 | Notion catalogue restructured to the owner's taxonomy. Eleven categories replace the first seven, each with its own tab on the Items table: Building (needs no bench, and is where a bench is crafted), Materials, Tools, Weapons, Clothing/Armor, Consumables food, Consumables misc, Ammo, Medical Items, Special Items, Misc Items. Weapons split into six melee classes and eight ranged, with the ranged identities written down (handgun as backup, shotgun as "get off me", bow as the quiet answer rather than a worse gun) and **noise as a first-class weapon stat**. Ten 1-5 design-intent columns added. Five are already per-weapon in `WEAPONS`; Stamina Cost, Crit Chance and Cleave name mechanics that exist but are not per-weapon (a flat `stam_swing`, a player-stat crit, cleave derived from `arc`); only Stagger and Durability are absent entirely. Codex caught the first draft calling all five missing, which would have sent a future pass rebuilding combat systems that already work. The benches became Player Menu, Basic, Advanced, Tech and Recycle, and each is now also a buildable row under Building. 19 rows added: the ranged weapons the owner enumerated, plus the four benches. 117 item rows, 42 of them Planned. Renaming a Notion select option drops the value on every row that held it, so all 98 existing rows were re-mapped from a dump taken first; §10 gains the taxonomy note |
 | 2026-09-09 | Bugfix round one, from the Notion 🐞 Open bugs view. **DL-45**: a tap of E beside a car opened the boot instead of driving — `interact_held` is already true on the frame `interact` fires, so the vehicle branch read every press as a hold and tap-to-drive had been unreachable since it shipped; the choice now waits out `Config.PLAYER.boot_hold` on a `car_hold` channel. **DL-45 (body)**: containers could be searched through a wall; reach now needs sight as well, using the rule bullets use, counting only tiles strictly between and exempting touching tiles. **DL-42**: 135 litter props on road and pavement tiles — `_plant_litter` had no surface policy, so the camp starter-cache planted on kitchen floors; `Config.LITTER_SURFACES` is now the one table and is enforced inside the planter. **DL-43**: zombies spawned inside the base because nothing knew what a base was — `Config.BASE.radius` and `Structures.in_base()`, anchored on every piece marked `protect`, excluded from ambient spawning (raids are untouched). **DL-56**: a dev menu behind F1, built only in a debug build or under `--dev`. **DL-46 / DL-55 do not reproduce** — see §8. 19 new tests (386 fast), 4 new smoke checkpoints |

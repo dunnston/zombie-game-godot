@@ -1579,25 +1579,25 @@ faction or a food table.
 
 ### Branch 2 — `mutation-depth`: the chemistry, the loss of control, the people
 
-- [ ] **Chemistry Station**: a tier-2 structure with `station: "chem"`;
+- [x] **Chemistry Station**: a tier-2 structure with `station: "chem"`;
       recipes gain an optional `station`, and `Crafting.stations_at` sits
       beside `bench_tier_at` so the bench ladder is untouched
-- [ ] **Refined Suppressant** (−50) and **Experimental Suppressant** (−75,
+- [x] **Refined Suppressant** (−50) and **Experimental Suppressant** (−75,
       Surge, and a Fever roll), both at the station
-- [ ] **The Lurch**: at FERAL, every 60–140s, 1.2–1.8s where the intent is
+- [x] **The Lurch**: at FERAL, every 60–140s, 1.2–1.8s where the intent is
       taken off you and your legs carry you at the nearest zombie.
       Host-rolled, mirrored to guests, its own banner and sound
-- [ ] **Distortion**: the HUD warps and a low pulse plays as the bar fills
-- [ ] **The food and drink table**: a dozen consumables, every one a buff on
+- [x] **Distortion**: the HUD warps and a low pulse plays as the bar fills
+- [x] **The food and drink table**: a dozen consumables, every one a buff on
       the shared effects table — meals, tinned goods, drink, stimulants —
       with their loot sources and their recipes. Hydration slows the mutation
       rate; nothing here is ever a requirement
-- [ ] **Human raiders**: a hostile faction that comes for a base whose owner
+- [x] **Human raiders**: a hostile faction that comes for a base whose owner
       has gone too far. A new AI kind rather than a reskinned walker — they
       use cover, they carry guns, they take your stash rather than eat you.
       A raid table of their own, gated on Mutation; survivors refuse to be
       rescued by someone at FERAL, and hesitate at TURNING
-- [ ] Notion: the new items, the station and the loot sources go into the
+- [x] Notion: the new items, the station and the loot sources go into the
       Items & Crafting tables once the owner says so (an external write)
 
 ### Review — Branch 1, 2026-09-09
@@ -1660,3 +1660,87 @@ and `test_every_edge_survives_packing_and_both_merges` covers that leg too.
 
 The test was checked against the bug before being kept: putting the omission
 back into `merge_late_intent` fails it with the message a reader would need.
+
+### Review — Branch 2, 2026-09-09
+
+Built, green, photographed. `tools\test` is 458 tests / 6094 asserts in 22s;
+the smoke is 61 checkpoints, 0 failures, five of them new — a meal, the
+station, a Lurch, and a Raider still at arm's length after three seconds.
+
+**The Chemistry Station is not a bench tier, and that is the whole design.**
+Chemistry is different work, not harder metalwork. `station` is its own gate,
+recipe `bench` stays 0 for the two doses that need it, and `Crafting.status`
+asks the *world* whether the station is in reach rather than trusting the
+number the screen passed — which is what makes it hold for a guest's command.
+
+**Food landed as a table of buffs with no meter under it.** Nine items, six
+effects, and a test that asserts no field called `hunger`, `thirst` or
+`fatigue` has appeared on the player. Hydration is what finally writes
+`mut_rate_mul`, the stat Branch 1 shipped with no writer. The quick key eats
+the *commonest* thing that would help — lowest `rank`, never a buff already
+running — so a tap of F never spends the Field Ration you were saving.
+
+**The living reuse everything.** Three enemy types with `human: true`, a raid
+track of their own, and three genuinely new behaviours: a hostile bullet that
+looks for people instead of enemies, a `standoff` a rifleman keeps and a
+shotgun closes, and a Looter that empties a store into its pockets and runs
+for the map edge. Everything else — nav, spawning, waves, break-off, salvage,
+corpses, turrets shooting them — was already there and needed nothing.
+
+**Four things worth writing down.**
+
+- **The first Raider fought like a walker with a rifle.** `_gun_tick` only
+  held position on the frame it fired, so between shots the ordinary movement
+  code walked it into melee. Holding the range is the behaviour, not the shot.
+  `test_a_rifleman_keeps_its_distance` caught it before the smoke did.
+- **Zombies do not eat raiders, deliberately.** Nothing in the game has
+  enemy-versus-enemy targeting and building it for one faction would be a
+  system with one caller. Their gunfire pulling the horde onto the fight is
+  the honest half and costs nothing.
+- **`Slots` has no `take_at` and no `is_empty`.** The Looter was written
+  against an API that did not exist; `used()` and `take(id, n)` are the ones
+  that do.
+- **The smoke could not afford a Chemistry Station.** Thirty slots are long
+  since full by that point in the run and `add` on a full grid quietly
+  returns 0, which surfaced as "Not enough materials". The materials go into
+  the stash now, which is where a base's materials live anyway.
+
+**Open, and the owner's call.** The odds on a human raid (25% at TURNING, 55%
+at FERAL) and the Lurch's one-every-couple-of-minutes are the two numbers
+most likely to want moving after a session at the keyboard.
+
+### Addressing the Codex review on PR #21
+
+Three P2s, all three right.
+
+- **A Looter punching you rolled a zombie bite.** The melee landing path is
+  shared, and it passed `bite = true` for every enemy — so the living could
+  add 12 Mutation and print BITTEN, which is the exact opposite of the line
+  the faction rests on. The flag is now `not e.def.get("human", false)`.
+- **Their guns were silent.** Every pellet went out with an empty weapon id,
+  and `SfxView` reads an empty one as "pellet two through eight" and drops
+  it — so raiders shot at you with no sound at all. The id rides the first
+  pellet only, exactly as the player's guns do, and each gun names its own
+  cue (`sfx`), so a shotgun is one bang rather than five.
+- **Human raids were scaled by hordes.** `raid.index` is two things at once —
+  which spec to field, and `hp_per_index` at the spawn — and it was read off
+  `raids_done` for both. A crew arrived tougher for every horde you had
+  beaten and never got tougher for beating *them*. It comes off whichever
+  track the raid is on now.
+
+All three have a test, and all three were checked against the bug before
+being kept: putting each fault back fails its own test with the message a
+reader would need.
+
+### And the thing the review made visible
+
+Chasing whether the branch had broken the smoke, `origin/main` turned out to
+fail the same way, in the same legs, two runs in three. **The smoke's
+flakiness was never load. It is window focus:** `Input.warp_mouse` does
+nothing on an unfocused window, so every mouse-driven leg fails somewhere
+downstream and none of the messages mentions the mouse. Two lines in
+`Smoke._run` take the focus and fail loudly if it never arrives; the build
+ghost's failure now carries the cursor position and the focus flag. Runs
+reach all 61 checkpoints where they used to stop at 55, and the residue is
+one leg in three runs rather than six. PROJECT.md §8 gains the lesson, which
+replaces the one that blamed load.

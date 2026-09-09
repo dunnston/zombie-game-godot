@@ -50,6 +50,15 @@ static func tick_bullets(sim: GameSim, dt: float) -> void:
 				sim.emit({"t": "bullet_wall", "x": pos.x, "y": pos.y, "dx": -vel.x, "dy": -vel.y})
 				done = true
 				break
+			# A round fired *by* something looks for people, not for enemies.
+			# One branch rather than a second bullet list: everything else
+			# about a bullet — the substep, terrain, the trail — is the same
+			# whoever pulled the trigger.
+			if b.get("hostile", false):
+				if _hit_someone(sim, b, pos):
+					done = true
+					break
+				continue
 			hash.query(pos.x, pos.y, 26.0, _scratch)
 			for e: EnemySim in _scratch:
 				if e.dead or b.hits.has(e):
@@ -69,6 +78,31 @@ static func tick_bullets(sim: GameSim, dt: float) -> void:
 				break
 		if done:
 			sim.bullets.remove_at(i)
+
+
+## Whoever a hostile round has just reached: a player first, then one of your
+## people. Their bullets do not hit each other — there is no friendly fire
+## between raiders, and adding it would mostly mean watching a crew shoot
+## itself apart behind a wall.
+static func _hit_someone(sim: GameSim, b: Dictionary, pos: Vector2) -> bool:
+	for p in sim.players:
+		if p.dead or p.away or p.downed:
+			continue
+		var rr := p.r + 2.2
+		if pos.distance_squared_to(p.pos) > rr * rr:
+			continue
+		var who := b.owner as EnemySim
+		Damage.damage_player(sim, p, b.dmg, b.prev, String(who.def.name) if who != null else "Gunfire")
+		return true
+	for s in sim.crew.list:
+		if s.dead:
+			continue
+		var sr: float = Config.SURVIVOR.r + 2.2
+		if pos.distance_squared_to(s.pos) > sr * sr:
+			continue
+		sim.crew.damage(sim, s, b.dmg, b.prev)
+		return true
+	return false
 
 
 # -------------------------------------------------------------------- melee --

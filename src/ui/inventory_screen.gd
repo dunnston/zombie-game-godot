@@ -104,7 +104,7 @@ func bench() -> int:
 
 
 func recipes() -> Array:
-	return Crafting.visible_recipes(player, bench())
+	return Crafting.visible_recipes(player, bench(), Crafting.stations_at(sim, player))
 
 
 ## Called every frame by the scene: a store screen closes when you walk away
@@ -434,6 +434,14 @@ func _quick_move(cell: Dictionary) -> void:
 	if cell.kind == "equip":
 		Actions.unequip(sim, player, cell.slot)
 		return
+	# Right-click means "do the obvious thing with this". For gear that is
+	# wearing it; for a meal, a bandage or a dose it is taking it. Moving one
+	# to the hotbar is still a drag — the same gesture everything else moves
+	# by — and inside a store the obvious thing is still to move it across.
+	if mode != "store" and Items.kind_of(stack.id) == "consumable" \
+		and not Config.CONSUMABLES[stack.id].get("tool", false):
+		Actions.use_slot(sim, player, cell.kind, cell.index)
+		return
 	if mode != "store" and not Items.gear_slot(stack.id).is_empty() and cell.kind == "bag":
 		Actions.equip_from_bag(sim, player, cell.index)
 		return
@@ -534,7 +542,7 @@ func _draw() -> void:
 	# it prints its own line instead, and two of them overlap.
 	if mode != "char" and mode != "crew":
 		draw_string(font, Vector2(panel.position.x + 24, panel.position.y + panel.size.y - 8),
-			"drag to move  ·  right-click to equip or stow  ·  ctrl+click to drop  ·  shift+click to split",
+			"drag to move  ·  right-click to equip, stow or use  ·  ctrl+click to drop  ·  shift+click to split",
 			HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 40, 10, Color(1, 1, 1, 0.4))
 
 	if not drag.is_empty():
@@ -554,6 +562,8 @@ func _draw_craft(font: Font, panel: Rect2) -> void:
 		where = "At a Workbench"
 	if b == 0 and Crafting.has_tool(player, "hammer"):
 		where += "  ·  Stone Hammer in your pack"
+	for st in Crafting.stations_at(sim, player):
+		where += "  ·  %s" % Crafting.station_name(String(st))
 	draw_string(font, panel.position + Vector2(24, 60), where, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
 
 	for row in _recipe_rows():

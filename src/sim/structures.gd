@@ -140,6 +140,15 @@ func near_workbench(at: Vector2) -> Dictionary:
 	return nearest(at, B.bench_range, func(s: Dictionary) -> bool: return s.type == "workbench")
 
 
+## A specialised bench standing within reach — the Chemistry Station is the
+## first. Deliberately *not* a tier of the workbench ladder: a chemistry
+## recipe is not "harder metalwork", it is different work, and folding it into
+## `bench` would have made Workbench II unlock the suppressants for free.
+func near_station(at: Vector2, station: String) -> Dictionary:
+	return nearest(at, B.bench_range, func(s: Dictionary) -> bool:
+		return String(Config.STRUCTURES.get(s.type, {}).get("station", "")) == station)
+
+
 ## The store of the structure on a tile, if this player is close enough to
 ## be using it. Range-checked here rather than in the screen: the rule has
 ## to hold for a guest's command too.

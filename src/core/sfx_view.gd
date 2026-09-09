@@ -53,6 +53,8 @@ const DIRECT := {
 	"mut_rise": "mutate_up",
 	"mut_fall": "mutate_down",
 	"dosed": "heal",
+	"ate": "heal",
+	"lurch": "lurch",
 	"bitten": "player_hurt",
 	"turned": "turned",
 	"recruited": "level_up",

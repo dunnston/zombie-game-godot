@@ -391,6 +391,23 @@ const MUTATION := {
 	## A suppressant may overshoot by this much before a weaker one is
 	## preferred, so a Serum is not spent to clear four points.
 	"overshoot": 8.0,
+	## The Lurch: at the top band, every so often, your legs stop being yours
+	## and carry you at the nearest thing. `band` is the index it starts at, so
+	## it is FERAL and nothing below. Long enough to be frightening, short
+	## enough that it is a moment rather than a punishment — and rare enough
+	## that it never becomes the reason you keep the meter down. That reason
+	## is supposed to be the gun.
+	"lurch": {
+		"band": 2, "every_min": 60.0, "every_max": 140.0,
+		"dur_min": 1.2, "dur_max": 1.8, "reach": 900.0,
+	},
+	## The living, and what they make of you. `raid_chance` is the odds, by
+	## band, that the raid Threat has just scheduled arrives carrying rifles
+	## instead of teeth — word travels, and a base run by something that is
+	## turning is a base worth clearing out. `rescue_band` is the band at which
+	## a survivor will not go anywhere with you.
+	"human_raid": {"chance": [0.0, 0.25, 0.55]},
+	"rescue_refuse_band": 2,
 	## The three bands, low to high. `at` is the value the band starts at, and
 	## the modifiers are applied by `Perks.recompute_stats` and by nothing
 	## else (invariant 4) — a band change is what triggers the recompute, so
@@ -424,11 +441,62 @@ const MUTATION := {
 ## you on the way down, what a meal is worth, what an experimental dose buys —
 ## every one of them is an id and a number of seconds on `PlayerSim.effects`,
 ## applied inside the one function that writes stats (invariant 4).
+## This is also where food and drink live, mechanically. **There is no hunger
+## meter and there never will be** (pillar 1): a meal is a buff with a clock
+## on it, so eating is something you do before a run rather than something the
+## game nags you about. Nothing in here is ever a requirement.
 const EFFECTS := {
 	"nausea": {
 		"id": "nausea", "name": "Nausea", "dur": 60.0, "good": false, "color": "#8aa06a",
 		"add": {}, "mul": {"speed_mul": 0.92, "spread_mul": 1.25, "stam_regen": 0.8},
 		"desc": "Raw brain matter fighting back.",
+	},
+	## The Experimental dose, and the reason anybody takes one: ninety seconds
+	## of being better than human on top of three quarters of the bar.
+	"surge": {
+		"id": "surge", "name": "Surge", "dur": 90.0, "good": true, "color": "#d0a06a",
+		"add": {"melee_mul": 0.35, "speed_mul": 0.10}, "mul": {"stam_regen": 1.3},
+		"desc": "Everything is louder and you are faster than it.",
+	},
+	## And the one-in-four it costs. Note `mut_rate_mul`: a fever does not just
+	## weaken you, it turns you faster — the risk is on the same axis as the
+	## reward, which is what stops Experimental being a free win.
+	"fever": {
+		"id": "fever", "name": "Fever", "dur": 120.0, "good": false, "color": "#c96a5a",
+		"add": {}, "mul": {"max_stam": 0.85, "spread_mul": 1.2, "mut_rate_mul": 1.15},
+		"desc": "It fought back. You are burning up, and turning faster.",
+	},
+
+	# ------------------------------------------------------ food and drink --
+	"fed": {
+		"id": "fed", "name": "Fed", "dur": 300.0, "good": true, "color": "#c4a86a",
+		"add": {"max_stam": 10.0}, "mul": {"stam_regen": 1.2},
+		"desc": "Something in you. You last longer.",
+	},
+	"sated": {
+		"id": "sated", "name": "Sated", "dur": 300.0, "good": true, "color": "#b98a5a",
+		"add": {"max_hp": 12.0}, "mul": {"melee_mul": 1.1},
+		"desc": "A real meal. You hit harder and take more.",
+	},
+	"steady": {
+		"id": "steady", "name": "Steady", "dur": 240.0, "good": true, "color": "#9fd0ff",
+		"add": {}, "mul": {"spread_mul": 0.9, "gun_mul": 1.05},
+		"desc": "Warm, sat down, hands still. You shoot straighter.",
+	},
+	"hydrated": {
+		"id": "hydrated", "name": "Hydrated", "dur": 300.0, "good": true, "color": "#6ad0c4",
+		"add": {}, "mul": {"mut_rate_mul": 0.85, "stam_regen": 1.05},
+		"desc": "Water slows the change. Nobody knows why.",
+	},
+	"wired": {
+		"id": "wired", "name": "Wired", "dur": 180.0, "good": true, "color": "#e0c24a",
+		"add": {"speed_mul": 0.08}, "mul": {"fire_rate_mul": 0.92, "stam_regen": 1.1},
+		"desc": "Caffeine and sugar. Faster hands, faster feet.",
+	},
+	"drunk": {
+		"id": "drunk", "name": "Drunk", "dur": 180.0, "good": true, "color": "#d98a4a",
+		"add": {"melee_mul": 0.15}, "mul": {"stagger_mul": 0.7, "spread_mul": 1.3},
+		"desc": "Braver, harder to stop, and you could not hit a wall.",
 	},
 }
 
@@ -524,9 +592,44 @@ const CONSUMABLES := {
 	# of the nausea. The first step of a chain that ends at a chemistry bench.
 	"serum": {"id": "serum", "name": "Stabilized Neural Serum", "heal": 0.0, "time": 1.6,
 		"mut": 30.0, "color": "#8fd08a", "stack": 10, "wt": 0.5},
+	# The chemistry tier. Refined is what a base with a bench and a supply of
+	# Brutes can keep you on indefinitely; Experimental is the gamble — three
+	# quarters of the bar, a minute and a half of being something better than
+	# human, and a one-in-four chance of paying for it afterwards.
+	"suppressant": {"id": "suppressant", "name": "Refined Suppressant", "heal": 0.0, "time": 2.0,
+		"mut": 50.0, "color": "#6ad0c4", "stack": 10, "wt": 0.6},
+	"experimental": {"id": "experimental", "name": "Experimental Suppressant", "heal": 0.0, "time": 2.4,
+		"mut": 75.0, "effect": "surge", "risk": {"chance": 0.25, "effect": "fever"},
+		"color": "#d0a06a", "stack": 5, "wt": 0.7},
 	# Not a healing item — it opens car doors (Phase 4). It lives here so it
 	# rides along in the same inventory the rest of the small stuff uses.
 	"lockpick": {"id": "lockpick", "name": "Lockpick", "heal": 0.0, "time": 0.0, "color": "#9aa2ab", "tool": true},
+
+	# ------------------------------------------------------ food and drink --
+	#
+	# Buffs, and nothing else. No hunger bar sits under this table and none is
+	# coming (pillar 1): eating is a thing you do before a run, not a thing
+	# the game asks you for every five minutes. `food` is what the quick key
+	# looks for and `rank` is the order it reaches — commonest first, so a
+	# tap of F never spends the Field Ration you were saving.
+	"cannedFood": {"id": "cannedFood", "name": "Tinned Food", "heal": 0.0, "time": 1.6,
+		"food": true, "rank": 1, "effect": "fed", "color": "#c4a86a", "stack": 15, "wt": 0.6},
+	"jerky": {"id": "jerky", "name": "Dried Meat", "heal": 0.0, "time": 1.4,
+		"food": true, "rank": 2, "effect": "sated", "color": "#b98a5a", "stack": 15, "wt": 0.4},
+	"hotMeal": {"id": "hotMeal", "name": "Hot Meal", "heal": 15.0, "time": 2.4,
+		"food": true, "rank": 4, "effect": "steady", "color": "#d9a05a", "stack": 5, "wt": 0.9},
+	"mre": {"id": "mre", "name": "Field Ration", "heal": 10.0, "time": 2.0,
+		"food": true, "rank": 5, "effect": "fed", "effect_mul": 2.0, "color": "#7fa14a", "stack": 10, "wt": 0.8},
+	"candyBar": {"id": "candyBar", "name": "Candy Bar", "heal": 0.0, "time": 0.8,
+		"food": true, "rank": 0, "effect": "wired", "effect_mul": 0.6, "color": "#d0709a", "stack": 20, "wt": 0.2},
+	"water": {"id": "water", "name": "Clean Water", "heal": 0.0, "time": 1.2,
+		"food": true, "rank": 1, "effect": "hydrated", "color": "#6ad0c4", "stack": 15, "wt": 0.8},
+	"soda": {"id": "soda", "name": "Warm Soda", "heal": 0.0, "time": 1.2,
+		"food": true, "rank": 2, "effect": "wired", "color": "#c95a8a", "stack": 15, "wt": 0.7},
+	"coffee": {"id": "coffee", "name": "Instant Coffee", "heal": 0.0, "time": 1.6,
+		"food": true, "rank": 3, "effect": "wired", "effect_mul": 1.6, "color": "#8a6a3c", "stack": 10, "wt": 0.3},
+	"booze": {"id": "booze", "name": "Bottle of Spirits", "heal": 0.0, "time": 1.8,
+		"food": true, "rank": 6, "effect": "drunk", "color": "#d98a4a", "stack": 8, "wt": 1.0},
 }
 
 # --------------------------------------------------------------------- gear --
@@ -693,6 +796,49 @@ const ENEMIES := {
 	"walker":   {"id": "walker",   "name": "Walker",   "hp": 58.0,   "speed": 60.0,  "dmg": 13.0, "atk_cd": 1.0,  "atk_range": 26.0, "r": 12.0, "xp": 10,  "sense": 330.0, "knock_resist": 0.0,  "struct_mul": 0.5, "threat": 0.35, "body": "#5c6b45", "dark": "#3d4a2e"},
 	"runner":   {"id": "runner",   "name": "Runner",   "hp": 44.0,   "speed": 132.0, "dmg": 11.0, "atk_cd": 0.65, "atk_range": 25.0, "r": 11.0, "xp": 18,  "sense": 430.0, "knock_resist": 0.15, "struct_mul": 0.4, "threat": 0.5,  "body": "#7a5a3c", "dark": "#513a26"},
 	"brute":    {"id": "brute",    "name": "Brute",    "hp": 300.0,  "speed": 52.0,  "dmg": 34.0, "atk_cd": 1.35, "atk_range": 34.0, "r": 19.0, "xp": 55,  "sense": 380.0, "knock_resist": 0.75, "struct_mul": 2.2, "threat": 1.1,  "body": "#6b4b52", "dark": "#452f34"},
+	# ------------------------------------------------------------- the living --
+	#
+	# Humans. `human` is what separates them from everything above: they carry
+	# no brain matter worth having, they shoot back, and they are here for what
+	# is in your stash rather than for you.
+	#
+	# They come because of what you are becoming — a raid of theirs is rolled
+	# against the Mutation band (see `MUTATION.human_raid`), which is what makes
+	# the meter a bet with two sides instead of a bar with a bonus.
+	#
+	# One thing they deliberately are *not*: zombie food. Nothing in the game
+	# has enemy-versus-enemy targeting, and bolting it on for one faction would
+	# be a system with one caller. A raider firing a rifle does draw the horde
+	# to itself, which is the honest half of that fight and costs nothing.
+	"looter": {
+		"id": "looter", "name": "Looter", "hp": 70.0, "speed": 118.0, "dmg": 10.0, "atk_cd": 0.8,
+		"atk_range": 26.0, "r": 12.0, "xp": 30, "sense": 460.0, "knock_resist": 0.1,
+		"struct_mul": 0.6, "threat": 0.6, "human": true, "body": "#8a7a5a", "dark": "#5a4d38",
+		# What it is actually here for. It empties what it can reach and runs
+		# for the map edge; kill it and you get it back.
+		"steal": {"stacks": 3, "flee": 22.0},
+		"loot_table": "raiderBody",
+	},
+	"raider": {
+		"id": "raider", "name": "Raider", "hp": 120.0, "speed": 92.0, "dmg": 14.0, "atk_cd": 1.0,
+		"atk_range": 28.0, "r": 13.0, "xp": 60, "sense": 620.0, "knock_resist": 0.2,
+		"struct_mul": 0.8, "threat": 1.0, "human": true, "body": "#7a6a8a", "dark": "#4d4258",
+		# A rifle. `standoff` is the range it wants to keep — closer than that
+		# and it backs up, which is what makes fighting one different to
+		# fighting anything else in the game.
+		"gun": {"dmg": 15.0, "range": 430.0, "standoff": 300.0, "cd": 1.5, "burst": 2,
+			"burst_gap": 0.14, "spread": 0.13, "speed": 900.0, "noise": 420.0, "sfx": "rifle", "color": "#ffd08a"},
+		"loot_table": "raiderBody",
+	},
+	"enforcer": {
+		"id": "enforcer", "name": "Enforcer", "hp": 260.0, "speed": 80.0, "dmg": 26.0, "atk_cd": 1.2,
+		"atk_range": 32.0, "r": 16.0, "xp": 110, "sense": 560.0, "knock_resist": 0.6,
+		"struct_mul": 1.4, "threat": 1.6, "human": true, "body": "#8a5a5a", "dark": "#573838",
+		# A shotgun: short, brutal, and it walks toward you while it uses it.
+		"gun": {"dmg": 9.0, "range": 210.0, "standoff": 120.0, "cd": 1.9, "pellets": 5,
+			"spread": 0.34, "speed": 700.0, "noise": 520.0, "sfx": "shotgun", "color": "#ffd08a"},
+		"loot_table": "enforcerBody",
+	},
 	"behemoth": {"id": "behemoth", "name": "Behemoth", "hp": 1100.0, "speed": 46.0,  "dmg": 58.0, "atk_cd": 1.6,  "atk_range": 44.0, "r": 27.0, "xp": 200, "sense": 900.0, "knock_resist": 0.95, "struct_mul": 4.0, "threat": 2.5,  "body": "#7d4348", "dark": "#4a262b", "boss": true},
 }
 
@@ -797,6 +943,25 @@ const RAIDS := [
 	{"name": "SIEGE",           "waves": 4, "base": 18, "growth": 6, "mix": {"walker": 0.45, "runner": 0.33, "brute": 0.22}, "reward": {"scrap": 80, "parts": 7, "elec": 20, "mil": 6}, "xp": 520},
 	{"name": "BEHEMOTH SIEGE",  "waves": 4, "base": 22, "growth": 7, "mix": {"walker": 0.4, "runner": 0.32, "brute": 0.25, "behemoth": 0.03}, "reward": {"scrap": 110, "parts": 10, "elec": 28, "mil": 12}, "xp": 800},
 ]
+
+## The other kind of raid. Same shape as `RAIDS` and run by the same code —
+## waves, spawn ring, break-off, salvage — because a raid is a raid; what
+## differs is who arrives and why. They come for the stash, so the payout for
+## repelling one is what they were carrying rather than horde salvage.
+##
+## Smaller than a horde on purpose. Six people with rifles is a harder fight
+## than twenty walkers, and being outnumbered by things that shoot back is not
+## the fantasy — being *hunted by the living because of what you are becoming*
+## is.
+const HUMAN_RAIDS := [
+	{"name": "SCAVENGER CREW", "waves": 1, "base": 4, "growth": 0, "mix": {"looter": 0.75, "raider": 0.25},
+		"reward": {"scrap": 30, "ammoP": 24, "med": 6}, "xp": 200},
+	{"name": "RAIDING PARTY", "waves": 2, "base": 4, "growth": 2, "mix": {"looter": 0.4, "raider": 0.5, "enforcer": 0.1},
+		"reward": {"scrap": 50, "ammoR": 20, "parts": 4, "med": 8}, "xp": 380},
+	{"name": "PURGE SQUAD", "waves": 2, "base": 6, "growth": 3, "mix": {"raider": 0.6, "enforcer": 0.4},
+		"reward": {"scrap": 70, "mil": 8, "parts": 6, "ammoR": 30}, "xp": 640},
+]
+
 
 const RAID := {
 	"warning_time": 12.0,
@@ -978,6 +1143,13 @@ const SFX := {
 	"mutate_down": [
 		{"kind": "tone", "freq": 165.0, "to": 262.0, "wave": "tri", "dur": 0.35, "gain": 0.18},
 		{"kind": "tone", "freq": 330.0, "wave": "tri", "dur": 0.22, "gain": 0.12, "at": 0.14},
+	],
+	## A Lurch starting. The same falling third as `mutate_up` with the floor
+	## pulled out from under it: it is the sound of losing an argument with
+	## your own legs.
+	"lurch": [
+		{"kind": "tone", "freq": 147.0, "to": 55.0, "wave": "saw", "dur": 0.7, "gain": 0.28},
+		{"kind": "noise", "dur": 0.5, "gain": 0.2, "filter": "lp", "freq": 600.0, "to": 120.0},
 	],
 	## Gone. Low, long, and not musical.
 	"turned": [
@@ -1187,6 +1359,15 @@ const STRUCTURES := {
 		"solid": false, "tier": 2, "threat": 2.0, "powered": true, "light_radius": 260.0,
 		"desc": "Pushes back the dark. Needs a powered Generator within 260px.",
 	},
+	# The only bench that is not a step up the workbench ladder. Chemistry is
+	# different work, not harder metalwork — folding it into `bench` would
+	# have made Workbench II hand out the suppressants for free, and the
+	# suppressant chain is the spine of the whole theme.
+	"chemStation": {
+		"id": "chemStation", "name": "Chemistry Station", "cost": {"scrap": 30, "elec": 20, "parts": 4, "med": 8}, "hp": 260.0,
+		"solid": true, "tier": 2, "threat": 3.0, "protect": true, "station": "chem",
+		"desc": "Refines brain matter into something that does not fight back. Stand near it to craft.",
+	},
 	"generator": {
 		"id": "generator", "name": "Generator", "cost": {"scrap": 38, "elec": 16}, "hp": 380.0,
 		"solid": true, "tier": 2, "threat": 4.0, "protect": true, "power_radius": 260.0,
@@ -1230,6 +1411,10 @@ const RECIPES := [
 	# Processing raw tissue is the first thing a base does for you that your
 	# hands cannot: three times the suppression, none of the nausea.
 	{"id": "serum", "name": "Stabilized Neural Serum", "bench": 1, "cost": {"brainRaw": 3, "med": 2, "cloth": 1}, "give": {"item": "serum", "n": 1}, "xp": 10},
+	# Food is bench work, not chemistry: a fire and a pot. Both of these are
+	# buffs with a clock on them and neither is ever required.
+	{"id": "jerky", "name": "Dried Meat x2", "bench": 1, "hammer": true, "cost": {"rations": 4, "fiber": 2}, "give": {"item": "jerky", "n": 2}, "xp": 4},
+	{"id": "hotMeal", "name": "Hot Meal", "bench": 1, "cost": {"rations": 3, "water": 1, "wood": 2}, "give": {"item": "hotMeal", "n": 1}, "xp": 6},
 	{"id": "machete", "name": "Machete", "bench": 1, "cost": {"scrap": 24, "parts": 1}, "give": {"weapon": "machete"}, "xp": 25},
 	# The metal tool tier: the workbench costs wood and wood costs a Hatchet,
 	# so these sit exactly one step past the stone tools that got you here.
@@ -1258,11 +1443,21 @@ const RECIPES := [
 	{"id": "heavyVest", "name": "Riot Armor", "bench": 2, "cost": {"scrap": 46, "cloth": 20, "mil": 4}, "give": {"gear": "heavyVest"}, "xp": 70},
 	{"id": "carbine", "name": "Military Carbine", "bench": 2, "cost": {"scrap": 85, "parts": 18, "mil": 14, "elec": 12}, "give": {"weapon": "carbine"}, "xp": 150},
 	{"id": "milVest", "name": "Plate Carrier", "bench": 2, "cost": {"scrap": 40, "mil": 12, "cloth": 15}, "give": {"gear": "milVest"}, "xp": 120},
+
+	# The chemistry. `station` is a *different* gate to `bench`: standing at a
+	# Chemistry Station is what unlocks these, and no amount of workbench
+	# upgrading ever will. `bench` stays 0 for exactly that reason — the two
+	# gates are independent, and reading `bench: 2` here would suggest the
+	# ladder had anything to do with it.
+	{"id": "suppressant", "name": "Refined Suppressant", "bench": 0, "station": "chem",
+		"cost": {"brainRaw": 6, "brainMut": 1, "med": 4, "elec": 2}, "give": {"item": "suppressant", "n": 1}, "xp": 30},
+	{"id": "experimental", "name": "Experimental Suppressant", "bench": 0, "station": "chem",
+		"cost": {"brainMut": 2, "brainSpec": 1, "med": 6, "mil": 2}, "give": {"item": "experimental", "n": 1}, "xp": 60},
 ]
 
 const BUILD_ORDER := [
 	"woodWall", "stoneWall", "barricade", "reinforcedWall", "metalWall", "gate", "spike",
-	"workbench", "stash", "chest", "locker", "bedroll", "bunk", "watchtower",
+	"workbench", "chemStation", "stash", "chest", "locker", "bedroll", "bunk", "watchtower",
 	"generator", "turret", "floodlight",
 ]
 
@@ -1449,11 +1644,16 @@ const CAR := {
 ## building's exterior worth reading before you go in.
 const LOOT := {
 	"cabinet": [
+		{"id": "item:cannedFood", "min": 1, "max": 2, "w": 16}, {"id": "item:candyBar", "min": 1, "max": 2, "w": 10},
 		{"id": "rations", "min": 2, "max": 5, "w": 18}, {"id": "cloth", "min": 3, "max": 8, "w": 30},
 		{"id": "wood", "min": 4, "max": 10, "w": 28}, {"id": "scrap", "min": 2, "max": 6, "w": 24},
 		{"id": "med", "min": 1, "max": 2, "w": 10}, {"id": "item:bandage", "min": 1, "max": 2, "w": 8},
 	],
 	"kitchen": [
+		# Food and drink: buffs, never a requirement (pillar 1). A kitchen is
+		# where most of it is, which is also where most of it always was.
+		{"id": "item:cannedFood", "min": 1, "max": 3, "w": 26}, {"id": "item:water", "min": 1, "max": 3, "w": 22},
+		{"id": "item:coffee", "min": 1, "max": 2, "w": 12}, {"id": "item:booze", "min": 1, "max": 1, "w": 8},
 		{"id": "rations", "min": 3, "max": 8, "w": 34}, {"id": "cloth", "min": 2, "max": 6, "w": 26},
 		{"id": "scrap", "min": 3, "max": 8, "w": 30}, {"id": "med", "min": 1, "max": 3, "w": 14},
 		{"id": "elec", "min": 1, "max": 2, "w": 10}, {"id": "item:bandage", "min": 1, "max": 1, "w": 10},
@@ -1479,6 +1679,7 @@ const LOOT := {
 		{"id": "fuel", "min": 5, "max": 12, "w": 10},
 	],
 	"carTrunk": [
+		{"id": "item:water", "min": 1, "max": 2, "w": 12}, {"id": "item:candyBar", "min": 1, "max": 2, "w": 8},
 		{"id": "scrap", "min": 4, "max": 10, "w": 34}, {"id": "fuel", "min": 4, "max": 12, "w": 26},
 		{"id": "battery", "min": 1, "max": 2, "w": 14}, {"id": "parts", "min": 1, "max": 1, "w": 14},
 		{"id": "cloth", "min": 2, "max": 5, "w": 16}, {"id": "elec", "min": 1, "max": 2, "w": 10},
@@ -1496,15 +1697,33 @@ const LOOT := {
 		{"id": "ammoS", "min": 10, "max": 20, "w": 18}, {"id": "parts", "min": 3, "max": 6, "w": 14},
 	],
 	"militaryCrate": [
+		{"id": "item:mre", "min": 1, "max": 3, "w": 20}, {"id": "item:water", "min": 1, "max": 3, "w": 12},
 		{"id": "rations", "min": 6, "max": 14, "w": 14}, {"id": "mil", "min": 4, "max": 10, "w": 32},
 		{"id": "ammoR", "min": 12, "max": 26, "w": 24}, {"id": "parts", "min": 3, "max": 7, "w": 18},
 		{"id": "elec", "min": 5, "max": 12, "w": 12}, {"id": "weapon:carbine", "min": 1, "max": 1, "w": 4},
 		{"id": "gear:milVest", "min": 1, "max": 1, "w": 5}, {"id": "item:medkit", "min": 1, "max": 2, "w": 5},
 	],
 	"hospitalCrate": [
+		{"id": "item:water", "min": 2, "max": 5, "w": 14},
 		{"id": "rations", "min": 3, "max": 8, "w": 12}, {"id": "med", "min": 8, "max": 16, "w": 36},
 		{"id": "item:medkit", "min": 1, "max": 3, "w": 26}, {"id": "elec", "min": 3, "max": 8, "w": 16},
 		{"id": "parts", "min": 1, "max": 3, "w": 12}, {"id": "mil", "min": 1, "max": 3, "w": 10},
+	],
+	# What a person was carrying. Not a container — `ENEMIES.loot_table` names
+	# these, so a body rolls the same weighted table a cupboard does and there
+	# is one rolling function in the game rather than two.
+	"raiderBody": [
+		{"id": "ammoP", "min": 6, "max": 16, "w": 26}, {"id": "ammoR", "min": 4, "max": 12, "w": 16},
+		{"id": "scrap", "min": 2, "max": 6, "w": 18}, {"id": "med", "min": 1, "max": 3, "w": 16},
+		{"id": "item:bandage", "min": 1, "max": 2, "w": 16}, {"id": "item:cannedFood", "min": 1, "max": 2, "w": 14},
+		{"id": "item:water", "min": 1, "max": 2, "w": 12}, {"id": "parts", "min": 1, "max": 2, "w": 10},
+		{"id": "item:booze", "min": 1, "max": 1, "w": 8}, {"id": "weapon:pistol", "min": 1, "max": 1, "w": 4},
+	],
+	"enforcerBody": [
+		{"id": "ammoS", "min": 6, "max": 14, "w": 30}, {"id": "mil", "min": 1, "max": 4, "w": 18},
+		{"id": "parts", "min": 2, "max": 4, "w": 18}, {"id": "item:medkit", "min": 1, "max": 1, "w": 12},
+		{"id": "gear:heavyVest", "min": 1, "max": 1, "w": 5}, {"id": "gear:riotHelm", "min": 1, "max": 1, "w": 7},
+		{"id": "weapon:shotgun", "min": 1, "max": 1, "w": 6}, {"id": "item:mre", "min": 1, "max": 2, "w": 10},
 	],
 	"fuelPump": [{"id": "fuel", "min": 12, "max": 26, "w": 100}],
 	"fuelDrum": [{"id": "fuel", "min": 8, "max": 18, "w": 70}, {"id": "scrap", "min": 2, "max": 6, "w": 30}],
@@ -1548,6 +1767,8 @@ const LOOT := {
 		{"id": "ammoP", "min": 5, "max": 12, "w": 18}, {"id": "med", "min": 1, "max": 3, "w": 14},
 	],
 	"fridge": [
+		{"id": "item:water", "min": 2, "max": 4, "w": 30}, {"id": "item:jerky", "min": 1, "max": 3, "w": 22},
+		{"id": "item:soda", "min": 1, "max": 4, "w": 26}, {"id": "item:cannedFood", "min": 1, "max": 2, "w": 18},
 		{"id": "rations", "min": 6, "max": 14, "w": 58}, {"id": "med", "min": 1, "max": 3, "w": 20},
 		{"id": "cloth", "min": 1, "max": 3, "w": 12}, {"id": "fuel", "min": 1, "max": 3, "w": 10},
 	],
@@ -1561,6 +1782,7 @@ const LOOT := {
 		{"id": "cloth", "min": 2, "max": 6, "w": 22}, {"id": "item:medkit", "min": 1, "max": 1, "w": 8},
 	],
 	"footlocker": [
+		{"id": "item:mre", "min": 1, "max": 2, "w": 14}, {"id": "item:booze", "min": 1, "max": 1, "w": 8},
 		{"id": "mil", "min": 3, "max": 8, "w": 28}, {"id": "arrow", "min": 8, "max": 20, "w": 8},
 		{"id": "ammoR", "min": 8, "max": 18, "w": 20}, {"id": "gear:milVest", "min": 1, "max": 1, "w": 6},
 		{"id": "gear:milHelm", "min": 1, "max": 1, "w": 6}, {"id": "gear:armGuards", "min": 1, "max": 1, "w": 6},
@@ -1569,6 +1791,8 @@ const LOOT := {
 		{"id": "rations", "min": 3, "max": 8, "w": 6},
 	],
 	"vending": [
+		{"id": "item:soda", "min": 2, "max": 5, "w": 40}, {"id": "item:candyBar", "min": 2, "max": 6, "w": 44},
+		{"id": "item:water", "min": 1, "max": 3, "w": 24},
 		{"id": "rations", "min": 5, "max": 12, "w": 62}, {"id": "scrap", "min": 2, "max": 5, "w": 22},
 		{"id": "elec", "min": 1, "max": 2, "w": 16},
 	],

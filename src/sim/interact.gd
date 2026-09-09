@@ -57,7 +57,7 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 		var d: float = p.pos.distance_squared_to(rescue.pos)
 		if d >= person_d:
 			continue
-		var why := sim.crew.recruit_refusal(sim)
+		var why := sim.crew.recruit_refusal(sim, p)
 		person_d = d
 		best_person = {"kind": "recruit", "ref": rescue,
 			"label": "Take %s in  (level %d)" % [rescue.name, int(rescue.level)] if why.is_empty() else why}

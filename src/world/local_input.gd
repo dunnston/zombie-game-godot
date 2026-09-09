@@ -31,6 +31,8 @@ static func gather(intent: Intent, node: Node2D, ui_capture := false) -> void:
 		intent.use = true
 	if Input.is_action_just_pressed("use_suppress"):
 		intent.suppress = true
+	if Input.is_action_just_pressed("use_food"):
+		intent.eat = true
 	if Input.is_action_just_pressed("light"):
 		intent.light = true
 	for i in range(6):

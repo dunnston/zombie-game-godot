@@ -58,8 +58,14 @@ func test_every_brain_drop_names_a_real_item() -> void:
 		ok(int(d.min) >= 1 and int(d.max) >= int(d.min), type)
 		if d.has("also"):
 			has(Config.CONSUMABLES, d.also.id, type)
+	# Every *zombie*. The living carry nothing worth eating — that is what
+	# keeps the supply line running through the dead, so killing people can
+	# never be a way to hold the meter down.
 	for type in Config.ENEMIES:
-		has(Config.BRAIN_DROPS, type, "%s drops no brain matter at all" % type)
+		if Config.ENEMIES[type].get("human", false):
+			ok(not Config.BRAIN_DROPS.has(type), "%s is a person and is dropping brain matter" % type)
+		else:
+			has(Config.BRAIN_DROPS, type, "%s drops no brain matter at all" % type)
 
 
 func test_a_suppressant_is_a_consumable_with_a_number_on_it() -> void:
