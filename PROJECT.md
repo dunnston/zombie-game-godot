@@ -1222,7 +1222,7 @@ DEADLINE (page `3d610d456b16816fbf35d781eeaccb11`). Three tables:
 | --- | --- | --- |
 | Items | `collection://23c90712-6033-4bf5-b835-114704efbdc6` | `WEAPONS`, `GEAR`, `CONSUMABLES`, `RES`, `RECIPES`, `STRUCTURES` |
 | Benches | `collection://98144f5b-c2b1-475d-960e-0efbe4895f44` | the `bench` field on `RECIPES` (0 = Hand, 1/2 = Workbench tiers today) |
-| Loot Sources | `collection://915ca948-b8e7-45a8-bca4-a3d621cf5e30` | `CONTAINERS`, `LOOT`, `HARVEST` |
+| Loot Sources | `collection://915ca948-b8e7-45a8-bca4-a3d621cf5e30` | `CONTAINERS`, `LOOT`, `HARVEST`, and `FURNISHING` via the `Where` column |
 
 When the owner says **"look at Notion and update the game"**:
 
@@ -1233,7 +1233,11 @@ When the owner says **"look at Notion and update the game"**:
 2. Diff against `config.gd` by `Code ID`. Rows with a blank `Code ID` and
    `Status = Planned` are new content. Rows whose `Recipe`, `Crafted at`,
    `Found in` or `Breaks down into` differ from the code are changes. Rows
-   marked `Cut` come out.
+   marked `Cut` come out. On Loot Sources, `Rolls` is the `rolls` field on
+   `CONTAINERS`, and **`Where` is `FURNISHING`** — the buildings a container
+   is placed in. It is prose, and `FURNISHING` is weighted, so a building
+   added or removed there is a real change to make while the weights stay as
+   they are; a weight is a feel number and is not edited from Notion.
 3. **Report before changing anything**: what will be built, what will change,
    and what does not add up (an ingredient with no row, a bench that is not in
    the game yet, a weapon class the code has no stats for).
