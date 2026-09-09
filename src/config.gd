@@ -108,7 +108,11 @@ const NET := {
 	## `addons/webrtc/` (`tools/fetch-webrtc`). With both, START HOSTING opens
 	## a room beside the UDP port and JOIN accepts a six-letter code.
 	"broker": "",
+	## ICE servers. WebRTC dials all of them; `NetDoor` asks the `stun:` ones
+	## what this machine's public address is when UPnP will not say, so the
+	## HOST page has a line to copy even with the port forwarded by hand.
 	"stun": ["stun:stun.l.google.com:19302"],
+	"stun_timeout_ms": 1500,     # how long to wait for a STUN server to answer
 	"rtc_timeout": 25.0,        # seconds a WebRTC dial may take: broker, offer, ICE
 	"guest_view_radius": 880.0, # what the spawner assumes a guest can see
 }

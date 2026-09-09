@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-09, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1
+- **Last updated:** 2026-09-09, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1. The HOST page also names your public address when UPnP will not
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -195,7 +195,7 @@ that will not fit is ever destroyed: it lands on the ground.
 | --- | --- |
 | Phase | **5 of 5 built.** 4a progression, 4b day and fire, 4c survivors and vehicles, 4d the front door, the map and the audio, 5 co-op. None of it has been played by the owner yet |
 | Playable | The whole loop, it levels you, it gets dark, you can hold it with other people, and a friend can join you in it. **E** searches, uses and gets a teammate up, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load, MULTIPLAYER on the title and HOST THIS GAME on the pause menu. |
-| Unit tests | 368 tests, 5041 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials, the survivor combat tests, the UPnP door and the real broker under Node: 401 tests, 5174 assertions. Wall-clock varies with the machine — see §9 |
+| Unit tests | 374 tests, 5060 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials, the survivor combat tests, the UPnP door and the real broker under Node: 409 tests, 5194 assertions. Wall-clock varies with the machine — see §9 |
 | Smoke | 48 checkpoints: a loopback guest joined, walked and parked, and before that walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked , the town map with its districts, Sixth Sense widening the reveal, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it , and every cue reaching a voice |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
 | Save format | **v7** — every player by identity, with whether they are here, so a guest's character comes back to them next week (a guest's seat loads parked; the host's never does), on top of v6's the districts you have found (ids only: the rects are `Config`, so a save cannot carry a stale map), on top of v5's what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
@@ -288,10 +288,15 @@ The spec for each row is in `tasks/port-inventory.md`.
   the router over UPnP to map it, then asks for the public address. The
   HOST page says what happened in a sentence: open, with the address to
   click-to-copy; refused, with the router's reason; or no router answered.
-  The LAN addresses are on the page either way. Closing never waits on a
-  router — a discovery still running is orphaned and takes its own mapping
-  down. Carrier-grade NAT and routers with UPnP off are the two things it
-  cannot get past; those are the VPN or the WebRTC road (§6).
+  When UPnP says no or is switched off, `Stun` asks a public STUN server
+  what the internet sees and the address is shown anyway, hedged — "works
+  only if you forwarded UDP 27333" — because STUN reports an address, never
+  whether anything is listening behind it. A host who forwarded the port by
+  hand has a line to copy instead of a website to go find; nobody remembers
+  their own public address and it changes. The LAN addresses are on the page
+  either way. Closing never waits on a router — a discovery still running is
+  orphaned and takes its own mapping down. Carrier-grade NAT is the one
+  thing neither road gets past; that is the VPN or WebRTC (§6).
 - **The room-code road, built and switched off.** `WebRtcHub` is the same
   `PeerHub` face over `WebRTCMultiplayerPeer`: the host registers with the
   broker (`server/signal.js`, the prototype's, unchanged) and gets a
@@ -882,6 +887,7 @@ Phases 1–4 respecting it.
 | 2026-09-08 | A dropped pile ignores its dropper until they step clear | It lands at your feet, inside collection range, so without the hold-off the magnet hands it straight back and dropping does nothing. A state, not a timer: it waits as long as you stand there. Teammates may take it immediately — that is how you hand something over. | Yes |
 | 2026-09-08 | The pack screen is drawn immediate-mode, not built from Control nodes | One `_cells()` function produces the rectangles that both the drawing and the hit test use, so they cannot describe different grids. It is also how the HUD already works, and how the prototype's canvas inventory worked. | Yes, but it is a rewrite |
 | 2026-09-08 | Panels are polled, not handled as input events | `Input.action_press` sets action state without synthesising an `InputEvent`, so a scripted Tab never reached `_unhandled_input` and the smoke run could not open the pack. Polling `is_action_just_pressed` matches every other key here and keeps the smoke path honest. | Yes |
+| 2026-09-09 | STUN fills in the public address when UPnP will not | The owner's router has UPnP switched off and is staying that way — there is a Foundry server on the same network and widening the blast radius for a game was not the trade. UDP 27333 is forwarded by hand instead, which works, but the HOST page could only learn the public address from `query_external_address()` on the UPnP success path, so it showed nothing to copy and the owner had to go find their own address on a website. One UDP binding request to a public STUN server answers it: forty lines, no dependency, no broker, and `Config.NET.stun` already had the server in it. The line is hedged, because STUN reports the address the internet sees whether or not anything is listening behind it. | Yes — additive |
 | 2026-09-09 | The WebRTC road is built to the last step and left switched off | The owner wants to flip to it quickly if UPnP fails, so everything that can be written and tested without the native binaries is: the hub, the broker wire over the real WebSocket, the menu rows, the fetch script and the deployment notes. The binaries stay out of git (`addons/webrtc/` is ignored) because they are per-platform, several megabytes, and a download away; and the broker URL stays empty in `Config` because there is no broker yet. A GDScript `WebRTCPeerConnectionExtension` stands in for the native one in tests — it carries the handshake and the connection through the real `WebRTCMultiplayerPeer`, but not bytes: the engine hands that layer raw pointers. | Yes — one config value and one script |
 | 2026-09-09 | UPnP before WebRTC for internet play | The owner asked for the cheap way. UPnP is twenty lines against a class the engine ships, no binaries to vendor and no broker to keep alive; it fails only on routers with it switched off and on carrier-grade NAT. WebRTC stays the road for those cases: an extension, a broker on a free tier, and TURN money if STUN is not enough. Try the free thing with real friends before paying for the sure thing. | Yes — additive |
 | 2026-09-09 | Co-op transport is ENet, built into the engine, not WebRTC | The plan said WebRTC because the browser had no choice. Godot's WebRTC is a GDExtension that is not in the engine — tens of megabytes of binaries to vendor per platform — and it still needs the signalling broker to introduce two peers. ENet is in the box, needs no broker, and is the same `MultiplayerPeer` face; every session object above the hub is transport-blind, so WebRTC is an additive change when the owner wants internet play without port forwarding. What ENet does not do is punch through two home routers on its own. | Yes — `EnetHub` gets a sibling |
