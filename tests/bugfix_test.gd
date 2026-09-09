@@ -265,3 +265,70 @@ func test_the_dev_menu_is_not_a_rebindable_action() -> void:
 	for a in KeyBinds.ACTIONS:
 		ne(String(a.id), "dev_menu", "the dev key is not offered on the controls screen")
 	ok(KeyBinds.KEYS.has("dev_menu"), "but it is bound")
+
+
+# ------------------------------------------------------------- the base --
+
+## DL-43. Zombies were spawning inside the player's base because nothing in the
+## game knew what a base was.
+
+func _plant(type: String, tx: int, ty: int) -> Dictionary:
+	return sim.structs.make(sim, type, tx, ty)
+
+
+func test_a_protected_piece_claims_ground_around_it() -> void:
+	var tx := int(p.pos.x / Config.TILE) + 3
+	var ty := int(p.pos.y / Config.TILE)
+	var bench := _plant("workbench", tx, ty)
+	ok(not bench.is_empty(), "planted a workbench")
+	var r: float = Config.BASE.radius
+	ok(sim.structs.in_base(bench.pos), "the piece itself is in the base")
+	ok(sim.structs.in_base(bench.pos + Vector2(r * 0.9, 0.0)), "and so is ground just inside")
+	ok(not sim.structs.in_base(bench.pos + Vector2(r * 1.5, 0.0)), "but not ground well outside")
+
+
+## A barricade is not a claim. Somebody who fences a field has not made it a base.
+func test_a_bare_wall_claims_nothing() -> void:
+	var tx := int(p.pos.x / Config.TILE) + 3
+	var ty := int(p.pos.y / Config.TILE)
+	var wall := _plant("barricade", tx, ty)
+	ok(not wall.is_empty(), "planted a barricade")
+	ok(not wall.def.get("protect", false), "a barricade is not a protected piece")
+	ok(not sim.structs.in_base(wall.pos), "so it claims no ground")
+
+
+## A destroyed piece stops claiming: burn the workbench down and the ground it
+## stood on is open country again.
+func test_a_destroyed_piece_stops_claiming() -> void:
+	var tx := int(p.pos.x / Config.TILE) + 3
+	var ty := int(p.pos.y / Config.TILE)
+	var bench := _plant("workbench", tx, ty)
+	ok(sim.structs.in_base(bench.pos))
+	bench.destroyed = true
+	ok(not sim.structs.in_base(bench.pos), "a ruin is not a base")
+
+
+## The reproduction: stand beside your workbench and let the ambient spawner
+## run. Nothing may appear inside the base.
+func test_nothing_ambient_spawns_inside_the_base() -> void:
+	var tx := int(p.pos.x / Config.TILE) + 2
+	var ty := int(p.pos.y / Config.TILE)
+	var bench := _plant("workbench", tx, ty)
+	ok(not bench.is_empty(), "planted a workbench")
+	sim.enemies.list.clear()
+	# Long enough for many spawn intervals, standing still at home.
+	for i in range(2000):
+		sim.enemies.tick_spawning(sim, 1.0 / 30.0)
+	gt(sim.enemies.list.size(), 0, "the spawner did run")
+	for e in sim.enemies.list:
+		ok(not sim.structs.in_base(e.pos),
+			"a %s spawned %.0fpx from the workbench" % [e.type, e.pos.distance_to(bench.pos)])
+
+
+## And with nothing built, the spawner is exactly as it was: an empty map has
+## no base to protect, so this must not quietly become a difficulty change.
+func test_no_base_means_no_change() -> void:
+	sim.enemies.list.clear()
+	for i in range(2000):
+		sim.enemies.tick_spawning(sim, 1.0 / 30.0)
+	gt(sim.enemies.list.size(), 0, "the spawner still fills an empty world")

@@ -420,6 +420,19 @@ const CONSUMABLES := {
 
 # --------------------------------------------------------------------- gear --
 
+## What counts as "the player's base" — the thing the game had no concept of,
+## which is why zombies could walk out of thin air inside the walls.
+##
+## The base is a radius around every piece marked `protect`: a bunk, a stash, a
+## workbench, a tower. Those are the pieces somebody deliberately planted to
+## make a place theirs. A length of wall is not one, so a fence post out in the
+## country claims no ground, and a compound with two ends has two anchors
+## rather than an average of them that covers neither.
+##
+## Raids are not bound by this. A raid is how a base is meant to be attacked;
+## what this stops is the ambient stream materialising in the kitchen.
+const BASE := {"radius": 420.0}
+
 ## Where ground litter — sticks, fiber, a loose stone — is allowed to lie, and
 ## how thickly. Nature stays in nature: a stick on a tarmac road or a tuft of
 ## dry grass on a kitchen floor reads as a bug, because it is one. Any surface
