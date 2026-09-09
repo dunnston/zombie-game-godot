@@ -24,6 +24,7 @@ var vehicle_view: VehicleView
 var player_view: PlayerView
 var camera: Camera2D
 var hud: Hud
+var map: MapScreen
 var inventory: InventoryScreen
 var build_bar: BuildBar
 var menu: MenuScreen
@@ -93,6 +94,10 @@ func _ready() -> void:
 	add_child(layer)
 	hud = Hud.new(sim)
 	layer.add_child(hud)
+	# Above the HUD, below the screens: the map is part of the world you are
+	# looking at, and the pack is something you opened over it.
+	map = MapScreen.new(sim)
+	layer.add_child(map)
 	inventory = InventoryScreen.new(sim)
 	layer.add_child(inventory)
 	build_bar = BuildBar.new(sim)
@@ -154,6 +159,12 @@ func _physics_process(dt: float) -> void:
 			inventory.visible = true
 			if build_bar.open:
 				build_bar.toggle()
+	elif Input.is_action_just_pressed("map"):
+		# The town map is a panel over a running world, like the pack: reading it
+		# is not a time-out, and the markers on it are live for that reason.
+		map.toggle()
+		if map.open and build_bar.open:
+			build_bar.toggle()
 	elif Input.is_action_just_pressed("build") and not inventory.visible:
 		build_bar.toggle()
 	elif Input.is_action_just_pressed("pause"):
@@ -161,6 +172,8 @@ func _physics_process(dt: float) -> void:
 		# menu once there is nothing left to close.
 		if inventory.visible:
 			inventory.toggle()
+		elif map.open:
+			map.toggle()
 		elif build_bar.open:
 			build_bar.toggle()
 		else:
@@ -175,7 +188,7 @@ func _physics_process(dt: float) -> void:
 	var intent := sim.players[0].intent
 	# An open panel owns the mouse: you can still walk, but a click belongs to
 	# the screen you are looking at rather than to the gun in your hand.
-	LocalInput.gather(intent, self, inventory.visible or build_bar.open)
+	LocalInput.gather(intent, self, inventory.visible or build_bar.open or map.open)
 	if build_bar.open:
 		build_bar.update_hover(get_global_mouse_position())
 		# One click, one action — except REPAIR, which is meant to be swept
@@ -233,6 +246,7 @@ func _rebuild_views() -> void:
 	inventory.visible = false
 	if build_bar.open:
 		build_bar.toggle()
+	map.open = false
 	terrain.build(sim.world)
 	props_below.rebuild()
 	props_above.rebuild()
@@ -807,6 +821,39 @@ func smoke_run(smoke: Node) -> void:
 		await smoke.checkpoint("parked")
 
 
+
+	# The map. The corner one has been on screen since the first checkpoint;
+	# this is the one behind M, and the districts it has filled in.
+	var found := 0
+	for l in sim.world.locations:
+		if l.discovered:
+			found += 1
+	if found < 2:
+		smoke.fail("walked seven districts and found %d" % found)
+	await smoke.tap("map")
+	await smoke.frames(4)
+	if not map.open:
+		smoke.fail("M did not open the town map")
+	await smoke.checkpoint("town_map")
+
+	# Sixth Sense is the reason the reveal radius is a number rather than
+	# "all of them", so the map has to change when the perk is bought.
+	var near_count := map._revealed(p).size()
+	p.perks["sixthSense"] = 1
+	Perks.recompute_stats(p)
+	await smoke.frames(2)
+	if map._revealed(p).size() < near_count:
+		smoke.fail("Sixth Sense showed fewer, not more")
+	await smoke.checkpoint("sixth_sense")
+
+	await smoke.tap("pause")
+	await smoke.frames(3)
+	if map.open:
+		smoke.fail("Escape did not close the map before opening anything else")
+	if menu.visible:
+		smoke.fail("Escape opened the pause menu with the map still up")
+	p.perks.erase("sixthSense")
+	Perks.recompute_stats(p)
 
 	# The front door. The smoke run starts in the world rather than at the
 	# title, so this drives the menu directly — but through the same rows and

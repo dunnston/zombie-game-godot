@@ -152,8 +152,7 @@ const PERKS := [
 	{"id": "eagleEye", "attr": "per", "req": 4, "max": 3, "name": "Eagle Eye",
 		"desc": "-22% weapon spread and +12% bullet range per rank."},
 	{"id": "sixthSense", "attr": "per", "req": 6, "max": 1, "name": "Sixth Sense",
-		"desc": "Enemies show on the minimap much further out, even unaware ones.",
-		"needs": "the minimap"},
+		"desc": "Enemies show on the minimap much further out, even unaware ones."},
 
 	# --------------------------------------------------------- constitution --
 	{"id": "thickSkin", "attr": "con", "req": 2, "max": 4, "name": "Thick Skin",
@@ -647,6 +646,27 @@ static func raid_spec(index: int) -> Dictionary:
 		reward[id] = roundi(last.reward[id] * (1.0 + over * 0.3))
 	spec.reward = reward
 	return spec
+
+
+# ---------------------------------------------------------------------- map --
+
+## The minimap and the town map.
+##
+## `aware` and `unaware` are reveal radii in pixels, multiplied by the player's
+## `radar_mul`. The prototype drew *every* enemy in the world on the minimap
+## and left `radarMul` set by Sixth Sense and read by nobody, which made a
+## rank-6 Perception perk do literally nothing. Here the map shows what is
+## near — further for the ones that have noticed you, because a horde already
+## coming for you is not a secret — and Sixth Sense (radar_mul 2.4) is what
+## turns it into a radar worth having.
+const MAP := {
+	"corner": 168.0,          # the always-on map, bottom right
+	"aware": 900.0,           # an enemy that has noticed you
+	"unaware": 380.0,         # one that has not
+	"discover_xp": 25,        # per danger tier of the district
+	"danger_tint": 26.0,      # red added to the image per tier above 1
+	"blocked_shade": 0.75,    # what a wall or water does to the pixel
+}
 
 # ---------------------------------------------------------------- districts --
 

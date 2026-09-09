@@ -63,8 +63,13 @@ func test_a_raid_warns_then_sends_waves_at_you() -> void:
 	sim.threat.value = 100.0
 	sim.tick(1.0 / 60.0)
 	ok(sim.raid != null)
-	var warn := events_of(sim, "notify")
-	ok(warn.size() >= 2 and warn[0].text.contains("INCOMING"), warn[0].text)
+	# Searched rather than indexed: the player is standing in a district on the
+	# first tick, so a discovery notice can legitimately arrive first.
+	var shouted := false
+	for n in events_of(sim, "notify"):
+		if String(n.text).contains("INCOMING"):
+			shouted = true
+	ok(shouted, "the raid announces itself")
 	run(sim, Config.RAID.warning_time + 0.5)
 	eq(sim.raid.phase, "active")
 	eq(sim.raid.wave, 1)
