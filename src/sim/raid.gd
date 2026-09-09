@@ -49,12 +49,18 @@ static func humans_come_for(sim: GameSim) -> bool:
 
 static func start(sim: GameSim, human := false) -> Raid:
 	var raid := Raid.new()
-	raid.index = sim.raids_done
 	raid.human = human
+	# The index comes from the track this raid is on, and it is two things at
+	# once: which spec to field, and how much health to add per raid survived
+	# (`hp_per_index`, applied at the spawn). Reading it off `raids_done` for
+	# both meant a human crew whose numbers were scaled by hordes it had
+	# nothing to do with — tougher on their first visit for every horde you
+	# had beaten, and never any tougher for beating *them*.
+	raid.index = sim.human_raids_done if human else sim.raids_done
 	# The two tracks count separately: a human crew is not "the next horde",
 	# so surviving four hordes does not send a Purge Squad on your first
 	# meeting with the living.
-	raid.spec = Config.HUMAN_RAIDS[clampi(sim.human_raids_done, 0, Config.HUMAN_RAIDS.size() - 1)] if human \
+	raid.spec = Config.HUMAN_RAIDS[clampi(raid.index, 0, Config.HUMAN_RAIDS.size() - 1)] if human \
 		else Config.raid_spec(raid.index)
 	var c := sim.base_centre()
 	raid.centre = c.pos

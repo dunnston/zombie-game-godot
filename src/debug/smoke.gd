@@ -31,7 +31,18 @@ func _ready() -> void:
 
 
 func _run() -> void:
+	# Take the focus before anything is driven. Half this script steers with
+	# `Input.warp_mouse`, and **an unfocused window cannot move the cursor**:
+	# the aim stays wherever the desktop left it, and every mouse-driven leg
+	# fails somewhere downstream — the build ghost lands on the wrong tile,
+	# the pistol fires past the walker, the axe swings at nothing. It reads
+	# like six unrelated bugs and it is one, and it has now cost real time
+	# twice (see PROJECT.md §8, where it was written up as "load").
+	DisplayServer.window_move_to_foreground()
+	get_window().grab_focus()
 	await frames(10)
+	if not get_window().has_focus():
+		fail("the smoke window never took focus — every mouse-driven leg below this is meaningless")
 	var scene := get_tree().current_scene
 	if scene != null and scene.has_method("smoke_run"):
 		await scene.smoke_run(self)

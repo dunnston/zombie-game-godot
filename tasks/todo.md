@@ -1708,3 +1708,39 @@ corpses, turrets shooting them — was already there and needed nothing.
 **Open, and the owner's call.** The odds on a human raid (25% at TURNING, 55%
 at FERAL) and the Lurch's one-every-couple-of-minutes are the two numbers
 most likely to want moving after a session at the keyboard.
+
+### Addressing the Codex review on PR #21
+
+Three P2s, all three right.
+
+- **A Looter punching you rolled a zombie bite.** The melee landing path is
+  shared, and it passed `bite = true` for every enemy — so the living could
+  add 12 Mutation and print BITTEN, which is the exact opposite of the line
+  the faction rests on. The flag is now `not e.def.get("human", false)`.
+- **Their guns were silent.** Every pellet went out with an empty weapon id,
+  and `SfxView` reads an empty one as "pellet two through eight" and drops
+  it — so raiders shot at you with no sound at all. The id rides the first
+  pellet only, exactly as the player's guns do, and each gun names its own
+  cue (`sfx`), so a shotgun is one bang rather than five.
+- **Human raids were scaled by hordes.** `raid.index` is two things at once —
+  which spec to field, and `hp_per_index` at the spawn — and it was read off
+  `raids_done` for both. A crew arrived tougher for every horde you had
+  beaten and never got tougher for beating *them*. It comes off whichever
+  track the raid is on now.
+
+All three have a test, and all three were checked against the bug before
+being kept: putting each fault back fails its own test with the message a
+reader would need.
+
+### And the thing the review made visible
+
+Chasing whether the branch had broken the smoke, `origin/main` turned out to
+fail the same way, in the same legs, two runs in three. **The smoke's
+flakiness was never load. It is window focus:** `Input.warp_mouse` does
+nothing on an unfocused window, so every mouse-driven leg fails somewhere
+downstream and none of the messages mentions the mouse. Two lines in
+`Smoke._run` take the focus and fail loudly if it never arrives; the build
+ghost's failure now carries the cursor position and the focus flag. Runs
+reach all 61 checkpoints where they used to stop at 55, and the residue is
+one leg in three runs rather than six. PROJECT.md §8 gains the lesson, which
+replaces the one that blamed load.

@@ -898,7 +898,12 @@ func smoke_run(smoke: Node) -> void:
 		if build_bar.check.ok and build_bar.hover_tile == tile:
 			break
 	if not build_bar.check.ok:
-		smoke.fail("the ghost says the wall cannot go there: %s" % build_bar.check.reason)
+		# The cursor is in the message on purpose. Every mouse-driven leg of
+		# this script steers with `Input.warp_mouse`, which does nothing at
+		# all on an unfocused window — and then this is the first thing that
+		# notices, several legs before the pistol and the axe also miss.
+		smoke.fail("the ghost says the wall cannot go there: %s (aimed at %s, cursor is at %s, focus=%s)"
+			% [build_bar.check.reason, spot, get_viewport().get_mouse_position(), get_window().has_focus()])
 	await smoke_click(get_viewport().get_canvas_transform() * spot)
 	await smoke.frames(3)
 	var wall := sim.structs.at_tile(tile.x, tile.y)

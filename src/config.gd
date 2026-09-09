@@ -827,7 +827,7 @@ const ENEMIES := {
 		# and it backs up, which is what makes fighting one different to
 		# fighting anything else in the game.
 		"gun": {"dmg": 15.0, "range": 430.0, "standoff": 300.0, "cd": 1.5, "burst": 2,
-			"burst_gap": 0.14, "spread": 0.13, "speed": 900.0, "noise": 420.0, "color": "#ffd08a"},
+			"burst_gap": 0.14, "spread": 0.13, "speed": 900.0, "noise": 420.0, "sfx": "rifle", "color": "#ffd08a"},
 		"loot_table": "raiderBody",
 	},
 	"enforcer": {
@@ -836,7 +836,7 @@ const ENEMIES := {
 		"struct_mul": 1.4, "threat": 1.6, "human": true, "body": "#8a5a5a", "dark": "#573838",
 		# A shotgun: short, brutal, and it walks toward you while it uses it.
 		"gun": {"dmg": 9.0, "range": 210.0, "standoff": 120.0, "cd": 1.9, "pellets": 5,
-			"spread": 0.34, "speed": 700.0, "noise": 520.0, "color": "#ffd08a"},
+			"spread": 0.34, "speed": 700.0, "noise": 520.0, "sfx": "shotgun", "color": "#ffd08a"},
 		"loot_table": "enforcerBody",
 	},
 	"behemoth": {"id": "behemoth", "name": "Behemoth", "hp": 1100.0, "speed": 46.0,  "dmg": 58.0, "atk_cd": 1.6,  "atk_range": 44.0, "r": 27.0, "xp": 200, "sense": 900.0, "knock_resist": 0.95, "struct_mul": 4.0, "threat": 2.5,  "body": "#7d4348", "dark": "#4a262b", "boss": true},

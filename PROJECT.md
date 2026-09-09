@@ -1158,6 +1158,30 @@ from a headless test that calls `chop_prop` directly. **Reproduce a report
 through the same surface the reporter used** — the mouse, the key, the
 screen — before deciding it is wrong.
 
+### The smoke's flakiness was never "load". It was window focus.
+
+For two phases the smoke run has failed a few times a session, in different
+places each time — repair, then demolish, then a save round trip, then a
+pistol that would not kill a walker — and it was written up as timing
+fragility under load, because it always passed once the machine was quiet.
+
+It is not load. **Half this script steers with `Input.warp_mouse`, which does
+nothing at all on an unfocused window.** When the terminal or the editor
+keeps the focus, the cursor never moves: the build ghost stays on whatever
+tile it was over, the pistol fires at the last aim, the axe swings at air —
+six failures, one cause, and none of the messages says "mouse".
+
+The fix is two lines in `Smoke._run`: `window_move_to_foreground()` and
+`grab_focus()`, with a failure if the focus never arrives. Every checkpoint
+is reached now where runs used to stop at 55 of 61, and the build ghost's
+failure message carries the cursor position and the focus flag so the next
+one is diagnosed in a line rather than an hour.
+
+The general lesson is the one above, from the other side: a harness that
+drives real input inherits every constraint real input has. **When a
+scripted-input test fails somewhere unrelated to what it was testing, suspect
+the input, not the game.**
+
 ### A test that passes because of the bug
 
 The smoke run stood the player at `(container.tx, container.ty + 1)` to search

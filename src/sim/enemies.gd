@@ -312,8 +312,14 @@ static func _fire(sim: GameSim, e: EnemySim, at: Vector2) -> void:
 	var muzzle := e.pos + Vector2.from_angle(base) * (e.r + 10.0)
 	for i in range(int(g.get("pellets", 1))):
 		var a := base + (sim.rng.next() - 0.5) * float(g.spread) * 2.0
+		# The weapon id rides the *first* pellet only, exactly as the player's
+		# guns do: `SfxView` reads an empty one as "pellet two through eight"
+		# and stays quiet, so a shotgun is one bang rather than five. Passing
+		# it on none of them is how the first cut shipped raiders who shot at
+		# you in complete silence.
 		var b := Combat.spawn_bullet(sim, muzzle, a, float(g.speed) * (0.94 + sim.rng.next() * 0.12),
-			float(g.dmg), float(g.range) / float(g.speed) * 1.2, 0.0, 0, e, false, "", String(g.get("color", "#ffd08a")))
+			float(g.dmg), float(g.range) / float(g.speed) * 1.2, 0.0, 0, e, false,
+			String(g.get("sfx", "pistol")) if i == 0 else "", String(g.get("color", "#ffd08a")))
 		b.hostile = true
 	# Gunfire is gunfire. Theirs carries to the horde exactly as yours does,
 	# which is the one honest piece of three-way fighting in here: a firefight
@@ -513,8 +519,11 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 					if not e.pending_survivor.dead and e.pos.distance_squared_to(e.pending_survivor.pos) < reach2 * reach2:
 						sim.crew.damage(sim, e.pending_survivor, e.dmg, e.pos)
 				elif p != null and d_player2 < (e.atk_range + p.r + 6.0) * (e.atk_range + p.r + 6.0):
-					# The one caller that passes `bite`: teeth are what spread it.
-					Damage.damage_player(sim, p, e.dmg, e.pos, e.def.name, true)
+					# The one caller that passes `bite` — and only for the dead.
+					# A Looter throwing a punch must never roll the Mutation
+					# meter: teeth are what spread it, and "the living cannot
+					# infect you" is the line the whole faction rests on.
+					Damage.damage_player(sim, p, e.dmg, e.pos, e.def.name, not e.def.get("human", false))
 				e.pending_struct = {}
 				e.pending_survivor = null
 			e.last_pos = e.pos

@@ -84,6 +84,22 @@ func test_the_two_raid_tracks_count_separately() -> void:
 	eq(sim.raids_done, 4, "a human raid advanced the horde track")
 
 
+func test_a_human_raid_is_scaled_by_human_raids() -> void:
+	# `index` is two things at once: which spec to field, and how much health
+	# every raider gets (`hp_per_index`). Read off the wrong counter, a crew
+	# arrives tougher for hordes it had nothing to do with, and never gets
+	# tougher for beating *you*. (Codex review, PR #21.)
+	sim.raids_done = 6
+	var first := Raid.start(sim, true)
+	eq(first.index, 0, "the living arrived scaled by six hordes they were not at")
+	first.force_end(sim)
+	var second := Raid.start(sim, true)
+	eq(second.index, 1, "surviving a human raid did not make the next one harder")
+	second.force_end(sim)
+	# And the horde track is still its own.
+	eq(Raid.start(sim, false).index, 6)
+
+
 func test_a_human_raid_fields_people() -> void:
 	Mutation.add(sim, p, 80.0)
 	var raid := Raid.start(sim, true)
@@ -138,6 +154,78 @@ func test_gunfire_brings_the_dead() -> void:
 	sim.enemies.spawn("raider", p.pos + Vector2(300, 0), true)
 	run(sim, 4.0)
 	ok(walker.has_noise or walker.alert_t > 0.0, "a firefight next door went unheard")
+
+
+func test_the_living_cannot_infect_you() -> void:
+	# The line the whole faction rests on. A Looter punching you is a punch:
+	# it hurts, and it is not a bite. The melee landing path is shared with
+	# the dead, so this is one flag away from being wrong in a way nobody
+	# would notice until the meter moved. (Codex review, PR #21.)
+	var e := sim.enemies.spawn("looter", p.pos + Vector2(20, 0), true)
+	var before := p.mutation
+	for i in range(200):
+		p.invuln = 0.0
+		Damage.damage_player(sim, p, e.dmg, e.pos, e.def.name, not e.def.get("human", false))
+		p.hp = p.max_hp
+	near(p.mutation, before, 0.001, "a Looter's fists spread the infection")
+
+	# And through the real AI, standing on top of the player for long enough
+	# to land plenty of them.
+	p.mutation = 0.0
+	p.mut_band = 0
+	p.god_mode = false
+	var start := p.mutation
+	for i in range(600):
+		e.pos = p.pos + Vector2(16, 0)
+		p.hp = p.max_hp
+		sim.tick(1.0 / 60.0)
+	# The ambient climb is real but tiny; a bite would be twelve points.
+	ok(p.mutation - start < 5.0, "ten seconds of being punched moved the meter %.1f" % (p.mutation - start))
+
+
+func test_their_guns_are_heard() -> void:
+	# Every pellet carried an empty weapon id, which `SfxView` reads as
+	# "pellet two through eight" and drops — so raiders shot at you in
+	# complete silence. (Codex review, PR #21.)
+	# The bank has to exist or `SfxView` falls back to the pistol for every
+	# cue it cannot find — which would make this test pass on a bug.
+	Sfx.build()
+	var sfx := SfxView.new(sim)
+	sfx.player = p
+	sim.enemies.spawn("raider", p.pos + Vector2(280, 0), true)
+	run(sim, 2.5)
+	var heard := ""
+	var pellets := 0
+	for ev in sim.events:
+		if String(ev.t) != "shot":
+			continue
+		var cue := sfx.on_event(ev)
+		if cue.is_empty():
+			pellets += 1
+		else:
+			heard = cue
+	ok(not heard.is_empty(), "a Raider fired and nothing made a sound")
+	eq(heard, "rifle", "the Raider's rifle sounds like a %s" % heard)
+
+	# A shotgun is one bang, not five: only the first pellet carries the id.
+	sim.events.clear()
+	var sim2 := new_sim()
+	sim2.players[0].god_mode = true
+	sim2.enemies.spawn("enforcer", sim2.players[0].pos + Vector2(150, 0), true)
+	run(sim2, 2.5)
+	var bangs := 0
+	var quiet := 0
+	var sfx2 := SfxView.new(sim2)
+	sfx2.player = sim2.players[0]
+	for ev in sim2.events:
+		if String(ev.t) != "shot":
+			continue
+		if sfx2.on_event(ev).is_empty():
+			quiet += 1
+		else:
+			bangs += 1
+	gt(bangs, 0, "the Enforcer's shotgun made no noise at all")
+	gt(quiet, bangs, "every pellet of the shell made its own bang")
 
 
 # --------------------------------------------------------------- stealing --
