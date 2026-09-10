@@ -818,7 +818,11 @@ func _draw() -> void:
 				row.rect.size.x, 11, Color("#ebe6d6"))
 	elif not drag.is_empty():
 		var r := Rect2(mouse - Vector2(CELL, CELL) / 2.0, Vector2(CELL, CELL))
-		draw_rect(r, Color(Items.color_of(drag.id), 0.8))
+		var drag_tex := Items.icon_of(drag.id)
+		if drag_tex != null:
+			draw_texture_rect(drag_tex, Items.art_rect(drag_tex, r), false, Color(1, 1, 1, 0.8))
+		else:
+			draw_rect(r, Color(Items.color_of(drag.id), 0.8))
 		draw_string(font, r.position + Vector2(0, CELL - 6), _short(drag.id), HORIZONTAL_ALIGNMENT_CENTER, CELL, 9, Color.BLACK)
 	elif not hover.is_empty():
 		_draw_tooltip(font, _stack_in(hover))
@@ -1049,7 +1053,12 @@ func _draw_cell(font: Font, cell: Dictionary) -> void:
 	var id: String = stack.id
 	# The swatch stops short of the bottom so the name has a strip of its own
 	# rather than being printed over the colour and clipped by the border.
-	draw_rect(Rect2(r.position + Vector2(5, 5), r.size - Vector2(10, 19)), Color(Items.color_of(id)))
+	var swatch := Rect2(r.position + Vector2(5, 5), r.size - Vector2(10, 19))
+	var tex := Items.icon_of(id)
+	if tex != null:
+		draw_texture_rect(tex, Items.art_rect(tex, swatch), false)
+	else:
+		draw_rect(swatch, Color(Items.color_of(id)))
 	draw_string(font, r.position + Vector2(0, r.size.y - 4), _short(id), HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 9, Color("#d5d0c4"))
 	if stack.n > 1:
 		var label := str(stack.n)

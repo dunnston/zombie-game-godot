@@ -1931,6 +1931,147 @@ reverting the fix and watching it fail first.
       deliberately: one system, played first.
 - [ ] **Stamina Cost and Cleave** are now the only two ratings in §10 whose
       mechanic exists without a per-weapon field.
+
+## Off Notion: Linear for tracking, git for content
+
+Branch `claude/notion-to-linear-git-bb7ffc`, off `main` at 6b1a030. Owner's
+brief: Linear first, then a local content editor over the real data, and
+Notion retired only after the owner has confirmed both. Docs (CLAUDE.md, §10)
+change at the end of each phase, never ahead of what is built.
+
+### Phase 1 — Linear
+
+- [x] Linear reachable: workspace Deadline, team Deadline (`DEA`)
+- [x] Labels: a `Type` group (Idea/Bug/Feel/Balance/Polish/Question/Chore,
+      exclusive like Notion's select), 14 Area labels (flat, because Area is
+      multi-select and Linear groups are single-choice), `playtest`
+- [ ] **Owner:** workflow states. The connector cannot create or rename
+      them. Rename Backlog→Someday, Todo→Next up, In Progress→In progress,
+      In Review→In review, Done→Shipped, Canceled→Dropped; add Backlog-type
+      Inbox. Issues were created under the old names and follow the rename
+- [x] 50 Ideas & Roadmap rows → DEA-5…DEA-54 (DL-1…37 → DEA-5…41; DL-41,
+      42, 43, 45, 46, 48, 50, 55, 56, 58, 59, 61, 63 → DEA-42…54). Body, live
+      comment thread (author + date), Type, Area, Priority, prototype PR link,
+      and a footer with the DL id and the Notion URL
+- [ ] 9 Inbox rows (DL-38, 40, 44, 47, 52, 53, 54, 64, 65) — waiting on the
+      Inbox state
+- [x] First playtest → DEA-55 (`playtest`), related to DEA-8, 10, 28, 35,
+      36. Notion's Findings relation was empty on both sides; the links come
+      from the findings table in the page body
+- [ ] **Owner:** invite Jim (therealslimjim05@gmail.com) — the connector has
+      no invite tool, and it sends mail on your behalf
+- [ ] Docs: CLAUDE.md and PROJECT.md point at Linear
+
+### Phase 2a — content out of `config.gd`, one table at a time
+
+- [x] `DataTable`: typed loader (`fields` schema, because Godot parses every
+      JSON number as a float), validation (undeclared key, wrong type,
+      duplicate id), deterministic `encode`, deep read-only rows
+- [x] `tools/migrate_table.gd`: comments to `notes`, canonical write, strict
+      parity (keys, values, Variant types, row order) and a word-for-word
+      check on every comment
+- [x] **WEAPONS** → `data/weapons.json`; `Config.WEAPONS` is a `static var`
+      loaded at boot. Independent `var_to_str` snapshot before and after:
+      identical, 300 values
+- [x] `tests/data_test.gd`: canonical form, one-field edit is a one-line
+      diff, types, order, read-only, notes stripped, bad files refused
+- [x] Owner go-ahead for the rest ("there is still a lot in the config
+      file", round 3)
+- [x] RECIPES, STRUCTURES, LOOT, CONTAINERS, RES, CONSUMABLES, GEAR,
+      ENEMIES, CROPS — see Stage B below
+- [x] Delete `tools/migrate_table.gd` after the last table
+
+### Phase 2b — the editor
+
+- [x] `tools/edit.cmd` / `edit.sh` → `tools/edit_server.gd`, a headless
+      Godot HTTP server (no Node, no install: Godot is the one thing both
+      collaborators have). Loopback by default, `--lan` opt-in, per-run
+      write token in the page, Host allow-list against DNS rebinding
+- [x] `EditApi` (tools/editor/edit_api.gd): request handling apart from the
+      socket, so `edit_api_test.gd` drives it headless against a copy under
+      user://. The file is only ever written by `DataTable.encode` — one
+      serializer, so the "JS encoder must match" problem does not exist
+- [x] Validation on every save, server-side: decode (types, undeclared
+      keys, duplicate ids), the field list is frozen (schema is code), every
+      `ref`/`key_ref`, and whole-content integrity — recipe costs are
+      payable (RES or CONSUMABLES, the game's real rule, not "RES"), recipe
+      outputs and tools exist, loot ids resolve, containers name a loot
+      table, AMMO_IDS are resources. Deleting or renaming a weapon a recipe
+      makes is refused
+- [x] `DataTable`: `map<T>` / `list<T>` types, `ref` / `key_ref`,
+      `check_refs`; `weapons.json` `ammo` now declares `ref: AMMO_IDS`
+- [x] Page (tools/editor/): every table (unmigrated ones read-only from the
+      literal), filter grammar, sortable grid, sparse field editing with
+      add/remove, map and list editors, duplicate / move / rename / delete,
+      table and row notes, live validation, weapon card (recipe, bench,
+      loot share and containers, ammo, durability and full repair cost),
+      generic "referenced by"
+- [x] Browser-verified end to end against the real server: filter
+      (`kind=gun ammo=ammoR` → rifle, carbine; `has:bleed` → 3), a valid
+      save writes +1/−1 lines, `abc` in a float and `ammoX` in `ammo` are
+      refused with the field named, read-only RES shows its loot sources,
+      phone layout stacks. Live socket: 403 without the token, 403 for a
+      foreign Host, 404 for a path escape
+- [x] Owner-facing views (owner ask, 2026-09-10): Workbenches (by hand,
+      Stone Hammer, Workbench, Workbench II, Chemistry Station, then the
+      planned Basic / Advanced / Tech / Recycler split), Materials (by
+      Raw/Salvage, harvested / found / made / used), Tools (harvest flags
+      and what each opens; lights), Ammo (guns, recipes, loot), Catalog
+- [x] `data/catalog.json`: one-time import of Notion Items + Workbenches —
+      126 items (80 in game, 46 planned), category/subcategory/status,
+      planned bench, 1–5 ratings, breaks-down-into, and for planned items
+      their proposed recipe. `one_of` on category/status/bench_plan. The
+      game never reads it; integrity checks every "in game" row exists.
+      16 game items are not in it (brain matter, food, the Chem Station)
+- [x] Art seam, future-proofing only: `Items.icon_of` finds
+      `art/items/<id>.png` (and optional `<id>_ground.png`); pack, hotbar,
+      drag ghost and ground draw it when present and the placeholder
+      otherwise. No art ships, so the game draws exactly as before.
+      `icons_test.gd`; the editor shows each item's look and the file name
+- [x] Stage A (owner ask, round 3): image upload/replace/remove on the Look
+      card (server-validated PNG, named after a real or planned item);
+      Weapons view by Notion class, melee then ranged, and a `class`
+      column on the item tables; containers ⇄ items both ways with chance
+      per search (and per kill for bodies, and BRAIN_DROPS); "At a glance"
+      (crafted at / found in / used in) on every item. Verified over the
+      live socket: upload → identical bytes → listed → delete; bad id 404,
+      not a PNG 422, no token 403
+- [x] Stage B: the other nine tables migrated. `DataTable` gained row
+      shapes (`list` for RECIPES, `by_id_bare` for RES and CONTAINERS,
+      `groups` for LOOT) and nested `object` / `list<object>` types with
+      path errors (`cabinet.entries[0].w: expected int`). Per table:
+      comments to notes, strict parity (keys, values, Variant types,
+      order), and an independent var_to_str snapshot of all nine before
+      and after — identical. `config.gd` 2,204 → ~1,580 lines
+- [x] `STASH_SLOTS` is now read from the stash's own `store` in
+      STRUCTURES, not a second 48 beside it; the structures design note
+      moved into `structures.json`
+- [x] Editor: object and list-of-object editors (a recipe's `give`, a
+      loot table's entries as a reorderable grid, a light, a gun); nested
+      errors land on their field; grid cells summarise instead of JSON.
+      Every table is a data file, so the read-only-literal path is gone
+      (tests still use it for tables not copied into their private dir)
+- [x] Weapon classes (owner correction, round 3): `data/categories.json`
+      holds the 11 categories and the 14 weapon classes, melee and ranged,
+      each with the identity from Notion. Catalog `category`/`subcategory`
+      are refs into it. The Weapons view groups by class with the
+      identity on top; an item's card has category and class pickers
+- [x] Browser-verified on a private server: all 14 classes with
+      identities; Steel Pipe → Weapons › Improvised with 14 class options;
+      a bad loot weight is refused on `entries` and blocks Save; Revert
+      clears it. Tests 585/0, `--all` 621 with only the known npm-spawn
+      failure (also on main)
+- [ ] Finding to report: an ordinary zombie's drop chances are hard-coded
+      in `Loot._roll_enemy_drop`, not in a table (invariant 5)
+- [x] Docs: invariant 5 (CLAUDE.md and PROJECT.md) says tables are
+      `data/*.json` behind `Config`; PROJECT.md §10 gains *Editing content*;
+      the Notion sync is marked retiring and diffs against `data/`
+
+### Phase 3 — retire Notion (after the owner confirms 1 and 2)
+
+- [ ] Surface the Workbenches gap (Basic/Advanced/Tech/Recycle vs `bench`
+      0/1/2) for the owner to decide
+- [ ] Archive the Notion pages; remove the §10 sync procedure
 ---
 ## Playtest round 1 — the owner's first session (2026-09-10)
 

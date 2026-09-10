@@ -1,0 +1,1355 @@
+{
+  "fields": {
+    "bench_plan": {
+      "one_of": [
+        "Player Menu",
+        "Basic",
+        "Advanced",
+        "Tech"
+      ],
+      "type": "string"
+    },
+    "breaks_down_into": {
+      "type": "string"
+    },
+    "category": {
+      "ref": "CATEGORIES",
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "ratings": {
+      "type": "map<int>"
+    },
+    "recipe": {
+      "type": "string"
+    },
+    "stats": {
+      "type": "string"
+    },
+    "status": {
+      "one_of": [
+        "in game",
+        "planned",
+        "cut"
+      ],
+      "type": "string"
+    },
+    "subcategory": {
+      "ref": "CATEGORIES",
+      "type": "string"
+    },
+    "tool_in_hand": {
+      "type": "string"
+    },
+    "yields": {
+      "type": "int"
+    }
+  },
+  "notes": "The owner's catalog of every item: its category and subcategory, whether it is in the game, planned or cut, and the design intent the code does not carry — the 1–5 ratings, what recycling would give back, and the bench it is planned for. Imported from Notion's Items and Workbenches tables on 2026-09-10. The game never reads this file.\n\nFor an item in the game, the numbers that matter live in its own table (WEAPONS, RES, …) and this row is the plan around them. For a planned item this row is all there is, so its proposed recipe and stats live here until it is built; building it means giving it a row in its real table under the same id.\n\nbench_plan is the planned bench split (Player Menu, Basic, Advanced, Tech, and a Recycler that crafts nothing). None of those benches exists yet: today the game has by hand, the Workbench, Workbench II and the Chemistry Station.\n\nPlayer Menu (bench 0): The default. No bench needed, and only a limited set: stone tools, cordage, a torch, a bow and arrows, bandages, the first clothes. Carrying a Stone Hammer lifts any recipe flagged hammer up to bench-1 work by hand (the work you could do on a flat rock). It never lifts further, so a hammer can never make a gun.",
+  "rows": [
+    {
+      "breaks_down_into": "2 Wood",
+      "category": "Weapons",
+      "id": "brokenChairLeg",
+      "name": "Broken Chair Leg",
+      "notes": "Houses. The worst weapon that is still a weapon.",
+      "status": "planned",
+      "subcategory": "Improvised"
+    },
+    {
+      "breaks_down_into": "2 Scrap, 1 Sticks",
+      "category": "Weapons",
+      "id": "clawHammer",
+      "name": "Claw Hammer",
+      "notes": "Toolboxes. Not the Stone Hammer.",
+      "status": "planned",
+      "subcategory": "Improvised"
+    },
+    {
+      "breaks_down_into": "5 Scrap",
+      "category": "Weapons",
+      "id": "crowbar",
+      "name": "Crowbar",
+      "notes": "Toolboxes, hardware stores. Could double as a prying tool.",
+      "status": "planned",
+      "subcategory": "Improvised"
+    },
+    {
+      "category": "Weapons",
+      "id": "fists",
+      "name": "Fists",
+      "notes": "What you have when you have nothing.",
+      "ratings": {
+        "crit_chance": 1,
+        "stagger": 1
+      },
+      "status": "in game",
+      "subcategory": "Improvised"
+    },
+    {
+      "breaks_down_into": "3 Scrap",
+      "category": "Weapons",
+      "id": "fryingPan",
+      "name": "Frying Pan",
+      "notes": "Kitchens. Grab whatever you can.",
+      "status": "planned",
+      "subcategory": "Improvised"
+    },
+    {
+      "breaks_down_into": "3 Scrap, 2 Wood",
+      "category": "Weapons",
+      "id": "shovel",
+      "name": "Shovel",
+      "notes": "Barns, sheds.",
+      "status": "planned",
+      "subcategory": "Improvised"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "5 Scrap",
+      "category": "Weapons",
+      "id": "pipe",
+      "name": "Steel Pipe",
+      "notes": "The starting weapon. Also what a death drop leaves you.",
+      "ratings": {
+        "crit_chance": 2,
+        "stagger": 3
+      },
+      "status": "in game",
+      "subcategory": "Improvised"
+    },
+    {
+      "breaks_down_into": "4 Scrap",
+      "category": "Weapons",
+      "id": "tireIron",
+      "name": "Tire Iron",
+      "notes": "Car trunks.",
+      "status": "planned",
+      "subcategory": "Improvised"
+    },
+    {
+      "breaks_down_into": "3 Scrap",
+      "category": "Weapons",
+      "id": "wrench",
+      "name": "Wrench",
+      "notes": "Toolboxes, garages.",
+      "status": "planned",
+      "subcategory": "Improvised"
+    },
+    {
+      "breaks_down_into": "4 Wood",
+      "category": "Weapons",
+      "id": "baseballBat",
+      "name": "Baseball Bat",
+      "notes": "Houses, sports stores. Stagger, knockback, durability.",
+      "status": "planned",
+      "subcategory": "Blunt"
+    },
+    {
+      "breaks_down_into": "5 Scrap",
+      "category": "Weapons",
+      "id": "leadPipe",
+      "name": "Lead Pipe",
+      "notes": "Industrial, junkyards. Heavier than the Steel Pipe.",
+      "status": "planned",
+      "subcategory": "Blunt"
+    },
+    {
+      "breaks_down_into": "6 Scrap",
+      "category": "Weapons",
+      "id": "mace",
+      "name": "Mace",
+      "notes": "Pawn shops, display cases.",
+      "status": "planned",
+      "subcategory": "Blunt"
+    },
+    {
+      "breaks_down_into": "3 Scrap",
+      "category": "Weapons",
+      "id": "policeBaton",
+      "name": "Police Baton",
+      "notes": "Police lockers.",
+      "status": "planned",
+      "subcategory": "Blunt"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "4 Wood, 4 Scrap",
+      "category": "Weapons",
+      "id": "reinforcedBat",
+      "name": "Reinforced Bat",
+      "notes": "A bat with nails and sheet metal. Craft only.",
+      "recipe": "1 Baseball Bat, 8 Scrap (proposal)",
+      "status": "planned",
+      "subcategory": "Blunt"
+    },
+    {
+      "bench_plan": "Player Menu",
+      "breaks_down_into": "1 Sticks, 3 Stone",
+      "category": "Weapons",
+      "id": "hammer",
+      "name": "Stone Hammer",
+      "notes": "Carrying it lets you do bench-1 work (pipe, lockpicks, ration packs) with no bench.",
+      "ratings": {
+        "crit_chance": 2,
+        "stagger": 4
+      },
+      "status": "in game",
+      "subcategory": "Blunt"
+    },
+    {
+      "breaks_down_into": "4 Scrap",
+      "category": "Weapons",
+      "id": "cleaver",
+      "name": "Cleaver",
+      "notes": "Kitchens, stores.",
+      "status": "planned",
+      "subcategory": "Bladed"
+    },
+    {
+      "breaks_down_into": "3 Scrap",
+      "category": "Weapons",
+      "id": "huntingKnife",
+      "name": "Hunting Knife",
+      "notes": "Cabins, gun shops, footlockers.",
+      "status": "planned",
+      "subcategory": "Bladed"
+    },
+    {
+      "breaks_down_into": "8 Scrap",
+      "category": "Weapons",
+      "id": "katana",
+      "name": "Katana",
+      "notes": "Display cases, pawn shops. Rare. The top of the bladed line: fast, high damage, no crowd control.",
+      "status": "planned",
+      "subcategory": "Bladed"
+    },
+    {
+      "breaks_down_into": "2 Scrap",
+      "category": "Weapons",
+      "id": "kitchenKnife",
+      "name": "Kitchen Knife",
+      "notes": "Kitchens. Fast, low damage. Cuts cordage like the Stone Knife.",
+      "status": "planned",
+      "subcategory": "Bladed"
+    },
+    {
+      "breaks_down_into": "5 Scrap",
+      "category": "Weapons",
+      "id": "kukri",
+      "name": "Kukri",
+      "notes": "Military, footlockers.",
+      "status": "planned",
+      "subcategory": "Bladed"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "12 Scrap",
+      "category": "Weapons",
+      "id": "machete",
+      "name": "Machete",
+      "ratings": {
+        "crit_chance": 4,
+        "stagger": 1
+      },
+      "status": "in game",
+      "subcategory": "Bladed"
+    },
+    {
+      "bench_plan": "Player Menu",
+      "breaks_down_into": "1 Stone",
+      "category": "Weapons",
+      "id": "knife",
+      "name": "Stone Knife",
+      "notes": "Cuts cordage: fiber becomes cloth.",
+      "ratings": {
+        "crit_chance": 5,
+        "stagger": 1
+      },
+      "status": "in game",
+      "subcategory": "Bladed"
+    },
+    {
+      "breaks_down_into": "4 Scrap, 2 Wood",
+      "category": "Weapons",
+      "id": "campingAxe",
+      "name": "Camping Axe",
+      "notes": "Cabins, farm stores. Between the Hatchet and the Fire Axe.",
+      "status": "planned",
+      "subcategory": "Axes"
+    },
+    {
+      "bench_plan": "Basic",
+      "breaks_down_into": "4 Wood, 10 Scrap, 1 Weapon Parts",
+      "category": "Weapons",
+      "id": "fireaxe",
+      "name": "Fire Axe",
+      "notes": "The metal tool tier: nearly twice the hatchet at trees.",
+      "ratings": {
+        "crit_chance": 3,
+        "stagger": 3
+      },
+      "status": "in game",
+      "subcategory": "Axes"
+    },
+    {
+      "bench_plan": "Player Menu",
+      "breaks_down_into": "1 Sticks, 1 Stone",
+      "category": "Weapons",
+      "id": "axe",
+      "name": "Hatchet",
+      "notes": "The first gate: no hatchet, no wood, no workbench.",
+      "ratings": {
+        "crit_chance": 3,
+        "stagger": 2
+      },
+      "status": "in game",
+      "subcategory": "Axes"
+    },
+    {
+      "breaks_down_into": "6 Scrap, 3 Wood",
+      "category": "Weapons",
+      "id": "splittingAxe",
+      "name": "Splitting Axe",
+      "notes": "Lumber yards, log piles. The best wood-chopper; slow to swing.",
+      "status": "planned",
+      "subcategory": "Axes"
+    },
+    {
+      "breaks_down_into": "2 Scrap, 2 Wood",
+      "category": "Weapons",
+      "id": "gardenSpear",
+      "name": "Garden Spear",
+      "notes": "Garden sheds, hardware stores.",
+      "status": "planned",
+      "subcategory": "Polearms"
+    },
+    {
+      "bench_plan": "Basic",
+      "breaks_down_into": "3 Sticks, 1 Scrap",
+      "category": "Weapons",
+      "id": "makeshiftKnifeSpear",
+      "name": "Makeshift Knife Spear",
+      "notes": "A knife lashed to a pole.",
+      "recipe": "6 Sticks, 4 Fiber, 1 Kitchen Knife or Stone Knife (proposal)",
+      "status": "planned",
+      "subcategory": "Polearms"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "4 Scrap, 2 Wood",
+      "category": "Weapons",
+      "id": "metalSpear",
+      "name": "Metal Spear",
+      "notes": "The top of the polearm line. Craft only.",
+      "recipe": "8 Scrap, 4 Wood, 2 Fiber (proposal)",
+      "status": "planned",
+      "subcategory": "Polearms"
+    },
+    {
+      "breaks_down_into": "3 Scrap, 2 Wood",
+      "category": "Weapons",
+      "id": "pitchfork",
+      "name": "Pitchfork",
+      "notes": "Barns.",
+      "status": "planned",
+      "subcategory": "Polearms"
+    },
+    {
+      "bench_plan": "Basic",
+      "breaks_down_into": "2 Sticks, 1 Stone",
+      "category": "Weapons",
+      "id": "scythe",
+      "name": "Scythe",
+      "notes": "Opens thickets. The widest swing in the game.",
+      "ratings": {
+        "crit_chance": 3,
+        "stagger": 1
+      },
+      "status": "in game",
+      "subcategory": "Polearms"
+    },
+    {
+      "bench_plan": "Player Menu",
+      "breaks_down_into": "3 Sticks",
+      "category": "Weapons",
+      "id": "woodenSpear",
+      "name": "Wooden Spear",
+      "notes": "Reach. The first polearm, made from nothing.",
+      "recipe": "6 Sticks, 3 Fiber (proposal)",
+      "status": "planned",
+      "subcategory": "Polearms"
+    },
+    {
+      "breaks_down_into": "7 Scrap",
+      "category": "Weapons",
+      "id": "largeWrench",
+      "name": "Large Wrench",
+      "notes": "Industrial, junkyards. A pipe wrench the length of your arm.",
+      "status": "planned",
+      "subcategory": "Heavy"
+    },
+    {
+      "bench_plan": "Basic",
+      "breaks_down_into": "4 Stone",
+      "category": "Weapons",
+      "id": "makeshiftConcreteClub",
+      "name": "Makeshift Concrete Club",
+      "notes": "A lump of concrete on a rebar handle. Heavy, cheap, ugly.",
+      "recipe": "6 Sticks, 8 Stone, 4 Fiber (proposal)",
+      "status": "planned",
+      "subcategory": "Heavy"
+    },
+    {
+      "breaks_down_into": "8 Scrap, 4 Wood",
+      "category": "Weapons",
+      "id": "maul",
+      "name": "Maul",
+      "notes": "Lumber yards. Splitting maul: slower than the sledge, hits harder.",
+      "status": "planned",
+      "subcategory": "Heavy"
+    },
+    {
+      "bench_plan": "Basic",
+      "breaks_down_into": "9 Wood, 19 Scrap, 1 Weapon Parts",
+      "category": "Weapons",
+      "id": "sledge",
+      "name": "Sledgehammer",
+      "notes": "Currently needs the upgraded Workbench (bench 2).",
+      "ratings": {
+        "crit_chance": 1,
+        "stagger": 5
+      },
+      "status": "in game",
+      "subcategory": "Heavy"
+    },
+    {
+      "bench_plan": "Basic",
+      "breaks_down_into": "3 Wood, 13 Scrap, 1 Weapon Parts",
+      "category": "Weapons",
+      "id": "steelpick",
+      "name": "Steel Pickaxe",
+      "ratings": {
+        "crit_chance": 3,
+        "stagger": 3
+      },
+      "status": "in game",
+      "subcategory": "Heavy"
+    },
+    {
+      "bench_plan": "Player Menu",
+      "breaks_down_into": "2 Sticks, 2 Stone",
+      "category": "Weapons",
+      "id": "pick",
+      "name": "Stone Pickaxe",
+      "notes": "Opens boulders.",
+      "ratings": {
+        "crit_chance": 3,
+        "stagger": 3
+      },
+      "status": "in game",
+      "subcategory": "Heavy"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "14 Scrap, 2 Weapon Parts",
+      "category": "Weapons",
+      "id": "pistol",
+      "name": "M9 Pistol",
+      "ratings": {
+        "crit_chance": 3,
+        "stagger": 1
+      },
+      "status": "in game",
+      "subcategory": "Handguns"
+    },
+    {
+      "breaks_down_into": "10 Scrap, 2 Weapon Parts",
+      "category": "Weapons",
+      "id": "revolver",
+      "name": "Revolver",
+      "notes": "Always have one. Slower and louder than the M9, hits harder, no magazine to find.",
+      "ratings": {
+        "attack_speed": 2,
+        "damage": 3,
+        "knockback": 2,
+        "noise": 3,
+        "reach": 3
+      },
+      "status": "planned",
+      "subcategory": "Handguns"
+    },
+    {
+      "breaks_down_into": "16 Scrap, 2 Weapon Parts",
+      "category": "Weapons",
+      "id": "doubleBarrelShotgun",
+      "name": "Double-Barrel Shotgun",
+      "notes": "Get off me. Two shots then a long reload. Rural houses and cabins.",
+      "ratings": {
+        "attack_speed": 1,
+        "cleave": 3,
+        "damage": 5,
+        "knockback": 5,
+        "noise": 4,
+        "reach": 1,
+        "stagger": 5
+      },
+      "status": "planned",
+      "subcategory": "Shotguns"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "22 Scrap, 3 Weapon Parts, 6 Wood",
+      "category": "Weapons",
+      "id": "shotgun",
+      "name": "Pump Shotgun",
+      "notes": "Currently needs the upgraded Workbench (bench 2).",
+      "ratings": {
+        "crit_chance": 1,
+        "stagger": 4
+      },
+      "status": "in game",
+      "subcategory": "Shotguns"
+    },
+    {
+      "breaks_down_into": "20 Scrap, 4 Weapon Parts",
+      "category": "Weapons",
+      "id": "semiAutoShotgun",
+      "name": "Semi-Auto Shotgun",
+      "notes": "The crowd answer, and the loudest thing short of an LMG. Police and gun shops.",
+      "ratings": {
+        "attack_speed": 4,
+        "cleave": 3,
+        "damage": 4,
+        "knockback": 4,
+        "noise": 5,
+        "reach": 1,
+        "stagger": 4
+      },
+      "status": "planned",
+      "subcategory": "Shotguns"
+    },
+    {
+      "breaks_down_into": "24 Scrap, 5 Weapon Parts",
+      "category": "Weapons",
+      "id": "boltActionRifle",
+      "name": "Bolt-Action Rifle",
+      "notes": "One shot, one walker, then a whole second to work the bolt.",
+      "ratings": {
+        "attack_speed": 1,
+        "damage": 5,
+        "noise": 4,
+        "reach": 5
+      },
+      "status": "planned",
+      "subcategory": "Rifles"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "31 Scrap, 6 Weapon Parts, 1 Military",
+      "category": "Weapons",
+      "id": "rifle",
+      "name": "Hunting Rifle",
+      "notes": "Currently needs the upgraded Workbench (bench 2).",
+      "ratings": {
+        "crit_chance": 5,
+        "stagger": 2
+      },
+      "status": "in game",
+      "subcategory": "Rifles"
+    },
+    {
+      "breaks_down_into": "22 Scrap, 4 Weapon Parts",
+      "category": "Weapons",
+      "id": "leverActionRifle",
+      "name": "Lever-Action Rifle",
+      "notes": "Make the shot count. Cabins, barns, farmhouses.",
+      "ratings": {
+        "attack_speed": 2,
+        "damage": 4,
+        "noise": 4,
+        "reach": 4
+      },
+      "status": "planned",
+      "subcategory": "Rifles"
+    },
+    {
+      "breaks_down_into": "18 Scrap, 4 Weapon Parts",
+      "category": "Weapons",
+      "id": "compactSmg",
+      "name": "Compact SMG",
+      "notes": "Oh crap. Fits in a bag, empties a magazine in two seconds.",
+      "ratings": {
+        "attack_speed": 5,
+        "damage": 2,
+        "noise": 3,
+        "reach": 2
+      },
+      "status": "planned",
+      "subcategory": "SMGs"
+    },
+    {
+      "bench_plan": "Tech",
+      "breaks_down_into": "24 Scrap, 4 Weapon Parts, 5 Electronics",
+      "category": "Weapons",
+      "id": "smg",
+      "name": "Scrap SMG",
+      "notes": "Craft only. Currently needs the upgraded Workbench (bench 2).",
+      "ratings": {
+        "crit_chance": 1,
+        "stagger": 1
+      },
+      "status": "in game",
+      "subcategory": "SMGs"
+    },
+    {
+      "breaks_down_into": "30 Scrap, 8 Weapon Parts, 4 Military",
+      "category": "Weapons",
+      "id": "akStyleRifle",
+      "name": "AK-Style Rifle",
+      "notes": "The AR's rougher twin: louder and less accurate, but it never jams.",
+      "ratings": {
+        "attack_speed": 4,
+        "damage": 4,
+        "durability": 5,
+        "noise": 5,
+        "reach": 3
+      },
+      "status": "planned",
+      "subcategory": "Assault Rifles"
+    },
+    {
+      "breaks_down_into": "30 Scrap, 8 Weapon Parts, 4 Military",
+      "category": "Weapons",
+      "id": "arStyleRifle",
+      "name": "AR-Style Rifle",
+      "notes": "Workhorse. Good at everything, rare, and hungry for rifle rounds.",
+      "ratings": {
+        "attack_speed": 4,
+        "damage": 4,
+        "noise": 4,
+        "reach": 4
+      },
+      "status": "planned",
+      "subcategory": "Assault Rifles"
+    },
+    {
+      "bench_plan": "Tech",
+      "breaks_down_into": "42 Scrap, 9 Weapon Parts, 7 Military, 6 Electronics",
+      "category": "Weapons",
+      "id": "carbine",
+      "name": "Military Carbine",
+      "notes": "The endgame gun. Currently needs the upgraded Workbench (bench 2).",
+      "ratings": {
+        "crit_chance": 2,
+        "stagger": 1
+      },
+      "status": "in game",
+      "subcategory": "Assault Rifles"
+    },
+    {
+      "breaks_down_into": "34 Scrap, 8 Weapon Parts, 5 Military",
+      "category": "Weapons",
+      "id": "marksmanRifle",
+      "name": "Marksman Rifle",
+      "notes": "Base defence from the Watchtower. Terrible when something is already on top of you.",
+      "ratings": {
+        "attack_speed": 2,
+        "damage": 5,
+        "noise": 5,
+        "reach": 5
+      },
+      "status": "planned",
+      "subcategory": "Precision Rifles"
+    },
+    {
+      "breaks_down_into": "31 Scrap, 6 Weapon Parts, 1 Military",
+      "category": "Weapons",
+      "id": "scopedHuntingRifle",
+      "name": "Scoped Hunting Rifle",
+      "notes": "Reach out and touch something. A Hunting Rifle plus optics; a modification rather than a new gun.",
+      "ratings": {
+        "attack_speed": 1,
+        "damage": 5,
+        "noise": 4,
+        "reach": 5
+      },
+      "recipe": "1 Hunting Rifle, TBD optics",
+      "status": "planned",
+      "subcategory": "Precision Rifles"
+    },
+    {
+      "breaks_down_into": "6 Sticks, 2 Cloth",
+      "category": "Weapons",
+      "id": "compoundBow",
+      "name": "Compound Bow",
+      "notes": "Stay quiet. Harder-hitting than the Hunting Bow, and arrows are recoverable.",
+      "ratings": {
+        "attack_speed": 2,
+        "damage": 3,
+        "noise": 1,
+        "reach": 4
+      },
+      "recipe": "TBD",
+      "status": "planned",
+      "subcategory": "Bows/Crossbows"
+    },
+    {
+      "breaks_down_into": "8 Scrap, 2 Weapon Parts",
+      "category": "Weapons",
+      "id": "crossbow",
+      "name": "Crossbow",
+      "notes": "Near-silent and it hits like a rifle. The reload is the cost.",
+      "ratings": {
+        "attack_speed": 1,
+        "damage": 4,
+        "noise": 1,
+        "reach": 4
+      },
+      "recipe": "TBD",
+      "status": "planned",
+      "subcategory": "Bows/Crossbows"
+    },
+    {
+      "bench_plan": "Basic",
+      "breaks_down_into": "4 Sticks, 1 Cloth",
+      "category": "Weapons",
+      "id": "bow",
+      "name": "Hunting Bow",
+      "notes": "The quiet answer to a gun, reachable in the first ten minutes.",
+      "ratings": {
+        "crit_chance": 5,
+        "stagger": 1
+      },
+      "status": "in game",
+      "subcategory": "Bows/Crossbows"
+    },
+    {
+      "breaks_down_into": "35 Scrap, 8 Weapon Parts, 6 Military",
+      "category": "Weapons",
+      "id": "flamethrower",
+      "name": "Flamethrower",
+      "notes": "Burns Fuel and sets the world alight. Fire already spreads in game, so watch your own treeline.",
+      "ratings": {
+        "attack_speed": 5,
+        "cleave": 5,
+        "damage": 3,
+        "noise": 3,
+        "reach": 2
+      },
+      "status": "planned",
+      "subcategory": "Heavy/Special"
+    },
+    {
+      "breaks_down_into": "45 Scrap, 12 Weapon Parts, 10 Military",
+      "category": "Weapons",
+      "id": "grenadeLauncher",
+      "name": "Grenade Launcher",
+      "notes": "End game, military only. Needs its own ammunition, which should stay very rare.",
+      "ratings": {
+        "attack_speed": 1,
+        "cleave": 5,
+        "damage": 5,
+        "knockback": 5,
+        "noise": 5,
+        "reach": 4
+      },
+      "status": "planned",
+      "subcategory": "Heavy/Special"
+    },
+    {
+      "breaks_down_into": "50 Scrap, 14 Weapon Parts, 10 Military",
+      "category": "Weapons",
+      "id": "lmg",
+      "name": "LMG",
+      "notes": "End game, military only. Sustained fire builds your own horde while you use it.",
+      "ratings": {
+        "attack_speed": 5,
+        "damage": 4,
+        "noise": 5,
+        "reach": 4
+      },
+      "status": "planned",
+      "subcategory": "Heavy/Special"
+    },
+    {
+      "bench_plan": "Tech",
+      "breaks_down_into": "5 Scrap, 3 Electronics",
+      "category": "Tools",
+      "id": "flashlight",
+      "name": "Flashlight",
+      "notes": "Eats Batteries. You find those before you can make them.",
+      "status": "in game"
+    },
+    {
+      "bench_plan": "Player Menu",
+      "category": "Tools",
+      "id": "torch",
+      "name": "Torch",
+      "notes": "The first night's answer. Burns itself up, so you keep remaking it.",
+      "status": "in game"
+    },
+    {
+      "breaks_down_into": "4 Scrap, 1 Military",
+      "category": "Clothing/Armor",
+      "id": "milHelm",
+      "name": "Combat Helmet",
+      "notes": "Find only.",
+      "status": "in game",
+      "subcategory": "Head"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "7 Scrap",
+      "category": "Clothing/Armor",
+      "id": "hardHat",
+      "name": "Hard Hat",
+      "status": "in game",
+      "subcategory": "Head"
+    },
+    {
+      "breaks_down_into": "5 Scrap",
+      "category": "Clothing/Armor",
+      "id": "riotHelm",
+      "name": "Riot Helmet",
+      "notes": "Find only.",
+      "status": "in game",
+      "subcategory": "Head"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "11 Cloth, 6 Scrap",
+      "category": "Clothing/Armor",
+      "id": "lightVest",
+      "name": "Padded Vest",
+      "status": "in game",
+      "subcategory": "Body"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "20 Scrap, 6 Military, 7 Cloth",
+      "category": "Clothing/Armor",
+      "id": "milVest",
+      "name": "Plate Carrier",
+      "notes": "The biggest single piece of armour. Currently needs the upgraded Workbench (bench 2).",
+      "status": "in game",
+      "subcategory": "Body"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "23 Scrap, 10 Cloth, 2 Military",
+      "category": "Clothing/Armor",
+      "id": "heavyVest",
+      "name": "Riot Armor",
+      "notes": "Currently needs the upgraded Workbench (bench 2).",
+      "status": "in game",
+      "subcategory": "Body"
+    },
+    {
+      "breaks_down_into": "2 Scrap, 1 Military",
+      "category": "Clothing/Armor",
+      "id": "armGuards",
+      "name": "Arm Guards",
+      "notes": "Find only.",
+      "status": "in game",
+      "subcategory": "Hands"
+    },
+    {
+      "category": "Clothing/Armor",
+      "id": "tacGloves",
+      "name": "Tactical Gloves",
+      "notes": "Find only.",
+      "status": "in game",
+      "subcategory": "Hands"
+    },
+    {
+      "bench_plan": "Basic",
+      "breaks_down_into": "4 Cloth",
+      "category": "Clothing/Armor",
+      "id": "workGloves",
+      "name": "Work Gloves",
+      "status": "in game",
+      "subcategory": "Hands"
+    },
+    {
+      "breaks_down_into": "3 Scrap, 1 Military",
+      "category": "Clothing/Armor",
+      "id": "milGreaves",
+      "name": "Combat Trousers",
+      "notes": "Find only.",
+      "status": "in game",
+      "subcategory": "Legs"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "12 Cloth, 5 Scrap",
+      "category": "Clothing/Armor",
+      "id": "paddedLegs",
+      "name": "Padded Leggings",
+      "status": "in game",
+      "subcategory": "Legs"
+    },
+    {
+      "bench_plan": "Basic",
+      "breaks_down_into": "7 Cloth",
+      "category": "Clothing/Armor",
+      "id": "denimPants",
+      "name": "Work Trousers",
+      "status": "in game",
+      "subcategory": "Legs"
+    },
+    {
+      "breaks_down_into": "2 Scrap, 1 Military",
+      "category": "Clothing/Armor",
+      "id": "milBoots",
+      "name": "Assault Boots",
+      "notes": "Find only.",
+      "status": "in game",
+      "subcategory": "Feet"
+    },
+    {
+      "category": "Clothing/Armor",
+      "id": "combatBoots",
+      "name": "Combat Boots",
+      "notes": "Find only.",
+      "status": "in game",
+      "subcategory": "Feet"
+    },
+    {
+      "bench_plan": "Advanced",
+      "breaks_down_into": "5 Cloth, 3 Scrap",
+      "category": "Clothing/Armor",
+      "id": "workBoots",
+      "name": "Work Boots",
+      "status": "in game",
+      "subcategory": "Feet"
+    },
+    {
+      "bench_plan": "Advanced",
+      "category": "Ammo",
+      "id": "ammoP",
+      "name": "9mm Rounds",
+      "notes": "Pistol, SMG, and the Auto Turret eats it from the stash.",
+      "status": "in game",
+      "subcategory": "Handguns"
+    },
+    {
+      "bench_plan": "Advanced",
+      "category": "Ammo",
+      "id": "ammoS",
+      "name": "Shells",
+      "status": "in game",
+      "subcategory": "Shotguns"
+    },
+    {
+      "bench_plan": "Advanced",
+      "category": "Ammo",
+      "id": "ammoR",
+      "name": "Rifle Rounds",
+      "notes": "Rifle, carbine, and the tower Sniper Rifle. Currently needs the upgraded Workbench (bench 2).",
+      "status": "in game",
+      "subcategory": "Rifles"
+    },
+    {
+      "bench_plan": "Basic",
+      "category": "Ammo",
+      "id": "arrow",
+      "name": "Arrows",
+      "notes": "For the Hunting Bow and the tower Arrows armament.",
+      "status": "in game",
+      "subcategory": "Bows/Crossbows"
+    },
+    {
+      "bench_plan": "Player Menu",
+      "category": "Medical Items",
+      "id": "bandage",
+      "name": "Bandage",
+      "notes": "You start with two.",
+      "status": "in game"
+    },
+    {
+      "bench_plan": "Basic",
+      "category": "Medical Items",
+      "id": "medkit",
+      "name": "Medkit",
+      "status": "in game"
+    },
+    {
+      "category": "Consumables food",
+      "id": "corn",
+      "name": "Corn",
+      "notes": "4 Corn + 2 Cloth make 8 Rations at a Basic bench. That is the reason farming exists: the crew eats Rations out of the Supply Stash, so a corn patch is what stops a base needing a supply run to stay fed. Ranked above potatoes for the quick-eat key, so a tap of F never eats the corn you were going to turn into rations.",
+      "status": "in game"
+    },
+    {
+      "category": "Consumables food",
+      "id": "herbs",
+      "name": "Herbs",
+      "notes": "4 Herbs + 1 Cloth make 2 Medical at a Basic bench — two an in-game day against a pharmacy's eight to sixteen in one search, so a long siege stops running you out of bandages and serum without pharmacies losing their reason to exist. This is the balance number most likely to want moving. Also the seasoning in the garden Hot Meal.",
+      "status": "in game"
+    },
+    {
+      "category": "Consumables food",
+      "id": "potato",
+      "name": "Potatoes",
+      "notes": "Grown in a Raised Bed from Potato Eyes. The bulk crop and the cooking staple: 3 Potatoes + 1 Herbs + 1 Clean Water + 2 Wood make TWO Hot Meals at a Basic bench, against one from three Rations — cooking what you grew beats cooking what you found, which is the payoff for the days it took.",
+      "status": "in game"
+    },
+    {
+      "bench_plan": "Basic",
+      "category": "Consumables food",
+      "id": "rations",
+      "name": "Rations",
+      "notes": "Survivor upkeep: one per survivor per minute, eaten from the Supply Stash. The player never eats.\n\nSECOND RECIPE, 2026-09-10: 4 Corn and 2 Cloth also make 8 at a Basic bench, and that is the whole reason farming exists — a corn patch is what stops a base needing a supply run to stay fed. The Recipe column holds one recipe, so it still shows the Ration Pack; how the table should carry an item with two ways to make it is a question for you, not something a sync should decide.",
+      "status": "in game"
+    },
+    {
+      "bench_plan": "Advanced",
+      "category": "Consumables misc",
+      "id": "lockpick",
+      "name": "Lockpick",
+      "notes": "Opens locked cars. May snap, and snapping is heard.",
+      "status": "in game"
+    },
+    {
+      "bench_plan": "Basic",
+      "category": "Materials",
+      "id": "compost",
+      "name": "Compost",
+      "notes": "The everyday feed. One dose per bed, and it can go in after planting — feeding yesterday's crop still counts. Fertilizer is yield and not speed, because the grow clock is what a player plans the day around. Subcategory is Raw as the nearer of the two Materials options; it is crafted, not scavenged.",
+      "status": "in game",
+      "subcategory": "Raw"
+    },
+    {
+      "category": "Materials",
+      "id": "fiber",
+      "name": "Fiber",
+      "notes": "Binding for tools, and cordage: 10 Fiber becomes 4 Cloth with a knife.",
+      "status": "in game",
+      "subcategory": "Raw"
+    },
+    {
+      "category": "Materials",
+      "id": "sludge",
+      "name": "Mutagen Sludge",
+      "notes": "Made at the CHEMISTRY STATION. Two things this row cannot say properly yet: the Chemistry Station has no row in the Workbenches table (it is a separate gate from the bench ladder on purpose — no amount of upgrading a workbench ever produces this), and Raw Brain Matter has no Items row, so the Ingredients link is short one. Spends the brain matter that holds the Mutation meter down: more food for less of what keeps you human, which is the game's own bargain in a vegetable patch.",
+      "status": "in game",
+      "subcategory": "Raw"
+    },
+    {
+      "category": "Materials",
+      "id": "sticks",
+      "name": "Sticks",
+      "notes": "Every stone tool starts with these. Bonus drop from trees, bushes and thickets.",
+      "status": "in game",
+      "subcategory": "Raw"
+    },
+    {
+      "category": "Materials",
+      "id": "stone",
+      "name": "Stone",
+      "notes": "Stone tools and the Stone Wall. Boulders need a pickaxe, loose rocks do not.",
+      "status": "in game",
+      "subcategory": "Raw"
+    },
+    {
+      "category": "Materials",
+      "id": "wood",
+      "name": "Wood",
+      "notes": "The base building material. Trees need a hatchet, so a fresh game finds it in cabinets and log piles first.",
+      "status": "in game",
+      "subcategory": "Raw"
+    },
+    {
+      "bench_plan": "Tech",
+      "category": "Materials",
+      "id": "battery",
+      "name": "Batteries",
+      "notes": "What the Flashlight eats. Findable long before it is craftable, on purpose.",
+      "status": "in game",
+      "subcategory": "Salvage"
+    },
+    {
+      "bench_plan": "Basic",
+      "category": "Materials",
+      "id": "cloth",
+      "name": "Cloth",
+      "notes": "Bandages, clothes, armour padding, beds. Found everywhere soft, or cut from fiber with a knife.",
+      "status": "in game",
+      "subcategory": "Salvage"
+    },
+    {
+      "category": "Materials",
+      "id": "seedCorn",
+      "name": "Corn Seed",
+      "notes": "The long crop and the one that pays: corn becomes Rations, and Rations are what the crew eats out of the Supply Stash. Twice a potato's time for roughly twice the reason.",
+      "status": "in game",
+      "subcategory": "Salvage"
+    },
+    {
+      "category": "Materials",
+      "id": "elec",
+      "name": "Electronics",
+      "notes": "Powers the tier-2 base: generator, turret, floodlight, and the bench upgrade.",
+      "status": "in game",
+      "subcategory": "Salvage"
+    },
+    {
+      "bench_plan": "Tech",
+      "category": "Materials",
+      "id": "fuel",
+      "name": "Fuel",
+      "notes": "Burned by the Generator and by cars. Also the Fire Arrows armament.",
+      "status": "in game",
+      "subcategory": "Salvage"
+    },
+    {
+      "category": "Materials",
+      "id": "seedHerb",
+      "name": "Herb Seed",
+      "notes": "The medicine crop. Herbs become Medical at a Basic bench, slowly.",
+      "status": "in game",
+      "subcategory": "Salvage"
+    },
+    {
+      "bench_plan": "Basic",
+      "category": "Materials",
+      "id": "med",
+      "name": "Medical",
+      "notes": "Medical supplies. Medkits and ration packs. As of 2026-09-10 it is also farmable: 4 Herbs and 1 Cloth make 2 at a Basic bench. Deliberately a trickle — two an in-game day against a pharmacy's eight to sixteen in one search — so a long siege stops running you out of bandages and serum without pharmacies losing their reason to exist.",
+      "status": "in game",
+      "subcategory": "Salvage"
+    },
+    {
+      "category": "Materials",
+      "id": "mil",
+      "name": "Military",
+      "notes": "Military-grade components. Only from the checkpoint, footlockers and hospital cabinets. Gates the rifle, carbine and plate armour.",
+      "status": "in game",
+      "subcategory": "Salvage"
+    },
+    {
+      "category": "Materials",
+      "id": "seedPotato",
+      "name": "Potato Eyes",
+      "notes": "Plant in a Raised Bed. Every harvest returns one seed of its own kind and sometimes a second, so a patch feeds itself once it is started — without that a farm dead-ends the first time the loot tables stop offering seed.",
+      "status": "in game",
+      "subcategory": "Salvage"
+    },
+    {
+      "category": "Materials",
+      "id": "scrap",
+      "name": "Scrap",
+      "notes": "Sheet metal, the second base material. Everything metal costs it. Also what the Scrap Cannon fires.",
+      "status": "in game",
+      "subcategory": "Salvage"
+    },
+    {
+      "category": "Materials",
+      "id": "parts",
+      "name": "Weapon Parts",
+      "notes": "Springs, pins, barrels. The gate on every gun and every box of ammunition.",
+      "status": "in game",
+      "subcategory": "Salvage"
+    },
+    {
+      "breaks_down_into": "4 Wood (salvage, in game)",
+      "category": "Building",
+      "id": "barricade",
+      "name": "Barricade",
+      "notes": "Build menu, tier 1. Cheap, fast, flimsy.",
+      "status": "in game",
+      "subcategory": "Wall"
+    },
+    {
+      "breaks_down_into": "11 Wood, 6 Scrap (salvage, in game)",
+      "category": "Building",
+      "id": "gate",
+      "name": "Gate",
+      "notes": "Build menu, tier 1.",
+      "status": "in game",
+      "subcategory": "Wall"
+    },
+    {
+      "breaks_down_into": "6 Wood, 11 Scrap (salvage, in game)",
+      "category": "Building",
+      "id": "reinforcedWall",
+      "name": "Reinforced Wall",
+      "notes": "Build menu, tier 1.",
+      "status": "in game",
+      "subcategory": "Wall"
+    },
+    {
+      "breaks_down_into": "22 Scrap, 1 Weapon Parts (salvage, in game)",
+      "category": "Building",
+      "id": "metalWall",
+      "name": "Steel Wall",
+      "notes": "Build menu, tier 2: needs the upgraded Workbench.",
+      "status": "in game",
+      "subcategory": "Wall"
+    },
+    {
+      "breaks_down_into": "9 Stone, 2 Sticks (salvage, in game)",
+      "category": "Building",
+      "id": "stoneWall",
+      "name": "Stone Wall",
+      "notes": "Build menu, tier 1. The wall you can raise before you own any metal tool.",
+      "status": "in game",
+      "subcategory": "Wall"
+    },
+    {
+      "breaks_down_into": "8 Wood (salvage, in game)",
+      "category": "Building",
+      "id": "woodWall",
+      "name": "Wood Wall",
+      "notes": "Build menu, tier 1.",
+      "status": "in game",
+      "subcategory": "Wall"
+    },
+    {
+      "breaks_down_into": "17 Scrap (salvage, in game)",
+      "category": "Building",
+      "id": "locker",
+      "name": "Steel Locker",
+      "notes": "Build menu, tier 1. Survives a raid that flattens a chest.",
+      "status": "in game",
+      "subcategory": "Storage"
+    },
+    {
+      "breaks_down_into": "12 Wood, 4 Scrap (salvage, in game)",
+      "category": "Building",
+      "id": "stash",
+      "name": "Supply Stash",
+      "notes": "Build menu, tier 1. The base pantry: survivors and towers feed from it.",
+      "status": "in game",
+      "subcategory": "Storage"
+    },
+    {
+      "breaks_down_into": "10 Wood, 4 Sticks (salvage, in game)",
+      "category": "Building",
+      "id": "chest",
+      "name": "Wooden Chest",
+      "notes": "Build menu, tier 1.",
+      "status": "in game",
+      "subcategory": "Storage"
+    },
+    {
+      "breaks_down_into": "25 Scrap, 14 Electronics, 3 Weapon Parts (salvage, in game)",
+      "category": "Building",
+      "id": "turret",
+      "name": "Auto Turret",
+      "notes": "Build menu, tier 2. Needs a powered Generator within 260px; eats 9mm from the stash.",
+      "status": "in game",
+      "subcategory": "Defence"
+    },
+    {
+      "breaks_down_into": "6 Wood, 5 Scrap (salvage, in game)",
+      "category": "Building",
+      "id": "spike",
+      "name": "Spike Trap",
+      "notes": "Build menu, tier 1. Wears out.",
+      "status": "in game",
+      "subcategory": "Defence"
+    },
+    {
+      "breaks_down_into": "22 Wood, 10 Scrap (salvage, in game)",
+      "category": "Building",
+      "id": "watchtower",
+      "name": "Watchtower",
+      "notes": "Build menu, tier 1. Post a survivor on it as a Sniper.",
+      "status": "in game",
+      "subcategory": "Defence"
+    },
+    {
+      "breaks_down_into": "11 Scrap, 6 Electronics (salvage, in game)",
+      "category": "Building",
+      "id": "floodlight",
+      "name": "Floodlight",
+      "notes": "Build menu, tier 2. Needs a powered Generator within 260px.",
+      "status": "in game",
+      "subcategory": "Power"
+    },
+    {
+      "breaks_down_into": "19 Scrap, 8 Electronics (salvage, in game)",
+      "category": "Building",
+      "id": "generator",
+      "name": "Generator",
+      "notes": "Build menu, tier 2. Loud: raises Threat while running.",
+      "status": "in game",
+      "subcategory": "Power"
+    },
+    {
+      "breaks_down_into": "7 Wood, 6 Cloth (salvage, in game)",
+      "category": "Building",
+      "id": "bedroll",
+      "name": "Bedroll",
+      "notes": "Build menu, tier 1. Sets your respawn point; only the newest one is active.",
+      "status": "in game",
+      "subcategory": "Living"
+    },
+    {
+      "breaks_down_into": "11 Wood, 7 Cloth (salvage, in game)",
+      "category": "Building",
+      "id": "bunk",
+      "name": "Bunk",
+      "notes": "Build menu, tier 1. No bunk, no recruit.",
+      "status": "in game",
+      "subcategory": "Living"
+    },
+    {
+      "category": "Building",
+      "id": "raisedBed",
+      "name": "Raised Bed",
+      "notes": "Build menu, tier 1. A seed slot, an optional feed slot and a water meter. Watered with Clean Water — the same bottle that buys the Hydrated buff, so drink it or grow with it is the decision. A dry bed stops growing and NEVER dies: forgetting it costs time, never the crop. Deliberately not a protect piece — a garden is not a fortification and must not widen the base radius or pull a raid at it. Salvaging one returns the seed and the feed; a brute through it does not.",
+      "status": "in game",
+      "subcategory": "Living"
+    },
+    {
+      "category": "Building",
+      "id": "advancedBench",
+      "name": "Advanced Bench",
+      "notes": "Built from the Building menu. Metalwork: pipes, blades, firearms, ammunition, armour plates.\n\nWhat it is for: Metalwork. Pipes, blades, firearms, ammunition, armour plates, lockpicks.\n\nTakes over the metal half of the current Workbench (bench 1) and the guns and armour from the upgraded Workbench (bench 2; the upgrade costs 55 Scrap, 20 Electronics, 5 Weapon Parts). In-game items linked here currently live on one of those two.",
+      "recipe": "TBD",
+      "status": "planned",
+      "subcategory": "Crafting"
+    },
+    {
+      "category": "Building",
+      "id": "basicBench",
+      "name": "Basic Bench",
+      "notes": "Built from the Building menu, which needs no bench. Unlocks the Basic crafting tab.\n\nWhat it is for: The first bench. Wood, stone and cloth work: hafts and handles, bats, spears, the metal tools that need a wooden haft, medkits, ration packs.\n\nTakes over the non-metal half of the single Workbench in the game today (bench 1 in config.gd). In-game items linked here currently live on that Workbench.\n\nBuild cost (proposal): 30 Wood, 18 Scrap (the cost of the current Workbench, as a starting point)",
+      "recipe": "30 Wood, 18 Scrap (today's Workbench cost, as a starting point)",
+      "status": "planned",
+      "subcategory": "Crafting"
+    },
+    {
+      "category": "Building",
+      "id": "recycler",
+      "name": "Recycler",
+      "notes": "Built from the Building menu. Breaks items down into base materials. Nothing is crafted at it.\n\nWhat it is for: Breaks bigger things down into base materials. Nothing is crafted here. What each item gives back is on the item, under Breaks down into.\n\nNot in the game yet. When it lands, every Breaks down into entry on the Items table becomes a recycling recipe.",
+      "recipe": "TBD",
+      "status": "planned",
+      "subcategory": "Crafting"
+    },
+    {
+      "category": "Building",
+      "id": "techBench",
+      "name": "Tech Bench",
+      "notes": "Built from the Building menu. Electronics and military-grade kit.\n\nWhat it is for: Electronics and military-grade kit. Batteries, fuel, flashlights, SMGs and assault rifles: anything that eats Electronics or Military.\n\nTakes over the electronics recipes from the current Workbench and upgraded Workbench. In-game items linked here currently need the upgraded Workbench (bench 2).",
+      "recipe": "TBD",
+      "status": "planned",
+      "subcategory": "Crafting"
+    },
+    {
+      "breaks_down_into": "15 Wood, 9 Scrap (salvage, in game)",
+      "category": "Building",
+      "id": "workbench",
+      "name": "Workbench",
+      "notes": "Build menu, tier 1. The single bench in the game today; the Benches table is the plan to split it up.",
+      "status": "in game",
+      "subcategory": "Crafting"
+    }
+  ]
+}

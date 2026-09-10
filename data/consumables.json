@@ -1,0 +1,309 @@
+{
+  "fields": {
+    "color": {
+      "type": "string"
+    },
+    "effect": {
+      "type": "string"
+    },
+    "effect_mul": {
+      "type": "float"
+    },
+    "food": {
+      "type": "bool"
+    },
+    "heal": {
+      "type": "float"
+    },
+    "mut": {
+      "type": "float"
+    },
+    "name": {
+      "type": "string"
+    },
+    "rank": {
+      "type": "int"
+    },
+    "risk": {
+      "fields": {
+        "chance": {
+          "type": "float"
+        },
+        "effect": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "stack": {
+      "type": "int"
+    },
+    "time": {
+      "type": "float"
+    },
+    "tool": {
+      "type": "bool"
+    },
+    "verb": {
+      "type": "string"
+    },
+    "wt": {
+      "type": "float"
+    }
+  },
+  "notes": "`verb` is what the pack's click menu calls using it; without one it is EAT for food and USE for everything else.",
+  "rows": [
+    {
+      "color": "#d8cfc0",
+      "heal": 28.0,
+      "id": "bandage",
+      "name": "Bandage",
+      "time": 0.9
+    },
+    {
+      "color": "#d9575f",
+      "heal": 80.0,
+      "id": "medkit",
+      "name": "Medkit",
+      "time": 1.6
+    },
+    {
+      "color": "#c07f9a",
+      "effect": "nausea",
+      "heal": 0.0,
+      "id": "brainRaw",
+      "mut": 10.0,
+      "name": "Raw Brain Matter",
+      "notes": "Brain matter, and what it is worth. `mut` is how much eating it takes off the Mutation meter; `effect` is what it does to you on the way down. Quality is why a Brute is worth walking toward and a Behemoth is worth a magazine: the tissue a body gives up depends on what the body was.",
+      "stack": 20,
+      "time": 2.0,
+      "verb": "EAT",
+      "wt": 0.4
+    },
+    {
+      "color": "#b06ad0",
+      "effect": "nausea",
+      "effect_mul": 1.5,
+      "heal": 0.0,
+      "id": "brainMut",
+      "mut": 20.0,
+      "name": "Mutated Brain Matter",
+      "stack": 20,
+      "time": 2.2,
+      "verb": "EAT",
+      "wt": 0.4
+    },
+    {
+      "color": "#7fd0c4",
+      "heal": 0.0,
+      "id": "brainSpec",
+      "name": "Neural Tissue",
+      "notes": "Not eaten: this is the ingredient the chemistry is built on. `tool` keeps it out of every \"use what is to hand\" path, the way a lockpick is.",
+      "stack": 10,
+      "time": 0.0,
+      "tool": true,
+      "wt": 0.3
+    },
+    {
+      "color": "#8fd08a",
+      "heal": 0.0,
+      "id": "serum",
+      "mut": 30.0,
+      "name": "Stabilized Neural Serum",
+      "notes": "What a base does with raw tissue: three times the suppression and none of the nausea. The first step of a chain that ends at a chemistry bench.",
+      "stack": 10,
+      "time": 1.6,
+      "wt": 0.5
+    },
+    {
+      "color": "#6ad0c4",
+      "heal": 0.0,
+      "id": "suppressant",
+      "mut": 50.0,
+      "name": "Refined Suppressant",
+      "notes": "The chemistry tier. Refined is what a base with a bench and a supply of Brutes can keep you on indefinitely; Experimental is the gamble — three quarters of the bar, a minute and a half of being something better than human, and a one-in-four chance of paying for it afterwards.",
+      "stack": 10,
+      "time": 2.0,
+      "wt": 0.6
+    },
+    {
+      "color": "#d0a06a",
+      "effect": "surge",
+      "heal": 0.0,
+      "id": "experimental",
+      "mut": 75.0,
+      "name": "Experimental Suppressant",
+      "risk": {
+        "chance": 0.25,
+        "effect": "fever"
+      },
+      "stack": 5,
+      "time": 2.4,
+      "wt": 0.7
+    },
+    {
+      "color": "#9aa2ab",
+      "heal": 0.0,
+      "id": "lockpick",
+      "name": "Lockpick",
+      "notes": "Not a healing item — it opens car doors (Phase 4). It lives here so it rides along in the same inventory the rest of the small stuff uses.",
+      "time": 0.0,
+      "tool": true
+    },
+    {
+      "color": "#c4a86a",
+      "effect": "fed",
+      "food": true,
+      "heal": 0.0,
+      "id": "cannedFood",
+      "name": "Tinned Food",
+      "notes": "food and drink\n\nBuffs, and nothing else. No hunger bar sits under this table and none is coming (pillar 1): eating is a thing you do before a run, not a thing the game asks you for every five minutes. `food` is what the quick key looks for and `rank` is the order it reaches — commonest first, so a tap of F never spends the Field Ration you were saving.",
+      "rank": 1,
+      "stack": 15,
+      "time": 1.6,
+      "wt": 0.6
+    },
+    {
+      "color": "#b98a5a",
+      "effect": "sated",
+      "food": true,
+      "heal": 0.0,
+      "id": "jerky",
+      "name": "Dried Meat",
+      "rank": 2,
+      "stack": 15,
+      "time": 1.4,
+      "wt": 0.4
+    },
+    {
+      "color": "#d9a05a",
+      "effect": "steady",
+      "food": true,
+      "heal": 15.0,
+      "id": "hotMeal",
+      "name": "Hot Meal",
+      "rank": 4,
+      "stack": 5,
+      "time": 2.4,
+      "wt": 0.9
+    },
+    {
+      "color": "#7fa14a",
+      "effect": "fed",
+      "effect_mul": 2.0,
+      "food": true,
+      "heal": 10.0,
+      "id": "mre",
+      "name": "Field Ration",
+      "rank": 5,
+      "stack": 10,
+      "time": 2.0,
+      "wt": 0.8
+    },
+    {
+      "color": "#d0709a",
+      "effect": "wired",
+      "effect_mul": 0.6,
+      "food": true,
+      "heal": 0.0,
+      "id": "candyBar",
+      "name": "Candy Bar",
+      "rank": 0,
+      "stack": 20,
+      "time": 0.8,
+      "wt": 0.2
+    },
+    {
+      "color": "#6ad0c4",
+      "effect": "hydrated",
+      "food": true,
+      "heal": 0.0,
+      "id": "water",
+      "name": "Clean Water",
+      "rank": 1,
+      "stack": 15,
+      "time": 1.2,
+      "verb": "DRINK",
+      "wt": 0.8
+    },
+    {
+      "color": "#c95a8a",
+      "effect": "wired",
+      "food": true,
+      "heal": 0.0,
+      "id": "soda",
+      "name": "Warm Soda",
+      "rank": 2,
+      "stack": 15,
+      "time": 1.2,
+      "verb": "DRINK",
+      "wt": 0.7
+    },
+    {
+      "color": "#8a6a3c",
+      "effect": "wired",
+      "effect_mul": 1.6,
+      "food": true,
+      "heal": 0.0,
+      "id": "coffee",
+      "name": "Instant Coffee",
+      "rank": 3,
+      "stack": 10,
+      "time": 1.6,
+      "verb": "DRINK",
+      "wt": 0.3
+    },
+    {
+      "color": "#d98a4a",
+      "effect": "drunk",
+      "food": true,
+      "heal": 0.0,
+      "id": "booze",
+      "name": "Bottle of Spirits",
+      "rank": 6,
+      "stack": 8,
+      "time": 1.8,
+      "verb": "DRINK",
+      "wt": 1.0
+    },
+    {
+      "color": "#c9a86a",
+      "effect": "fed",
+      "effect_mul": 0.7,
+      "food": true,
+      "heal": 0.0,
+      "id": "potato",
+      "name": "Potatoes",
+      "notes": "what you grew\n\nThe crops out of a Raised Bed. Food, like everything above it, and no hunger bar underneath it either — a potato is a buff you keep a supply of, not an answer to a meter. `rank` is what makes a tap of F sensible in a farmer's pack: a potato is the commonest thing that helps, so it goes first, and corn ranks above it because corn is the thing you were going to turn into rations for the crew.",
+      "rank": 0,
+      "stack": 20,
+      "time": 1.4,
+      "wt": 0.4
+    },
+    {
+      "color": "#e0c24a",
+      "effect": "fed",
+      "food": true,
+      "heal": 0.0,
+      "id": "corn",
+      "name": "Corn",
+      "rank": 2,
+      "stack": 20,
+      "time": 1.4,
+      "wt": 0.4
+    },
+    {
+      "color": "#8fd08a",
+      "effect": "steady",
+      "effect_mul": 0.7,
+      "food": true,
+      "heal": 6.0,
+      "id": "herbs",
+      "name": "Herbs",
+      "rank": 3,
+      "stack": 20,
+      "time": 1.2,
+      "wt": 0.2
+    }
+  ]
+}

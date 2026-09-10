@@ -1,0 +1,200 @@
+{
+  "fields": {
+    "color": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "short": {
+      "type": "string"
+    },
+    "stack": {
+      "type": "int"
+    },
+    "wt": {
+      "type": "float"
+    }
+  },
+  "notes": "Everything that stacks as a count. Phase 2 uses the ammunition and the medical entries; Phase 3's inventory uses the rest. `wt` per unit.",
+  "rows": [
+    {
+      "color": "#a3763f",
+      "id": "wood",
+      "name": "Wood",
+      "short": "WOOD",
+      "stack": 50,
+      "wt": 1.0
+    },
+    {
+      "color": "#8a6a3c",
+      "id": "sticks",
+      "name": "Sticks",
+      "short": "STCK",
+      "stack": 50,
+      "wt": 0.5
+    },
+    {
+      "color": "#8f8a80",
+      "id": "stone",
+      "name": "Stone",
+      "short": "STNE",
+      "stack": 50,
+      "wt": 1.5
+    },
+    {
+      "color": "#9aae5a",
+      "id": "fiber",
+      "name": "Fiber",
+      "short": "FIBR",
+      "stack": 50,
+      "wt": 0.3
+    },
+    {
+      "color": "#9aa2ab",
+      "id": "scrap",
+      "name": "Scrap",
+      "short": "SCRP",
+      "stack": 50,
+      "wt": 1.0
+    },
+    {
+      "color": "#c2a98a",
+      "id": "cloth",
+      "name": "Cloth",
+      "short": "CLTH",
+      "stack": 50,
+      "wt": 1.0
+    },
+    {
+      "color": "#59b8c4",
+      "id": "elec",
+      "name": "Electronics",
+      "short": "ELEC",
+      "stack": 30,
+      "wt": 1.0
+    },
+    {
+      "color": "#8fd08a",
+      "id": "battery",
+      "name": "Batteries",
+      "short": "BATT",
+      "stack": 20,
+      "wt": 0.5
+    },
+    {
+      "color": "#d9575f",
+      "id": "med",
+      "name": "Medical",
+      "short": "MED",
+      "stack": 30,
+      "wt": 1.0
+    },
+    {
+      "color": "#c9a227",
+      "id": "parts",
+      "name": "Weapon Parts",
+      "short": "PART",
+      "stack": 20,
+      "wt": 1.0
+    },
+    {
+      "color": "#7fa14a",
+      "id": "mil",
+      "name": "Military",
+      "short": "MIL",
+      "stack": 20,
+      "wt": 1.0
+    },
+    {
+      "color": "#d2762c",
+      "id": "fuel",
+      "name": "Fuel",
+      "short": "FUEL",
+      "stack": 20,
+      "wt": 1.0
+    },
+    {
+      "color": "#c4a86a",
+      "id": "rations",
+      "name": "Rations",
+      "short": "FOOD",
+      "stack": 20,
+      "wt": 1.0
+    },
+    {
+      "color": "#c9a86a",
+      "id": "seedPotato",
+      "name": "Potato Eyes",
+      "notes": "Seeds and fertilizer are resources rather than consumables on purpose: DEPOSIT ALL moves resources wholesale, so a haul of seeds ends up in the base pantry where the Farmer will one day go looking for it, and nothing in the \"eat what is to hand\" path can ever reach a packet of seed corn.",
+      "short": "PSED",
+      "stack": 30,
+      "wt": 0.1
+    },
+    {
+      "color": "#e0c24a",
+      "id": "seedCorn",
+      "name": "Corn Seed",
+      "short": "CSED",
+      "stack": 30,
+      "wt": 0.1
+    },
+    {
+      "color": "#9aae5a",
+      "id": "seedHerb",
+      "name": "Herb Seed",
+      "short": "HSED",
+      "stack": 30,
+      "wt": 0.1
+    },
+    {
+      "color": "#5a4a32",
+      "id": "compost",
+      "name": "Compost",
+      "short": "CMPT",
+      "stack": 20,
+      "wt": 0.6
+    },
+    {
+      "color": "#b06ad0",
+      "id": "sludge",
+      "name": "Mutagen Sludge",
+      "short": "SLDG",
+      "stack": 10,
+      "wt": 0.8
+    },
+    {
+      "color": "#b9a072",
+      "id": "arrow",
+      "name": "Arrows",
+      "short": "ARRW",
+      "stack": 60,
+      "wt": 0.15
+    },
+    {
+      "color": "#d8c98a",
+      "id": "ammoP",
+      "name": "9mm Rounds",
+      "short": "9MM",
+      "stack": 120,
+      "wt": 0.2
+    },
+    {
+      "color": "#c9584e",
+      "id": "ammoS",
+      "name": "Shells",
+      "short": "SHEL",
+      "stack": 60,
+      "wt": 0.3
+    },
+    {
+      "color": "#b8a05a",
+      "id": "ammoR",
+      "name": "Rifle Rounds",
+      "short": "RIFL",
+      "stack": 90,
+      "wt": 0.25
+    }
+  ],
+  "shape": "by_id_bare"
+}

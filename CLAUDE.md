@@ -21,7 +21,11 @@ that repo's `PROJECT.md` is the design spec and is not edited from here.
 to WebRTC", "room codes", "UPnP didn't work", "my friend can't connect",
 "no port forwarding".
 - The Godot MCP (`run_project`, `get_debug_output`) reads `GODOT_PATH` from `~/.claude.json`.
-- **Content is designed in Notion:** DEADLINE → *Items & Crafting* (page
+- **Content lives in `data/`** and is edited with the local editor: the owner
+  double-clicks `Content Editor.cmd` in the project folder (it calls
+  `tools\edit.cmd`; PROJECT.md §10, *Editing content*). The owner's shell is Windows
+  PowerShell 5.1: give `.\tools\<name>.cmd` commands, one per line.
+- **Content was designed in Notion (retiring):** DEADLINE → *Items & Crafting* (page
   `3d610d456b16816fbf35d781eeaccb11`) holds the Items, Workbenches and Loot
   Sources tables. Items has eleven categories with a tab each, and its shape is
   the owner's, not the code's — map by `Code ID`, never by category name. "Look at Notion and update the game" means
@@ -35,7 +39,7 @@ to WebRTC", "room codes", "UPnP didn't work", "my friend can't connect",
 3. Bullets collide with terrain only. Water and fences: solid to feet, transparent to shots.
 4. `recompute_stats()` is the only source of player stat modifiers — the
    Mutation band and the effect table included. Change `mut_band`, never a stat.
-5. Every tunable and content table lives in `config.gd`.
+5. Every tunable and content table is reached through `Config`: tunables are consts in `config.gd`, content tables are `data/*.json` loaded into `static var`s of the same names. Edit content with `tools/edit` (PROJECT.md §10), never by hand.
 6. There is no pathfinding without give-up logic.
 7. Container identity in saves is derived from tile position, never ordinal index.
 8. A screen that changes shared state calls `Actions`, never a sim function directly: on a guest that is the command to the host.

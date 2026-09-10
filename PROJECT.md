@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-10, the owner's first playtest: Mutation three times slower, near-black nights and a torch you can see, E opens a workbench (the upgrade is a button in it), C is the six basics, a Hatchet lasts about a hundred trees, click food to eat, and nothing is built on litter. Before that, on 2026-09-09, the Notion catalogue restructured to eleven categories with a tab each, and weapons split into six melee and eight ranged classes. Before that, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1. The HOST page also names your public address when UPnP will not
+- **Last updated:** 2026-09-10, content out of `config.gd` into `data/*.json` with a local editor (`tools\edit`: views by bench and weapon class, item art, loot odds both ways), and the roadmap moved from Notion to Linear. Before that, the owner's first playtest: Mutation three times slower, near-black nights and a torch you can see, E opens a workbench (the upgrade is a button in it), C is the six basics, a Hatchet lasts about a hundred trees, click food to eat, and nothing is built on litter. Before that, on 2026-09-09, the Notion catalogue restructured to eleven categories with a tab each, and weapons split into six melee and eight ranged classes. Before that, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1. The HOST page also names your public address when UPnP will not
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -1146,7 +1146,11 @@ Phases 1–4 respecting it.
    Base → attributes → perks → gear → Mutation band → effects, rebuilt from
    scratch. Never mutate a stat on purchase, and never on a band change
    either: change `mut_band` and let the one door open.
-5. **Every tunable and content table lives in `config.gd`.**
+5. **Every tunable and content table is reached through `Config`.** Tunables
+   are consts in `config.gd`; content tables are files in `data/`, loaded
+   into `static var`s of the same names (`Config.WEAPONS` is
+   `data/weapons.json`). A number the game uses is in one of the two, never
+   in a sim file. Edit the tables with `tools\edit` (§10), never by hand.
 6. **Anything that walks toward a target needs give-up logic**, even with
    navigation. The prototype's stuck-AI bugs all came from the absence of it.
 7. **Container identity in saves derives from tile position**, never from
@@ -1245,6 +1249,7 @@ Phases 1–4 respecting it.
 | 2026-09-09 | Felled props carry a `gone` flag the renderer skips | The prop renderers bucket the prop dictionaries once and hold references, so a chopped tree went on being drawn until a reload — on the host too, not only the mirror. One flag, no rebuild per swing. | Yes |
 | 2026-09-08 | Anti-stall relocation gated at 400px, and the no-base centre follows you | The gate was a bare 240 and the centre froze at the warning, so a raider legitimately chasing a player who had moved read as stalled and got warped out of the fight. 400 sits below the 520px spawn ring (a raider wedged where it spawned is still rescued) and past half a screen (nothing you are watching is teleported). | Yes, one number |
 | 2026-09-09 | Content tables are designed in Notion (DEADLINE → Items & Crafting) and mirrored into `config.gd` by a sync, rather than edited in the code first | The owner wants to see and reorganise every item, recipe, bench and loot source in one place, on a phone, without a text editor — and to add benches and weapon classes before they exist in code. Notion owns *what exists and what it costs*; the code owns *how it behaves*; the sync procedure in §10 keeps the seam honest. Invariant 5 still holds: `config.gd` is the only place the game reads from. | Yes — the tables are a mirror, and `config.gd` stays the truth for the running game |
+| 2026-09-10 | Content tables moved out of `config.gd` into `data/*.json`, edited with a local page (`tools\edit`); Notion's roadmap moved to Linear | Notion blocks guests from its connector, so the collaborator could not work with it, and a sync is a second copy that drifts. The tables are `static var`s of the same names loaded through `DataTable` (typed `fields`, because Godot reads every JSON number as a float; one canonical encoder, so an edit is a one-line diff), and the editor refuses any save that breaks a reference anywhere. It is a headless Godot on loopback — nothing to install, nothing hosted. Supersedes the row above once Notion is archived | Yes — the loader is one function per table |
 | 2026-09-10 | E opens a bench; the upgrade is a button inside it | E at a workbench spent the upgrade's materials directly, so the key you press to *look* at a bench was the key that spent on it, and the prompt never said how to reach the menu. Now E emits `open_bench` (the sim still knows nothing about screens) and UPGRADE is a priced button that goes through `Actions.upgrade_bench`, reach-checked on the host by tile like a chest. A Chemistry Station answers E the same way, because its recipes are on the bench screen and nowhere else. | Yes |
 | 2026-09-10 | By hand is exactly six recipes, and the Stone Hammer is no longer a portable bench | The owner's call: C is what you need before you have a base — Bandage, Hatchet, Stone Knife, Stone Pickaxe, Stone Hammer, Torch. Bow, Arrows, Scythe, Cloth, Compost and the first clothes moved to bench 1. The hammer's privilege (lifting a few bench-1 recipes into the field) would have put them back in C, so it went with them; the `hammer` recipe flag was deleted rather than left inert. Notion's *Crafted at* was moved for the seven rows. | Yes — `bench` numbers in `RECIPES` |
 | 2026-09-10 | Nothing is built on litter | A loose stone, a bush or a thicket does not block its tile, so a wall went up on top of one and it lived on inside the wall, gatherable and drawn. `can_place` refuses with *Pick up the stone first* (named from the prop), and `Structures.make` removes any non-solid prop under a new piece through `remove_prop` — for saves made before the refusal, so the tile lands in `chopped` for good. There was never a litter respawn: the stone had simply never been removed. | Yes |
@@ -1725,12 +1730,41 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 6. **`gh pr create --base main`.** Then check nothing has drifted:
    `gh pr list --json number,baseRefName` — every open PR must say `main`.
 
+### Editing content — `data/` and `tools\edit`
+
+Content lives in `data/*.json`, one file per table: WEAPONS, RES,
+CONSUMABLES, GEAR, RECIPES, STRUCTURES, LOOT, CONTAINERS, ENEMIES, CROPS,
+plus `catalog.json` (every item, real or planned, with its category, class
+and status — the game never reads it) and `categories.json` (the eleven
+categories and fourteen weapon classes, each with what it is for).
+
+- **The editor:** double-click `Content Editor.cmd` in the project folder
+  (the same as `.\tools\edit.cmd`; `tools/edit.sh` off Windows). It starts a
+  headless Godot on `http://127.0.0.1:8765/` and opens it. Loopback only;
+  `--lan` shares it on the local network on purpose; it is never deployed.
+  Views (Workbenches, Weapons by class, Materials, Tools, Ammo, Catalog) sit
+  over the raw tables, and every item shows where it is crafted, found and
+  used, with the odds per search.
+- **A save is refused** unless the file decodes against its `fields`, the
+  field list is unchanged, and nothing anywhere points at something missing
+  (a recipe making a deleted weapon, a loot roll for a renamed item).
+- **The format is `DataTable`'s** (`src/core/data_table.gd`): a `fields`
+  schema, because Godot parses every JSON number as a float; sorted keys,
+  one field per line, fixed floats, so a one-number edit is a one-line diff.
+  Design comments are `notes` on the table or the row. A new or retyped
+  field is a code change in a commit, not an editor change.
+- **Art:** `art/items/<id>.png` (and `<id>_ground.png`), uploaded from an
+  item's Look card. No file, the placeholder draws.
+
 ### Syncing content from Notion
+
+Retiring: content now lives in `data/` and is edited with the tool above;
+this procedure goes when Notion is archived (Phase 3 of the Linear move).
 
 The owner designs content in Notion, on the **Items & Crafting** page under
 DEADLINE (page `3d610d456b16816fbf35d781eeaccb11`). Three tables:
 
-| Table | Data source | Mirrors in `config.gd` |
+| Table | Data source | Mirrors in `data/` |
 | --- | --- | --- |
 | Items | `collection://23c90712-6033-4bf5-b835-114704efbdc6` | `WEAPONS`, `GEAR`, `CONSUMABLES`, `RES`, `RECIPES`, `STRUCTURES` |
 | Workbenches | `collection://98144f5b-c2b1-475d-960e-0efbe4895f44` | the `bench` field on `RECIPES`. The rows are Player Menu, Basic, Advanced, Tech, Recycle; the code today has only 0 = by hand and 1/2 = the one Workbench and its upgrade |
@@ -1768,7 +1802,7 @@ When the owner says **"look at Notion and update the game"**:
    fetch any row whose Notes look long. Read `Recipe` for quantities and
    `Ingredients` for the links; the two should agree, and a mismatch is a
    question for the owner, not a coin toss.
-2. Diff against `config.gd` by `Code ID`. Rows with a blank `Code ID` and
+2. Diff against `data/*.json` by `Code ID`. Rows with a blank `Code ID` and
    `Status = Planned` are new content. Rows whose `Recipe`, `Crafted at`,
    `Found in` or `Breaks down into` differ from the code are changes. Rows
    marked `Cut` come out. On Loot Sources, `Rolls` is the `rolls` field on

@@ -294,6 +294,62 @@ yet when an earlier autoload's `_ready` wants to know.
   with a delay on it. `loot_mul` was in the harvest and not in the band the
   bed panel printed. Whenever a screen promises a range, the range and the
   roll want to be the same expression or the same short list of factors.
+## 2026-09-10 (off Notion)
+
+- `notion-fetch` returns a cached snapshot, stamped "as of" — comment
+  threads in it were a day stale (3 of 14 on one page, 2 of 9 on another).
+  `notion-get-comments` with `include_all_blocks` and `include_resolved` is
+  the live read; use it before migrating or quoting anyone.
+- `row.key = v` on a Dictionary makes a StringName key, and a plain
+  `Array.sort()` orders every StringName after every String. Anything that
+  serialises keys sorts by `String(k)`.
+- Linear autolinks anything shaped like a domain: `combat.gd:150` and
+  `PROJECT.md:879` became `http://` links (`.gd` and `.md` are real TLDs).
+  Wrapping `file:line` in a code span did not stop it; writing the file in
+  a code span and the line outside it ("`combat.gd` line 150") did.
+
+- The owner's rule was "every cost key exists in RES"; the game's rule is
+  "a cost is anything that stacks", and five recipes pay in consumables.
+  The first integrity check refused every save. Read the test that already
+  enforces a rule before writing a second enforcer of it.
+- `node.append(array)` and `replaceChildren(array)` stringify the array —
+  "[object HTMLButtonElement]" — where a helper that flattens does not.
+  `node --check` passed it; only the screenshot showed it.
+- Browser pane: navigating to the same URL with a new `#hash` does not
+  reload, so the old script keeps running after an edit. Add `?r=N`.
+- Browser pane: the `key` action does not edit a focused input (Backspace
+  changed nothing, even in a plain number box). Set `.value` and dispatch
+  an `input` event to exercise the handler; a field that will not clear
+  under automation is not a page bug until that also fails.
+
+- Stopping a background `tools/edit.sh` from the agent's task tool kills
+  the shell and leaves its Godot child holding the port, so the restart
+  fails with "could not listen". `exec` in the script does **not** fix it
+  under Git Bash on Windows — tried and measured: the Godot PID survived
+  the stop. Find the process on the port (`netstat -ano`, then its command
+  line via `Get-CimInstance Win32_Process`) and kill that PID, and check
+  what it is first — the other Godot on this machine was the owner's
+  editor. A person pressing Ctrl+C in the console is a different path and
+  was not tested here.
+- The first catalog-art test caught a real waste, not a test bug: the
+  ground fallback loaded the icon file a second time instead of reusing
+  the cached texture. Asserting identity (`eq(ground, icon)`) rather than
+  "both are non-null" is what found it.
+
+- The owner types commands in Windows PowerShell 5.1. I gave them
+  `cd "…" && tools/edit.sh` and it failed twice over: no `&&` in that
+  PowerShell, and it cannot run a `.sh`. Commands for the owner are
+  `.\tools\<name>.cmd`, one per line; the `.sh` twins are for Git Bash
+  and Linux.
+- "Subcategories for melee and ranged weapons" meant the owner's weapon
+  *classes* (Improvised, Blunt, Bladed… Handguns, Shotguns…) and what each
+  class is for — not a melee/ranged split of the list. I built the split
+  and the owner had to correct it with screenshots. When the owner names a
+  grouping, find it in their own design source (Notion's class tables)
+  and show it back with its words before building the view around it.
+
+## 2026-09-10 (raised beds, continued)
+
 - A review finding can be right about the fact and wrong about the target.
   (See the entry below for the owner's first playtest.)
 

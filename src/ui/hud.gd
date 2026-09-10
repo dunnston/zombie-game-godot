@@ -198,6 +198,11 @@ func _draw() -> void:
 		if id.is_empty():
 			continue
 		draw_string(font, Vector2(r.position.x, r.position.y + 25), Items.name_of(id), HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 10, Color.WHITE)
+		# Real art sits in the corner when the item has some; without it the
+		# slot is exactly what it always was.
+		var tex := Items.icon_of(id)
+		if tex != null:
+			draw_texture_rect(tex, Items.art_rect(tex, Rect2(r.position.x + r.size.x - 21, r.position.y + 2, 18, 18)), false)
 		# A sliver of condition along the bottom of the slot, and only once
 		# there is something to say. A weapon must never break as a surprise:
 		# this is the warning the notifications punctuate, not replace.

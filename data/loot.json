@@ -1,0 +1,1411 @@
+{
+  "fields": {
+    "entries": {
+      "fields": {
+        "id": {
+          "type": "string"
+        },
+        "max": {
+          "type": "int"
+        },
+        "min": {
+          "type": "int"
+        },
+        "w": {
+          "type": "int"
+        }
+      },
+      "type": "list<object>"
+    }
+  },
+  "notes": "Each entry is `{id, min, max, w}`. `id` is a resource, or a prefixed `weapon:` / `gear:` / `item:` id — the same grammar a ground pickup is decoded with, so the two can never drift apart.\n\nEvery table reads true to the thing you are opening: a fridge holds food, a wardrobe holds clothes, a gun safe holds guns. That is what makes a building's exterior worth reading before you go in.",
+  "rows": [
+    {
+      "entries": [
+        {
+          "id": "item:cannedFood",
+          "max": 2,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "item:candyBar",
+          "max": 2,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "rations",
+          "max": 5,
+          "min": 2,
+          "w": 18
+        },
+        {
+          "id": "cloth",
+          "max": 8,
+          "min": 3,
+          "w": 30
+        },
+        {
+          "id": "wood",
+          "max": 10,
+          "min": 4,
+          "w": 28
+        },
+        {
+          "id": "scrap",
+          "max": 6,
+          "min": 2,
+          "w": 24
+        },
+        {
+          "id": "med",
+          "max": 2,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "item:bandage",
+          "max": 2,
+          "min": 1,
+          "w": 8
+        }
+      ],
+      "id": "cabinet"
+    },
+    {
+      "entries": [
+        {
+          "id": "item:cannedFood",
+          "max": 3,
+          "min": 1,
+          "w": 26
+        },
+        {
+          "id": "item:water",
+          "max": 3,
+          "min": 1,
+          "w": 22
+        },
+        {
+          "id": "item:coffee",
+          "max": 2,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "item:booze",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "rations",
+          "max": 8,
+          "min": 3,
+          "w": 34
+        },
+        {
+          "id": "cloth",
+          "max": 6,
+          "min": 2,
+          "w": 26
+        },
+        {
+          "id": "scrap",
+          "max": 8,
+          "min": 3,
+          "w": 30
+        },
+        {
+          "id": "med",
+          "max": 3,
+          "min": 1,
+          "w": 14
+        },
+        {
+          "id": "elec",
+          "max": 2,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "item:bandage",
+          "max": 1,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "seedPotato",
+          "max": 3,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "seedHerb",
+          "max": 2,
+          "min": 1,
+          "w": 6
+        }
+      ],
+      "id": "kitchen",
+      "notes": "Food and drink: buffs, never a requirement (pillar 1). A kitchen is\n\nwhere most of it is, which is also where most of it always was.\n\nA packet of seed at the back of a drawer, which is where seed lives."
+    },
+    {
+      "entries": [
+        {
+          "id": "scrap",
+          "max": 14,
+          "min": 6,
+          "w": 34
+        },
+        {
+          "id": "wood",
+          "max": 18,
+          "min": 8,
+          "w": 30
+        },
+        {
+          "id": "battery",
+          "max": 2,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "parts",
+          "max": 2,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "elec",
+          "max": 3,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "weapon:pipe",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "weapon:axe",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "seedPotato",
+          "max": 3,
+          "min": 1,
+          "w": 7
+        }
+      ],
+      "id": "toolbox"
+    },
+    {
+      "entries": [
+        {
+          "id": "rations",
+          "max": 10,
+          "min": 4,
+          "w": 32
+        },
+        {
+          "id": "cloth",
+          "max": 10,
+          "min": 4,
+          "w": 28
+        },
+        {
+          "id": "med",
+          "max": 5,
+          "min": 2,
+          "w": 24
+        },
+        {
+          "id": "scrap",
+          "max": 7,
+          "min": 3,
+          "w": 22
+        },
+        {
+          "id": "item:bandage",
+          "max": 3,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "elec",
+          "max": 3,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "seedCorn",
+          "max": 3,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "seedHerb",
+          "max": 3,
+          "min": 1,
+          "w": 8
+        }
+      ],
+      "id": "shelf"
+    },
+    {
+      "entries": [
+        {
+          "id": "med",
+          "max": 12,
+          "min": 5,
+          "w": 40
+        },
+        {
+          "id": "item:medkit",
+          "max": 2,
+          "min": 1,
+          "w": 24
+        },
+        {
+          "id": "item:bandage",
+          "max": 4,
+          "min": 2,
+          "w": 24
+        },
+        {
+          "id": "cloth",
+          "max": 7,
+          "min": 3,
+          "w": 12
+        }
+      ],
+      "id": "pharmacy"
+    },
+    {
+      "entries": [
+        {
+          "id": "elec",
+          "max": 12,
+          "min": 5,
+          "w": 40
+        },
+        {
+          "id": "battery",
+          "max": 4,
+          "min": 1,
+          "w": 22
+        },
+        {
+          "id": "parts",
+          "max": 3,
+          "min": 1,
+          "w": 24
+        },
+        {
+          "id": "scrap",
+          "max": 14,
+          "min": 6,
+          "w": 26
+        },
+        {
+          "id": "fuel",
+          "max": 12,
+          "min": 5,
+          "w": 10
+        }
+      ],
+      "id": "electronics"
+    },
+    {
+      "entries": [
+        {
+          "id": "item:water",
+          "max": 2,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "item:candyBar",
+          "max": 2,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "scrap",
+          "max": 10,
+          "min": 4,
+          "w": 34
+        },
+        {
+          "id": "fuel",
+          "max": 12,
+          "min": 4,
+          "w": 26
+        },
+        {
+          "id": "battery",
+          "max": 2,
+          "min": 1,
+          "w": 14
+        },
+        {
+          "id": "parts",
+          "max": 1,
+          "min": 1,
+          "w": 14
+        },
+        {
+          "id": "cloth",
+          "max": 5,
+          "min": 2,
+          "w": 16
+        },
+        {
+          "id": "elec",
+          "max": 2,
+          "min": 1,
+          "w": 10
+        }
+      ],
+      "id": "carTrunk"
+    },
+    {
+      "entries": [
+        {
+          "id": "ammoP",
+          "max": 30,
+          "min": 14,
+          "w": 30
+        },
+        {
+          "id": "ammoS",
+          "max": 14,
+          "min": 6,
+          "w": 20
+        },
+        {
+          "id": "parts",
+          "max": 4,
+          "min": 2,
+          "w": 16
+        },
+        {
+          "id": "gear:lightVest",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "gear:heavyVest",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "med",
+          "max": 5,
+          "min": 2,
+          "w": 10
+        },
+        {
+          "id": "gear:riotHelm",
+          "max": 1,
+          "min": 1,
+          "w": 7
+        },
+        {
+          "id": "gear:tacGloves",
+          "max": 1,
+          "min": 1,
+          "w": 7
+        },
+        {
+          "id": "gear:combatBoots",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "gear:paddedLegs",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        }
+      ],
+      "id": "policeLocker"
+    },
+    {
+      "entries": [
+        {
+          "id": "weapon:pistol",
+          "max": 1,
+          "min": 1,
+          "w": 22
+        },
+        {
+          "id": "weapon:shotgun",
+          "max": 1,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "weapon:rifle",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "ammoP",
+          "max": 40,
+          "min": 20,
+          "w": 22
+        },
+        {
+          "id": "ammoS",
+          "max": 20,
+          "min": 10,
+          "w": 18
+        },
+        {
+          "id": "parts",
+          "max": 6,
+          "min": 3,
+          "w": 14
+        }
+      ],
+      "id": "gunSafe"
+    },
+    {
+      "entries": [
+        {
+          "id": "item:mre",
+          "max": 3,
+          "min": 1,
+          "w": 20
+        },
+        {
+          "id": "item:water",
+          "max": 3,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "rations",
+          "max": 14,
+          "min": 6,
+          "w": 14
+        },
+        {
+          "id": "mil",
+          "max": 10,
+          "min": 4,
+          "w": 32
+        },
+        {
+          "id": "ammoR",
+          "max": 26,
+          "min": 12,
+          "w": 24
+        },
+        {
+          "id": "parts",
+          "max": 7,
+          "min": 3,
+          "w": 18
+        },
+        {
+          "id": "elec",
+          "max": 12,
+          "min": 5,
+          "w": 12
+        },
+        {
+          "id": "weapon:carbine",
+          "max": 1,
+          "min": 1,
+          "w": 4
+        },
+        {
+          "id": "gear:milVest",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "item:medkit",
+          "max": 2,
+          "min": 1,
+          "w": 5
+        }
+      ],
+      "id": "militaryCrate"
+    },
+    {
+      "entries": [
+        {
+          "id": "item:water",
+          "max": 5,
+          "min": 2,
+          "w": 14
+        },
+        {
+          "id": "rations",
+          "max": 8,
+          "min": 3,
+          "w": 12
+        },
+        {
+          "id": "med",
+          "max": 16,
+          "min": 8,
+          "w": 36
+        },
+        {
+          "id": "item:medkit",
+          "max": 3,
+          "min": 1,
+          "w": 26
+        },
+        {
+          "id": "elec",
+          "max": 8,
+          "min": 3,
+          "w": 16
+        },
+        {
+          "id": "parts",
+          "max": 3,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "mil",
+          "max": 3,
+          "min": 1,
+          "w": 10
+        }
+      ],
+      "id": "hospitalCrate"
+    },
+    {
+      "entries": [
+        {
+          "id": "ammoP",
+          "max": 16,
+          "min": 6,
+          "w": 26
+        },
+        {
+          "id": "ammoR",
+          "max": 12,
+          "min": 4,
+          "w": 16
+        },
+        {
+          "id": "scrap",
+          "max": 6,
+          "min": 2,
+          "w": 18
+        },
+        {
+          "id": "med",
+          "max": 3,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "item:bandage",
+          "max": 2,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "item:cannedFood",
+          "max": 2,
+          "min": 1,
+          "w": 14
+        },
+        {
+          "id": "item:water",
+          "max": 2,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "parts",
+          "max": 2,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "item:booze",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:pistol",
+          "max": 1,
+          "min": 1,
+          "w": 4
+        }
+      ],
+      "id": "raiderBody",
+      "notes": "What a person was carrying. Not a container — `ENEMIES.loot_table` names these, so a body rolls the same weighted table a cupboard does and there is one rolling function in the game rather than two."
+    },
+    {
+      "entries": [
+        {
+          "id": "ammoS",
+          "max": 14,
+          "min": 6,
+          "w": 30
+        },
+        {
+          "id": "mil",
+          "max": 4,
+          "min": 1,
+          "w": 18
+        },
+        {
+          "id": "parts",
+          "max": 4,
+          "min": 2,
+          "w": 18
+        },
+        {
+          "id": "item:medkit",
+          "max": 1,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "gear:heavyVest",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "gear:riotHelm",
+          "max": 1,
+          "min": 1,
+          "w": 7
+        },
+        {
+          "id": "weapon:shotgun",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "item:mre",
+          "max": 2,
+          "min": 1,
+          "w": 10
+        }
+      ],
+      "id": "enforcerBody"
+    },
+    {
+      "entries": [
+        {
+          "id": "fuel",
+          "max": 26,
+          "min": 12,
+          "w": 100
+        }
+      ],
+      "id": "fuelPump"
+    },
+    {
+      "entries": [
+        {
+          "id": "fuel",
+          "max": 18,
+          "min": 8,
+          "w": 70
+        },
+        {
+          "id": "scrap",
+          "max": 6,
+          "min": 2,
+          "w": 30
+        }
+      ],
+      "id": "fuelDrum"
+    },
+    {
+      "entries": [
+        {
+          "id": "wood",
+          "max": 24,
+          "min": 12,
+          "w": 64
+        },
+        {
+          "id": "arrow",
+          "max": 10,
+          "min": 4,
+          "w": 8
+        },
+        {
+          "id": "scrap",
+          "max": 3,
+          "min": 1,
+          "w": 14
+        },
+        {
+          "id": "cloth",
+          "max": 3,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "parts",
+          "max": 1,
+          "min": 1,
+          "w": 10
+        }
+      ],
+      "id": "logPile"
+    },
+    {
+      "entries": [
+        {
+          "id": "wood",
+          "max": 18,
+          "min": 8,
+          "w": 30
+        },
+        {
+          "id": "scrap",
+          "max": 18,
+          "min": 8,
+          "w": 30
+        },
+        {
+          "id": "elec",
+          "max": 6,
+          "min": 2,
+          "w": 16
+        },
+        {
+          "id": "parts",
+          "max": 3,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "cloth",
+          "max": 10,
+          "min": 4,
+          "w": 12
+        },
+        {
+          "id": "seedCorn",
+          "max": 5,
+          "min": 2,
+          "w": 10
+        }
+      ],
+      "id": "crate"
+    },
+    {
+      "entries": [
+        {
+          "id": "cloth",
+          "max": 8,
+          "min": 3,
+          "w": 34
+        },
+        {
+          "id": "elec",
+          "max": 3,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "rations",
+          "max": 3,
+          "min": 1,
+          "w": 14
+        },
+        {
+          "id": "med",
+          "max": 2,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "parts",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "item:bandage",
+          "max": 2,
+          "min": 1,
+          "w": 16
+        }
+      ],
+      "id": "bookshelf",
+      "notes": "paper and dust jackets\n\nan old radio, a calculator\n\nsomeone's hidden snacks"
+    },
+    {
+      "entries": [
+        {
+          "id": "cloth",
+          "max": 12,
+          "min": 5,
+          "w": 46
+        },
+        {
+          "id": "item:bandage",
+          "max": 3,
+          "min": 1,
+          "w": 20
+        },
+        {
+          "id": "med",
+          "max": 3,
+          "min": 1,
+          "w": 14
+        },
+        {
+          "id": "scrap",
+          "max": 4,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "ammoP",
+          "max": 8,
+          "min": 3,
+          "w": 8
+        }
+      ],
+      "id": "dresser",
+      "notes": "a bedside pistol's spare rounds"
+    },
+    {
+      "entries": [
+        {
+          "id": "cloth",
+          "max": 16,
+          "min": 8,
+          "w": 46
+        },
+        {
+          "id": "item:bandage",
+          "max": 3,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "gear:lightVest",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "gear:denimPants",
+          "max": 1,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "gear:workBoots",
+          "max": 1,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "gear:hardHat",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "gear:workGloves",
+          "max": 1,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "scrap",
+          "max": 3,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "rations",
+          "max": 3,
+          "min": 1,
+          "w": 8
+        }
+      ],
+      "id": "wardrobe"
+    },
+    {
+      "entries": [
+        {
+          "id": "elec",
+          "max": 6,
+          "min": 2,
+          "w": 34
+        },
+        {
+          "id": "battery",
+          "max": 2,
+          "min": 1,
+          "w": 14
+        },
+        {
+          "id": "parts",
+          "max": 2,
+          "min": 1,
+          "w": 20
+        },
+        {
+          "id": "cloth",
+          "max": 5,
+          "min": 2,
+          "w": 18
+        },
+        {
+          "id": "scrap",
+          "max": 6,
+          "min": 2,
+          "w": 16
+        },
+        {
+          "id": "ammoP",
+          "max": 10,
+          "min": 4,
+          "w": 12
+        }
+      ],
+      "id": "desk"
+    },
+    {
+      "entries": [
+        {
+          "id": "cloth",
+          "max": 10,
+          "min": 4,
+          "w": 34
+        },
+        {
+          "id": "battery",
+          "max": 1,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "elec",
+          "max": 3,
+          "min": 1,
+          "w": 18
+        },
+        {
+          "id": "parts",
+          "max": 2,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "ammoP",
+          "max": 12,
+          "min": 5,
+          "w": 18
+        },
+        {
+          "id": "med",
+          "max": 3,
+          "min": 1,
+          "w": 14
+        }
+      ],
+      "id": "filing"
+    },
+    {
+      "entries": [
+        {
+          "id": "item:water",
+          "max": 4,
+          "min": 2,
+          "w": 30
+        },
+        {
+          "id": "item:jerky",
+          "max": 3,
+          "min": 1,
+          "w": 22
+        },
+        {
+          "id": "item:soda",
+          "max": 4,
+          "min": 1,
+          "w": 26
+        },
+        {
+          "id": "item:cannedFood",
+          "max": 2,
+          "min": 1,
+          "w": 18
+        },
+        {
+          "id": "rations",
+          "max": 14,
+          "min": 6,
+          "w": 58
+        },
+        {
+          "id": "med",
+          "max": 3,
+          "min": 1,
+          "w": 20
+        },
+        {
+          "id": "cloth",
+          "max": 3,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "fuel",
+          "max": 3,
+          "min": 1,
+          "w": 10
+        }
+      ],
+      "id": "fridge"
+    },
+    {
+      "entries": [
+        {
+          "id": "med",
+          "max": 5,
+          "min": 2,
+          "w": 30
+        },
+        {
+          "id": "battery",
+          "max": 2,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "item:bandage",
+          "max": 2,
+          "min": 1,
+          "w": 22
+        },
+        {
+          "id": "ammoP",
+          "max": 10,
+          "min": 4,
+          "w": 20
+        },
+        {
+          "id": "cloth",
+          "max": 4,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "elec",
+          "max": 2,
+          "min": 1,
+          "w": 12
+        }
+      ],
+      "id": "nightstand"
+    },
+    {
+      "entries": [
+        {
+          "id": "med",
+          "max": 7,
+          "min": 3,
+          "w": 44
+        },
+        {
+          "id": "item:bandage",
+          "max": 3,
+          "min": 1,
+          "w": 26
+        },
+        {
+          "id": "cloth",
+          "max": 6,
+          "min": 2,
+          "w": 22
+        },
+        {
+          "id": "item:medkit",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        }
+      ],
+      "id": "vanity"
+    },
+    {
+      "entries": [
+        {
+          "id": "item:mre",
+          "max": 2,
+          "min": 1,
+          "w": 14
+        },
+        {
+          "id": "item:booze",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "mil",
+          "max": 8,
+          "min": 3,
+          "w": 28
+        },
+        {
+          "id": "arrow",
+          "max": 20,
+          "min": 8,
+          "w": 8
+        },
+        {
+          "id": "ammoR",
+          "max": 18,
+          "min": 8,
+          "w": 20
+        },
+        {
+          "id": "gear:milVest",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "gear:milHelm",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "gear:armGuards",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "gear:milGreaves",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "gear:milBoots",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "parts",
+          "max": 5,
+          "min": 2,
+          "w": 14
+        },
+        {
+          "id": "item:medkit",
+          "max": 2,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "rations",
+          "max": 8,
+          "min": 3,
+          "w": 6
+        }
+      ],
+      "id": "footlocker"
+    },
+    {
+      "entries": [
+        {
+          "id": "item:soda",
+          "max": 5,
+          "min": 2,
+          "w": 40
+        },
+        {
+          "id": "item:candyBar",
+          "max": 6,
+          "min": 2,
+          "w": 44
+        },
+        {
+          "id": "item:water",
+          "max": 3,
+          "min": 1,
+          "w": 24
+        },
+        {
+          "id": "rations",
+          "max": 12,
+          "min": 5,
+          "w": 62
+        },
+        {
+          "id": "scrap",
+          "max": 5,
+          "min": 2,
+          "w": 22
+        },
+        {
+          "id": "elec",
+          "max": 2,
+          "min": 1,
+          "w": 16
+        }
+      ],
+      "id": "vending"
+    },
+    {
+      "entries": [
+        {
+          "id": "parts",
+          "max": 5,
+          "min": 2,
+          "w": 34
+        },
+        {
+          "id": "weapon:bow",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "arrow",
+          "max": 16,
+          "min": 6,
+          "w": 10
+        },
+        {
+          "id": "scrap",
+          "max": 14,
+          "min": 6,
+          "w": 32
+        },
+        {
+          "id": "wood",
+          "max": 12,
+          "min": 5,
+          "w": 22
+        },
+        {
+          "id": "weapon:pipe",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "weapon:machete",
+          "max": 1,
+          "min": 1,
+          "w": 4
+        },
+        {
+          "id": "weapon:axe",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:fireaxe",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "seedPotato",
+          "max": 4,
+          "min": 2,
+          "w": 10
+        },
+        {
+          "id": "seedCorn",
+          "max": 3,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "seedHerb",
+          "max": 3,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "compost",
+          "max": 3,
+          "min": 1,
+          "w": 8
+        }
+      ],
+      "id": "toolrack",
+      "notes": "A tool rack is a garden shed as often as it is a workshop."
+    },
+    {
+      "entries": [
+        {
+          "id": "elec",
+          "max": 10,
+          "min": 4,
+          "w": 34
+        },
+        {
+          "id": "battery",
+          "max": 3,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "parts",
+          "max": 5,
+          "min": 2,
+          "w": 26
+        },
+        {
+          "id": "weapon:pistol",
+          "max": 1,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "ammoP",
+          "max": 22,
+          "min": 10,
+          "w": 18
+        },
+        {
+          "id": "scrap",
+          "max": 8,
+          "min": 3,
+          "w": 14
+        }
+      ],
+      "id": "displaycase"
+    }
+  ],
+  "shape": "groups"
+}

@@ -89,6 +89,60 @@ static func is_weapon(id: String) -> bool:
 	return kind_of(id) == "weapon"
 
 
+# ------------------------------------------------------------------- looks --
+
+## Real art, when an item has some. `art/items/<id>.png` is its icon — in the
+## pack, on the hotbar — and `<id>_ground.png`, if there is one, is how it
+## looks lying in the street, falling back to the icon. Nothing is required:
+## an item with no file is drawn the way everything is drawn today, a coloured
+## pip or crate, so art can arrive one item at a time and a missing picture
+## is never a broken game. Adding art is dropping in a file; no code changes.
+##
+## A `static var` so a test can point it at user:// instead of the project.
+static var ART_DIR := "res://art/items/"
+static var _art := {}
+
+
+static func icon_of(id: String, where := "icon") -> Texture2D:
+	var key := "%s/%s" % [where, id]
+	if not _art.has(key):
+		var tex: Texture2D = null
+		if where == "ground":
+			# The ground falls back to the icon itself — the same texture, not
+			# a second copy of the same file.
+			tex = _load_art(id + "_ground")
+			if tex == null:
+				tex = icon_of(id)
+		else:
+			tex = _load_art(id)
+		_art[key] = tex
+	return _art[key]
+
+
+static func clear_art_cache() -> void:
+	_art.clear()
+
+
+## `tex` scaled to fit inside `box` without stretching, centred in it.
+static func art_rect(tex: Texture2D, box: Rect2) -> Rect2:
+	var size := tex.get_size()
+	var k := minf(box.size.x / size.x, box.size.y / size.y)
+	var fit := size * k
+	return Rect2(box.position + (box.size - fit) / 2.0, fit)
+
+
+static func _load_art(name: String) -> Texture2D:
+	var path := ART_DIR + name + ".png"
+	if ResourceLoader.exists(path):
+		return load(path) as Texture2D
+	if FileAccess.file_exists(path):
+		# Not imported yet — a file dropped in since the editor last ran, or a
+		# test's under user:// — so read the pixels directly.
+		var img := Image.load_from_file(path)
+		return ImageTexture.create_from_image(img) if img != null else null
+	return null
+
+
 # ------------------------------------------------------------- plain maps --
 
 ## The stash, a car boot and a survivor's cargo are plain id -> count maps.
