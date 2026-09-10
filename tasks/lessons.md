@@ -294,6 +294,36 @@ yet when an earlier autoload's `_ready` wants to know.
   with a delay on it. `loot_mul` was in the harvest and not in the band the
   bed panel printed. Whenever a screen promises a range, the range and the
   roll want to be the same expression or the same short list of factors.
+## 2026-09-10 (off Notion)
+
+- `notion-fetch` returns a cached snapshot, stamped "as of" — comment
+  threads in it were a day stale (3 of 14 on one page, 2 of 9 on another).
+  `notion-get-comments` with `include_all_blocks` and `include_resolved` is
+  the live read; use it before migrating or quoting anyone.
+- `row.key = v` on a Dictionary makes a StringName key, and a plain
+  `Array.sort()` orders every StringName after every String. Anything that
+  serialises keys sorts by `String(k)`.
+- Linear autolinks anything shaped like a domain: `combat.gd:150` and
+  `PROJECT.md:879` became `http://` links (`.gd` and `.md` are real TLDs).
+  Wrapping `file:line` in a code span did not stop it; writing the file in
+  a code span and the line outside it ("`combat.gd` line 150") did.
+
+- The owner's rule was "every cost key exists in RES"; the game's rule is
+  "a cost is anything that stacks", and five recipes pay in consumables.
+  The first integrity check refused every save. Read the test that already
+  enforces a rule before writing a second enforcer of it.
+- `node.append(array)` and `replaceChildren(array)` stringify the array —
+  "[object HTMLButtonElement]" — where a helper that flattens does not.
+  `node --check` passed it; only the screenshot showed it.
+- Browser pane: navigating to the same URL with a new `#hash` does not
+  reload, so the old script keeps running after an edit. Add `?r=N`.
+- Browser pane: the `key` action does not edit a focused input (Backspace
+  changed nothing, even in a plain number box). Set `.value` and dispatch
+  an `input` event to exercise the handler; a field that will not clear
+  under automation is not a page bug until that also fails.
+
+## 2026-09-10 (raised beds, continued)
+
 - A review finding can be right about the fact and wrong about the target.
   The stash has been reachable from anywhere since Phase 3 and every system
   that spends inherits it; fixing it in farming alone would have made the one

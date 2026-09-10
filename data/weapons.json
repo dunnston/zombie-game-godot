@@ -1,6 +1,7 @@
 {
   "fields": {
     "ammo": {
+      "ref": "AMMO_IDS",
       "type": "string"
     },
     "arc": {

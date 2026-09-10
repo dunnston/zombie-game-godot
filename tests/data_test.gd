@@ -121,7 +121,38 @@ func test_a_typo_a_wrong_type_or_a_duplicate_is_refused() -> void:
 	has(DataTable.decode('{"fields": {"id": {"type": "string"}}, "rows": []}').errors,
 		"field 'id' is reserved and must not be declared")
 	has(DataTable.decode('{"fields": {"x": {"type": "number"}}, "rows": []}').errors,
-		"field 'x' needs a type, one of [\"int\", \"float\", \"bool\", \"string\"]")
+		"field 'x' needs a type: int, float, bool, string, or map<…> / list<…> of one")
+	has(DataTable.decode('{"fields": {"x": {"type": "int", "refs": "RES"}}, "rows": []}').errors,
+		"field 'x' has an unknown setting 'refs'", "a misspelt setting is refused, not ignored")
+
+
+func test_maps_and_lists_are_typed_all_the_way_in() -> void:
+	var text := '{"fields": {"cost": {"type": "map<int>", "key_ref": "RES"}, "rolls": {"type": "list<int>"}}, "rows": [{"id": "a", "cost": {"wood": 4.0}, "rolls": [1, 2]}]}'
+	var got := DataTable.decode(text)
+	eq(got.errors, [])
+	var a: Dictionary = DataTable.rows(got.doc).a
+	eq(typeof(a.cost.wood), TYPE_INT, "a count inside a map is still a count")
+	eq(typeof(a.rolls[1]), TYPE_INT)
+	has(DataTable.decode(text.replace("4.0", "\"four\"")).errors, "a.cost: expected map<int>, got {\"wood\":\"four\"}")
+	has(DataTable.decode(text.replace("[1, 2]", "[1, 2.5]")).errors, "a.rolls: expected list<int>, got [1.0,2.5]")
+
+
+func test_every_ref_in_every_data_file_resolves() -> void:
+	var sets := {"AMMO_IDS": Config.AMMO_IDS, "RES": Config.RES, "WEAPONS": Config.WEAPONS,
+		"GEAR": Config.GEAR, "CONSUMABLES": Config.CONSUMABLES}
+	for path in _files():
+		eq(DataTable.check_refs(DataTable.decode(FileAccess.get_file_as_string(path)).doc, sets), [], path)
+
+
+func test_a_ref_that_does_not_resolve_is_refused() -> void:
+	var doc: Dictionary = DataTable.decode('{"fields": {"ammo": {"type": "string", "ref": "AMMO_IDS"}, "cost": {"type": "map<int>", "key_ref": "RES"}}, "rows": [{"id": "gun", "ammo": "ammoX", "cost": {"wood": 1, "unobtanium": 2}}]}').doc
+	var sets := {"AMMO_IDS": ["ammoP"], "RES": {"wood": {}}}
+	var errors := DataTable.check_refs(doc, sets)
+	has(errors, "gun.ammo: 'ammoX' is not in AMMO_IDS")
+	has(errors, "gun.cost: 'unobtanium' is not in RES")
+	eq(errors.size(), 2, "and wood is fine")
+	has(DataTable.check_refs(doc, {"RES": {"wood": {}}}), "field 'ammo' refers to 'AMMO_IDS', which is not a table",
+		"a set that is missing is an error, not a pass")
 
 
 func test_an_int_written_as_a_float_loads_but_is_not_canonical() -> void:
