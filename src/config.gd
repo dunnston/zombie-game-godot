@@ -259,7 +259,12 @@ const STAT_BASE := {
 
 	"melee_mul": 1.0, "gun_mul": 1.0, "reload_mul": 1.0, "fire_rate_mul": 1.0,
 	"spread_mul": 1.0, "range_mul": 1.0, "chop_mul": 1.0, "chop_stam_mul": 1.0,
-	"crit_chance": 0.06, "free_shot_chance": 0.0, "speed_mul": 1.0,
+	# How often a hit lands as a critical, and how much harder it lands than
+	# the weapon's own `crit_mul` says. Both are the *player's* half of the
+	# question — attributes, perks, gloves and whatever you have taken — and
+	# they meet the weapon in `Combat.crit_chance` and `Combat.crit_mul`,
+	# which are the only two places either question is answered.
+	"crit_chance": 0.06, "crit_dmg": 0.0, "free_shot_chance": 0.0, "speed_mul": 1.0,
 	"loot_mul": 1.0, "rare_loot_mul": 1.0, "double_drop_chance": 0.0, "search_mul": 1.0,
 	"build_cost_mul": 1.0, "struct_hp_mul": 1.0, "turret_mul": 1.0, "craft_yield_mul": 1.0,
 	"heal_mul": 1.0, "heal_speed_mul": 1.0,
@@ -455,7 +460,8 @@ const EFFECTS := {
 	## of being better than human on top of three quarters of the bar.
 	"surge": {
 		"id": "surge", "name": "Surge", "dur": 90.0, "good": true, "color": "#d0a06a",
-		"add": {"melee_mul": 0.35, "speed_mul": 0.10}, "mul": {"stam_regen": 1.3},
+		"add": {"melee_mul": 0.35, "speed_mul": 0.10, "crit_chance": 0.05, "crit_dmg": 0.30},
+		"mul": {"stam_regen": 1.3},
 		"desc": "Everything is louder and you are faster than it.",
 	},
 	## And the one-in-four it costs. Note `mut_rate_mul`: a fever does not just
@@ -463,7 +469,8 @@ const EFFECTS := {
 	## reward, which is what stops Experimental being a free win.
 	"fever": {
 		"id": "fever", "name": "Fever", "dur": 120.0, "good": false, "color": "#c96a5a",
-		"add": {}, "mul": {"max_stam": 0.85, "spread_mul": 1.2, "mut_rate_mul": 1.15},
+		"add": {"crit_chance": -0.03},
+		"mul": {"max_stam": 0.85, "spread_mul": 1.2, "mut_rate_mul": 1.15},
 		"desc": "It fought back. You are burning up, and turning faster.",
 	},
 
@@ -490,12 +497,14 @@ const EFFECTS := {
 	},
 	"wired": {
 		"id": "wired", "name": "Wired", "dur": 180.0, "good": true, "color": "#e0c24a",
-		"add": {"speed_mul": 0.08}, "mul": {"fire_rate_mul": 0.92, "stam_regen": 1.1},
+		"add": {"speed_mul": 0.08, "crit_chance": 0.04},
+		"mul": {"fire_rate_mul": 0.92, "stam_regen": 1.1},
 		"desc": "Caffeine and sugar. Faster hands, faster feet.",
 	},
 	"drunk": {
 		"id": "drunk", "name": "Drunk", "dur": 180.0, "good": true, "color": "#d98a4a",
-		"add": {"melee_mul": 0.15}, "mul": {"stagger_mul": 0.7, "spread_mul": 1.3},
+		"add": {"melee_mul": 0.15, "crit_chance": -0.04},
+		"mul": {"stagger_mul": 0.7, "spread_mul": 1.3},
 		"desc": "Braver, harder to stop, and you could not hit a wall.",
 	},
 }
@@ -789,9 +798,13 @@ const GEAR := {
 	"lightVest":   {"id": "lightVest",   "name": "Padded Vest",     "slot": "body",  "dr": 0.10, "wt": 6.0,  "tier": 1, "color": "#6f7a52"},
 	"heavyVest":   {"id": "heavyVest",   "name": "Riot Armor",      "slot": "body",  "dr": 0.20, "wt": 11.0, "tier": 2, "color": "#4d5866"},
 	"milVest":     {"id": "milVest",     "name": "Plate Carrier",   "slot": "body",  "dr": 0.28, "wt": 14.0, "tier": 3, "color": "#5b6640"},
-	"workGloves":  {"id": "workGloves",  "name": "Work Gloves",     "slot": "hands", "dr": 0.02, "wt": 1.0,  "tier": 1, "color": "#a3763f"},
-	"tacGloves":   {"id": "tacGloves",   "name": "Tactical Gloves", "slot": "hands", "dr": 0.04, "wt": 2.0,  "tier": 2, "color": "#4d5866"},
-	"armGuards":   {"id": "armGuards",   "name": "Arm Guards",      "slot": "hands", "dr": 0.07, "wt": 4.0,  "tier": 3, "color": "#5b6640"},
+	# Hands are the one slot that helps you *land* a hit, so `crit` lives here
+	# and nowhere else in the table — a rule you can read off the list without
+	# a tooltip. Arm guards protect more than tactical gloves and help less,
+	# which is the whole difference between armour and dexterity.
+	"workGloves":  {"id": "workGloves",  "name": "Work Gloves",     "slot": "hands", "dr": 0.02, "wt": 1.0,  "tier": 1, "crit": 0.01, "color": "#a3763f"},
+	"tacGloves":   {"id": "tacGloves",   "name": "Tactical Gloves", "slot": "hands", "dr": 0.04, "wt": 2.0,  "tier": 2, "crit": 0.03, "color": "#4d5866"},
+	"armGuards":   {"id": "armGuards",   "name": "Arm Guards",      "slot": "hands", "dr": 0.07, "wt": 4.0,  "tier": 3, "crit": 0.02, "color": "#5b6640"},
 	"denimPants":  {"id": "denimPants",  "name": "Work Trousers",   "slot": "legs",  "dr": 0.04, "wt": 2.0,  "tier": 1, "color": "#4a5a72"},
 	"paddedLegs":  {"id": "paddedLegs",  "name": "Padded Leggings", "slot": "legs",  "dr": 0.08, "wt": 5.0,  "tier": 2, "color": "#6f7a52"},
 	"milGreaves":  {"id": "milGreaves",  "name": "Combat Trousers", "slot": "legs",  "dr": 0.12, "wt": 7.0,  "tier": 3, "color": "#5b6640"},
@@ -813,6 +826,18 @@ const GEAR := {
 
 ## No amount of scavenging should make you immune.
 const MAX_GEAR_DR := 0.72
+
+## And no stack of luck, gloves and chemistry should make every hit a critical.
+## Applied once at the *end* of `Perks.recompute_stats` rather than where gear
+## is summed: bands and effects land after gear, so a cap applied any earlier
+## would not be the cap.
+const MAX_CRIT := 0.75
+
+## What a critical is worth when the weapon does not say. Every row in
+## `WEAPONS` says, so this is only ever the answer for content added later —
+## but it lives here rather than in `Combat` because invariant 5 is that
+## every tunable is in this file.
+const CRIT_MUL_DEFAULT := 1.8
 
 ## A lit player is noticed this much further out — the cost of seeing at night.
 const LIT_SENSE_BONUS := 90.0
@@ -836,24 +861,40 @@ const CONSUMABLE_STACK := 10
 ## Guns: real magazines, reload time, spread (radians), bullet speed and life,
 ## pellets, pierce, threat per shot and a noise radius. The bow is a gun with
 ## a magazine of one and no muzzle flash; it keeps drawing while held.
+##
+## **Blunt things stagger, edged things bleed, and fists do neither.** That is
+## the whole of the content design for the two, and it is meant to be readable
+## off this table without a tooltip: `stagger` is seconds of interrupted
+## enemy, `bleed` is damage per second left in the wound, and no weapon has
+## both. A missing field means never, the same way a missing `dur` does.
+## The Improvised pipe staggers because it is a length of steel; the Polearm
+## scythe bleeds because it is a blade. `Wear` and `Bleed`/`Stagger` explain
+## the mechanics; this is where the intent lives.
+##
+## `crit` is the chance this weapon adds to the player's own, and `crit_mul`
+## is how hard its criticals land. They pull in opposite directions on
+## purpose: a rifle or a knife finds the soft parts often and a sledgehammer
+## almost never, but when the sledge does, it is 2.8x. Both are per-weapon
+## because a stone knife and a sledgehammer critting identically was the
+## thing this replaced.
 const WEAPONS := {
-	"fists":     {"id": "fists",     "name": "Fists",            "kind": "melee", "dmg": 9.0,  "cd": 0.42, "range": 34.0, "arc": 1.0,  "knock": 70.0,  "color": "#c8b89a"},
-	"pipe":      {"id": "pipe",      "name": "Steel Pipe",       "kind": "melee", "dmg": 24.0, "cd": 0.40, "range": 48.0, "arc": 1.15, "knock": 150.0, "dur": 220, "color": "#9aa2ab"},
-	"machete":   {"id": "machete",   "name": "Machete",          "kind": "melee", "dmg": 40.0, "cd": 0.34, "range": 54.0, "arc": 1.0,  "knock": 110.0, "chop_mul": 1.3, "dur": 260, "color": "#cfd6dd"},
-	"axe":       {"id": "axe",       "name": "Hatchet",          "kind": "melee", "dmg": 30.0, "cd": 0.52, "range": 48.0, "arc": 0.9,  "knock": 130.0, "tool": true, "axe": true, "chop_mul": 2.4, "dur": 140, "color": "#b08a5a"},
-	"pick":      {"id": "pick",      "name": "Stone Pickaxe",    "kind": "melee", "dmg": 26.0, "cd": 0.62, "range": 50.0, "arc": 0.9,  "knock": 150.0, "tool": true, "pick": true, "chop_mul": 2.2, "tool_mul": 2.4, "dur": 140, "color": "#9a9088"},
-	"knife":     {"id": "knife",     "name": "Stone Knife",      "kind": "melee", "dmg": 19.0, "cd": 0.28, "range": 40.0, "arc": 0.8,  "knock": 60.0,  "tool": true, "knife": true, "chop_mul": 1.5, "dur": 160, "color": "#c2b8a6"},
-	"scythe":    {"id": "scythe",    "name": "Scythe",           "kind": "melee", "dmg": 24.0, "cd": 0.46, "range": 62.0, "arc": 1.6,  "knock": 80.0,  "tool": true, "scythe": true, "chop_mul": 2.0, "tool_mul": 2.2, "dur": 150, "color": "#b9b3a2"},
-	"hammer":    {"id": "hammer",    "name": "Stone Hammer",     "kind": "melee", "dmg": 36.0, "cd": 0.72, "range": 46.0, "arc": 1.2,  "knock": 240.0, "tool": true, "hammer": true, "chop_mul": 1.8, "structure_mul": 0.8, "dur": 150, "color": "#8a8078"},
-	"fireaxe":   {"id": "fireaxe",   "name": "Fire Axe",         "kind": "melee", "dmg": 34.0, "cd": 0.46, "range": 52.0, "arc": 1.0,  "knock": 190.0, "tool": true, "axe": true, "chop_mul": 4.2, "dur": 420, "color": "#c4463a"},
-	"steelpick": {"id": "steelpick", "name": "Steel Pickaxe",    "kind": "melee", "dmg": 30.0, "cd": 0.56, "range": 54.0, "arc": 0.9,  "knock": 210.0, "tool": true, "pick": true, "chop_mul": 4.4, "tool_mul": 2.4, "dur": 420, "color": "#aeb6bd"},
-	"sledge":    {"id": "sledge",    "name": "Sledgehammer",     "kind": "melee", "dmg": 78.0, "cd": 0.86, "range": 60.0, "arc": 1.7,  "knock": 340.0, "shake": 5.0, "chop_mul": 1.6, "structure_mul": 1.0, "dur": 300, "color": "#8d7a5e"},
-	"bow":       {"id": "bow",       "name": "Hunting Bow",      "kind": "gun", "dmg": 19.0, "cd": 0.85,  "mag": 1,  "reload": 0.55, "spread": 0.03,  "ammo": "arrow", "speed": 780.0,  "life": 0.85, "knock": 60.0,  "shake": 0.4, "pellets": 1, "pierce": 0, "threat": 0.15, "noise": 90.0,  "bow": true, "dur": 260, "color": "#9a7a48"},
-	"pistol":    {"id": "pistol",    "name": "M9 Pistol",        "kind": "gun", "dmg": 27.0, "cd": 0.17,  "mag": 12, "reload": 1.15, "spread": 0.035, "ammo": "ammoP", "speed": 1150.0, "life": 0.55, "knock": 55.0,  "shake": 1.6, "pellets": 1, "pierce": 0, "threat": 1.0,  "noise": 420.0, "dur": 600, "color": "#71787f"},
-	"smg":       {"id": "smg",       "name": "Scrap SMG",        "kind": "gun", "dmg": 17.0, "cd": 0.075, "mag": 30, "reload": 1.6,  "spread": 0.075, "ammo": "ammoP", "speed": 1100.0, "life": 0.5,  "knock": 40.0,  "shake": 1.2, "pellets": 1, "pierce": 0, "threat": 0.6,  "noise": 400.0, "dur": 900, "color": "#6b7178"},
-	"shotgun":   {"id": "shotgun",   "name": "Pump Shotgun",     "kind": "gun", "dmg": 16.0, "cd": 0.75,  "mag": 6,  "reload": 0.5,  "spread": 0.20,  "ammo": "ammoS", "speed": 980.0,  "life": 0.30, "knock": 230.0, "shake": 6.5, "pellets": 8, "pierce": 0, "threat": 2.4,  "noise": 620.0, "shell_reload": true, "dur": 320, "color": "#5e5148"},
-	"rifle":     {"id": "rifle",     "name": "Hunting Rifle",    "kind": "gun", "dmg": 78.0, "cd": 0.52,  "mag": 8,  "reload": 1.9,  "spread": 0.012, "ammo": "ammoR", "speed": 1700.0, "life": 0.9,  "knock": 120.0, "shake": 4.2, "pellets": 1, "pierce": 2, "threat": 2.0,  "noise": 700.0, "dur": 400, "color": "#4c4136"},
-	"carbine":   {"id": "carbine",   "name": "Military Carbine", "kind": "gun", "dmg": 36.0, "cd": 0.105, "mag": 40, "reload": 2.3,  "spread": 0.045, "ammo": "ammoR", "speed": 1500.0, "life": 0.8,  "knock": 70.0,  "shake": 2.0, "pellets": 1, "pierce": 1, "threat": 1.1,  "noise": 560.0, "dur": 1100, "color": "#4a5340"},
+	"fists":     {"id": "fists",     "name": "Fists",            "kind": "melee", "dmg": 9.0,  "cd": 0.42, "range": 34.0, "arc": 1.0,  "knock": 70.0,  "crit": 0.0,  "crit_mul": 1.6, "color": "#c8b89a"},
+	"pipe":      {"id": "pipe",      "name": "Steel Pipe",       "kind": "melee", "dmg": 24.0, "cd": 0.40, "range": 48.0, "arc": 1.15, "knock": 150.0, "stagger": 0.35, "crit": 0.03, "crit_mul": 1.9, "dur": 220, "color": "#9aa2ab"},
+	"machete":   {"id": "machete",   "name": "Machete",          "kind": "melee", "dmg": 40.0, "cd": 0.34, "range": 54.0, "arc": 1.0,  "knock": 110.0, "bleed": 6.0, "crit": 0.08, "crit_mul": 1.9, "chop_mul": 1.3, "dur": 260, "color": "#cfd6dd"},
+	"axe":       {"id": "axe",       "name": "Hatchet",          "kind": "melee", "dmg": 30.0, "cd": 0.52, "range": 48.0, "arc": 0.9,  "knock": 130.0, "stagger": 0.30, "crit": 0.05, "crit_mul": 2.1, "tool": true, "axe": true, "chop_mul": 2.4, "dur": 140, "color": "#b08a5a"},
+	"pick":      {"id": "pick",      "name": "Stone Pickaxe",    "kind": "melee", "dmg": 26.0, "cd": 0.62, "range": 50.0, "arc": 0.9,  "knock": 150.0, "stagger": 0.35, "crit": 0.05, "crit_mul": 2.2, "tool": true, "pick": true, "chop_mul": 2.2, "tool_mul": 2.4, "dur": 140, "color": "#9a9088"},
+	"knife":     {"id": "knife",     "name": "Stone Knife",      "kind": "melee", "dmg": 19.0, "cd": 0.28, "range": 40.0, "arc": 0.8,  "knock": 60.0,  "bleed": 4.0, "crit": 0.12, "crit_mul": 1.7, "tool": true, "knife": true, "chop_mul": 1.5, "dur": 160, "color": "#c2b8a6"},
+	"scythe":    {"id": "scythe",    "name": "Scythe",           "kind": "melee", "dmg": 24.0, "cd": 0.46, "range": 62.0, "arc": 1.6,  "knock": 80.0,  "bleed": 4.5, "crit": 0.05, "crit_mul": 1.8, "tool": true, "scythe": true, "chop_mul": 2.0, "tool_mul": 2.2, "dur": 150, "color": "#b9b3a2"},
+	"hammer":    {"id": "hammer",    "name": "Stone Hammer",     "kind": "melee", "dmg": 36.0, "cd": 0.72, "range": 46.0, "arc": 1.2,  "knock": 240.0, "stagger": 0.55, "crit": 0.03, "crit_mul": 2.2, "tool": true, "hammer": true, "chop_mul": 1.8, "structure_mul": 0.8, "dur": 150, "color": "#8a8078"},
+	"fireaxe":   {"id": "fireaxe",   "name": "Fire Axe",         "kind": "melee", "dmg": 34.0, "cd": 0.46, "range": 52.0, "arc": 1.0,  "knock": 190.0, "stagger": 0.40, "crit": 0.05, "crit_mul": 2.2, "tool": true, "axe": true, "chop_mul": 4.2, "dur": 420, "color": "#c4463a"},
+	"steelpick": {"id": "steelpick", "name": "Steel Pickaxe",    "kind": "melee", "dmg": 30.0, "cd": 0.56, "range": 54.0, "arc": 0.9,  "knock": 210.0, "stagger": 0.45, "crit": 0.05, "crit_mul": 2.3, "tool": true, "pick": true, "chop_mul": 4.4, "tool_mul": 2.4, "dur": 420, "color": "#aeb6bd"},
+	"sledge":    {"id": "sledge",    "name": "Sledgehammer",     "kind": "melee", "dmg": 78.0, "cd": 0.86, "range": 60.0, "arc": 1.7,  "knock": 340.0, "stagger": 0.90, "crit": 0.02, "crit_mul": 2.8, "shake": 5.0, "chop_mul": 1.6, "structure_mul": 1.0, "dur": 300, "color": "#8d7a5e"},
+	"bow":       {"id": "bow",       "name": "Hunting Bow",      "kind": "gun", "dmg": 19.0, "cd": 0.85,  "mag": 1,  "reload": 0.55, "spread": 0.03,  "ammo": "arrow", "speed": 780.0,  "life": 0.85, "knock": 60.0,  "crit": 0.12, "crit_mul": 2.2, "shake": 0.4, "pellets": 1, "pierce": 0, "threat": 0.15, "noise": 90.0,  "bow": true, "dur": 260, "color": "#9a7a48"},
+	"pistol":    {"id": "pistol",    "name": "M9 Pistol",        "kind": "gun", "dmg": 27.0, "cd": 0.17,  "mag": 12, "reload": 1.15, "spread": 0.035, "ammo": "ammoP", "speed": 1150.0, "life": 0.55, "knock": 55.0,  "crit": 0.05, "crit_mul": 1.9, "shake": 1.6, "pellets": 1, "pierce": 0, "threat": 1.0,  "noise": 420.0, "dur": 600, "color": "#71787f"},
+	"smg":       {"id": "smg",       "name": "Scrap SMG",        "kind": "gun", "dmg": 17.0, "cd": 0.075, "mag": 30, "reload": 1.6,  "spread": 0.075, "ammo": "ammoP", "speed": 1100.0, "life": 0.5,  "knock": 40.0,  "crit": 0.02, "crit_mul": 1.7, "shake": 1.2, "pellets": 1, "pierce": 0, "threat": 0.6,  "noise": 400.0, "dur": 900, "color": "#6b7178"},
+	"shotgun":   {"id": "shotgun",   "name": "Pump Shotgun",     "kind": "gun", "dmg": 16.0, "cd": 0.75,  "mag": 6,  "reload": 0.5,  "spread": 0.20,  "ammo": "ammoS", "speed": 980.0,  "life": 0.30, "knock": 230.0, "stagger": 0.50, "crit": 0.01, "crit_mul": 1.6, "shake": 6.5, "pellets": 8, "pierce": 0, "threat": 2.4,  "noise": 620.0, "shell_reload": true, "dur": 320, "color": "#5e5148"},
+	"rifle":     {"id": "rifle",     "name": "Hunting Rifle",    "kind": "gun", "dmg": 78.0, "cd": 0.52,  "mag": 8,  "reload": 1.9,  "spread": 0.012, "ammo": "ammoR", "speed": 1700.0, "life": 0.9,  "knock": 120.0, "stagger": 0.25, "crit": 0.15, "crit_mul": 2.5, "shake": 4.2, "pellets": 1, "pierce": 2, "threat": 2.0,  "noise": 700.0, "dur": 400, "color": "#4c4136"},
+	"carbine":   {"id": "carbine",   "name": "Military Carbine", "kind": "gun", "dmg": 36.0, "cd": 0.105, "mag": 40, "reload": 2.3,  "spread": 0.045, "ammo": "ammoR", "speed": 1500.0, "life": 0.8,  "knock": 70.0,  "crit": 0.03, "crit_mul": 1.8, "shake": 2.0, "pellets": 1, "pierce": 1, "threat": 1.1,  "noise": 560.0, "dur": 1100, "color": "#4a5340"},
 }
 
 ## Wear and repair. `dur` on a weapon above is how many *uses* it has in it:
@@ -882,6 +923,46 @@ const WEAR := {
 	# "Worn" and "nearly gone": one warning each, once per crossing.
 	"worn_at": 0.3,
 	"spent_at": 0.1,
+}
+
+## Stagger: the blow that interrupts a committed swing.
+##
+## A weapon's `stagger` above is in seconds, and what actually lands is
+## `stagger x (1 - knock_resist)` — the resistance that already scales
+## knockback, so a Brute is hard to rock for the same reason it is hard to
+## shove and there is no second table saying so twice.
+##
+## `min` is what makes a boss immune without a special case: a Behemoth at
+## 0.95 resistance takes 0.045s off a sledgehammer, which is under the floor,
+## so nothing happens at all. Move the floor and you decide how big a thing
+## has to be before it stops flinching.
+##
+## **`immune` is the rule the whole mechanic rests on.** Without it a Stone
+## Knife at 0.28s cooldown would hold a walker still for ever, and melee
+## would stop being a fight. After an enemy recovers it cannot be staggered
+## again for this long — so an interrupt is a thing you spend and time,
+## rather than a lock you hold.
+##
+## Every number here is a feel number and none of them has been played yet.
+const STAGGER := {
+	"immune": 2.2,
+	"crit_mul": 1.6,
+	"min": 0.12,
+}
+
+## Bleed: what an edged weapon leaves behind.
+##
+## A weapon's `bleed` above is damage per second, and this is how long the
+## wound runs for. A fresh cut refreshes the clock and keeps the higher rate
+## rather than stacking — **the deepest cut is the one that is bleeding** —
+## which keeps a fast knife from multiplying itself into a boss-killer while
+## still rewarding staying on the target.
+##
+## It is flat from the weapon and is deliberately *not* scaled by
+## `melee_mul`: a cut bleeds the same however strong you are, and a number
+## you can read straight off the weapon is worth more here than realism.
+const BLEED := {
+	"time": 5.0,
 }
 
 ## What each kind of scenery gives up and what it takes. `needs` is the tool
@@ -1215,6 +1296,13 @@ const SFX := {
 		{"kind": "noise", "dur": 0.11, "gain": 0.34, "filter": "lp", "freq": 900.0, "to": 200.0},
 		{"kind": "tone", "freq": 130.0, "to": 55.0, "wave": "tri", "dur": 0.1, "gain": 0.22},
 	],
+	## The swing that stopped one coming at you. Lower and longer than the
+	## hit it rides on, so an interrupt is audible underneath the impact
+	## rather than being a second copy of it.
+	"stagger": [
+		{"kind": "tone", "freq": 90.0, "to": 38.0, "wave": "tri", "dur": 0.18, "gain": 0.26},
+		{"kind": "noise", "dur": 0.14, "gain": 0.18, "filter": "lp", "freq": 500.0, "to": 120.0},
+	],
 	"bullet_hit": [{"kind": "noise", "dur": 0.07, "gain": 0.2, "filter": "bp", "freq": 1400.0, "q": 1.4}],
 	"hit_wall": [{"kind": "noise", "dur": 0.06, "gain": 0.14, "filter": "hp", "freq": 2400.0, "q": 2.0}],
 
@@ -1331,6 +1419,8 @@ const SFX := {
 const SFX_THROTTLE := {
 	"bullet_hit": 28, "hit_wall": 40, "struct_hit": 45, "zombie_die": 30,
 	"melee_hit": 25, "turret": 45, "growl": 260, "player_hurt": 140,
+	# A shotgun into a crowd staggers several at once; one thud says so.
+	"stagger": 90,
 	"chop": 60, "pickup": 40, "ui": 30,
 }
 

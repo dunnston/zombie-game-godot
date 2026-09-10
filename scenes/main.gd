@@ -940,6 +940,38 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 		smoke.fail("the Raider closed to %.0f px — it is fighting like a walker" % raider.pos.distance_to(p.pos))
 	await smoke.checkpoint("raider_standoff")
 
+	# Stagger and bleed, in one picture each, because both are things you can
+	# only see happening. A walker is caught mid-wind-up — arms up, about to
+	# bite — and then a Sledgehammer takes the swing off it: the arms come
+	# down and the body lurches back, which is the tell the two poses exist to
+	# keep apart. A Behemoth stands in the same crowd and refuses, which is
+	# the floor rule with a face on it.
+	for e in sim.enemies.list:
+		e.dead = true
+	# Open floor, not on top of the furniture: this pair of pictures exists to
+	# be compared, and a pose you cannot see is not a checkpoint.
+	var rocked := sim.enemies.spawn("walker", p.pos + Vector2(0, -78), true)
+	var boss := sim.enemies.spawn("behemoth", p.pos + Vector2(-110, 26), true)
+	rocked.hp = 500.0
+	rocked.max_hp = 500.0
+	rocked.angle = PI / 2.0
+	rocked.windup = 0.24
+	await smoke.frames(3)
+	await smoke.checkpoint("about_to_bite")
+	if Damage.stagger_enemy(sim, rocked, Config.WEAPONS.sledge.stagger) <= 0.0:
+		smoke.fail("a Sledgehammer would not stagger a walker")
+	if rocked.windup > 0.0:
+		smoke.fail("the wind-up survived the stagger")
+	if Damage.stagger_enemy(sim, boss, Config.WEAPONS.sledge.stagger) > 0.0:
+		smoke.fail("a Behemoth was staggered — the floor rule is not holding")
+	Damage.bleed_enemy(rocked, Config.WEAPONS.machete.bleed, p)
+	await smoke.frames(3)
+	await smoke.checkpoint("staggered_and_bleeding")
+	var hp := rocked.hp
+	await smoke.frames(90)
+	if rocked.hp >= hp:
+		smoke.fail("a bleeding walker lost no health over a second and a half")
+
 
 ## The scripted session: walk, sprint, photograph the districts, then fight.
 func smoke_run(smoke: Node) -> void:

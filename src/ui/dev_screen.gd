@@ -95,6 +95,9 @@ func _build_catalogue() -> void:
 		# feels like — or whether the bench will mend it.
 		["blunt", "Wear what you are holding to a sliver", "you"],
 		["mend", "Mend everything you are carrying", "you"],
+		# Seeing an interrupt land needs something mid-swing to interrupt,
+		# which is a fight you have to arrange. This is that fight, on demand.
+		["rock", "Stagger and open up everything near you", "world"],
 		# A potato is nine minutes and corn is eighteen, which is right in
 		# play and useless at a keyboard trying to see what a harvest feels
 		# like — or whether a row of beds reads at a glance.
@@ -207,6 +210,19 @@ func _verb(id: String) -> void:
 				beds += 1
 			sim.notify("DEV  %d bed%s watered and ripened" % [beds, "" if beds == 1 else "s"],
 				"#b7e08a" if beds > 0 else "#8a8f84")
+		"rock":
+			# Through the same two writers the weapons use, resistance and
+			# immunity included — so what this shows is the real mechanic and
+			# not a second one that only the dev menu can reach. A Behemoth
+			# standing here will refuse, which is the correct answer.
+			var rocked := 0
+			for e in sim.enemies.list:
+				if e.dead or e.pos.distance_squared_to(player.pos) > 400.0 * 400.0:
+					continue
+				if Damage.stagger_enemy(sim, e, 1.2) > 0.0:
+					rocked += 1
+				Damage.bleed_enemy(e, 6.0, player)
+			sim.notify("DEV  %d rocked and bleeding" % rocked, "#d9c46a")
 		"human":
 			Mutation.suppress(sim, player, Config.MUTATION.max)
 		"res":

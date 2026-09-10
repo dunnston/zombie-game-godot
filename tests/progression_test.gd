@@ -182,6 +182,7 @@ func test_a_starting_survivor_is_one_rank_above_the_baseline() -> void:
 	near(p.melee_mul, 1.09, 1e-9)
 	near(p.spread_mul, 0.96, 1e-9)
 	near(p.crit_chance, 0.08, 1e-9)
+	near(p.crit_dmg, 0.03, 1e-9)
 	near(p.carry_cap, 225.0, 1e-9)
 	near(p.pickup_range, 49.0, 1e-9)
 	near(p.chop_mul, 1.06, 1e-9)

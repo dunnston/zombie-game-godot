@@ -54,16 +54,38 @@ func _draw_enemy(e: EnemySim) -> void:
 	if e.burn_t > 0.0:
 		body = body.lerp(Color("#ff7a2a"), 0.45 + 0.2 * sin(e.anim * 3.0))
 		dark = dark.lerp(Color("#8a2a10"), 0.5)
+	# Bleeding, read off its clock for exactly the same reason: the wound
+	# ticks every frame and deliberately emits nothing at all.
+	if e.bleed_t > 0.0:
+		dark = dark.lerp(Color("#7a1414"), 0.45)
 	var dir := Vector2.from_angle(e.angle)
 	var side := dir.orthogonal()
 	var bob := sin(e.anim) * 1.5
 
+	# Rocked. The body lurches back off its own facing and — below — the arms
+	# fall away behind it. That is deliberately the *opposite* shape to the
+	# wind-up, which raises them forward: one of those means a bite is coming
+	# and the other means it is not, so the two must never be confusable at a
+	# glance in a crowd (pillar 4).
+	var reeling := e.stagger_t > 0.0
+	if reeling:
+		c -= dir * 4.0 - Vector2(0, 1)
+
 	draw_circle(c + Vector2(3, 4), e.r, SHADOW)
+	if e.bleed_t > 0.0:
+		# Two drops on their own little clocks, beading and falling. Enough
+		# to pick a bleeding one out of a crowd without giving it a bar.
+		for k: float in [0.0, 0.5]:
+			var t := fmod(e.anim * 0.5 + k, 1.0)
+			var drop := c + side * (e.r * (0.4 - 0.8 * k)) + Vector2(0, e.r * 0.2 + t * 13.0)
+			draw_circle(drop, 2.2 * (1.0 - t), Color(0.55, 0.07, 0.07, 1.0 - t))
 	# A person does not walk with its arms out. Readability first (pillar 4):
 	# the dead reach, the living hold something, and that silhouette is what
 	# has to say which one is coming at you across a dark field.
 	if e.def.get("human", false):
-		var held: float = e.r + (16.0 if e.def.has("gun") else 9.0)
+		# A staggered one has its hands full staying upright: the weapon
+		# comes down to its side and the barrel stops pointing at you.
+		var held: float = e.r + (3.0 if reeling else (16.0 if e.def.has("gun") else 9.0))
 		draw_line(c + side * (e.r * 0.35), c + dir * held + side * (e.r * 0.2), dark, 3.0)
 		if e.def.has("gun"):
 			# The barrel, and the muzzle flash while the burst is running.
@@ -74,9 +96,14 @@ func _draw_enemy(e: EnemySim) -> void:
 			# Carrying your things. Worth seeing from across the compound.
 			draw_circle(c - dir * (e.r * 0.7), 4.5, Color("#c9a227"))
 	else:
-		# Arms: out in front, raised wide during the wind-up.
+		# Arms: out in front, raised wide during the wind-up — and thrown
+		# back and down when it is reeling, which is the tell that the swing
+		# it had started is gone.
 		var reach := e.r + (10.0 if e.windup > 0.0 else 6.0)
 		var spread := 0.55 if e.windup > 0.0 else 0.35
+		if reeling:
+			reach = e.r + 2.0
+			spread = 1.9
 		for s: float in [-1.0, 1.0]:
 			var a := c + side * (e.r * 0.6 * s)
 			var tip := c + (dir.rotated(spread * s)) * reach + side * (e.r * 0.3 * s)

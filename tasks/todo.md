@@ -1847,3 +1847,87 @@ should be reversed rather than argued with:
 - [ ] **Is Mutagen Sludge a bet anyone takes?** More food for the brain
       matter that keeps you human is the intended shape; whether the numbers
       make it tempting is a play question.
+---
+## Stagger, bleed, and a crit that comes off the weapon (2026-09-10)
+
+Two of the three things this card was opened for turned out to be one: the
+audit that named durability as missing predated PR #22, which built it. What
+was actually left was Stagger (nothing in the game), Bleed (cut on 2026-09-08
+for being declared and never read) and a crit that was hard-coded in two
+places, and the owner's framing tied them together — *hook the weapons that
+have these up to actually use them.*
+
+The content design is one sentence: **blunt things stagger, edged things
+bleed, and fists do neither.** No weapon has both, and a test asserts it.
+
+- [x] `stagger` seconds per weapon; `STAGGER` holds the three tunables
+- [x] `Damage.stagger_enemy` — one writer. Resisted by `knock_resist` (the
+      same number that scales knockback, rather than a second table), floored
+      at `STAGGER.min`, and it clears `windup`, `pending_struct`,
+      `pending_survivor` and `blocker` without refunding `atk_cd`
+- [x] The immunity window (`STAGGER.immune`), which is what stops a fast
+      weapon being a lock and what makes eight shotgun pellets one shove
+- [x] The staggered branch in `Enemies.tick_ai`, ahead of the human branches
+      so a Raider stops shooting and a Looter stops running
+- [x] `bleed` dps per weapon on the machete, knife and scythe — the exact
+      three it was cut from — with `BLEED.time` on the wound
+- [x] `Damage.bleed_enemy` / `tick_bleed`; the deepest cut wins and refreshes,
+      `bleed_by` carries the kill, and it ticks inside the loop that was
+      already running rather than needing fire's scan
+- [x] `Combat.crit_chance` / `crit_mul` as the only answer to either
+      question; `crit` and `crit_mul` on every weapon row
+- [x] `crit_dmg` as a player stat with two real sources (Luck, Surge); `crit`
+      on the three glove rows; crit on four `EFFECTS`; `MAX_CRIT` clamped
+      once at the end of the recompute
+- [x] `EF_STAGGER` / `EF_BLEED` and protocol 4; the guest mirrors both
+      cosmetically the way it already does the burn
+- [x] The reeling pose (arms back and down, body lurched — the opposite of
+      the wind-up on purpose), blood beading off a bleeding one, the stagger
+      ring and a thud cue
+- [x] A dev verb, `stagger_test.gd` + `bleed_test.gd` (36 tests), crit
+      assertions in `combat_test.gd`, two smoke checkpoints
+- [x] Notion's `Crit Chance` and `Stagger` columns filled in from what was
+      built, on all seventeen in-game weapons
+- [x] **A closed wound leaves nothing behind** (Codex, PR #23). Zeroing the
+      clock alone left `bleed_dps` and `bleed_by` standing, so the next cut
+      was compared against a wound that had already finished: a knife
+      opening something a machete had bled dry bled at the machete's rate
+      and paid the machete's owner the kill
+
+### Review
+
+The three fields the owner asked about were in three different states, and
+saying so up front was most of the value: durability was **already built**,
+and a session that took the audit at its word would have rebuilt a working
+system. Notion could not supply the numbers either — `Crit Chance` was blank
+on every weapon and `Stagger` was set on two Planned shotguns — so the code
+guessed first and the columns were filled in from the guess, which is the
+reverse of the usual direction and is written down in §10 as such.
+
+Two things fell out of the code rather than being designed in. A Behemoth is
+stagger-immune because 0.95 resistance times a sledgehammer is under the
+floor — nothing anywhere names a Behemoth. And a shotgun spread rocks a
+walker once because the immunity window was already there for a different
+reason.
+
+The one thing worth flagging for the playtest: `STAGGER.immune` at 2.2s is
+the number the whole mechanic balances on, and it has never been played.
+
+Codex found the bug the "no stacking" rule hides: **a rule that keeps the
+higher of two numbers has to be sure the number it is comparing against is
+still live.** The wound's clock was cleared on expiry and its rate and owner
+were not, so both outlived it — wrong damage, and in co-op the wrong player
+paid. The lesson generalises past bleed: any pair of fields where one is a
+clock and the others are only meaningful while it runs should be cleared
+together, in the one place the clock runs out. The new test was checked by
+reverting the fix and watching it fail first.
+
+### Left for the owner
+
+- [ ] **Play it.** The §7 card lists the questions; the immunity window and
+      the floor are the two numbers most likely to want moving.
+- [ ] **Bleeding on the player?** Only enemies bleed. A raider's blade
+      leaving you bleeding is the obvious other half and was left out
+      deliberately: one system, played first.
+- [ ] **Stamina Cost and Cleave** are now the only two ratings in §10 whose
+      mechanic exists without a per-weapon field.
