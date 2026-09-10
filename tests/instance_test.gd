@@ -195,6 +195,22 @@ func test_the_party_goes_in_together_or_not_at_all() -> void:
 	eq(sim.instance.party.size(), 2)
 
 
+func test_nobody_goes_in_from_behind_a_wheel() -> void:
+	# Codex on PR #32: only the player who pressed E was checked, so a friend
+	# parked at the door in a running car was swapped inside without getting
+	# out, and the car was left running with nothing colliding with it.
+	var g := sim.join_player("somebody", "Bex")
+	g.god_mode = true
+	_door()
+	g.pos = p.pos + Vector2(0, 24)
+	g.driving_id = int(sim.cars.list[0].id)
+	ok(Instance.refusal(sim, p, "school").contains("Bex"), Instance.refusal(sim, p, "school"))
+	ok(not Instance.enter(sim, p, "school"), "the door stays shut")
+	ok(sim.instance == null)
+	g.driving_id = 0
+	eq(Instance.refusal(sim, p, "school"), "", "out of the car, in you go")
+
+
 func test_whoever_went_in_comes_out_the_downed_the_dead_and_the_dropped() -> void:
 	# §10: extraction is a party event. Four go in; one dies, one is down, one
 	# drops off the line, and the host puts the boss down.

@@ -114,6 +114,12 @@ static func refusal(sim: GameSim, p: PlayerSim, kind: String) -> String:
 			continue
 		if q.dead or q.downed:
 			return "%s has to be on their feet to go in" % q.display_name
+		# Everybody, not only whoever pressed E (Codex, PR #32). Entering
+		# swaps the town's cars out from under a driver without `exit`, which
+		# left the car running with its tiles released — a car nothing
+		# collided with — until somebody got in and out of it again.
+		if q.driving_id > 0:
+			return "%s has to get out of the car first" % q.display_name
 		if f.is_empty() or q.pos.distance_to(f.stand) > float(Config.INSTANCE.party_reach):
 			waiting.append(q.display_name)
 	if not waiting.is_empty():
