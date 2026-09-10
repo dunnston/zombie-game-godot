@@ -25,6 +25,12 @@ static func damage_enemy(sim: GameSim, e: EnemySim, dmg: float, from: Vector2, k
 	# nothing lands on it until it is over (`Boss._shift`).
 	if e.shield_t > 0.0:
 		return 0.0
+	# ...and a phase boss takes a hit only as far as its next threshold
+	# (`Boss.cap`), so no burst skips a phase.
+	if e.brain != null:
+		dmg = e.brain.cap(e, dmg)
+		if dmg <= 0.0:
+			return 0.0
 	e.hp -= dmg
 	e.flash = 0.11
 	if not no_alert:
@@ -61,7 +67,9 @@ static func damage_enemy(sim: GameSim, e: EnemySim, dmg: float, from: Vector2, k
 ## last one is how a Behemoth shrugs off a sledgehammer without a single line
 ## anywhere naming a Behemoth.
 static func stagger_enemy(sim: GameSim, e: EnemySim, secs: float, crit := false) -> float:
-	if e == null or e.dead or secs <= 0.0 or e.stagger_cd > 0.0:
+	# Nothing lands through a phase shield (Codex, PR #33) — the blow's damage
+	# was already refused, and its follow-ups are part of the blow.
+	if e == null or e.dead or secs <= 0.0 or e.stagger_cd > 0.0 or e.shield_t > 0.0:
 		return 0.0
 	var t: float = secs * (1.0 - e.knock_resist) * (Config.STAGGER.crit_mul if crit else 1.0)
 	if t < Config.STAGGER.min:
@@ -98,7 +106,9 @@ static func stagger_enemy(sim: GameSim, e: EnemySim, secs: float, crit := false)
 ## blood the hit already threw is the telegraph, and `EnemyView` draws the
 ## rest straight off `bleed_t`.
 static func bleed_enemy(e: EnemySim, dps: float, by: PlayerSim = null) -> bool:
-	if e == null or e.dead or dps <= 0.0:
+	# A cut made through a phase shield would open a wound that starts biting
+	# the moment the shield drops (Codex, PR #33): refused with the blow.
+	if e == null or e.dead or dps <= 0.0 or e.shield_t > 0.0:
 		return false
 	e.bleed_t = Config.BLEED.time
 	if dps >= e.bleed_dps:

@@ -204,6 +204,61 @@ func test_a_burst_past_two_thresholds_still_runs_what_the_second_half_opens_with
 	ok(inst.dark, "the lights went out on the way past")
 
 
+func test_no_burst_goes_through_a_phase() -> void:
+	# Codex on PR #33: a volley that crossed a threshold after the script had
+	# run killed it before the change could — a party's burst finished the
+	# Coach from above a third without OVERTIME ever starting.
+	var huge := coach.max_hp * 5.0
+	var second := coach.max_hp * float(B.phases[1].at)
+	near(Damage.damage_enemy(sim, coach, huge, p.pos), coach.max_hp - second, 1e-3, "it takes the hit down to the threshold")
+	ok(not coach.dead, "more than its whole bar, and it is standing")
+	near(coach.hp, second, 1e-3, "at the second half, exactly")
+	sim.tick(DT)
+	eq(brain.phase, 1)
+	eq(brain.state, "shift", "and the change runs")
+	run(sim, float(B.transition) + 0.1)
+	Damage.damage_enemy(sim, coach, huge, p.pos)
+	ok(not coach.dead, "the same again, and it is standing")
+	sim.tick(DT)
+	eq(brain.phase, 2, "into overtime")
+	run(sim, float(B.transition) + 0.1)
+	Damage.damage_enemy(sim, coach, huge, p.pos)
+	ok(coach.dead, "past the last threshold, it can be finished")
+
+
+func test_nothing_lands_through_the_shield_not_even_a_wound() -> void:
+	# Codex on PR #33: the shield refused a blow's damage and let its bleed and
+	# stagger through, so a cut made while it turned bit the moment it was done.
+	coach.hp = coach.max_hp * 0.6
+	sim.tick(DT)
+	eq(brain.state, "shift")
+	ok(not Damage.bleed_enemy(coach, 10.0, p), "no wound")
+	eq(Damage.stagger_enemy(sim, coach, 2.0), 0.0, "no stagger")
+	# And through a real swing, the path that found it.
+	_put(Vector2(coach.r + 18.0, 0))
+	p.angle = PI
+	p.intent.aim = coach.pos
+	Combat.melee_attack(sim, p, Config.WEAPONS.machete)
+	eq(coach.bleed_t, 0.0, "a machete through the shield opens nothing")
+	eq(coach.stagger_t, 0.0)
+
+
+func test_a_telegraph_a_phase_change_cuts_off_stops_drawing() -> void:
+	# Codex on PR #33: the shift replaces the move, so it never lands — and its
+	# ring went on filling on screen as though it would.
+	var view := BossView.new(sim)
+	brain.force(sim, coach, p, "slam")
+	for ev in events_of(sim, "boss_tell"):
+		view.on_event(ev)
+	eq(view.tells.size(), 1, "the ring is up")
+	coach.hp = coach.max_hp * 0.6
+	sim.tick(DT)
+	for ev in events_of(sim, "boss_phase"):
+		view.on_event(ev)
+	eq(view.tells.size(), 0, "and gone the moment it turns")
+	view.free()
+
+
 func test_the_breaker_puts_the_lights_back() -> void:
 	var before := float(sim.clock.darkness().alpha)
 	inst.lights_out(sim)
