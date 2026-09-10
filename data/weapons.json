@@ -442,6 +442,46 @@
       "speed": 1500.0,
       "spread": 0.045,
       "threat": 1.1
+    },
+    {
+      "arc": 1.4,
+      "cd": 0.5,
+      "color": "#c9a227",
+      "crit": 0.06,
+      "crit_mul": 2.3,
+      "dmg": 46.0,
+      "dur": 1400,
+      "id": "varsityBat",
+      "kind": "melee",
+      "knock": 240.0,
+      "name": "Varsity Bat",
+      "notes": "The Coach's. A placeholder for the owner to rename and tune. Found only on the School's boss: nothing makes it, so nothing mends or upgrades it, and it lasts to pay for that.",
+      "range": 54.0,
+      "stagger": 0.6
+    },
+    {
+      "ammo": "ammoP",
+      "cd": 0.42,
+      "color": "#b8a070",
+      "crit": 0.12,
+      "crit_mul": 2.3,
+      "dmg": 48.0,
+      "dur": 1500,
+      "id": "sixShooter",
+      "kind": "gun",
+      "knock": 95.0,
+      "life": 0.6,
+      "mag": 6,
+      "name": "Six-Shooter",
+      "noise": 520.0,
+      "notes": "The Coach's. A placeholder for the owner to rename and tune. Found only on the School's boss: nothing makes it, so nothing mends or upgrades it, and it lasts to pay for that.",
+      "pellets": 1,
+      "pierce": 1,
+      "reload": 1.6,
+      "shake": 1.2,
+      "speed": 1300.0,
+      "spread": 0.02,
+      "threat": 0.5
     }
   ]
 }

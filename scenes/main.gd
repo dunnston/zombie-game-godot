@@ -948,6 +948,25 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 			if int(wb.tier) != 2:
 				smoke.fail("UPGRADE did not upgrade the workbench")
 		await smoke.checkpoint("workbench_upgraded")
+		# A weapon level (PR E), at the bench that makes it: the Pipe already
+		# in the hotbar taken to level 2 from its row beside MEND. The pack is
+		# full by now, so this upgrades what is carried rather than handing
+		# over something new — the first cut tried and got NO ROOM.
+		var ur := inventory.upgrade_centre("pipe")
+		if ur == Vector2.ZERO:
+			var offered: Array = []
+			for row in Upgrade.upgradeable_carried(p):
+				offered.append(row.id)
+			smoke.fail("the workbench offers no UPGRADE for the Pipe (screen %s/%s; offered %s)"
+				% [str(inventory.visible), inventory.mode, str(offered)])
+		else:
+			var pi := p.hotbar_index("pipe")
+			var why := String(Upgrade.status(sim, p, "hotbar", pi, Crafting.bench_tier_at(sim, p)).reason)
+			await smoke_click(ur)
+			await smoke.frames(3)
+			if Upgrade.level(p.hotbar, pi) != 2:
+				smoke.fail("UPGRADE left the Pipe at level %d (%s)" % [Upgrade.level(p.hotbar, pi), why])
+		await smoke.checkpoint("weapon_upgraded")
 		await smoke.tap("inventory")
 		await smoke.frames(2)
 	_smoke_stand_at(wb_origin)

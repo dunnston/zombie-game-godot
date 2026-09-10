@@ -397,3 +397,14 @@ yet when an earlier autoload's `_ready` wants to know.
   The stash has been reachable from anywhere since Phase 3 and every system
   that spends inherits it; fixing it in farming alone would have made the one
   new system the odd one out. Correct the claim, raise the real card.
+
+## A fixture that quietly refuses is a failure somewhere else (PR E)
+
+`Slots.add` returns how many fitted and nothing else complains. A test bag of
+60 slots filled with ten resources at 500 each was full before the weapon the
+test was about went in — so the death-pack test failed as "kept the higher
+level" and the upgrade tests as "missing materials", and both looked like the
+design. **Rule:** a fixture that stocks a container asserts the stock is
+there, and gives itself room to spare. The smoke has the same trap late in
+its run, when the player's pack is full: use what is already carried rather
+than handing over something new, and put the refusal in the failure message.

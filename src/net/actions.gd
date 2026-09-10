@@ -40,6 +40,15 @@ static func repair_weapon(sim: GameSim, p: PlayerSim, cont_kind: String, index: 
 	return Wear.repair(sim, p, cont_kind, index, bench)
 
 
+## A weapon up a level, at the bench that makes it. By slot, for the reason
+## mending is: a slot is what was clicked. The host re-derives the bench from
+## where the player stands, so naming a tier you are nowhere near buys nothing.
+static func upgrade_weapon(sim: GameSim, p: PlayerSim, cont_kind: String, index: int, bench: int) -> bool:
+	if _remote("upgrade_weapon", {"c": cont_kind, "i": index, "tier": bench}):
+		return false
+	return Upgrade.upgrade(sim, p, cont_kind, index, bench)
+
+
 ## The bench menu's UPGRADE button. Named by tile like a chest, and the host
 ## re-derives the bench from where the player is standing: a guest naming a
 ## workbench across town upgrades nothing.
@@ -250,6 +259,9 @@ static func execute(sim: GameSim, p: PlayerSim, name_: String, a: Dictionary) ->
 		"upgrade_bench":
 			var bench := reachable_bench(sim, p, at)
 			return not bench.is_empty() and sim.structs.upgrade_bench(sim, bench, p)
+		"upgrade_weapon":
+			return Upgrade.upgrade(sim, p, String(a.get("c", "")), int(a.get("i", -1)),
+				mini(int(a.get("tier", 0)), Crafting.bench_tier_at(sim, p)))
 		"enter_instance":
 			return Instance.enter(sim, p, String(a.get("kind", "")))
 		"leave_instance":

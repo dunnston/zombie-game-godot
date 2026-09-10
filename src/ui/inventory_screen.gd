@@ -350,6 +350,10 @@ func _craft_rows() -> Array[Dictionary]:
 	if bench_station().is_empty():
 		for row in Wear.worn_carried(player):
 			list.append({"repair": row})
+		# Then every weapon a bench could take further: the level beside the
+		# mending, because both are the bench that made it doing more work.
+		for row in Upgrade.upgradeable_carried(player):
+			list.append({"upgrade": row})
 	for r in recipes():
 		list.append({"recipe": r})
 	var top := panel.position.y + 76.0
@@ -415,6 +419,14 @@ func recipe_centre(id: String) -> Vector2:
 func repair_centre(id: String) -> Vector2:
 	for r in _craft_rows():
 		if r.has("repair") and String(r.repair.id) == id:
+			return r.rect.get_center()
+	return Vector2.ZERO
+
+
+## The middle of a weapon's UPGRADE row, likewise.
+func upgrade_centre(id: String) -> Vector2:
+	for r in _craft_rows():
+		if r.has("upgrade") and String(r.upgrade.id) == id:
 			return r.rect.get_center()
 	return Vector2.ZERO
 
@@ -527,6 +539,8 @@ func _click_chrome(at: Vector2) -> bool:
 		if r.rect.has_point(at):
 			if r.has("repair"):
 				Actions.repair_weapon(sim, player, String(r.repair.c), int(r.repair.i), bench())
+			elif r.has("upgrade"):
+				Actions.upgrade_weapon(sim, player, String(r.upgrade.c), int(r.upgrade.i), bench())
 			else:
 				Actions.craft(sim, player, r.recipe, bench())
 			return true
@@ -1070,6 +1084,14 @@ func _draw_craft(font: Font, panel: Rect2) -> void:
 			name_ = "%s  ·  %d%%" % [Config.WEAPONS[at.id].name, roundi(Wear.frac(cont, int(at.i)) * 100.0)]
 			cost = Wear.repair_cost(cont, int(at.i))
 			st = Wear.repair_status(sim, player, String(at.c), int(at.i), b)
+		elif row.has("upgrade"):
+			var up: Dictionary = row.upgrade
+			var ucont := Wear.container_for(player, String(up.c))
+			var lv := Upgrade.level(ucont, int(up.i))
+			verb = "UPGRADE"
+			name_ = "%s  ·  level %d → %d" % [Config.WEAPONS[up.id].name, lv, lv + 1]
+			cost = Upgrade.cost(ucont, int(up.i))
+			st = Upgrade.status(sim, player, String(up.c), int(up.i), b)
 		else:
 			var r: Dictionary = row.recipe
 			name_ = r.name
@@ -1229,14 +1251,20 @@ func _draw_tooltip(font: Font, stack: Dictionary) -> void:
 			lines.append("%s  ·  %ds of light" % [Config.GEAR_SLOT_NAMES[g.slot], roundi(float(g.burn))])
 	elif kind == "weapon":
 		var w: Dictionary = Config.WEAPONS[id]
-		lines.append("%.0f damage  ·  %s" % [w.dmg, w.kind])
+		var lv := Upgrade.level_in(stack)
+		lines.append("%.0f damage  ·  %s" % [float(w.dmg) * Upgrade.dmg_mul(lv), w.kind])
+		if lv > 1:
+			lines.append("level %d  ·  +%d%% damage, +%d%% uses" % [lv,
+				roundi((Upgrade.dmg_mul(lv) - 1.0) * 100.0), roundi((Upgrade.dur_mul(lv) - 1.0) * 100.0)])
+		if Wear.recipe_for(id).is_empty():
+			lines.append("found, not made  ·  nothing mends or upgrades it")
 		# Off the stack itself, so the tooltip describes the weapon under the
 		# cursor rather than some other one of the same name.
 		if Wear.wears(id):
 			if Wear.broken_in(stack):
 				lines.append("BROKEN  ·  mend it at the bench that made it")
 			else:
-				lines.append("condition %d / %d" % [Wear.left_in(stack), Wear.max_of(id)])
+				lines.append("condition %d / %d" % [Wear.left_in(stack), Wear.max_in(stack)])
 	elif kind == "consumable":
 		var c: Dictionary = Config.CONSUMABLES[id]
 		if float(c.heal) > 0.0:

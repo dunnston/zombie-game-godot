@@ -274,6 +274,7 @@
       "hp": 1400.0,
       "id": "coach",
       "knock_resist": 0.95,
+      "loot_table": "coachDrops",
       "name": "The Coach",
       "notes": "The School's boss (PR C), a placeholder name the owner can change here. What it does is `Config.BOSSES.coach`: this row is only its body.",
       "r": 26.0,

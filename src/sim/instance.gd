@@ -388,7 +388,7 @@ static func leave(sim: GameSim, outcome: String) -> void:
 				q.hp = maxf(1.0, q.max_hp * float(Config.PLAYER.revive_hp_frac))
 			_arrive(q, inst.door)
 	for s in spill:
-		Loot.spawn_pickup(sim, inst.door, String(s.kind), String(s.id), int(s.n), null, int(s.w))
+		Loot.spawn_pickup(sim, inst.door, String(s.kind), String(s.id), int(s.n), null, int(s.w), int(s.get("lv", 0)))
 	if outcome == "extracted":
 		sim.cleared[inst.kind] = sim.clock.day
 		sim.notify("Out of %s with everything you found" % name, "#ffe08a", true)
@@ -437,15 +437,16 @@ static func unpack_haul(q: PlayerSim) -> Array[Dictionary]:
 		var id := String(s.id)
 		var n := int(s.n)
 		var w := q.haul.wear_at(i)
+		var lv := q.haul.level_at(i)
 		var got := 0
 		if Items.stack_limit(id) <= 1:
-			while got < n and Loot._give_item(q, id, Items.is_weapon(id), w):
+			while got < n and Loot._give_item(q, id, Items.is_weapon(id), w, lv):
 				got += 1
 		else:
 			got = q.bag.add_capped(id, n, q.pack_allowance())
 		if got < n:
 			var d := Loot.entry_to_pickup(Loot.item_entry_id(id))
-			spill.append({"kind": d.kind, "id": d.id, "n": n - got, "w": w})
+			spill.append({"kind": d.kind, "id": d.id, "n": n - got, "w": w, "lv": lv})
 	q.haul.clear_all()
 	return spill
 
