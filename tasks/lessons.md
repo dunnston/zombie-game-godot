@@ -322,6 +322,20 @@ yet when an earlier autoload's `_ready` wants to know.
   an `input` event to exercise the handler; a field that will not clear
   under automation is not a page bug until that also fails.
 
+- Stopping a background `tools/edit.sh` from the agent's task tool kills
+  the shell and leaves its Godot child holding the port, so the restart
+  fails with "could not listen". `exec` in the script does **not** fix it
+  under Git Bash on Windows — tried and measured: the Godot PID survived
+  the stop. Find the process on the port (`netstat -ano`, then its command
+  line via `Get-CimInstance Win32_Process`) and kill that PID, and check
+  what it is first — the other Godot on this machine was the owner's
+  editor. A person pressing Ctrl+C in the console is a different path and
+  was not tested here.
+- The first catalog-art test caught a real waste, not a test bug: the
+  ground fallback loaded the icon file a second time instead of reusing
+  the cached texture. Asserting identity (`eq(ground, icon)`) rather than
+  "both are non-null" is what found it.
+
 ## 2026-09-10 (raised beds, continued)
 
 - A review finding can be right about the fact and wrong about the target.

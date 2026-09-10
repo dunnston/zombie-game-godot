@@ -126,6 +126,13 @@ func test_a_typo_a_wrong_type_or_a_duplicate_is_refused() -> void:
 		"field 'x' has an unknown setting 'refs'", "a misspelt setting is refused, not ignored")
 
 
+func test_one_of_refuses_a_value_outside_the_list() -> void:
+	var text := '{"fields": {"status": {"type": "string", "one_of": ["in game", "planned"]}}, "rows": [{"id": "a", "status": "planned"}]}'
+	eq(DataTable.decode(text).errors, [])
+	has(DataTable.decode(text.replace("\"planned\"}", "\"plannd\"}")).errors, "a.status: 'plannd' is not one of in game, planned",
+		"a typo does not quietly become a new status")
+
+
 func test_maps_and_lists_are_typed_all_the_way_in() -> void:
 	var text := '{"fields": {"cost": {"type": "map<int>", "key_ref": "RES"}, "rolls": {"type": "list<int>"}}, "rows": [{"id": "a", "cost": {"wood": 4.0}, "rolls": [1, 2]}]}'
 	var got := DataTable.decode(text)

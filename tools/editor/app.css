@@ -106,6 +106,36 @@ ul.refs code { color: var(--dim); }
   border-radius: 6px; padding: 8px 14px; max-width: 80vw; box-shadow: 0 6px 20px #0008; }
 #toast.bad { border-color: var(--bad); }
 
+/* views */
+.view { padding: 10px 14px 40px; }
+.view > p.hint { margin-top: 0; }
+h3.section { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin: 18px 0 6px; }
+.benches { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 10px; align-items: start; }
+.card.bench h3 { margin: 0 0 4px; font-size: 14px; text-transform: none; letter-spacing: 0; color: var(--text); }
+.card.planned { border-style: dashed; }
+.line { padding: 4px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.line .arrow { color: var(--dim); }
+a.go.small { font-size: 11.5px; color: var(--dim); }
+.badge { display: inline-block; font-size: 11px; border-radius: 9px; padding: 0 7px; border: 1px solid currentColor; vertical-align: 1px; }
+.badge.in-game { color: var(--good); }
+.badge.planned { color: var(--accent); }
+.badge.cut { color: var(--bad); }
+table.vt { width: 100%; margin-bottom: 6px; }
+table.vt td, table.vt th { white-space: normal; vertical-align: top; }
+table.vt td:first-child, table.vt th:first-child { position: static; font-family: inherit; }
+table.vt tr.sel td { background: var(--sel); }
+td.small, .small { font-size: 11.5px; }
+.clamp { max-height: 8em; overflow: auto; margin: 4px 0; }
+.err-text { color: var(--bad); }
+/* look */
+.looks { display: flex; gap: 22px; margin-bottom: 6px; }
+figure { margin: 0; text-align: center; min-width: 70px; }
+figcaption { font-size: 11px; color: var(--dim); margin-top: 4px; }
+.ph { display: inline-block; border: 1px solid #000a; }
+.ph.pip { width: 14px; height: 14px; border-radius: 50%; margin: 17px; box-shadow: 0 0 0 2px #0006; }
+.ph.crate { width: 30px; height: 25px; margin: 12px 20px; }
+img.art { width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated; background: #0003; border-radius: 4px; }
+
 @media (max-width: 1000px) {
   main { grid-template-columns: 1fr; grid-template-rows: auto minmax(40vh, 1fr) auto; }
   #tables { display: flex; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--line); padding: 4px; }

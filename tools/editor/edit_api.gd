@@ -15,9 +15,15 @@ extends RefCounted
 ## from the `config.gd` literal until they migrate, so the editor can browse
 ## and cross-reference all of it now.
 
-const TABLES := ["WEAPONS", "RES", "CONSUMABLES", "GEAR", "RECIPES", "STRUCTURES", "LOOT", "CONTAINERS", "ENEMIES", "CROPS"]
+## CATALOG is the one table the game never reads: the owner's view of every
+## item — category, subcategory, planned or in game — that used to live in
+## Notion's Items table. The rest are `config.gd` tables by their own names.
+const TABLES := ["WEAPONS", "RES", "CONSUMABLES", "GEAR", "RECIPES", "STRUCTURES", "LOOT", "CONTAINERS", "ENEMIES", "CROPS", "CATALOG"]
 ## Read-only context the cross-references and the checks need.
-const CONSTS := ["AMMO_IDS", "WEAR", "HARVEST", "FURNISHING"]
+const CONSTS := ["AMMO_IDS", "WEAR", "HARVEST", "FURNISHING", "BENCH_UPGRADE_COST"]
+## The tables an item can be defined in, for "is this catalog entry real?".
+const ITEM_TABLES := ["WEAPONS", "GEAR", "CONSUMABLES", "RES", "STRUCTURES"]
+const ART_DIR := "res://art/items/"
 const WEB_DIR := "res://tools/editor/"
 const STATIC := {
 	"/": ["index.html", "text/html; charset=utf-8"],
@@ -48,6 +54,8 @@ func handle(method: String, path: String, headers: Dictionary, body: String) -> 
 	if method == "GET":
 		if STATIC.has(path):
 			return _static(path)
+		if path.begins_with("/art/items/"):
+			return _art(path.substr(11))
 		if path == "/api/tables":
 			return _json(200, tables())
 		return _text(404, "Not found.")
@@ -146,6 +154,16 @@ func integrity(w: Dictionary) -> Array:
 	for a: Variant in s.AMMO_IDS:
 		if not s.RES.has(a):
 			errors.append("AMMO_IDS lists '%s', which is not a resource" % a)
+	# A catalog entry that says "in game" has to be somewhere in the game;
+	# a planned one has, by definition, nowhere to be yet.
+	for r: Variant in w.docs.get("CATALOG", {}).get("rows", []):
+		if String(r.get("status", "")) != "in game":
+			continue
+		var found := false
+		for t: String in ITEM_TABLES:
+			found = found or s[t].has(r.get("id", ""))
+		if not found:
+			errors.append("CATALOG %s is marked in game, but no item or structure has that id" % r.get("id", "?"))
 	return errors
 
 
@@ -163,7 +181,11 @@ func tables() -> Dictionary:
 	var consts := {}
 	for name: String in CONSTS:
 		consts[name] = _config.get(name)
-	return {"tables": out, "consts": consts, "problems": integrity(world())}
+	var art := []
+	for f: String in DirAccess.get_files_at(ART_DIR):
+		if f.ends_with(".png"):
+			art.append(f.get_basename())
+	return {"tables": out, "consts": consts, "art": art, "problems": integrity(world())}
 
 
 ## "+added -removed" lines, counted as multisets — close enough to tell a
@@ -223,6 +245,16 @@ func _static(path: String) -> Dictionary:
 	if path == "/":
 		text = text.replace("__EDIT_TOKEN__", token)
 	return {"status": 200, "type": spec[1], "body": text.to_utf8_buffer()}
+
+
+## An item's art, by file name only: `pistol.png`, never a path.
+func _art(file: String) -> Dictionary:
+	if RegEx.create_from_string("^[A-Za-z0-9_]+\\.png$").search(file) == null:
+		return _text(404, "Not found.")
+	var bytes := FileAccess.get_file_as_bytes(ART_DIR + file)
+	if bytes.is_empty():
+		return _text(404, "No art yet.")
+	return {"status": 200, "type": "image/png", "body": bytes}
 
 
 func _json(status: int, data: Variant) -> Dictionary:

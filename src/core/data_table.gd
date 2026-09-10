@@ -27,7 +27,9 @@ class_name DataTable
 
 const DIR := "res://data/"
 const SCALARS := ["int", "float", "bool", "string"]
-const SPEC_KEYS := ["type", "ref", "key_ref"]
+## `one_of` lists the only values a string field may take — a category, a
+## status — so a typo is refused rather than becoming a new category.
+const SPEC_KEYS := ["type", "ref", "key_ref", "one_of"]
 ## Not listed in `fields`: every row has an `id`, and any row may have `notes`.
 const RESERVED := ["id", "notes"]
 
@@ -102,8 +104,11 @@ static func decode(text: String) -> Dictionary:
 			var typed: Variant = _coerce(row[k], String(fields[k].get("type", "")))
 			if typeof(typed) == TYPE_NIL:
 				errors.append("%s.%s: expected %s, got %s" % [id, k, fields[k].type, JSON.stringify(row[k])])
-			else:
-				row[k] = typed
+				continue
+			row[k] = typed
+			var allowed: Variant = fields[k].get("one_of")
+			if typeof(allowed) == TYPE_ARRAY and not typed in allowed:
+				errors.append("%s.%s: '%s' is not one of %s" % [id, k, typed, ", ".join(PackedStringArray(allowed))])
 	return {"doc": doc, "errors": errors}
 
 

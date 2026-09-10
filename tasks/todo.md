@@ -2011,6 +2011,22 @@ change at the end of each phase, never ahead of what is built.
       refused with the field named, read-only RES shows its loot sources,
       phone layout stacks. Live socket: 403 without the token, 403 for a
       foreign Host, 404 for a path escape
+- [x] Owner-facing views (owner ask, 2026-09-10): Workbenches (by hand,
+      Stone Hammer, Workbench, Workbench II, Chemistry Station, then the
+      planned Basic / Advanced / Tech / Recycler split), Materials (by
+      Raw/Salvage, harvested / found / made / used), Tools (harvest flags
+      and what each opens; lights), Ammo (guns, recipes, loot), Catalog
+- [x] `data/catalog.json`: one-time import of Notion Items + Workbenches —
+      126 items (80 in game, 46 planned), category/subcategory/status,
+      planned bench, 1–5 ratings, breaks-down-into, and for planned items
+      their proposed recipe. `one_of` on category/status/bench_plan. The
+      game never reads it; integrity checks every "in game" row exists.
+      16 game items are not in it (brain matter, food, the Chem Station)
+- [x] Art seam, future-proofing only: `Items.icon_of` finds
+      `art/items/<id>.png` (and optional `<id>_ground.png`); pack, hotbar,
+      drag ghost and ground draw it when present and the placeholder
+      otherwise. No art ships, so the game draws exactly as before.
+      `icons_test.gd`; the editor shows each item's look and the file name
 - [ ] Owner: run `tools\edit`, try it, and say whether the other nine
       tables migrate now (RECIPES next: `cost` is `map<int>` with
       `key_ref`, `give` needs a shape decision)

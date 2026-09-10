@@ -151,7 +151,8 @@ func test_only_the_three_page_files_are_served() -> void:
 	ok(html.contains("content=\"secret\""), "the page carries this run's token")
 	ok(not html.contains("__EDIT_TOKEN__"))
 	eq(api.handle("GET", "/app.js", {}, "").status, 200)
-	for path: String in ["/../project.godot", "/tools/editor/edit_api.gd", "/data/weapons.json", "/app.js/../../project.godot"]:
+	for path: String in ["/../project.godot", "/tools/editor/edit_api.gd", "/data/weapons.json", "/app.js/../../project.godot",
+			"/art/items/../../project.godot", "/art/items/README.md", "/art/items/nothing.png"]:
 		eq(api.handle("GET", path, {}, "").status, 404, path)
 
 
