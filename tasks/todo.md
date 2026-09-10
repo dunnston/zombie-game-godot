@@ -1835,6 +1835,11 @@ bleed, and fists do neither.** No weapon has both, and a test asserts it.
       assertions in `combat_test.gd`, two smoke checkpoints
 - [x] Notion's `Crit Chance` and `Stagger` columns filled in from what was
       built, on all seventeen in-game weapons
+- [x] **A closed wound leaves nothing behind** (Codex, PR #23). Zeroing the
+      clock alone left `bleed_dps` and `bleed_by` standing, so the next cut
+      was compared against a wound that had already finished: a knife
+      opening something a machete had bled dry bled at the machete's rate
+      and paid the machete's owner the kill
 
 ### Review
 
@@ -1854,6 +1859,15 @@ reason.
 
 The one thing worth flagging for the playtest: `STAGGER.immune` at 2.2s is
 the number the whole mechanic balances on, and it has never been played.
+
+Codex found the bug the "no stacking" rule hides: **a rule that keeps the
+higher of two numbers has to be sure the number it is comparing against is
+still live.** The wound's clock was cleared on expiry and its rate and owner
+were not, so both outlived it — wrong damage, and in co-op the wrong player
+paid. The lesson generalises past bleed: any pair of fields where one is a
+clock and the others are only meaningful while it runs should be cleared
+together, in the one place the clock runs out. The new test was checked by
+reverting the fix and watching it fail first.
 
 ### Left for the owner
 

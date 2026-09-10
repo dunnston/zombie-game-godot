@@ -85,6 +85,11 @@ static func stagger_enemy(sim: GameSim, e: EnemySim, secs: float, crit := false)
 ## Stone Knife at 0.28s would multiply itself into the best weapon in the game
 ## against anything big, which is not what a stone knife is for.
 ##
+## **"Deeper" only ever means deeper than a wound that is still open.**
+## `bleed_dps` and `bleed_by` mean nothing once `bleed_t` has run out, and
+## `tick_bleed` clears both on the way past zero so that this comparison
+## cannot read a number that has already expired.
+##
 ## Takes no `sim`, unlike everything else here, because it emits nothing: the
 ## blood the hit already threw is the telegraph, and `EnemyView` draws the
 ## rest straight off `bleed_t`.
@@ -107,11 +112,22 @@ static func bleed_enemy(e: EnemySim, dps: float, by: PlayerSim = null) -> bool:
 ## file gives: a wound must not re-startle its owner sixty times a second,
 ## and it must not answer every one of those frames with seven blood
 ## particles and a damage number.
+##
+## A closed wound leaves nothing behind (Codex, PR #23). Zeroing the clock
+## alone left the rate and the owner standing, and because `bleed_enemy` keeps
+## the higher of the two rates, the next cut was measured against a wound that
+## had already finished: a Stone Knife opening something a Machete had bled
+## dry inherited the Machete's 6 dps, and the kill went to whoever had swung
+## the Machete. Both are cleared here, which is what makes that comparison
+## safe.
 static func tick_bleed(sim: GameSim, e: EnemySim, dt: float) -> void:
 	if e.bleed_t <= 0.0:
 		return
 	e.bleed_t = maxf(0.0, e.bleed_t - dt)
 	damage_enemy(sim, e, e.bleed_dps * dt, e.pos, 0.0, false, e.bleed_by, true, true, "bleed")
+	if e.bleed_t <= 0.0:
+		e.bleed_dps = 0.0
+		e.bleed_by = null
 
 
 static func kill_enemy(sim: GameSim, e: EnemySim, source: Variant = null) -> void:

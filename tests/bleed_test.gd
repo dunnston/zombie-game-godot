@@ -103,6 +103,28 @@ func test_a_wound_runs_out() -> void:
 	near(e.hp, settled, 1e-6, "then it stops")
 
 
+func test_a_closed_wound_leaves_nothing_behind() -> void:
+	# Codex, PR #23. The clock was zeroed and the rate and the owner were
+	# left standing, so the *next* cut was measured against a wound that had
+	# already finished: a Stone Knife opening something a Machete had bled dry
+	# inherited the Machete's 6 dps, and the kill was credited to whoever had
+	# swung the Machete.
+	var e := _bystander()
+	Damage.bleed_enemy(e, Config.WEAPONS.machete.bleed, p)
+	run(sim, Config.BLEED.time + 0.5)
+	eq(e.bleed_t, 0.0, "the wound closed")
+	eq(e.bleed_dps, 0.0, "and the rate went with it")
+	eq(e.bleed_by, null, "and so did the owner")
+
+	# A weaker blade, seconds later, is its own wound and nobody else's.
+	Damage.bleed_enemy(e, Config.WEAPONS.knife.bleed, null)
+	near(e.bleed_dps, Config.WEAPONS.knife.bleed, 1e-6, "the knife's own rate")
+	eq(e.bleed_by, null, "credited to whoever actually cut it")
+	var hp := e.hp
+	run(sim, 1.0)
+	near(hp - e.hp, Config.WEAPONS.knife.bleed, 0.4, "and it bleeds like a knife wound")
+
+
 func test_the_deepest_cut_is_the_one_that_is_bleeding() -> void:
 	# The rule that stops a 0.28s Stone Knife multiplying itself into the
 	# best weapon in the game against anything big.

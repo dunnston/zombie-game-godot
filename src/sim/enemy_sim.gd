@@ -46,6 +46,10 @@ var stagger_cd := 0.0
 ## `bleed_by` is who opened it, so a kill that lands seconds later still pays
 ## its XP and its drops to the right person. `Damage.bleed_enemy` is the one
 ## writer; `Enemies.tick_ai` is the one place it is spent.
+##
+## **The last two mean nothing unless `bleed_t` is above zero**, and
+## `Damage.tick_bleed` clears them as the clock runs out. Anything reading a
+## rate or an owner off a wound that has closed is reading a ghost.
 var bleed_t := 0.0
 var bleed_dps := 0.0
 var bleed_by: PlayerSim = null
