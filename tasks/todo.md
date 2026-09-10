@@ -2072,3 +2072,126 @@ change at the end of each phase, never ahead of what is built.
 - [ ] Surface the Workbenches gap (Basic/Advanced/Tech/Recycle vs `bench`
       0/1/2) for the owner to decide
 - [ ] Archive the Notion pages; remove the §10 sync procedure
+---
+## Playtest round 1 — the owner's first session (2026-09-10)
+
+Branch `claude/gameplay-balance-ui-fixes-ca8063`, off `main` at 6b1a030.
+Nine notes from the owner's first real play. Each is traced to its code below;
+the owner's feel feedback outranks the roadmap.
+
+- [x] **1. Mutation is far too fast.** `MUTATION.days_to_full` 2.5 (≈22 min
+      untouched in tier 1, ≈14 in tier 4, ×1.2 at night) plus a bite on one
+      zombie hit in seven for +12. Slow the climb and soften the bite — numbers
+      are the owner's call (see questions).
+- [x] **2. A wall went up on a loose stone, and the stone stayed in it.**
+      `Structures.can_place` only asks the collision bitmap, and litter, bushes
+      and rocks are not solid — so a wall is allowed on top of them and the
+      prop lives on inside it. Fix: refuse with "Pick up the stone first"
+      (named from the prop), and have `Structures.make` remove any hand prop
+      under a new piece through `World.remove_prop`, so a save made before the
+      fix loads clean and the tile is in `chopped` for good. No litter respawn
+      system exists — the stone was never removed in the first place.
+- [x] **3. Night is still bright.** Peak darkness is 0.82 on `DARKNESS_KEYS`.
+      Raise the curve toward near-black, and scale `DARKNESS_FULL` and
+      `DARK_ENOUGH` by the same factor so every night multiplier (spawns,
+      sense, speed, Threat, Mutation) lands at exactly the time it does today:
+      only what you see changes. Photograph before and after.
+- [x] **4. The torch gave no light.** The `torch_lit` photograph: it *did*
+      light, and was barely visible against a night that still showed the
+      whole screen. Same root cause as 3. Torch 200px/0.8 → 300px/1.15, and
+      the HUD hint is 12pt, amber, and names the next step.
+- [x] **5. E at the workbench spends materials on an upgrade.** Today the key
+      calls `upgrade_bench` directly. Fix: E opens the bench menu — the craft
+      list at that bench's tier, titled WORKBENCH / WORKBENCH II, with an
+      UPGRADE button (cost on it) that goes through a new `Actions.upgrade_bench`
+      so a guest's press is a command to the host (invariant 8). The prompt
+      reads "Use Workbench". A Chemistry Station answers E the same way, or its
+      recipes would become unreachable once C stops showing them (item 8).
+- [x] **6. The Hatchet breaks too fast.** Owner chose ~100 trees. A tree is
+      *six* chops, not the four I estimated — the test measuring it off the
+      swing caught that at 66 trees — so stone tools are 600, `chop_mul` 1.
+- [x] **7. Clicking food should offer EAT.** A left click that does not drag
+      (press and release on the same cell) on a consumable opens a small menu
+      beside the cell: EAT / DRINK / USE by item, and DROP. Right-click already
+      uses an item directly and stays; ctrl+click stays drop, which it already
+      is — so no second meaning for ctrl.
+- [x] **8. C is hand crafting only: Hatchet, Pickaxe, Torch, Bandage, Stone
+      Knife, Stone Hammer.** Everything else bench 0 moves to bench 1 (Scythe,
+      Cloth, Bow, Arrows, Compost, Work Gloves, Work Trousers). C always shows
+      the hand list, even beside a bench; the bench list is item 5's menu.
+      The Stone Hammer's "portable bench" privilege goes (see questions).
+- [x] Tests for every rule above, asserting on what the code decided
+      (`playtest_test.gd`, 11; crafting, wear, farming and survivors updated)
+- [x] Smoke: the craft tab asserts six, the bench menu and UPGRADE button
+      (two new checkpoints), the chem leg opens its station with E
+- [x] `PROJECT.md` §3/§4/§6/§11; Notion *Crafted at* moved to Basic for
+      Scythe, Cloth, Hunting Bow, Arrows, Compost, Work Gloves, Work Trousers
+
+### Review
+
+Two of the nine notes were one bug: the torch lit fine and could not be seen,
+because night was not dark. The photograph said so in one look, where reading
+`LightView` had suggested a rendering fault. Of the rest, the "respawning"
+stone was never respawning — nothing removed it, because nothing refused the
+wall — and E at the bench was a key that spent money with a prompt that did
+not say so.
+
+The change with reach was the litter rule: it met every test that builds on
+the shared world, because the generator scatters sticks on the plots those
+tests use. Four survivors tests and one building test failed on it, and the
+right fix was in the test helper — clear the ground as a player now must —
+not in the rule. `TestCase.clear_ground` is that helper, and the slow tier
+needed it too: `build_compound` had a wall refused for a stick, and the
+horde walked through the gap. Final: 560 fast, 596 with `--all` (the two
+failures are the broker leg, which cannot start `npm` in a fresh worktree —
+§3 already says so), smoke 71/71. The refusal order also moved: "You are standing there" is
+what you meet before "Pick up the sticks first".
+
+My estimate of the Hatchet was wrong by half (four chops a tree; it is six).
+The test that measures it off the real swing caught that before it shipped.
+
+### Addressing the Codex review on PR #25
+
+- [x] **Scope a bench screen to the bench that was opened.** BENCH mode took
+      its tier and stations from everything in reach, so a Chemistry Station
+      beside a workbench listed the workbench's recipes under its own title
+      (and the reverse), and two differently upgraded benches side by side
+      could change the list without changing the title. `bench()` and
+      `recipes()` now read `bench_struct()`: a workbench lists its own tier, a
+      station lists only its own work, and mend rows stay off a station.
+      `test_a_bench_screen_lists_the_bench_you_opened_and_no_other` puts both
+      side by side. 561 fast, smoke 71/71 (one earlier run missed the
+      build-mode click as the camera led the cursor — §8's timing flake,
+      not this change; the re-run passed).
+
+### Left for the owner
+
+- [ ] **Play it.** Mutation at 67 minutes and the bite halved are both
+      first guesses at "not way too fast".
+- [ ] **Metal tools now barely outlast stone.** Fire Axe and Steel Pickaxe
+      are 420 uses against the stone tools' 600, and the chop cost halved for
+      them too. Worth raising if they should feel like an upgrade in wear.
+- [ ] **Notion's Player Menu row** still describes the hammer lifting bench
+      work, and its *What it is for* lists a bow and arrows. Not edited: the
+      go-ahead was for the seven items' *Crafted at*.
+
+## The broker leg starts npm on Windows
+
+- [x] **`webrtc_slow_test` could not launch npm on Windows.** It called
+      `OS.execute("npm", …)`, and npm there is `npm.cmd`, a batch file
+      CreateProcess will not start by bare name — so every fresh worktree
+      failed `--all` with "Could not create child process" before the broker
+      ever ran. On Windows it now goes through `cmd.exe /c npm …`; elsewhere
+      it is unchanged. Node is a real `node.exe` and stays a direct
+      `create_process`, so `OS.kill` still reaches it and not a shell.
+- [x] `PROJECT.md` §3 no longer says the test fails until you install by
+      hand: it installs itself, and needs the network that once.
+
+Numbers: 561 / 7177 fast, 597 / 7325 with `--all`, zero failures — the
+broker leg passed both with a fresh `npm install` and with `node_modules`
+already there. Smoke 71/71, but not every time: two runs of four failed
+"holding REPAIR left the wall at 136 of 340", on this branch and never on a
+clean `main` (one run there). The third run on this branch passed with
+nothing changed, and the change touches only a test the game never loads,
+so it is the same family of timing flake as the build-mode click above —
+recorded, not fixed here.

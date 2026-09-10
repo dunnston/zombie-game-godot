@@ -26,9 +26,6 @@
       },
       "type": "object"
     },
-    "hammer": {
-      "type": "bool"
-    },
     "name": {
       "type": "string"
     },
@@ -42,7 +39,7 @@
       "type": "int"
     }
   },
-  "notes": "Crafting is instant by design: the materials are the whole cost. `bench` is 0 for by hand, 1 for a workbench, 2 for the upgraded one. A `hammer` recipe is lifted to bench 1 by a carried Stone Hammer — the work you could plausibly do on a flat rock — and never any further, so the hammer can never produce a gun. `tool` is a flag the player must be carrying something with (a knife cuts cordage).\n\nOrder matters only for the screen: hand tools first, because the bench costs wood and wood costs a hatchet.",
+  "notes": "Crafting is instant by design: the materials are the whole cost. `bench` is 0 for by hand, 1 for a workbench, 2 for the upgraded one. `tool` is a flag the player must be carrying something with (a knife cuts cordage).\n\n**By hand is exactly six things** — Bandage, Hatchet, Stone Knife, Stone Pickaxe, Stone Hammer, Torch — the owner's call on 2026-09-10: the C menu is what you need before you have a base, and everything else is made at the bench. `crafting_test` holds the list to that. (A carried Stone Hammer used to lift a few bench-1 recipes to by-hand; that went with it.)\n\nOrder matters only for the screen: hand tools first, because the bench costs wood and wood costs a hatchet.",
   "rows": [
     {
       "bench": 0,
@@ -100,7 +97,7 @@
       "xp": 12
     },
     {
-      "bench": 0,
+      "bench": 1,
       "cost": {
         "fiber": 4,
         "sticks": 5,
@@ -128,7 +125,7 @@
       "xp": 12
     },
     {
-      "bench": 0,
+      "bench": 1,
       "cost": {
         "fiber": 10
       },
@@ -158,7 +155,7 @@
       "xp": 6
     },
     {
-      "bench": 0,
+      "bench": 1,
       "cost": {
         "cloth": 2,
         "fiber": 12,
@@ -169,11 +166,11 @@
       },
       "id": "bow",
       "name": "Hunting Bow",
-      "notes": "Bench 0, like the tools: a bow is a stick and a string, and it has to be reachable in the first ten minutes to be the quiet answer to a gun.",
+      "notes": "The first bench's quiet answer to a gun: cheap, and a workbench away.",
       "xp": 18
     },
     {
-      "bench": 0,
+      "bench": 1,
       "cost": {
         "fiber": 2,
         "sticks": 6,
@@ -189,7 +186,7 @@
       "xp": 3
     },
     {
-      "bench": 0,
+      "bench": 1,
       "cost": {
         "fiber": 12,
         "sticks": 6
@@ -201,11 +198,11 @@
       },
       "id": "compost",
       "name": "Compost x2",
-      "notes": "A compost heap is a pile of dead plants, so it is bench 0 like the stone tools: farming must be reachable before metalwork or the first bed is a thing you build and then cannot feed.",
+      "notes": "A compost heap is a pile of dead plants: first-bench work, so a garden is fed from the same workbench that is the first thing a base builds.",
       "xp": 3
     },
     {
-      "bench": 0,
+      "bench": 1,
       "cost": {
         "cloth": 8
       },
@@ -217,7 +214,7 @@
       "xp": 8
     },
     {
-      "bench": 0,
+      "bench": 1,
       "cost": {
         "cloth": 14
       },
@@ -237,7 +234,6 @@
       "give": {
         "weapon": "pipe"
       },
-      "hammer": true,
       "id": "pipe",
       "name": "Steel Pipe",
       "xp": 12
@@ -297,7 +293,6 @@
         "item": "jerky",
         "n": 2
       },
-      "hammer": true,
       "id": "jerky",
       "name": "Dried Meat x2",
       "notes": "Food is bench work, not chemistry: a fire and a pot. Both of these are buffs with a clock on them and neither is ever required.",
@@ -497,7 +492,6 @@
         "item": "lockpick",
         "n": 3
       },
-      "hammer": true,
       "id": "lockpick",
       "name": "Lockpicks x3",
       "xp": 6
@@ -513,7 +507,6 @@
           "rations": 8
         }
       },
-      "hammer": true,
       "id": "rationPack",
       "name": "Ration Pack x8",
       "xp": 5

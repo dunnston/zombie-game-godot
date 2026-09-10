@@ -171,9 +171,16 @@ func _draw() -> void:
 	var cb := Rect2(tx + 52, ty + 40, 168, 4)
 	draw_rect(cb, Color(0, 0, 0, 0.55))
 	draw_rect(Rect2(cb.position, Vector2(cb.size.x * sim.clock.t, cb.size.y)), pcol)
+	# Readable, and specific about the next step: the first playtest found a
+	# faint "T for a light" easy to miss, and a torch in the pack is not a
+	# torch in the off-hand.
 	if sim.clock.is_dark() and not p.lit:
-		draw_string(font, Vector2(tx, ty + 56), "dark — T for a light", HORIZONTAL_ALIGNMENT_LEFT, -1, 10,
-			Color(1, 1, 1, 0.25 + 0.25 * dark))
+		var key := KeyBinds.primary_label("light")
+		# Short: this column is 220px wide and the first cut ran off the screen.
+		var hint := "dark — %s lights your torch" % key if not Equipment.equipped_light(p).is_empty() \
+			else "dark — wear a Torch, then %s" % key
+		draw_string(font, Vector2(tx, ty + 58), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12,
+			Color(0.95, 0.75, 0.4, 0.6 + 0.4 * dark))
 
 	# The hotbar: six slots, and the selected one is what you are holding.
 	var slot_w := 74.0

@@ -428,6 +428,11 @@ func _process(dt: float) -> void:
 		elif ev.t == "open_bed":
 			if int(ev.get("seat", me.seat)) == me.seat:
 				inventory.open_bed(Vector2i(ev.tx, ev.ty))
+		elif ev.t == "open_bench":
+			if int(ev.get("seat", me.seat)) == me.seat:
+				inventory.open_bench(Vector2i(ev.tx, ev.ty))
+				if build_bar.open:
+					build_bar.toggle()
 		fx.on_event(ev)
 		lights.on_event(ev)
 		hud.on_event(ev)
@@ -856,6 +861,56 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 		sim.stash = Slots.new(Config.STASH_SLOTS)
 	for id in ["scrap", "elec", "parts", "med", "wood"]:
 		sim.stash.add(id, 60)
+
+	# The workbench: E opens it and spends nothing; the upgrade is a button in
+	# there with its price on it. Built well away from the Chemistry Station
+	# below, so the two never compete for the key.
+	for id in ["scrap", "elec", "parts", "wood"]:
+		sim.stash.add(id, 120)
+	var wb_origin := p.pos
+	var wb_tile := Vector2i(-1, -1)
+	var wb_why := "no tiles tried"
+	for wi in [8, 9, 10, -8, -9, -10]:
+		for wj in [0, -2, 2]:
+			var wt := Vector2i(int(wb_origin.x / 32) + wi, int(wb_origin.y / 32) + wj)
+			# Stand one tile south of it first: placement checks reach from you.
+			_smoke_stand_at(Vector2(wt.x * 32 + 16, wt.y * 32 + 48))
+			if sim.world.is_blocked_px(p.pos.x, p.pos.y, sim.structs):
+				continue
+			var wcan := sim.structs.can_place(sim, "workbench", wt.x, wt.y, p)
+			if wcan.ok:
+				wb_tile = wt
+				break
+			wb_why = String(wcan.reason)
+		if wb_tile.x >= 0:
+			break
+	if wb_tile.x < 0:
+		smoke.fail("nowhere to put a workbench (last refusal: %s)" % wb_why)
+	else:
+		sim.structs.place(sim, "workbench", wb_tile.x, wb_tile.y, p)
+		await smoke.frames(2)
+		await smoke.tap("interact")
+		await smoke.frames(3)
+		var wb: Dictionary = sim.structs.at_tile(wb_tile.x, wb_tile.y)
+		if not inventory.visible or inventory.mode != "bench":
+			smoke.fail("E at the workbench did not open it (the key offered: %s)" % str(Interact.best_target(sim, p).get("label", "nothing")))
+		elif int(wb.tier) != 1:
+			smoke.fail("E at the workbench spent an upgrade")
+		await smoke.checkpoint("workbench_menu")
+		var up := inventory.button_centre("upgrade")
+		if up == Vector2.ZERO:
+			smoke.fail("the workbench menu has no UPGRADE button")
+		else:
+			await smoke_click(up)
+			await smoke.frames(3)
+			if int(wb.tier) != 2:
+				smoke.fail("UPGRADE did not upgrade the workbench")
+		await smoke.checkpoint("workbench_upgraded")
+		await smoke.tap("inventory")
+		await smoke.frames(2)
+	_smoke_stand_at(wb_origin)
+	for id in ["scrap", "elec", "parts", "med", "wood"]:
+		sim.stash.add(id, 60)
 	sim.structs.bench_tier = 2
 	# Somewhere it will actually fit: the ground the player happens to be
 	# stood on is as likely to be a wall or a tree as not.
@@ -875,16 +930,18 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 		smoke.fail("nowhere to put a Chemistry Station (last refusal: %s)" % why)
 	else:
 		sim.structs.place(sim, "chemStation", chem_tile.x, chem_tile.y, p)
-		p.pos = Vector2(chem_tile.x * 32 + 16, chem_tile.y * 32 + 48)
+		_smoke_stand_at(Vector2(chem_tile.x * 32 + 16, chem_tile.y * 32 + 48))
 	await smoke.frames(3)
 	if sim.structs.at_tile(chem_tile.x, chem_tile.y).is_empty():
 		smoke.fail("the Chemistry Station would not go up")
 	if not Crafting.stations_at(sim, p).has("chem"):
 		smoke.fail("standing beside the station, the station is not in reach")
-	await smoke.tap("inventory")
-	await smoke.frames(2)
-	inventory.mode = "craft"
+	# E opens it, as it does a workbench: its recipes are on the bench screen
+	# and nowhere else, so the key is the only door.
+	await smoke.tap("interact")
 	await smoke.frames(3)
+	if not inventory.visible or inventory.mode != "bench":
+		smoke.fail("E at the Chemistry Station did not open it (the key offered: %s)" % str(Interact.best_target(sim, p).get("label", "nothing")))
 	# The rule first: a station recipe is offered at its station and nowhere
 	# else. Asserting it against the *visible* rows instead made this fail the
 	# day a recipe was added anywhere above it in the list, which measures the
@@ -1158,6 +1215,9 @@ func smoke_run(smoke: Node) -> void:
 	await smoke.frames(3)
 	if not inventory.visible or inventory.mode != "craft":
 		smoke.fail("C did not open the craft tab")
+	# By hand is the six basics and nothing else (the owner, 2026-09-10).
+	if inventory.recipes().size() != 6:
+		smoke.fail("C lists %d recipes, not the six basics" % inventory.recipes().size())
 	await smoke.checkpoint("craft_tab")
 	var axes := p.count_carried("axe")
 	await smoke_click(inventory.recipe_centre("axe"))

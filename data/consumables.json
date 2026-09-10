@@ -44,10 +44,14 @@
     "tool": {
       "type": "bool"
     },
+    "verb": {
+      "type": "string"
+    },
     "wt": {
       "type": "float"
     }
   },
+  "notes": "`verb` is what the pack's click menu calls using it; without one it is EAT for food and USE for everything else.",
   "rows": [
     {
       "color": "#d8cfc0",
@@ -73,6 +77,7 @@
       "notes": "Brain matter, and what it is worth. `mut` is how much eating it takes off the Mutation meter; `effect` is what it does to you on the way down. Quality is why a Brute is worth walking toward and a Behemoth is worth a magazine: the tissue a body gives up depends on what the body was.",
       "stack": 20,
       "time": 2.0,
+      "verb": "EAT",
       "wt": 0.4
     },
     {
@@ -85,6 +90,7 @@
       "name": "Mutated Brain Matter",
       "stack": 20,
       "time": 2.2,
+      "verb": "EAT",
       "wt": 0.4
     },
     {
@@ -217,6 +223,7 @@
       "rank": 1,
       "stack": 15,
       "time": 1.2,
+      "verb": "DRINK",
       "wt": 0.8
     },
     {
@@ -229,6 +236,7 @@
       "rank": 2,
       "stack": 15,
       "time": 1.2,
+      "verb": "DRINK",
       "wt": 0.7
     },
     {
@@ -242,6 +250,7 @@
       "rank": 3,
       "stack": 10,
       "time": 1.6,
+      "verb": "DRINK",
       "wt": 0.3
     },
     {
@@ -254,6 +263,7 @@
       "rank": 6,
       "stack": 8,
       "time": 1.8,
+      "verb": "DRINK",
       "wt": 1.0
     },
     {

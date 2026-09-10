@@ -495,8 +495,7 @@ function viewWorkbenches(q) {
   const R = listRows("RECIPES").filter((r) => hit(q, r, outputs(r).map((o) => itemName(o.id))));
   const wb = rowById("STRUCTURES", "workbench");
   const cols = [
-    ["By hand", "No bench — always available.", R.filter((r) => !r.station && r.bench === 0)],
-    ["By hand, carrying a Stone Hammer", "Recipes flagged hammer: bench-1 work you could do on a flat rock. Never a gun.", R.filter((r) => !r.station && r.hammer)],
+    ["By hand", "No bench — the C menu. What you need before you have a base.", R.filter((r) => !r.station && r.bench === 0)],
     ["Workbench", wb ? ["Build a ", link("STRUCTURES", "workbench", "Workbench"), ": ", chips(wb.cost), " Also does everything by hand."] : "",
       R.filter((r) => !r.station && r.bench === 1)],
     ["Workbench II", ["Upgrade the Workbench: ", chips(S.consts.BENCH_UPGRADE_COST), " Also does everything below it."],
@@ -696,7 +695,7 @@ function itemSummary(id) {
   const harvest = rowsOf(S.consts.HARVEST || {}).filter((h) => h.res === id || h.bonus === id);
   return el("div", { class: "card summary" },
     el("div", {}, el("b", {}, "Crafted at: "), made.length ? made.map((r, i) => [i ? " · " : "",
-      link("RECIPES", r.id, placeLabel(r)), r.station && r.bench ? ` + bench ${r.bench}` : "", r.hammer ? " (or by hand, carrying a Stone Hammer)" : ""])
+      link("RECIPES", r.id, placeLabel(r)), r.station && r.bench ? ` + bench ${r.bench}` : ""])
       : el("span", { class: "hint" }, "can't be crafted")),
     el("div", {}, el("b", {}, "Found in: "), spots.length
       ? [spots.slice(0, 4).map((s, i) => [i ? ", " : "", s.where, ` ${pct(s.chance)}`]), spots.length > 4 ? ` and ${spots.length - 4} more below` : ""]
@@ -786,7 +785,6 @@ function viewTools(q) {
         if (h.needs === f) out.push(`needed for ${String(h.label || h.id).toLowerCase()} (${h.id})`);
         else if (h.boost === f) out.push(`faster ${String(h.label || h.id).toLowerCase()} (${h.id})`);
       }
-      if (f === "hammer") out.push(`bench-1 work by hand (${listRows("RECIPES").filter((r) => r.hammer).length} recipes)`);
     }
     for (const r of listRows("RECIPES").filter((r) => r.tool === w.id)) out.push(`needed to craft ${r.name}`);
     return out;

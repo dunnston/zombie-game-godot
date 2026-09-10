@@ -351,6 +351,26 @@ yet when an earlier autoload's `_ready` wants to know.
 ## 2026-09-10 (raised beds, continued)
 
 - A review finding can be right about the fact and wrong about the target.
+  (See the entry below for the owner's first playtest.)
+
+## 2026-09-10 (the owner's first playtest)
+
+- Look at the photograph before reading the renderer. "The torch gave no
+  light" read like a `LightView` fault; the smoke's `torch_lit` PNG showed a
+  torch that lit and a night bright enough to hide it. One look, one cause
+  for two notes.
+- A rule about what may stand on a tile meets every test that builds on the
+  shared world, because the generator scatters litter on the plots those
+  tests use. Fix the helper to do what a player now has to (clear the
+  ground), not the rule — and put the new refusal where a player meets it in
+  the order: after "You are standing there", before the cost.
+- Estimate a feel number, then measure it through the real path before
+  telling the owner. "About a hundred trees" was four chops a tree in my
+  head and six in the game; the test that divided durability by the swing's
+  own damage caught it at 66.
+- Scaling a curve that gameplay reads as well as the eye sees: scale its
+  normaliser by the same factor, and the gameplay reading is unchanged at
+  every point. Assert that at the keys, against the old numbers.
   The stash has been reachable from anywhere since Phase 3 and every system
   that spends inherits it; fixing it in farming alone would have made the one
   new system the odd one out. Correct the claim, raise the real card.

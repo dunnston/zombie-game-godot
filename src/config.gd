@@ -322,22 +322,30 @@ const PHASES := [
 ## How dark the world is through the day, sampled as a ramp rather than
 ## stepped per phase — dusk has to creep in, not snap. `a` is the darkness
 ## alpha and `c` is what the dark is tinted.
+##
+## Deep night is near-black on purpose: past the edge of your torch you
+## should see almost nothing. The whole curve was scaled by 1.17 from its
+## first version (peak 0.82) after the owner's first playtest found night
+## still bright and a lit torch invisible against it — and `DARKNESS_FULL`
+## and `DARK_ENOUGH` were scaled by the same factor, so every multiplier
+## that reads the dark (spawns, sense, speed, Threat, Mutation) lands at
+## exactly the moment it did before. Only what you can see changed.
 const DARKNESS_KEYS := [
-	{"t": 0.00, "a": 0.62, "c": "#101a3a"},
-	{"t": 0.10, "a": 0.22, "c": "#2a3358"},
+	{"t": 0.00, "a": 0.725, "c": "#101a3a"},
+	{"t": 0.10, "a": 0.257, "c": "#2a3358"},
 	{"t": 0.16, "a": 0.00, "c": "#0a0c09"},
 	{"t": 0.56, "a": 0.00, "c": "#0a0c09"},
-	{"t": 0.66, "a": 0.30, "c": "#3a2740"},
-	{"t": 0.74, "a": 0.62, "c": "#161436"},
-	{"t": 0.82, "a": 0.82, "c": "#070c1c"},
-	{"t": 0.96, "a": 0.78, "c": "#080f24"},
-	{"t": 1.00, "a": 0.62, "c": "#101a3a"},
+	{"t": 0.66, "a": 0.351, "c": "#3a2740"},
+	{"t": 0.74, "a": 0.725, "c": "#161436"},
+	{"t": 0.82, "a": 0.959, "c": "#070c1c"},
+	{"t": 0.96, "a": 0.913, "c": "#080f24"},
+	{"t": 1.00, "a": 0.725, "c": "#101a3a"},
 ]
 
 ## Full night for the purpose of the multipliers below. The curve peaks a
 ## little above this, so `k` is clamped and the small hours are not worse
-## than the rest of the night.
-const DARKNESS_FULL := 0.8
+## than the rest of the night. 0.8 x 1.17, with the curve above.
+const DARKNESS_FULL := 0.936
 
 ## What the dark is worth to everything else. `k` is darkness over
 ## DARKNESS_FULL, clamped to 0..1: more of them out there, noticing you
@@ -351,8 +359,8 @@ const NIGHT := {
 }
 
 ## Above this darkness a light is worth carrying — what the HUD hint and the
-## torch prompt read.
-const DARK_ENOUGH := 0.35
+## torch prompt read. 0.35 x 1.17, with the darkness curve.
+const DARK_ENOUGH := 0.41
 
 # ----------------------------------------------------------------- mutation --
 
@@ -372,8 +380,9 @@ const DARK_ENOUGH := 0.35
 const MUTATION := {
 	"max": 100.0,
 	## Nothing to full, untouched, in in-game days. `DAY_LENGTH` is 540s, so
-	## 2.5 of them is about twenty-two minutes of play.
-	"days_to_full": 2.5,
+	## 7.5 of them is about sixty-seven minutes of play. It was 2.5 (twenty-two
+	## minutes) until the owner's first session found it "way too fast".
+	"days_to_full": 7.5,
 	## Multiplied into the base rate by the danger tier under your feet: worse
 	## ground turns you faster, which is the cost of going somewhere good.
 	## Indexed by tier; 0 is the tierless outskirts.
@@ -381,10 +390,11 @@ const MUTATION := {
 	## What full darkness is worth on top, scaled by the darkness curve.
 	"night_mul": 1.2,
 	## A zombie's melee connecting is a *bite* this often. Every hit adding
-	## mutation would make this a second health bar; one in seven makes a
-	## crowd something you get out of rather than trade with.
-	"bite_chance": 0.14,
-	"per_bite": 12.0,
+	## mutation would make this a second health bar; one in ten makes a
+	## crowd something you get out of rather than trade with. Halved from one
+	## in seven at +12 on the owner's first playtest.
+	"bite_chance": 0.10,
+	"per_bite": 6.0,
 	## Any single hit this big — bite or not, a Behemoth's swing or a fall —
 	## is the body being overwhelmed.
 	"heavy_damage": 25.0,
@@ -730,8 +740,11 @@ static var WEAPONS: Dictionary = DataTable.load_table("weapons")
 ## nothing, which is the same rule that already makes flailing at the scenery
 ## free. A weapon with no `dur` never wears at all — that is what Fists are.
 ##
-## `chop_mul` is the other half of the honest version: felling a tree is what
-## actually blunts an axe, and it costs a tool twice what a walker does.
+## `chop_mul` is what one connecting chop costs against one connecting blow.
+## It was 2, with stone tools at 140-160 uses — a Hatchet felled about
+## seventeen trees — and the owner's first session found that far too fast.
+## At 1, with the five stone tools at 600, a Hatchet fells about a hundred
+## (six chops a tree at Strength 2; `wear_test` measures it off the swing).
 ##
 ## Repair is the structure rule, applied to a recipe instead of a build cost:
 ## a share of what the thing cost to make, scaled by how worn it is, at the
@@ -746,8 +759,8 @@ static var WEAPONS: Dictionary = DataTable.load_table("weapons")
 const WEAR := {
 	# What a repair costs, as a share of the recipe, scaled by the wear.
 	"repair_cost_share": 0.5,
-	# Harvesting is harder on a tool than fighting is.
-	"chop_mul": 2,
+	# One chop wears a tool exactly as much as one blow.
+	"chop_mul": 1,
 	# "Worn" and "nearly gone": one warning each, once per crossing.
 	"worn_at": 0.3,
 	"spent_at": 0.1,

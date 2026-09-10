@@ -62,38 +62,38 @@ func test_every_recipe_makes_something_that_exists() -> void:
 			ok(false, "%s gives nothing" % r.id)
 
 
-func test_the_hammer_never_reaches_a_gun() -> void:
-	for r in Config.RECIPES:
-		if r.get("hammer", false):
-			ok(r.bench <= 1, "%s is hammer-liftable and above bench 1" % r.id)
-			if r.give.has("weapon"):
-				ok(Config.WEAPONS[r.give.weapon].kind != "gun", "%s is a gun" % r.id)
-
-
 # ------------------------------------------------------------------ benches --
 
-func test_by_hand_you_can_make_the_first_tools_and_nothing_else() -> void:
-	var names := {}
+## The owner's list, 2026-09-10: the C menu is what you need before you have
+## a base, and everything else is made at the bench.
+const BY_HAND := ["axe", "bandage", "hammer", "knife", "pick", "torch"]
+
+
+func test_by_hand_is_exactly_the_six_basics() -> void:
+	var names: Array = []
 	for r in Crafting.visible_recipes(p, 0):
-		names[r.id] = true
-	ok(names.has("axe"), "a hatchet")
-	ok(names.has("bow"), "and a bow")
-	ok(not names.has("pistol"), "but not a pistol")
-	ok(not names.has("rifle"), "and certainly not a rifle")
+		names.append(String(r.id))
+	names.sort()
+	eq(names, BY_HAND, "the C menu")
+	# And the table says so, not just the list: nothing else is bench 0
+	# unless a station gates it.
+	for r in Config.RECIPES:
+		if int(r.bench) == 0 and String(r.get("station", "")).is_empty():
+			ok(BY_HAND.has(String(r.id)), "%s is by hand" % r.id)
 
 
-func test_a_stone_hammer_lifts_the_simple_bench_work_and_no_more() -> void:
-	var before := Crafting.visible_recipes(p, 0).size()
-	p.bag.add("hammer", 1)
-	var after: Array = Crafting.visible_recipes(p, 0)
-	gt(after.size(), before, "the hammer showed some bench-1 work")
-	for r in after:
-		if r.bench > 0:
-			ok(r.get("hammer", false), "%s appeared without being hammer work" % r.id)
-	# And it really can be made, not merely shown.
+func test_the_bow_and_the_first_clothes_are_bench_work() -> void:
 	_stock()
-	ok(Crafting.status(sim, p, _recipe("pipe"), 0).ok, "a pipe on a flat rock")
-	ok(not Crafting.status(sim, p, _recipe("pistol"), 0).ok, "but never a pistol")
+	for id in ["scythe", "cordage", "bow", "arrow", "compost", "workGloves", "denimPants"]:
+		eq(Crafting.status(sim, p, _recipe(id), 0).reason, "Needs a Workbench", id)
+
+
+func test_a_stone_hammer_is_a_weapon_not_a_workbench() -> void:
+	_stock()
+	p.bag.add("hammer", 1)
+	eq(Crafting.visible_recipes(p, 0).size(), BY_HAND.size(), "the hammer shows nothing extra")
+	eq(Crafting.status(sim, p, _recipe("pipe"), 0).reason, "Needs a Workbench", "a pipe needs the bench")
+	ok(Crafting.status(sim, p, _recipe("pipe"), 1).ok, "and at the bench it is fine")
 
 
 func test_a_workbench_you_stand_beside_is_what_counts() -> void:
@@ -108,9 +108,9 @@ func test_a_workbench_you_stand_beside_is_what_counts() -> void:
 func test_cordage_needs_a_blade() -> void:
 	_stock()
 	var r := _recipe("cordage")
-	eq(Crafting.status(sim, p, r, 0).reason, "Needs a Stone Knife")
+	eq(Crafting.status(sim, p, r, 1).reason, "Needs a Stone Knife")
 	p.bag.add("knife", 1)
-	ok(Crafting.status(sim, p, r, 0).ok, "with a knife in the pack, yes")
+	ok(Crafting.status(sim, p, r, 1).ok, "with a knife in the pack, yes")
 
 
 # ---------------------------------------------------------------- crafting --
@@ -164,7 +164,7 @@ func test_an_output_with_nowhere_to_go_lands_at_your_feet() -> void:
 	var before := sim.pickups.size()
 	# The cost is spent from what is already in the pack, so the craft goes
 	# ahead — and the output must not evaporate.
-	Crafting.craft(sim, p, _recipe("arrow"), 0)
+	Crafting.craft(sim, p, _recipe("arrow"), 1)
 	gt(sim.pickups.size(), before, "the arrows are on the ground")
 
 

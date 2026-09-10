@@ -26,6 +26,8 @@ func _stock(n := 400) -> void:
 func _build(type: String, tx: int, ty: int) -> Dictionary:
 	# Placement is range-limited, so the builder walks their own perimeter.
 	p.pos = tile_centre(Vector2i(tx, ty)) + Vector2(0, Config.TILE * 2)
+	# These tests are about the crew, not about where sticks lie.
+	clear_ground(sim, tx, ty)
 	var s := sim.structs.place(sim, type, tx, ty, p)
 	p.pos = tile_centre(plot)
 	return s

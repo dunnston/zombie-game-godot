@@ -32,7 +32,15 @@ func _start_broker() -> bool:
 	var server := ProjectSettings.globalize_path("res://server")
 	if not DirAccess.dir_exists_absolute(server.path_join("node_modules")):
 		var out := []
-		var code := OS.execute("npm", ["install", "--no-audit", "--no-fund", "--prefix", server], out, true)
+		var exe := "npm"
+		var args := ["install", "--no-audit", "--no-fund", "--prefix", server]
+		# On Windows npm is `npm.cmd`, a batch file CreateProcess will not
+		# launch by bare name; cmd.exe resolves it. Node is a real .exe, and
+		# stays a direct child below so `OS.kill` reaches it.
+		if OS.get_name() == "Windows":
+			exe = "cmd.exe"
+			args = ["/c", "npm"] + args
+		var code := OS.execute(exe, args, out, true)
 		if code != 0:
 			_fail("npm install in server/ failed (%d): %s" % [code, "".join(out).right(300)])
 			return false

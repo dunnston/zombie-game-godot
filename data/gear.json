@@ -202,8 +202,8 @@
       "dr": 0.0,
       "id": "torch",
       "light": {
-        "radius": 200.0,
-        "strength": 0.8,
+        "radius": 300.0,
+        "strength": 1.15,
         "warm": "#ffb45a"
       },
       "name": "Torch",
