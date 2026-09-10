@@ -1,0 +1,388 @@
+{
+  "fields": {
+    "cost": {
+      "type": "map<int>"
+    },
+    "desc": {
+      "type": "string"
+    },
+    "dmg": {
+      "type": "float"
+    },
+    "fire_cd": {
+      "type": "float"
+    },
+    "fuel_burn": {
+      "type": "float"
+    },
+    "fuel_max": {
+      "type": "float"
+    },
+    "gate": {
+      "type": "bool"
+    },
+    "houses": {
+      "type": "int"
+    },
+    "hp": {
+      "type": "float"
+    },
+    "light_radius": {
+      "type": "float"
+    },
+    "mag": {
+      "type": "int"
+    },
+    "name": {
+      "type": "string"
+    },
+    "plot": {
+      "type": "bool"
+    },
+    "post": {
+      "type": "string"
+    },
+    "power_radius": {
+      "type": "float"
+    },
+    "powered": {
+      "type": "bool"
+    },
+    "protect": {
+      "type": "bool"
+    },
+    "range": {
+      "type": "float"
+    },
+    "reload": {
+      "type": "float"
+    },
+    "sniper_dmg": {
+      "type": "float"
+    },
+    "sniper_range": {
+      "type": "float"
+    },
+    "solid": {
+      "type": "bool"
+    },
+    "station": {
+      "type": "string"
+    },
+    "store": {
+      "type": "int"
+    },
+    "threat": {
+      "type": "float"
+    },
+    "tier": {
+      "type": "int"
+    },
+    "trap": {
+      "type": "bool"
+    },
+    "trap_cd": {
+      "type": "float"
+    },
+    "trap_dmg": {
+      "type": "float"
+    },
+    "wall": {
+      "type": "bool"
+    }
+  },
+  "notes": "Build anywhere: a \"base\" is wherever your structures happen to be.\n\n`solid` blocks feet but never bullets (invariant 3) — a base you cannot shoot out of is a base that punishes you for building it. `protect` marks the pieces a raider inside the perimeter should prefer, so a horde that is already through heads for the workbench rather than back out. `threat` scales what putting one up costs you in attention. `store` is a slot count; `tier` 2 needs the upgraded workbench.",
+  "rows": [
+    {
+      "cost": {
+        "cloth": 12,
+        "wood": 15
+      },
+      "desc": "Sets your respawn point. Only the newest one is active.",
+      "hp": 90.0,
+      "id": "bedroll",
+      "name": "Bedroll",
+      "solid": false,
+      "threat": 1.0,
+      "tier": 1
+    },
+    {
+      "cost": {
+        "cloth": 14,
+        "wood": 22
+      },
+      "desc": "Somewhere for one survivor to sleep. No bunk, no recruit.",
+      "houses": 1,
+      "hp": 140.0,
+      "id": "bunk",
+      "name": "Bunk",
+      "protect": true,
+      "solid": true,
+      "threat": 1.0,
+      "tier": 1
+    },
+    {
+      "cost": {
+        "fiber": 6,
+        "sticks": 8,
+        "wood": 18
+      },
+      "desc": "A seed, some water and a few days. Grows food to cook or eat.",
+      "hp": 150.0,
+      "id": "raisedBed",
+      "name": "Raised Bed",
+      "notes": "Not solid — you walk through your own garden — and deliberately **not** `protect`. A vegetable patch is not a fortification: marking it would widen `BASE.radius` around the allotment and make a raid walk at the lettuce, and neither of those is what a bed is for.",
+      "plot": true,
+      "solid": false,
+      "threat": 0.5,
+      "tier": 1
+    },
+    {
+      "cost": {
+        "scrap": 20,
+        "wood": 45
+      },
+      "desc": "Assign a survivor here and they cover the whole approach.",
+      "hp": 420.0,
+      "id": "watchtower",
+      "name": "Watchtower",
+      "post": "sniper",
+      "protect": true,
+      "sniper_dmg": 1.9,
+      "sniper_range": 520.0,
+      "solid": true,
+      "threat": 2.0,
+      "tier": 1
+    },
+    {
+      "cost": {
+        "scrap": 8,
+        "wood": 25
+      },
+      "desc": "The base pantry and armoury. 48 slots. Survivors and towers feed from this one.",
+      "hp": 220.0,
+      "id": "stash",
+      "name": "Supply Stash",
+      "notes": "Its `store` is the shared stash's slot count: Config.STASH_SLOTS reads it from here, so this is the one number.",
+      "protect": true,
+      "solid": true,
+      "store": 48,
+      "threat": 2.0,
+      "tier": 1
+    },
+    {
+      "cost": {
+        "sticks": 8,
+        "wood": 20
+      },
+      "desc": "Sixteen slots of overflow. Cheap — build as many as you need.",
+      "hp": 180.0,
+      "id": "chest",
+      "name": "Wooden Chest",
+      "protect": true,
+      "solid": true,
+      "store": 16,
+      "threat": 0.5,
+      "tier": 1
+    },
+    {
+      "cost": {
+        "parts": 1,
+        "scrap": 34
+      },
+      "desc": "Thirty-two slots, and it survives a raid that flattens a chest.",
+      "hp": 420.0,
+      "id": "locker",
+      "name": "Steel Locker",
+      "protect": true,
+      "solid": true,
+      "store": 32,
+      "threat": 1.0,
+      "tier": 1
+    },
+    {
+      "cost": {
+        "scrap": 18,
+        "wood": 30
+      },
+      "desc": "Unlocks crafting while you stand near it. Upgradeable.",
+      "hp": 300.0,
+      "id": "workbench",
+      "name": "Workbench",
+      "protect": true,
+      "solid": true,
+      "threat": 3.0,
+      "tier": 1
+    },
+    {
+      "cost": {
+        "wood": 8
+      },
+      "desc": "Cheap, fast, and flimsy. Good for funnelling.",
+      "hp": 160.0,
+      "id": "barricade",
+      "name": "Barricade",
+      "solid": true,
+      "threat": 0.5,
+      "tier": 1,
+      "wall": true
+    },
+    {
+      "cost": {
+        "wood": 16
+      },
+      "desc": "The bread-and-butter wall.",
+      "hp": 340.0,
+      "id": "woodWall",
+      "name": "Wood Wall",
+      "solid": true,
+      "threat": 1.0,
+      "tier": 1,
+      "wall": true
+    },
+    {
+      "cost": {
+        "sticks": 4,
+        "stone": 18
+      },
+      "desc": "Dry stone. No wood, no scrap — just what you carried up the hill.",
+      "hp": 430.0,
+      "id": "stoneWall",
+      "name": "Stone Wall",
+      "notes": "Built from nothing but what the ground gives up: the wall you can raise before you own a single tool that needs metal.",
+      "solid": true,
+      "threat": 1.0,
+      "tier": 1,
+      "wall": true
+    },
+    {
+      "cost": {
+        "scrap": 22,
+        "wood": 12
+      },
+      "desc": "Wood and sheet metal. Buys you real time.",
+      "hp": 920.0,
+      "id": "reinforcedWall",
+      "name": "Reinforced Wall",
+      "solid": true,
+      "threat": 1.5,
+      "tier": 1,
+      "wall": true
+    },
+    {
+      "cost": {
+        "parts": 2,
+        "scrap": 45
+      },
+      "desc": "Brutes still get through — eventually.",
+      "hp": 2100.0,
+      "id": "metalWall",
+      "name": "Steel Wall",
+      "solid": true,
+      "threat": 2.0,
+      "tier": 2,
+      "wall": true
+    },
+    {
+      "cost": {
+        "scrap": 12,
+        "wood": 22
+      },
+      "desc": "Stand next to it and interact to open or close.",
+      "gate": true,
+      "hp": 560.0,
+      "id": "gate",
+      "name": "Gate",
+      "solid": true,
+      "threat": 1.5,
+      "tier": 1
+    },
+    {
+      "cost": {
+        "scrap": 10,
+        "wood": 12
+      },
+      "desc": "Shreds anything that walks over it. Wears out.",
+      "hp": 200.0,
+      "id": "spike",
+      "name": "Spike Trap",
+      "solid": false,
+      "threat": 1.5,
+      "tier": 1,
+      "trap": true,
+      "trap_cd": 0.55,
+      "trap_dmg": 26.0
+    },
+    {
+      "cost": {
+        "elec": 28,
+        "parts": 6,
+        "scrap": 50
+      },
+      "desc": "Needs a powered Generator within 260px. Eats 9mm from your stash.",
+      "dmg": 22.0,
+      "fire_cd": 0.28,
+      "hp": 340.0,
+      "id": "turret",
+      "mag": 40,
+      "name": "Auto Turret",
+      "powered": true,
+      "protect": true,
+      "range": 330.0,
+      "reload": 2.2,
+      "solid": true,
+      "threat": 5.0,
+      "tier": 2
+    },
+    {
+      "cost": {
+        "elec": 12,
+        "scrap": 22
+      },
+      "desc": "Pushes back the dark. Needs a powered Generator within 260px.",
+      "hp": 200.0,
+      "id": "floodlight",
+      "light_radius": 260.0,
+      "name": "Floodlight",
+      "powered": true,
+      "solid": false,
+      "threat": 2.0,
+      "tier": 2
+    },
+    {
+      "cost": {
+        "elec": 20,
+        "med": 8,
+        "parts": 4,
+        "scrap": 30
+      },
+      "desc": "Refines brain matter into something that does not fight back. Stand near it to craft.",
+      "hp": 260.0,
+      "id": "chemStation",
+      "name": "Chemistry Station",
+      "notes": "The only bench that is not a step up the workbench ladder. Chemistry is different work, not harder metalwork — folding it into `bench` would have made Workbench II hand out the suppressants for free, and the suppressant chain is the spine of the whole theme.",
+      "protect": true,
+      "solid": true,
+      "station": "chem",
+      "threat": 3.0,
+      "tier": 2
+    },
+    {
+      "cost": {
+        "elec": 16,
+        "scrap": 38
+      },
+      "desc": "Burns Fuel to power turrets nearby. Loud — raises Threat while running.",
+      "fuel_burn": 0.35,
+      "fuel_max": 100.0,
+      "hp": 380.0,
+      "id": "generator",
+      "name": "Generator",
+      "power_radius": 260.0,
+      "protect": true,
+      "solid": true,
+      "threat": 4.0,
+      "tier": 2
+    }
+  ]
+}

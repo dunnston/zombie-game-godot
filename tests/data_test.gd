@@ -121,9 +121,42 @@ func test_a_typo_a_wrong_type_or_a_duplicate_is_refused() -> void:
 	has(DataTable.decode('{"fields": {"id": {"type": "string"}}, "rows": []}').errors,
 		"field 'id' is reserved and must not be declared")
 	has(DataTable.decode('{"fields": {"x": {"type": "number"}}, "rows": []}').errors,
-		"field 'x' needs a type: int, float, bool, string, or map<…> / list<…> of one")
+		"field 'x' needs a type: int, float, bool, string, or map<…> / list<…> of one, or object / list<object>")
 	has(DataTable.decode('{"fields": {"x": {"type": "int", "refs": "RES"}}, "rows": []}').errors,
 		"field 'x' has an unknown setting 'refs'", "a misspelt setting is refused, not ignored")
+
+
+func test_each_shape_reaches_the_game_as_its_literal_did() -> void:
+	var fields := '"fields": {"n": {"type": "int"}}'
+	var rows := '"rows": [{"id": "b", "n": 2}, {"id": "a", "n": 1}]'
+	var by_id: Variant = DataTable.rows(DataTable.decode("{%s, %s}" % [fields, rows]).doc)
+	eq(by_id, {"b": {"id": "b", "n": 2}, "a": {"id": "a", "n": 1}}, "id -> row, keeping the id")
+	eq(by_id.keys(), ["b", "a"], "in file order")
+	var bare: Variant = DataTable.rows(DataTable.decode('{%s, %s, "shape": "by_id_bare"}' % [fields, rows]).doc)
+	eq(bare, {"b": {"n": 2}, "a": {"n": 1}}, "id -> row without it, as RES was written")
+	var list: Variant = DataTable.rows(DataTable.decode('{%s, %s, "shape": "list"}' % [fields, rows]).doc)
+	eq(typeof(list), TYPE_ARRAY, "a list, as RECIPES was")
+	eq(list[0], {"id": "b", "n": 2})
+	var groups := '{"fields": {"entries": {"type": "list<object>", "fields": {"w": {"type": "int"}}}}, "rows": [{"id": "shelf", "entries": [{"w": 3}, {"w": 1}]}], "shape": "groups"}'
+	eq(DataTable.rows(DataTable.decode(groups).doc), {"shelf": [{"w": 3}, {"w": 1}]}, "id -> list, as LOOT was")
+	has(DataTable.decode('{%s, %s, "shape": "heap"}' % [fields, rows]).errors, "unknown shape 'heap': one of by_id, by_id_bare, list, groups")
+	has(DataTable.decode('{%s, %s, "shape": "groups"}' % [fields, rows]).errors, "a groups table needs an 'entries' field of type list<object>")
+
+
+func test_objects_are_typed_all_the_way_down() -> void:
+	var fields := '"fields": {"give": {"type": "object", "fields": {"weapon": {"type": "string", "ref": "WEAPONS"}, "n": {"type": "int"}, "res": {"type": "map<int>"}}}, "entries": {"type": "list<object>", "fields": {"w": {"type": "int"}}}}'
+	var got := DataTable.decode('{%s, "rows": [{"id": "a", "give": {"weapon": "pistol", "n": 2.0, "res": {"scrap": 3.0}}, "entries": [{"w": 4}]}]}' % fields)
+	eq(got.errors, [])
+	var a: Dictionary = DataTable.rows(got.doc).a
+	eq(typeof(a.give.n), TYPE_INT, "a count inside an object is still a count")
+	eq(typeof(a.give.res.scrap), TYPE_INT, "and inside a map inside an object")
+	ok(a.give.is_read_only() and a.entries[0].is_read_only(), "read-only all the way down")
+	var bad: Array = DataTable.decode('{%s, "rows": [{"id": "a", "give": {"wepon": "x"}, "entries": [{"w": 4}, {"w": 1.5}]}]}' % fields).errors
+	has(bad, "a.give.wepon is not a declared field", "a typo one level down is still a typo")
+	has(bad, "a.entries[1].w: expected int, got 1.5", "and an error names the exact place")
+	var refs := DataTable.check_refs(DataTable.decode('{%s, "rows": [{"id": "a", "give": {"weapon": "nope"}}]}' % fields).doc, {"WEAPONS": {"pistol": {}}})
+	eq(refs, ["a.give.weapon: 'nope' is not in WEAPONS"], "refs are checked inside objects too")
+	has(DataTable.decode('{"fields": {"o": {"type": "object"}}, "rows": []}').errors, "field 'o' is an object and needs 'fields'")
 
 
 func test_one_of_refuses_a_value_outside_the_list() -> void:
@@ -145,8 +178,11 @@ func test_maps_and_lists_are_typed_all_the_way_in() -> void:
 
 
 func test_every_ref_in_every_data_file_resolves() -> void:
-	var sets := {"AMMO_IDS": Config.AMMO_IDS, "RES": Config.RES, "WEAPONS": Config.WEAPONS,
-		"GEAR": Config.GEAR, "CONSUMABLES": Config.CONSUMABLES}
+	# A ref may name any data file's table — the catalog names CATEGORIES,
+	# which the game never reads — or a list const such as AMMO_IDS.
+	var sets := {"AMMO_IDS": Config.AMMO_IDS}
+	for path in _files():
+		sets[path.get_file().get_basename().to_upper()] = DataTable.rows(DataTable.decode(FileAccess.get_file_as_string(path)).doc)
 	for path in _files():
 		eq(DataTable.check_refs(DataTable.decode(FileAccess.get_file_as_string(path)).doc, sets), [], path)
 

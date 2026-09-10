@@ -560,110 +560,15 @@ const FLAMMABLE := ["tree", "pine", "bush", "thicket", "litter", "hay", "reed"]
 
 # ---------------------------------------------------------------- resources --
 
-## Everything that stacks as a count. Phase 2 uses the ammunition and the
-## medical entries; Phase 3's inventory uses the rest. `wt` per unit.
-const RES := {
-	"wood":    {"name": "Wood",         "short": "WOOD", "color": "#a3763f", "wt": 1.0,  "stack": 50},
-	"sticks":  {"name": "Sticks",       "short": "STCK", "color": "#8a6a3c", "wt": 0.5,  "stack": 50},
-	"stone":   {"name": "Stone",        "short": "STNE", "color": "#8f8a80", "wt": 1.5,  "stack": 50},
-	"fiber":   {"name": "Fiber",        "short": "FIBR", "color": "#9aae5a", "wt": 0.3,  "stack": 50},
-	"scrap":   {"name": "Scrap",        "short": "SCRP", "color": "#9aa2ab", "wt": 1.0,  "stack": 50},
-	"cloth":   {"name": "Cloth",        "short": "CLTH", "color": "#c2a98a", "wt": 1.0,  "stack": 50},
-	"elec":    {"name": "Electronics",  "short": "ELEC", "color": "#59b8c4", "wt": 1.0,  "stack": 30},
-	"battery": {"name": "Batteries",    "short": "BATT", "color": "#8fd08a", "wt": 0.5,  "stack": 20},
-	"med":     {"name": "Medical",      "short": "MED",  "color": "#d9575f", "wt": 1.0,  "stack": 30},
-	"parts":   {"name": "Weapon Parts", "short": "PART", "color": "#c9a227", "wt": 1.0,  "stack": 20},
-	"mil":     {"name": "Military",     "short": "MIL",  "color": "#7fa14a", "wt": 1.0,  "stack": 20},
-	"fuel":    {"name": "Fuel",         "short": "FUEL", "color": "#d2762c", "wt": 1.0,  "stack": 20},
-	"rations": {"name": "Rations",      "short": "FOOD", "color": "#c4a86a", "wt": 1.0,  "stack": 20},
-	# Seeds and fertilizer are resources rather than consumables on purpose:
-	# DEPOSIT ALL moves resources wholesale, so a haul of seeds ends up in the
-	# base pantry where the Farmer will one day go looking for it, and nothing
-	# in the "eat what is to hand" path can ever reach a packet of seed corn.
-	"seedPotato": {"name": "Potato Eyes",   "short": "PSED", "color": "#c9a86a", "wt": 0.1,  "stack": 30},
-	"seedCorn":   {"name": "Corn Seed",     "short": "CSED", "color": "#e0c24a", "wt": 0.1,  "stack": 30},
-	"seedHerb":   {"name": "Herb Seed",     "short": "HSED", "color": "#9aae5a", "wt": 0.1,  "stack": 30},
-	"compost":    {"name": "Compost",       "short": "CMPT", "color": "#5a4a32", "wt": 0.6,  "stack": 20},
-	"sludge":     {"name": "Mutagen Sludge","short": "SLDG", "color": "#b06ad0", "wt": 0.8,  "stack": 10},
-	"arrow":   {"name": "Arrows",       "short": "ARRW", "color": "#b9a072", "wt": 0.15, "stack": 60},
-	"ammoP":   {"name": "9mm Rounds",   "short": "9MM",  "color": "#d8c98a", "wt": 0.2,  "stack": 120},
-	"ammoS":   {"name": "Shells",       "short": "SHEL", "color": "#c9584e", "wt": 0.3,  "stack": 60},
-	"ammoR":   {"name": "Rifle Rounds", "short": "RIFL", "color": "#b8a05a", "wt": 0.25, "stack": 90},
-}
+## The RES table is data: `data/res.json`, loaded here at boot. Its design
+## notes moved with it — the file's `notes`, and each row's — and the editor
+## (`tools\edit`) is where it is changed. See `DataTable` for the rules.
+static var RES: Dictionary = DataTable.load_table("res")
 
-const CONSUMABLES := {
-	"bandage": {"id": "bandage", "name": "Bandage", "heal": 28.0, "time": 0.9, "color": "#d8cfc0"},
-	"medkit":  {"id": "medkit",  "name": "Medkit",  "heal": 80.0, "time": 1.6, "color": "#d9575f"},
-	# Brain matter, and what it is worth. `mut` is how much eating it takes
-	# off the Mutation meter; `effect` is what it does to you on the way down.
-	# Quality is why a Brute is worth walking toward and a Behemoth is worth
-	# a magazine: the tissue a body gives up depends on what the body was.
-	"brainRaw": {"id": "brainRaw", "name": "Raw Brain Matter", "heal": 0.0, "time": 2.0,
-		"mut": 10.0, "effect": "nausea", "color": "#c07f9a", "stack": 20, "wt": 0.4},
-	"brainMut": {"id": "brainMut", "name": "Mutated Brain Matter", "heal": 0.0, "time": 2.2,
-		"mut": 20.0, "effect": "nausea", "effect_mul": 1.5, "color": "#b06ad0", "stack": 20, "wt": 0.4},
-	# Not eaten: this is the ingredient the chemistry is built on. `tool`
-	# keeps it out of every "use what is to hand" path, the way a lockpick is.
-	"brainSpec": {"id": "brainSpec", "name": "Neural Tissue", "heal": 0.0, "time": 0.0,
-		"color": "#7fd0c4", "stack": 10, "wt": 0.3, "tool": true},
-	# What a base does with raw tissue: three times the suppression and none
-	# of the nausea. The first step of a chain that ends at a chemistry bench.
-	"serum": {"id": "serum", "name": "Stabilized Neural Serum", "heal": 0.0, "time": 1.6,
-		"mut": 30.0, "color": "#8fd08a", "stack": 10, "wt": 0.5},
-	# The chemistry tier. Refined is what a base with a bench and a supply of
-	# Brutes can keep you on indefinitely; Experimental is the gamble — three
-	# quarters of the bar, a minute and a half of being something better than
-	# human, and a one-in-four chance of paying for it afterwards.
-	"suppressant": {"id": "suppressant", "name": "Refined Suppressant", "heal": 0.0, "time": 2.0,
-		"mut": 50.0, "color": "#6ad0c4", "stack": 10, "wt": 0.6},
-	"experimental": {"id": "experimental", "name": "Experimental Suppressant", "heal": 0.0, "time": 2.4,
-		"mut": 75.0, "effect": "surge", "risk": {"chance": 0.25, "effect": "fever"},
-		"color": "#d0a06a", "stack": 5, "wt": 0.7},
-	# Not a healing item — it opens car doors (Phase 4). It lives here so it
-	# rides along in the same inventory the rest of the small stuff uses.
-	"lockpick": {"id": "lockpick", "name": "Lockpick", "heal": 0.0, "time": 0.0, "color": "#9aa2ab", "tool": true},
-
-	# ------------------------------------------------------ food and drink --
-	#
-	# Buffs, and nothing else. No hunger bar sits under this table and none is
-	# coming (pillar 1): eating is a thing you do before a run, not a thing
-	# the game asks you for every five minutes. `food` is what the quick key
-	# looks for and `rank` is the order it reaches — commonest first, so a
-	# tap of F never spends the Field Ration you were saving.
-	"cannedFood": {"id": "cannedFood", "name": "Tinned Food", "heal": 0.0, "time": 1.6,
-		"food": true, "rank": 1, "effect": "fed", "color": "#c4a86a", "stack": 15, "wt": 0.6},
-	"jerky": {"id": "jerky", "name": "Dried Meat", "heal": 0.0, "time": 1.4,
-		"food": true, "rank": 2, "effect": "sated", "color": "#b98a5a", "stack": 15, "wt": 0.4},
-	"hotMeal": {"id": "hotMeal", "name": "Hot Meal", "heal": 15.0, "time": 2.4,
-		"food": true, "rank": 4, "effect": "steady", "color": "#d9a05a", "stack": 5, "wt": 0.9},
-	"mre": {"id": "mre", "name": "Field Ration", "heal": 10.0, "time": 2.0,
-		"food": true, "rank": 5, "effect": "fed", "effect_mul": 2.0, "color": "#7fa14a", "stack": 10, "wt": 0.8},
-	"candyBar": {"id": "candyBar", "name": "Candy Bar", "heal": 0.0, "time": 0.8,
-		"food": true, "rank": 0, "effect": "wired", "effect_mul": 0.6, "color": "#d0709a", "stack": 20, "wt": 0.2},
-	"water": {"id": "water", "name": "Clean Water", "heal": 0.0, "time": 1.2,
-		"food": true, "rank": 1, "effect": "hydrated", "color": "#6ad0c4", "stack": 15, "wt": 0.8},
-	"soda": {"id": "soda", "name": "Warm Soda", "heal": 0.0, "time": 1.2,
-		"food": true, "rank": 2, "effect": "wired", "color": "#c95a8a", "stack": 15, "wt": 0.7},
-	"coffee": {"id": "coffee", "name": "Instant Coffee", "heal": 0.0, "time": 1.6,
-		"food": true, "rank": 3, "effect": "wired", "effect_mul": 1.6, "color": "#8a6a3c", "stack": 10, "wt": 0.3},
-	"booze": {"id": "booze", "name": "Bottle of Spirits", "heal": 0.0, "time": 1.8,
-		"food": true, "rank": 6, "effect": "drunk", "color": "#d98a4a", "stack": 8, "wt": 1.0},
-
-	# ------------------------------------------------------ what you grew --
-	#
-	# The crops out of a Raised Bed. Food, like everything above it, and no
-	# hunger bar underneath it either — a potato is a buff you keep a supply
-	# of, not an answer to a meter. `rank` is what makes a tap of F sensible
-	# in a farmer's pack: a potato is the commonest thing that helps, so it
-	# goes first, and corn ranks above it because corn is the thing you were
-	# going to turn into rations for the crew.
-	"potato": {"id": "potato", "name": "Potatoes", "heal": 0.0, "time": 1.4,
-		"food": true, "rank": 0, "effect": "fed", "effect_mul": 0.7, "color": "#c9a86a", "stack": 20, "wt": 0.4},
-	"corn": {"id": "corn", "name": "Corn", "heal": 0.0, "time": 1.4,
-		"food": true, "rank": 2, "effect": "fed", "color": "#e0c24a", "stack": 20, "wt": 0.4},
-	"herbs": {"id": "herbs", "name": "Herbs", "heal": 6.0, "time": 1.2,
-		"food": true, "rank": 3, "effect": "steady", "effect_mul": 0.7, "color": "#8fd08a", "stack": 20, "wt": 0.2},
-}
+## The CONSUMABLES table is data: `data/consumables.json`, loaded here at boot. Its design
+## notes moved with it — the file's `notes`, and each row's — and the editor
+## (`tools\edit`) is where it is changed. See `DataTable` for the rules.
+static var CONSUMABLES: Dictionary = DataTable.load_table("consumables")
 
 # -------------------------------------------------------------------- farming --
 
@@ -720,16 +625,10 @@ const FARM := {
 	"wire_water_step": 5.0,
 }
 
-## What a seed becomes, how long it takes and what a bed gives back. `days` is
-## in-game days at full water; a dry bed simply stops the clock.
-##
-## Names and weights are not repeated here — they live in `RES` and
-## `CONSUMABLES` with everything else, so the two cannot drift apart.
-const CROPS := {
-	"seedPotato": {"id": "seedPotato", "crop": "potato", "days": 1.0, "min": 3, "max": 5},
-	"seedCorn":   {"id": "seedCorn",   "crop": "corn",   "days": 2.0, "min": 4, "max": 7},
-	"seedHerb":   {"id": "seedHerb",   "crop": "herbs",  "days": 1.0, "min": 2, "max": 3},
-}
+## The CROPS table is data: `data/crops.json`, loaded here at boot. Its design
+## notes moved with it — the file's `notes`, and each row's — and the editor
+## (`tools\edit`) is where it is changed. See `DataTable` for the rules.
+static var CROPS: Dictionary = DataTable.load_table("crops")
 
 ## The optional slot. Yield rather than speed for the everyday one, because
 ## the grow clock is what a player plans the day around and a fertilizer that
@@ -782,47 +681,10 @@ const GEAR_SLOT_NAMES := {"head": "Head", "body": "Body", "hands": "Hands", "leg
 ## light and protects nothing.
 const ARMOR_SLOTS := ["head", "body", "hands", "legs", "feet"]
 
-## Fifteen armour pieces, three tiers across five slots, plus the two lights.
-## A full tier-1 set is 0.23 DR, a full tier-3 set 0.70, against a hard cap of
-## 0.72: scavenging can make you tough, never immune.
-##
-## `light` is what Phase 4's renderer punches out of the darkness and `burn`
-## is how many seconds of being lit the thing holds. The torch is the first
-## night's answer — sticks and fiber — and burns itself away. The flashlight
-## is brighter and reaches much further because it is a cone rather than a
-## puddle, and it eats batteries, which you find before you can make them.
-const GEAR := {
-	"hardHat":     {"id": "hardHat",     "name": "Hard Hat",        "slot": "head",  "dr": 0.05, "wt": 3.0,  "tier": 1, "color": "#c9a227"},
-	"riotHelm":    {"id": "riotHelm",    "name": "Riot Helmet",     "slot": "head",  "dr": 0.10, "wt": 5.0,  "tier": 2, "color": "#4d5866"},
-	"milHelm":     {"id": "milHelm",     "name": "Combat Helmet",   "slot": "head",  "dr": 0.15, "wt": 6.0,  "tier": 3, "color": "#5b6640"},
-	"lightVest":   {"id": "lightVest",   "name": "Padded Vest",     "slot": "body",  "dr": 0.10, "wt": 6.0,  "tier": 1, "color": "#6f7a52"},
-	"heavyVest":   {"id": "heavyVest",   "name": "Riot Armor",      "slot": "body",  "dr": 0.20, "wt": 11.0, "tier": 2, "color": "#4d5866"},
-	"milVest":     {"id": "milVest",     "name": "Plate Carrier",   "slot": "body",  "dr": 0.28, "wt": 14.0, "tier": 3, "color": "#5b6640"},
-	# Hands are the one slot that helps you *land* a hit, so `crit` lives here
-	# and nowhere else in the table — a rule you can read off the list without
-	# a tooltip. Arm guards protect more than tactical gloves and help less,
-	# which is the whole difference between armour and dexterity.
-	"workGloves":  {"id": "workGloves",  "name": "Work Gloves",     "slot": "hands", "dr": 0.02, "wt": 1.0,  "tier": 1, "crit": 0.01, "color": "#a3763f"},
-	"tacGloves":   {"id": "tacGloves",   "name": "Tactical Gloves", "slot": "hands", "dr": 0.04, "wt": 2.0,  "tier": 2, "crit": 0.03, "color": "#4d5866"},
-	"armGuards":   {"id": "armGuards",   "name": "Arm Guards",      "slot": "hands", "dr": 0.07, "wt": 4.0,  "tier": 3, "crit": 0.02, "color": "#5b6640"},
-	"denimPants":  {"id": "denimPants",  "name": "Work Trousers",   "slot": "legs",  "dr": 0.04, "wt": 2.0,  "tier": 1, "color": "#4a5a72"},
-	"paddedLegs":  {"id": "paddedLegs",  "name": "Padded Leggings", "slot": "legs",  "dr": 0.08, "wt": 5.0,  "tier": 2, "color": "#6f7a52"},
-	"milGreaves":  {"id": "milGreaves",  "name": "Combat Trousers", "slot": "legs",  "dr": 0.12, "wt": 7.0,  "tier": 3, "color": "#5b6640"},
-	"workBoots":   {"id": "workBoots",   "name": "Work Boots",      "slot": "feet",  "dr": 0.02, "wt": 3.0,  "tier": 1, "color": "#6b4a2f"},
-	"combatBoots": {"id": "combatBoots", "name": "Combat Boots",    "slot": "feet",  "dr": 0.05, "wt": 4.0,  "tier": 2, "color": "#3f4a38"},
-	"milBoots":    {"id": "milBoots",    "name": "Assault Boots",   "slot": "feet",  "dr": 0.08, "wt": 5.0,  "tier": 3, "color": "#5b6640"},
-	"torch": {
-		"id": "torch", "name": "Torch", "slot": "offhand", "dr": 0.0, "wt": 2.0, "tier": 1,
-		"color": "#e0913a", "light": {"radius": 200.0, "strength": 0.80, "warm": "#ffb45a"},
-		"burn": 210.0, "consumed": true,
-	},
-	"flashlight": {
-		"id": "flashlight", "name": "Flashlight", "slot": "offhand", "dr": 0.0, "wt": 2.0, "tier": 2,
-		"color": "#d8d2c0",
-		"light": {"radius": 140.0, "strength": 0.72, "warm": "#fff6cd", "cone_len": 460.0, "cone_spread": 0.34, "cone_strength": 0.86},
-		"burn": 300.0, "battery": "battery",
-	},
-}
+## The GEAR table is data: `data/gear.json`, loaded here at boot. Its design
+## notes moved with it — the file's `notes`, and each row's — and the editor
+## (`tools\edit`) is where it is changed. See `DataTable` for the rules.
+static var GEAR: Dictionary = DataTable.load_table("gear")
 
 ## No amount of scavenging should make you immune.
 const MAX_GEAR_DR := 0.72
@@ -861,7 +723,7 @@ const CONSUMABLE_STACK := 10
 ##
 ## A `static var` rather than a `const` only because a const cannot be read
 ## from a file. It is read-only all the way down, as the literal was.
-static var WEAPONS: Dictionary = DataTable.load_rows("weapons")
+static var WEAPONS: Dictionary = DataTable.load_table("weapons")
 
 ## Wear and repair. `dur` on a weapon is how many *uses* it has in it:
 ## one connecting melee swing, or one shot. A swing that hits nothing costs
@@ -969,57 +831,10 @@ const TEST_KIT := {
 
 # ------------------------------------------------------------------ enemies --
 
-## Four tiers. `struct_mul` scales damage against player structures only:
-## walkers and runners threaten you, brutes are what breaches a wall.
-const ENEMIES := {
-	"walker":   {"id": "walker",   "name": "Walker",   "hp": 58.0,   "speed": 60.0,  "dmg": 13.0, "atk_cd": 1.0,  "atk_range": 26.0, "r": 12.0, "xp": 10,  "sense": 330.0, "knock_resist": 0.0,  "struct_mul": 0.5, "threat": 0.35, "body": "#5c6b45", "dark": "#3d4a2e"},
-	"runner":   {"id": "runner",   "name": "Runner",   "hp": 44.0,   "speed": 132.0, "dmg": 11.0, "atk_cd": 0.65, "atk_range": 25.0, "r": 11.0, "xp": 18,  "sense": 430.0, "knock_resist": 0.15, "struct_mul": 0.4, "threat": 0.5,  "body": "#7a5a3c", "dark": "#513a26"},
-	"brute":    {"id": "brute",    "name": "Brute",    "hp": 300.0,  "speed": 52.0,  "dmg": 34.0, "atk_cd": 1.35, "atk_range": 34.0, "r": 19.0, "xp": 55,  "sense": 380.0, "knock_resist": 0.75, "struct_mul": 2.2, "threat": 1.1,  "body": "#6b4b52", "dark": "#452f34"},
-	# ------------------------------------------------------------- the living --
-	#
-	# Humans. `human` is what separates them from everything above: they carry
-	# no brain matter worth having, they shoot back, and they are here for what
-	# is in your stash rather than for you.
-	#
-	# They come because of what you are becoming — a raid of theirs is rolled
-	# against the Mutation band (see `MUTATION.human_raid`), which is what makes
-	# the meter a bet with two sides instead of a bar with a bonus.
-	#
-	# One thing they deliberately are *not*: zombie food. Nothing in the game
-	# has enemy-versus-enemy targeting, and bolting it on for one faction would
-	# be a system with one caller. A raider firing a rifle does draw the horde
-	# to itself, which is the honest half of that fight and costs nothing.
-	"looter": {
-		"id": "looter", "name": "Looter", "hp": 70.0, "speed": 118.0, "dmg": 10.0, "atk_cd": 0.8,
-		"atk_range": 26.0, "r": 12.0, "xp": 30, "sense": 460.0, "knock_resist": 0.1,
-		"struct_mul": 0.6, "threat": 0.6, "human": true, "body": "#8a7a5a", "dark": "#5a4d38",
-		# What it is actually here for. It empties what it can reach and runs
-		# for the map edge; kill it and you get it back.
-		"steal": {"stacks": 3, "flee": 22.0},
-		"loot_table": "raiderBody",
-	},
-	"raider": {
-		"id": "raider", "name": "Raider", "hp": 120.0, "speed": 92.0, "dmg": 14.0, "atk_cd": 1.0,
-		"atk_range": 28.0, "r": 13.0, "xp": 60, "sense": 620.0, "knock_resist": 0.2,
-		"struct_mul": 0.8, "threat": 1.0, "human": true, "body": "#7a6a8a", "dark": "#4d4258",
-		# A rifle. `standoff` is the range it wants to keep — closer than that
-		# and it backs up, which is what makes fighting one different to
-		# fighting anything else in the game.
-		"gun": {"dmg": 15.0, "range": 430.0, "standoff": 300.0, "cd": 1.5, "burst": 2,
-			"burst_gap": 0.14, "spread": 0.13, "speed": 900.0, "noise": 420.0, "sfx": "rifle", "color": "#ffd08a"},
-		"loot_table": "raiderBody",
-	},
-	"enforcer": {
-		"id": "enforcer", "name": "Enforcer", "hp": 260.0, "speed": 80.0, "dmg": 26.0, "atk_cd": 1.2,
-		"atk_range": 32.0, "r": 16.0, "xp": 110, "sense": 560.0, "knock_resist": 0.6,
-		"struct_mul": 1.4, "threat": 1.6, "human": true, "body": "#8a5a5a", "dark": "#573838",
-		# A shotgun: short, brutal, and it walks toward you while it uses it.
-		"gun": {"dmg": 9.0, "range": 210.0, "standoff": 120.0, "cd": 1.9, "pellets": 5,
-			"spread": 0.34, "speed": 700.0, "noise": 520.0, "sfx": "shotgun", "color": "#ffd08a"},
-		"loot_table": "enforcerBody",
-	},
-	"behemoth": {"id": "behemoth", "name": "Behemoth", "hp": 1100.0, "speed": 46.0,  "dmg": 58.0, "atk_cd": 1.6,  "atk_range": 44.0, "r": 27.0, "xp": 200, "sense": 900.0, "knock_resist": 0.95, "struct_mul": 4.0, "threat": 2.5,  "body": "#7d4348", "dark": "#4a262b", "boss": true},
-}
+## The ENEMIES table is data: `data/enemies.json`, loaded here at boot. Its design
+## notes moved with it — the file's `notes`, and each row's — and the editor
+## (`tools\edit`) is where it is changed. See `DataTable` for the rules.
+static var ENEMIES: Dictionary = DataTable.load_table("enemies")
 
 
 ## What a body gives up, by what it was. One head, one roll: a kill drops
@@ -1440,15 +1255,9 @@ const LOCATIONS := [
 
 # --------------------------------------------------------------- structures --
 
-## Build anywhere: a "base" is wherever your structures happen to be.
-##
-## `solid` blocks feet but never bullets (invariant 3) — a base you cannot
-## shoot out of is a base that punishes you for building it. `protect` marks
-## the pieces a raider inside the perimeter should prefer, so a horde that
-## is already through heads for the workbench rather than back out. `threat`
-## scales what putting one up costs you in attention. `store` is a slot
-## count; `tier` 2 needs the upgraded workbench.
-const STASH_SLOTS := 48
+## Build anywhere. What each piece's fields mean — `solid`, `protect`,
+## `threat`, `store`, `tier` — is in `data/structures.json`'s notes, beside
+## the pieces themselves.
 const BENCH_UPGRADE_COST := {"scrap": 55, "elec": 20, "parts": 5}
 
 const BUILD := {
@@ -1473,216 +1282,20 @@ const BUILD := {
 	"raid_pull_plot": 1.6,
 }
 
-const STRUCTURES := {
-	"bedroll": {
-		"id": "bedroll", "name": "Bedroll", "cost": {"wood": 15, "cloth": 12}, "hp": 90.0,
-		"solid": false, "tier": 1, "threat": 1.0,
-		"desc": "Sets your respawn point. Only the newest one is active.",
-	},
-	"bunk": {
-		"id": "bunk", "name": "Bunk", "cost": {"wood": 22, "cloth": 14}, "hp": 140.0,
-		"solid": true, "tier": 1, "threat": 1.0, "protect": true, "houses": 1,
-		"desc": "Somewhere for one survivor to sleep. No bunk, no recruit.",
-	},
-	# Not solid — you walk through your own garden — and deliberately **not**
-	# `protect`. A vegetable patch is not a fortification: marking it would
-	# widen `BASE.radius` around the allotment and make a raid walk at the
-	# lettuce, and neither of those is what a bed is for.
-	"raisedBed": {
-		"id": "raisedBed", "name": "Raised Bed", "cost": {"wood": 18, "sticks": 8, "fiber": 6}, "hp": 150.0,
-		"solid": false, "tier": 1, "threat": 0.5, "plot": true,
-		"desc": "A seed, some water and a few days. Grows food to cook or eat.",
-	},
-	"watchtower": {
-		"id": "watchtower", "name": "Watchtower", "cost": {"wood": 45, "scrap": 20}, "hp": 420.0,
-		"solid": true, "tier": 1, "threat": 2.0, "protect": true, "post": "sniper",
-		"sniper_range": 520.0, "sniper_dmg": 1.9,
-		"desc": "Assign a survivor here and they cover the whole approach.",
-	},
-	"stash": {
-		"id": "stash", "name": "Supply Stash", "cost": {"wood": 25, "scrap": 8}, "hp": 220.0,
-		"solid": true, "tier": 1, "threat": 2.0, "protect": true, "store": STASH_SLOTS,
-		"desc": "The base pantry and armoury. 48 slots. Survivors and towers feed from this one.",
-	},
-	"chest": {
-		"id": "chest", "name": "Wooden Chest", "cost": {"wood": 20, "sticks": 8}, "hp": 180.0,
-		"solid": true, "tier": 1, "threat": 0.5, "protect": true, "store": 16,
-		"desc": "Sixteen slots of overflow. Cheap — build as many as you need.",
-	},
-	"locker": {
-		"id": "locker", "name": "Steel Locker", "cost": {"scrap": 34, "parts": 1}, "hp": 420.0,
-		"solid": true, "tier": 1, "threat": 1.0, "protect": true, "store": 32,
-		"desc": "Thirty-two slots, and it survives a raid that flattens a chest.",
-	},
-	"workbench": {
-		"id": "workbench", "name": "Workbench", "cost": {"wood": 30, "scrap": 18}, "hp": 300.0,
-		"solid": true, "tier": 1, "threat": 3.0, "protect": true,
-		"desc": "Unlocks crafting while you stand near it. Upgradeable.",
-	},
-	"barricade": {
-		"id": "barricade", "name": "Barricade", "cost": {"wood": 8}, "hp": 160.0,
-		"solid": true, "tier": 1, "threat": 0.5, "wall": true,
-		"desc": "Cheap, fast, and flimsy. Good for funnelling.",
-	},
-	"woodWall": {
-		"id": "woodWall", "name": "Wood Wall", "cost": {"wood": 16}, "hp": 340.0,
-		"solid": true, "tier": 1, "threat": 1.0, "wall": true,
-		"desc": "The bread-and-butter wall.",
-	},
-	# Built from nothing but what the ground gives up: the wall you can raise
-	# before you own a single tool that needs metal.
-	"stoneWall": {
-		"id": "stoneWall", "name": "Stone Wall", "cost": {"stone": 18, "sticks": 4}, "hp": 430.0,
-		"solid": true, "tier": 1, "threat": 1.0, "wall": true,
-		"desc": "Dry stone. No wood, no scrap — just what you carried up the hill.",
-	},
-	"reinforcedWall": {
-		"id": "reinforcedWall", "name": "Reinforced Wall", "cost": {"wood": 12, "scrap": 22}, "hp": 920.0,
-		"solid": true, "tier": 1, "threat": 1.5, "wall": true,
-		"desc": "Wood and sheet metal. Buys you real time.",
-	},
-	"metalWall": {
-		"id": "metalWall", "name": "Steel Wall", "cost": {"scrap": 45, "parts": 2}, "hp": 2100.0,
-		"solid": true, "tier": 2, "threat": 2.0, "wall": true,
-		"desc": "Brutes still get through — eventually.",
-	},
-	"gate": {
-		"id": "gate", "name": "Gate", "cost": {"wood": 22, "scrap": 12}, "hp": 560.0,
-		"solid": true, "tier": 1, "threat": 1.5, "gate": true,
-		"desc": "Stand next to it and interact to open or close.",
-	},
-	"spike": {
-		"id": "spike", "name": "Spike Trap", "cost": {"wood": 12, "scrap": 10}, "hp": 200.0,
-		"solid": false, "tier": 1, "threat": 1.5, "trap": true, "trap_dmg": 26.0, "trap_cd": 0.55,
-		"desc": "Shreds anything that walks over it. Wears out.",
-	},
-	"turret": {
-		"id": "turret", "name": "Auto Turret", "cost": {"scrap": 50, "elec": 28, "parts": 6}, "hp": 340.0,
-		"solid": true, "tier": 2, "threat": 5.0, "protect": true, "powered": true,
-		"range": 330.0, "dmg": 22.0, "fire_cd": 0.28, "mag": 40, "reload": 2.2,
-		"desc": "Needs a powered Generator within 260px. Eats 9mm from your stash.",
-	},
-	"floodlight": {
-		"id": "floodlight", "name": "Floodlight", "cost": {"scrap": 22, "elec": 12}, "hp": 200.0,
-		"solid": false, "tier": 2, "threat": 2.0, "powered": true, "light_radius": 260.0,
-		"desc": "Pushes back the dark. Needs a powered Generator within 260px.",
-	},
-	# The only bench that is not a step up the workbench ladder. Chemistry is
-	# different work, not harder metalwork — folding it into `bench` would
-	# have made Workbench II hand out the suppressants for free, and the
-	# suppressant chain is the spine of the whole theme.
-	"chemStation": {
-		"id": "chemStation", "name": "Chemistry Station", "cost": {"scrap": 30, "elec": 20, "parts": 4, "med": 8}, "hp": 260.0,
-		"solid": true, "tier": 2, "threat": 3.0, "protect": true, "station": "chem",
-		"desc": "Refines brain matter into something that does not fight back. Stand near it to craft.",
-	},
-	"generator": {
-		"id": "generator", "name": "Generator", "cost": {"scrap": 38, "elec": 16}, "hp": 380.0,
-		"solid": true, "tier": 2, "threat": 4.0, "protect": true, "power_radius": 260.0,
-		"fuel_burn": 0.35, "fuel_max": 100.0,
-		"desc": "Burns Fuel to power turrets nearby. Loud — raises Threat while running.",
-	},
-}
+## The STRUCTURES table is data: `data/structures.json`, loaded here at boot. Its design
+## notes moved with it — the file's `notes`, and each row's — and the editor
+## (`tools\edit`) is where it is changed. See `DataTable` for the rules.
+static var STRUCTURES: Dictionary = DataTable.load_table("structures")
 
-## Crafting is instant by design: the materials are the whole cost. `bench`
-## is 0 for by hand, 1 for a workbench, 2 for the upgraded one. A `hammer`
-## recipe is lifted to bench 1 by a carried Stone Hammer — the work you could
-## plausibly do on a flat rock — and never any further, so the hammer can
-## never produce a gun. `tool` is a flag the player must be carrying
-## something with (a knife cuts cordage).
-##
-## Order matters only for the screen: hand tools first, because the bench
-## costs wood and wood costs a hatchet.
-const RECIPES := [
-	{"id": "bandage", "name": "Bandage x2", "bench": 0, "cost": {"cloth": 4}, "give": {"item": "bandage", "n": 2}, "xp": 3},
-	{"id": "axe", "name": "Hatchet", "bench": 0, "cost": {"sticks": 3, "stone": 3, "fiber": 4}, "give": {"weapon": "axe"}, "xp": 10},
-	{"id": "knife", "name": "Stone Knife", "bench": 0, "cost": {"sticks": 2, "stone": 3, "fiber": 2}, "give": {"weapon": "knife"}, "xp": 8},
-	{"id": "pick", "name": "Stone Pickaxe", "bench": 0, "cost": {"sticks": 4, "stone": 4, "fiber": 3}, "give": {"weapon": "pick"}, "xp": 12},
-	{"id": "scythe", "name": "Scythe", "bench": 0, "cost": {"sticks": 5, "stone": 3, "fiber": 4}, "give": {"weapon": "scythe"}, "xp": 12},
-	{"id": "hammer", "name": "Stone Hammer", "bench": 0, "cost": {"sticks": 3, "stone": 6, "fiber": 2}, "give": {"weapon": "hammer"}, "xp": 12},
-	# Cordage: fiber becomes cloth, but only with a blade to cut it.
-	{"id": "cordage", "name": "Cloth x4", "bench": 0, "tool": "knife", "cost": {"fiber": 10}, "give": {"res": {"cloth": 4}}, "xp": 4},
-	# The first night's answer to "I cannot see", made of the two things the
-	# ground is covered in. It burns itself up, so it is a thing you keep
-	# remaking rather than a thing you own once.
-	{"id": "torch", "name": "Torch", "bench": 0, "cost": {"sticks": 3, "fiber": 3}, "give": {"gear": "torch"}, "xp": 6},
-	# Bench 0, like the tools: a bow is a stick and a string, and it has to be
-	# reachable in the first ten minutes to be the quiet answer to a gun.
-	{"id": "bow", "name": "Hunting Bow", "bench": 0, "cost": {"sticks": 8, "fiber": 12, "cloth": 2}, "give": {"weapon": "bow"}, "xp": 18},
-	{"id": "arrow", "name": "Arrows x10", "bench": 0, "cost": {"sticks": 6, "stone": 3, "fiber": 2}, "give": {"res": {"arrow": 10}}, "xp": 3},
-	# A compost heap is a pile of dead plants, so it is bench 0 like the stone
-	# tools: farming must be reachable before metalwork or the first bed is a
-	# thing you build and then cannot feed.
-	{"id": "compost", "name": "Compost x2", "bench": 0, "cost": {"fiber": 12, "sticks": 6}, "give": {"res": {"compost": 2}}, "xp": 3},
-	{"id": "workGloves", "name": "Work Gloves", "bench": 0, "cost": {"cloth": 8}, "give": {"gear": "workGloves"}, "xp": 8},
-	{"id": "denimPants", "name": "Work Trousers", "bench": 0, "cost": {"cloth": 14}, "give": {"gear": "denimPants"}, "xp": 10},
+## The shared stash's slot count. It is the stash's own `store` in
+## STRUCTURES rather than a second number beside it, so what the editor shows
+## is what the game uses. Declared after STRUCTURES because it reads it.
+static var STASH_SLOTS: int = STRUCTURES.stash.store
 
-	{"id": "pipe", "name": "Steel Pipe", "bench": 1, "hammer": true, "cost": {"wood": 6, "scrap": 10}, "give": {"weapon": "pipe"}, "xp": 12},
-	{"id": "ammoP", "name": "9mm x24", "bench": 1, "cost": {"scrap": 9, "parts": 1}, "give": {"res": {"ammoP": 24}}, "xp": 6},
-	{"id": "medkit", "name": "Medkit", "bench": 1, "cost": {"med": 5, "cloth": 5}, "give": {"item": "medkit", "n": 1}, "xp": 8},
-	# Processing raw tissue is the first thing a base does for you that your
-	# hands cannot: three times the suppression, none of the nausea.
-	{"id": "serum", "name": "Stabilized Neural Serum", "bench": 1, "cost": {"brainRaw": 3, "med": 2, "cloth": 1}, "give": {"item": "serum", "n": 1}, "xp": 10},
-	# Food is bench work, not chemistry: a fire and a pot. Both of these are
-	# buffs with a clock on them and neither is ever required.
-	{"id": "jerky", "name": "Dried Meat x2", "bench": 1, "hammer": true, "cost": {"rations": 4, "fiber": 2}, "give": {"item": "jerky", "n": 2}, "xp": 4},
-	{"id": "hotMeal", "name": "Hot Meal", "bench": 1, "cost": {"rations": 3, "water": 1, "wood": 2}, "give": {"item": "hotMeal", "n": 1}, "xp": 6},
-	# What a garden is actually for. Corn into rations is the important one:
-	# the crew eats Rations out of the shared stash, so a corn patch is what
-	# stops a base needing a supply run to stay fed. Herbs into medical is
-	# deliberately a trickle — two a day against a pharmacy's eight to sixteen
-	# in one search — so a long siege stops running you out of bandages
-	# without pharmacies losing their reason to exist.
-	{"id": "cornRations", "name": "Ration Pack x8  (corn)", "bench": 1, "cost": {"corn": 4, "cloth": 2}, "give": {"res": {"rations": 8}}, "xp": 8},
-	{"id": "herbMed", "name": "Medical x2  (herbs)", "bench": 1, "cost": {"herbs": 4, "cloth": 1}, "give": {"res": {"med": 2}}, "xp": 8},
-	# Two meals from your own beds against one from three rations: cooking
-	# what you grew is better than cooking what you found, which is the payoff
-	# for the days it took.
-	{"id": "hotMealVeg", "name": "Hot Meal x2  (garden)", "bench": 1, "cost": {"potato": 3, "herbs": 1, "water": 1, "wood": 2}, "give": {"item": "hotMeal", "n": 2}, "xp": 8},
-	{"id": "machete", "name": "Machete", "bench": 1, "cost": {"scrap": 24, "parts": 1}, "give": {"weapon": "machete"}, "xp": 25},
-	# The metal tool tier: the workbench costs wood and wood costs a Hatchet,
-	# so these sit exactly one step past the stone tools that got you here.
-	{"id": "fireaxe", "name": "Fire Axe", "bench": 1, "cost": {"wood": 8, "scrap": 20, "parts": 2}, "give": {"weapon": "fireaxe"}, "xp": 22},
-	{"id": "steelpick", "name": "Steel Pickaxe", "bench": 1, "cost": {"wood": 6, "scrap": 26, "parts": 3}, "give": {"weapon": "steelpick"}, "xp": 24},
-	{"id": "pistol", "name": "M9 Pistol", "bench": 1, "cost": {"scrap": 28, "parts": 4}, "give": {"weapon": "pistol"}, "xp": 35},
-	{"id": "lightVest", "name": "Padded Vest", "bench": 1, "cost": {"cloth": 22, "scrap": 12}, "give": {"gear": "lightVest"}, "xp": 25},
-	{"id": "workBoots", "name": "Work Boots", "bench": 1, "cost": {"cloth": 10, "scrap": 6}, "give": {"gear": "workBoots"}, "xp": 12},
-	{"id": "hardHat", "name": "Hard Hat", "bench": 1, "cost": {"scrap": 14}, "give": {"gear": "hardHat"}, "xp": 14},
-	{"id": "paddedLegs", "name": "Padded Leggings", "bench": 1, "cost": {"cloth": 24, "scrap": 10}, "give": {"gear": "paddedLegs"}, "xp": 26},
-	{"id": "ammoS", "name": "Shells x14", "bench": 1, "cost": {"scrap": 12, "parts": 1}, "give": {"res": {"ammoS": 14}}, "xp": 7},
-	{"id": "lockpick", "name": "Lockpicks x3", "bench": 1, "hammer": true, "cost": {"scrap": 8, "parts": 1}, "give": {"item": "lockpick", "n": 3}, "xp": 6},
-	{"id": "rationPack", "name": "Ration Pack x8", "bench": 1, "hammer": true, "cost": {"med": 2, "cloth": 3}, "give": {"res": {"rations": 8}}, "xp": 5},
-	{"id": "fuel", "name": "Fuel x25", "bench": 1, "cost": {"scrap": 10, "elec": 4}, "give": {"res": {"fuel": 25}}, "xp": 6},
-	# A battery is findable long before it is craftable — parts bins, desks,
-	# glove boxes — so the flashlight is something you scavenge your way into
-	# rather than a bench unlock.
-	{"id": "battery", "name": "Batteries x2", "bench": 1, "cost": {"scrap": 6, "elec": 5}, "give": {"res": {"battery": 2}}, "xp": 6},
-	{"id": "flashlight", "name": "Flashlight", "bench": 1, "cost": {"scrap": 10, "elec": 6, "parts": 1}, "give": {"gear": "flashlight"}, "xp": 18},
-
-	{"id": "sledge", "name": "Sledgehammer", "bench": 2, "cost": {"wood": 18, "scrap": 38, "parts": 2}, "give": {"weapon": "sledge"}, "xp": 45},
-	{"id": "smg", "name": "Scrap SMG", "bench": 2, "cost": {"scrap": 48, "parts": 8, "elec": 10}, "give": {"weapon": "smg"}, "xp": 60},
-	{"id": "shotgun", "name": "Pump Shotgun", "bench": 2, "cost": {"scrap": 44, "parts": 6, "wood": 12}, "give": {"weapon": "shotgun"}, "xp": 60},
-	{"id": "ammoR", "name": "Rifle Rounds x18", "bench": 2, "cost": {"scrap": 14, "parts": 2}, "give": {"res": {"ammoR": 18}}, "xp": 8},
-	{"id": "rifle", "name": "Hunting Rifle", "bench": 2, "cost": {"scrap": 62, "parts": 12, "mil": 3}, "give": {"weapon": "rifle"}, "xp": 90},
-	{"id": "heavyVest", "name": "Riot Armor", "bench": 2, "cost": {"scrap": 46, "cloth": 20, "mil": 4}, "give": {"gear": "heavyVest"}, "xp": 70},
-	{"id": "carbine", "name": "Military Carbine", "bench": 2, "cost": {"scrap": 85, "parts": 18, "mil": 14, "elec": 12}, "give": {"weapon": "carbine"}, "xp": 150},
-	{"id": "milVest", "name": "Plate Carrier", "bench": 2, "cost": {"scrap": 40, "mil": 12, "cloth": 15}, "give": {"gear": "milVest"}, "xp": 120},
-
-	# The chemistry. `station` is a *different* gate to `bench`: standing at a
-	# Chemistry Station is what unlocks these, and no amount of workbench
-	# upgrading ever will. `bench` stays 0 for exactly that reason — the two
-	# gates are independent, and reading `bench: 2` here would suggest the
-	# ladder had anything to do with it.
-	{"id": "suppressant", "name": "Refined Suppressant", "bench": 0, "station": "chem",
-		"cost": {"brainRaw": 6, "brainMut": 1, "med": 4, "elec": 2}, "give": {"item": "suppressant", "n": 1}, "xp": 30},
-	{"id": "experimental", "name": "Experimental Suppressant", "bench": 0, "station": "chem",
-		"cost": {"brainMut": 2, "brainSpec": 1, "med": 6, "mil": 2}, "give": {"item": "experimental", "n": 1}, "xp": 60},
-	# The Chemistry Station's second job, and the same bet the whole game is
-	# built on: spend the brain matter that holds the meter down and the ground
-	# gives you far more back, far faster.
-	{"id": "sludge", "name": "Mutagen Sludge x2", "bench": 0, "station": "chem",
-		"cost": {"brainRaw": 2, "med": 1, "fiber": 8}, "give": {"res": {"sludge": 2}}, "xp": 12},
-]
+## The RECIPES table is data: `data/recipes.json`, loaded here at boot. Its design
+## notes moved with it — the file's `notes`, and each row's — and the editor
+## (`tools\edit`) is where it is changed. See `DataTable` for the rules.
+static var RECIPES: Array = DataTable.load_table("recipes")
 
 const BUILD_ORDER := [
 	"woodWall", "stoneWall", "barricade", "reinforcedWall", "metalWall", "gate", "spike",
@@ -1864,225 +1477,17 @@ const CAR := {
 
 # -------------------------------------------------------------- loot tables --
 
-## Each entry is `{id, min, max, w}`. `id` is a resource, or a prefixed
-## `weapon:` / `gear:` / `item:` id — the same grammar a ground pickup is
-## decoded with, so the two can never drift apart.
-##
-## Every table reads true to the thing you are opening: a fridge holds food, a
-## wardrobe holds clothes, a gun safe holds guns. That is what makes a
-## building's exterior worth reading before you go in.
-const LOOT := {
-	"cabinet": [
-		{"id": "item:cannedFood", "min": 1, "max": 2, "w": 16}, {"id": "item:candyBar", "min": 1, "max": 2, "w": 10},
-		{"id": "rations", "min": 2, "max": 5, "w": 18}, {"id": "cloth", "min": 3, "max": 8, "w": 30},
-		{"id": "wood", "min": 4, "max": 10, "w": 28}, {"id": "scrap", "min": 2, "max": 6, "w": 24},
-		{"id": "med", "min": 1, "max": 2, "w": 10}, {"id": "item:bandage", "min": 1, "max": 2, "w": 8},
-	],
-	"kitchen": [
-		# Food and drink: buffs, never a requirement (pillar 1). A kitchen is
-		# where most of it is, which is also where most of it always was.
-		{"id": "item:cannedFood", "min": 1, "max": 3, "w": 26}, {"id": "item:water", "min": 1, "max": 3, "w": 22},
-		{"id": "item:coffee", "min": 1, "max": 2, "w": 12}, {"id": "item:booze", "min": 1, "max": 1, "w": 8},
-		{"id": "rations", "min": 3, "max": 8, "w": 34}, {"id": "cloth", "min": 2, "max": 6, "w": 26},
-		{"id": "scrap", "min": 3, "max": 8, "w": 30}, {"id": "med", "min": 1, "max": 3, "w": 14},
-		{"id": "elec", "min": 1, "max": 2, "w": 10}, {"id": "item:bandage", "min": 1, "max": 1, "w": 10},
-		# A packet of seed at the back of a drawer, which is where seed lives.
-		{"id": "seedPotato", "min": 1, "max": 3, "w": 8}, {"id": "seedHerb", "min": 1, "max": 2, "w": 6},
-	],
-	"toolbox": [
-		{"id": "scrap", "min": 6, "max": 14, "w": 34}, {"id": "wood", "min": 8, "max": 18, "w": 30},
-		{"id": "battery", "min": 1, "max": 2, "w": 12}, {"id": "parts", "min": 1, "max": 2, "w": 16},
-		{"id": "elec", "min": 1, "max": 3, "w": 12},
-		{"id": "weapon:pipe", "min": 1, "max": 1, "w": 6}, {"id": "weapon:axe", "min": 1, "max": 1, "w": 5},
-		{"id": "seedPotato", "min": 1, "max": 3, "w": 7},
-	],
-	"shelf": [
-		{"id": "rations", "min": 4, "max": 10, "w": 32}, {"id": "cloth", "min": 4, "max": 10, "w": 28},
-		{"id": "med", "min": 2, "max": 5, "w": 24}, {"id": "scrap", "min": 3, "max": 7, "w": 22},
-		{"id": "item:bandage", "min": 1, "max": 3, "w": 16}, {"id": "elec", "min": 1, "max": 3, "w": 10},
-		{"id": "seedCorn", "min": 1, "max": 3, "w": 8}, {"id": "seedHerb", "min": 1, "max": 3, "w": 8},
-	],
-	"pharmacy": [
-		{"id": "med", "min": 5, "max": 12, "w": 40}, {"id": "item:medkit", "min": 1, "max": 2, "w": 24},
-		{"id": "item:bandage", "min": 2, "max": 4, "w": 24}, {"id": "cloth", "min": 3, "max": 7, "w": 12},
-	],
-	"electronics": [
-		{"id": "elec", "min": 5, "max": 12, "w": 40}, {"id": "battery", "min": 1, "max": 4, "w": 22},
-		{"id": "parts", "min": 1, "max": 3, "w": 24}, {"id": "scrap", "min": 6, "max": 14, "w": 26},
-		{"id": "fuel", "min": 5, "max": 12, "w": 10},
-	],
-	"carTrunk": [
-		{"id": "item:water", "min": 1, "max": 2, "w": 12}, {"id": "item:candyBar", "min": 1, "max": 2, "w": 8},
-		{"id": "scrap", "min": 4, "max": 10, "w": 34}, {"id": "fuel", "min": 4, "max": 12, "w": 26},
-		{"id": "battery", "min": 1, "max": 2, "w": 14}, {"id": "parts", "min": 1, "max": 1, "w": 14},
-		{"id": "cloth", "min": 2, "max": 5, "w": 16}, {"id": "elec", "min": 1, "max": 2, "w": 10},
-	],
-	"policeLocker": [
-		{"id": "ammoP", "min": 14, "max": 30, "w": 30}, {"id": "ammoS", "min": 6, "max": 14, "w": 20},
-		{"id": "parts", "min": 2, "max": 4, "w": 16}, {"id": "gear:lightVest", "min": 1, "max": 1, "w": 8},
-		{"id": "gear:heavyVest", "min": 1, "max": 1, "w": 5}, {"id": "med", "min": 2, "max": 5, "w": 10},
-		{"id": "gear:riotHelm", "min": 1, "max": 1, "w": 7}, {"id": "gear:tacGloves", "min": 1, "max": 1, "w": 7},
-		{"id": "gear:combatBoots", "min": 1, "max": 1, "w": 6}, {"id": "gear:paddedLegs", "min": 1, "max": 1, "w": 6},
-	],
-	"gunSafe": [
-		{"id": "weapon:pistol", "min": 1, "max": 1, "w": 22}, {"id": "weapon:shotgun", "min": 1, "max": 1, "w": 16},
-		{"id": "weapon:rifle", "min": 1, "max": 1, "w": 8}, {"id": "ammoP", "min": 20, "max": 40, "w": 22},
-		{"id": "ammoS", "min": 10, "max": 20, "w": 18}, {"id": "parts", "min": 3, "max": 6, "w": 14},
-	],
-	"militaryCrate": [
-		{"id": "item:mre", "min": 1, "max": 3, "w": 20}, {"id": "item:water", "min": 1, "max": 3, "w": 12},
-		{"id": "rations", "min": 6, "max": 14, "w": 14}, {"id": "mil", "min": 4, "max": 10, "w": 32},
-		{"id": "ammoR", "min": 12, "max": 26, "w": 24}, {"id": "parts", "min": 3, "max": 7, "w": 18},
-		{"id": "elec", "min": 5, "max": 12, "w": 12}, {"id": "weapon:carbine", "min": 1, "max": 1, "w": 4},
-		{"id": "gear:milVest", "min": 1, "max": 1, "w": 5}, {"id": "item:medkit", "min": 1, "max": 2, "w": 5},
-	],
-	"hospitalCrate": [
-		{"id": "item:water", "min": 2, "max": 5, "w": 14},
-		{"id": "rations", "min": 3, "max": 8, "w": 12}, {"id": "med", "min": 8, "max": 16, "w": 36},
-		{"id": "item:medkit", "min": 1, "max": 3, "w": 26}, {"id": "elec", "min": 3, "max": 8, "w": 16},
-		{"id": "parts", "min": 1, "max": 3, "w": 12}, {"id": "mil", "min": 1, "max": 3, "w": 10},
-	],
-	# What a person was carrying. Not a container — `ENEMIES.loot_table` names
-	# these, so a body rolls the same weighted table a cupboard does and there
-	# is one rolling function in the game rather than two.
-	"raiderBody": [
-		{"id": "ammoP", "min": 6, "max": 16, "w": 26}, {"id": "ammoR", "min": 4, "max": 12, "w": 16},
-		{"id": "scrap", "min": 2, "max": 6, "w": 18}, {"id": "med", "min": 1, "max": 3, "w": 16},
-		{"id": "item:bandage", "min": 1, "max": 2, "w": 16}, {"id": "item:cannedFood", "min": 1, "max": 2, "w": 14},
-		{"id": "item:water", "min": 1, "max": 2, "w": 12}, {"id": "parts", "min": 1, "max": 2, "w": 10},
-		{"id": "item:booze", "min": 1, "max": 1, "w": 8}, {"id": "weapon:pistol", "min": 1, "max": 1, "w": 4},
-	],
-	"enforcerBody": [
-		{"id": "ammoS", "min": 6, "max": 14, "w": 30}, {"id": "mil", "min": 1, "max": 4, "w": 18},
-		{"id": "parts", "min": 2, "max": 4, "w": 18}, {"id": "item:medkit", "min": 1, "max": 1, "w": 12},
-		{"id": "gear:heavyVest", "min": 1, "max": 1, "w": 5}, {"id": "gear:riotHelm", "min": 1, "max": 1, "w": 7},
-		{"id": "weapon:shotgun", "min": 1, "max": 1, "w": 6}, {"id": "item:mre", "min": 1, "max": 2, "w": 10},
-	],
-	"fuelPump": [{"id": "fuel", "min": 12, "max": 26, "w": 100}],
-	"fuelDrum": [{"id": "fuel", "min": 8, "max": 18, "w": 70}, {"id": "scrap", "min": 2, "max": 6, "w": 30}],
-	"logPile": [
-		{"id": "wood", "min": 12, "max": 24, "w": 64}, {"id": "arrow", "min": 4, "max": 10, "w": 8},
-		{"id": "scrap", "min": 1, "max": 3, "w": 14}, {"id": "cloth", "min": 1, "max": 3, "w": 12},
-		{"id": "parts", "min": 1, "max": 1, "w": 10},
-	],
-	"crate": [
-		{"id": "wood", "min": 8, "max": 18, "w": 30}, {"id": "scrap", "min": 8, "max": 18, "w": 30},
-		{"id": "elec", "min": 2, "max": 6, "w": 16}, {"id": "parts", "min": 1, "max": 3, "w": 12},
-		{"id": "cloth", "min": 4, "max": 10, "w": 12},
-		{"id": "seedCorn", "min": 2, "max": 5, "w": 10},
-	],
-	"bookshelf": [
-		{"id": "cloth", "min": 3, "max": 8, "w": 34},      # paper and dust jackets
-		{"id": "elec", "min": 1, "max": 3, "w": 16},       # an old radio, a calculator
-		{"id": "rations", "min": 1, "max": 3, "w": 14},    # someone's hidden snacks
-		{"id": "med", "min": 1, "max": 2, "w": 12}, {"id": "parts", "min": 1, "max": 1, "w": 8},
-		{"id": "item:bandage", "min": 1, "max": 2, "w": 16},
-	],
-	"dresser": [
-		{"id": "cloth", "min": 5, "max": 12, "w": 46}, {"id": "item:bandage", "min": 1, "max": 3, "w": 20},
-		{"id": "med", "min": 1, "max": 3, "w": 14}, {"id": "scrap", "min": 1, "max": 4, "w": 12},
-		{"id": "ammoP", "min": 3, "max": 8, "w": 8},       # a bedside pistol's spare rounds
-	],
-	"wardrobe": [
-		{"id": "cloth", "min": 8, "max": 16, "w": 46}, {"id": "item:bandage", "min": 1, "max": 3, "w": 16},
-		{"id": "gear:lightVest", "min": 1, "max": 1, "w": 5}, {"id": "gear:denimPants", "min": 1, "max": 1, "w": 12},
-		{"id": "gear:workBoots", "min": 1, "max": 1, "w": 10}, {"id": "gear:hardHat", "min": 1, "max": 1, "w": 6},
-		{"id": "gear:workGloves", "min": 1, "max": 1, "w": 10}, {"id": "scrap", "min": 1, "max": 3, "w": 10},
-		{"id": "rations", "min": 1, "max": 3, "w": 8},
-	],
-	"desk": [
-		{"id": "elec", "min": 2, "max": 6, "w": 34}, {"id": "battery", "min": 1, "max": 2, "w": 14},
-		{"id": "parts", "min": 1, "max": 2, "w": 20}, {"id": "cloth", "min": 2, "max": 5, "w": 18},
-		{"id": "scrap", "min": 2, "max": 6, "w": 16}, {"id": "ammoP", "min": 4, "max": 10, "w": 12},
-	],
-	"filing": [
-		{"id": "cloth", "min": 4, "max": 10, "w": 34}, {"id": "battery", "min": 1, "max": 1, "w": 10},
-		{"id": "elec", "min": 1, "max": 3, "w": 18}, {"id": "parts", "min": 1, "max": 2, "w": 16},
-		{"id": "ammoP", "min": 5, "max": 12, "w": 18}, {"id": "med", "min": 1, "max": 3, "w": 14},
-	],
-	"fridge": [
-		{"id": "item:water", "min": 2, "max": 4, "w": 30}, {"id": "item:jerky", "min": 1, "max": 3, "w": 22},
-		{"id": "item:soda", "min": 1, "max": 4, "w": 26}, {"id": "item:cannedFood", "min": 1, "max": 2, "w": 18},
-		{"id": "rations", "min": 6, "max": 14, "w": 58}, {"id": "med", "min": 1, "max": 3, "w": 20},
-		{"id": "cloth", "min": 1, "max": 3, "w": 12}, {"id": "fuel", "min": 1, "max": 3, "w": 10},
-	],
-	"nightstand": [
-		{"id": "med", "min": 2, "max": 5, "w": 30}, {"id": "battery", "min": 1, "max": 2, "w": 16},
-		{"id": "item:bandage", "min": 1, "max": 2, "w": 22}, {"id": "ammoP", "min": 4, "max": 10, "w": 20},
-		{"id": "cloth", "min": 1, "max": 4, "w": 16}, {"id": "elec", "min": 1, "max": 2, "w": 12},
-	],
-	"vanity": [
-		{"id": "med", "min": 3, "max": 7, "w": 44}, {"id": "item:bandage", "min": 1, "max": 3, "w": 26},
-		{"id": "cloth", "min": 2, "max": 6, "w": 22}, {"id": "item:medkit", "min": 1, "max": 1, "w": 8},
-	],
-	"footlocker": [
-		{"id": "item:mre", "min": 1, "max": 2, "w": 14}, {"id": "item:booze", "min": 1, "max": 1, "w": 8},
-		{"id": "mil", "min": 3, "max": 8, "w": 28}, {"id": "arrow", "min": 8, "max": 20, "w": 8},
-		{"id": "ammoR", "min": 8, "max": 18, "w": 20}, {"id": "gear:milVest", "min": 1, "max": 1, "w": 6},
-		{"id": "gear:milHelm", "min": 1, "max": 1, "w": 6}, {"id": "gear:armGuards", "min": 1, "max": 1, "w": 6},
-		{"id": "gear:milGreaves", "min": 1, "max": 1, "w": 6}, {"id": "gear:milBoots", "min": 1, "max": 1, "w": 6},
-		{"id": "parts", "min": 2, "max": 5, "w": 14}, {"id": "item:medkit", "min": 1, "max": 2, "w": 8},
-		{"id": "rations", "min": 3, "max": 8, "w": 6},
-	],
-	"vending": [
-		{"id": "item:soda", "min": 2, "max": 5, "w": 40}, {"id": "item:candyBar", "min": 2, "max": 6, "w": 44},
-		{"id": "item:water", "min": 1, "max": 3, "w": 24},
-		{"id": "rations", "min": 5, "max": 12, "w": 62}, {"id": "scrap", "min": 2, "max": 5, "w": 22},
-		{"id": "elec", "min": 1, "max": 2, "w": 16},
-	],
-	"toolrack": [
-		{"id": "parts", "min": 2, "max": 5, "w": 34}, {"id": "weapon:bow", "min": 1, "max": 1, "w": 6},
-		{"id": "arrow", "min": 6, "max": 16, "w": 10}, {"id": "scrap", "min": 6, "max": 14, "w": 32},
-		{"id": "wood", "min": 5, "max": 12, "w": 22}, {"id": "weapon:pipe", "min": 1, "max": 1, "w": 6},
-		{"id": "weapon:machete", "min": 1, "max": 1, "w": 4}, {"id": "weapon:axe", "min": 1, "max": 1, "w": 8},
-		{"id": "weapon:fireaxe", "min": 1, "max": 1, "w": 3},
-		# A tool rack is a garden shed as often as it is a workshop.
-		{"id": "seedPotato", "min": 2, "max": 4, "w": 10}, {"id": "seedCorn", "min": 1, "max": 3, "w": 8},
-		{"id": "seedHerb", "min": 1, "max": 3, "w": 8}, {"id": "compost", "min": 1, "max": 3, "w": 8},
-	],
-	"displaycase": [
-		{"id": "elec", "min": 4, "max": 10, "w": 34}, {"id": "battery", "min": 1, "max": 3, "w": 16},
-		{"id": "parts", "min": 2, "max": 5, "w": 26}, {"id": "weapon:pistol", "min": 1, "max": 1, "w": 10},
-		{"id": "ammoP", "min": 10, "max": 22, "w": 18}, {"id": "scrap", "min": 3, "max": 8, "w": 14},
-	],
-}
+## The LOOT table is data: `data/loot.json`, loaded here at boot. Its design
+## notes moved with it — the file's `notes`, and each row's — and the editor
+## (`tools\edit`) is where it is changed. See `DataTable` for the rules.
+static var LOOT: Dictionary = DataTable.load_table("loot")
 
 # --------------------------------------------------------------- containers --
 
-## Searchable furniture. `table` and `rolls` say what searching one gives up;
-## the world generator only needs the kind to exist.
-const CONTAINERS := {
-	"cabinet":       {"table": "cabinet",       "rolls": [1, 2], "sprite": "cabinet",     "label": "Cabinet"},
-	"kitchen":       {"table": "kitchen",       "rolls": [1, 2], "sprite": "cabinet",     "label": "Kitchen Unit"},
-	"toolbox":       {"table": "toolbox",       "rolls": [1, 3], "sprite": "toolbox",     "label": "Toolbox"},
-	"shelf":         {"table": "shelf",         "rolls": [1, 2], "sprite": "shelf",       "label": "Shelving"},
-	"pharmacy":      {"table": "pharmacy",      "rolls": [2, 3], "sprite": "medcab",      "label": "Medicine Cabinet"},
-	"electronics":   {"table": "electronics",   "rolls": [2, 3], "sprite": "crate",       "label": "Parts Bin"},
-	"crate":         {"table": "crate",         "rolls": [1, 3], "sprite": "crate",       "label": "Supply Crate"},
-	"safe":          {"table": "gunSafe",       "rolls": [2, 3], "sprite": "safe",        "label": "Floor Safe"},
-	"locker":        {"table": "dresser",       "rolls": [1, 2], "sprite": "locker",      "label": "Staff Locker"},
-	"medcab":        {"table": "vanity",        "rolls": [1, 2], "sprite": "medcab",      "label": "Medicine Cabinet"},
-	"carTrunk":      {"table": "carTrunk",      "rolls": [1, 2], "sprite": "trunk",       "label": "Car Trunk"},
-	"policeLocker":  {"table": "policeLocker",  "rolls": [2, 3], "sprite": "locker",      "label": "Police Locker"},
-	"gunSafe":       {"table": "gunSafe",       "rolls": [2, 3], "sprite": "safe",        "label": "Gun Safe"},
-	"militaryCrate": {"table": "militaryCrate", "rolls": [3, 4], "sprite": "milcrate",    "label": "Military Crate"},
-	"hospitalCrate": {"table": "hospitalCrate", "rolls": [2, 4], "sprite": "medcab",      "label": "Supply Cabinet"},
-	"fuelPump":      {"table": "fuelPump",      "rolls": [1, 2], "sprite": "pump",        "label": "Fuel Pump"},
-	"fuelDrum":      {"table": "fuelDrum",      "rolls": [1, 2], "sprite": "drum",        "label": "Fuel Drum"},
-	"logPile":       {"table": "logPile",       "rolls": [2, 3], "sprite": "logs",        "label": "Log Pile"},
-	"bookshelf":     {"table": "bookshelf",     "rolls": [1, 2], "sprite": "bookshelf",   "label": "Bookshelf"},
-	"dresser":       {"table": "dresser",       "rolls": [1, 2], "sprite": "dresser",     "label": "Dresser"},
-	"wardrobe":      {"table": "wardrobe",      "rolls": [1, 3], "sprite": "wardrobe",    "label": "Wardrobe"},
-	"desk":          {"table": "desk",          "rolls": [1, 2], "sprite": "desk",        "label": "Desk"},
-	"filing":        {"table": "filing",        "rolls": [1, 3], "sprite": "filing",      "label": "Filing Cabinet"},
-	"fridge":        {"table": "fridge",        "rolls": [1, 2], "sprite": "fridge",      "label": "Refrigerator"},
-	"nightstand":    {"table": "nightstand",    "rolls": [1, 1], "sprite": "nightstand",  "label": "Nightstand"},
-	"vanity":        {"table": "vanity",        "rolls": [1, 2], "sprite": "vanity",      "label": "Bathroom Vanity"},
-	"footlocker":    {"table": "footlocker",    "rolls": [2, 3], "sprite": "footlocker",  "label": "Footlocker"},
-	"vending":       {"table": "vending",       "rolls": [2, 3], "sprite": "vending",     "label": "Vending Machine"},
-	"toolrack":      {"table": "toolrack",      "rolls": [1, 3], "sprite": "toolrack",    "label": "Tool Rack"},
-	"displaycase":   {"table": "displaycase",   "rolls": [2, 3], "sprite": "displaycase", "label": "Display Case"},
-}
+## The CONTAINERS table is data: `data/containers.json`, loaded here at boot. Its design
+## notes moved with it — the file's `notes`, and each row's — and the editor
+## (`tools\edit`) is where it is changed. See `DataTable` for the rules.
+static var CONTAINERS: Dictionary = DataTable.load_table("containers")
 
 ## What furnishes each kind of building, as [kind, weight] picks. A house
 ## fills with wardrobes and a precinct with filing cabinets, so a building's

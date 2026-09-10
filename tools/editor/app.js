@@ -27,6 +27,42 @@ const RANGED = ["Handguns", "Shotguns", "Rifles", "SMGs", "Assault Rifles", "Pre
 // The tables whose rows are items, and so have a catalog class and a look.
 const CLASSED = ["WEAPONS", "GEAR", "CONSUMABLES", "RES"];
 
+// The owner's categories and classes live in data/categories.json; the lists
+// above are only the fallback if that file is not there.
+function categoryList() {
+  const rows = listRows("CATEGORIES").filter((c) => c.kind === "category").map((c) => c.id);
+  return rows.length ? rows : CATEGORY_ORDER;
+}
+// The classes a category offers: the ones defined for it, and any value the
+// catalog already uses there (Ammo files by weapon class).
+function classList(category) {
+  return [...new Set([
+    ...listRows("CATEGORIES").filter((c) => c.kind === "class" && c.category === category).map((c) => c.id),
+    ...listRows("CATALOG").filter((c) => c.category === category && c.subcategory).map((c) => c.subcategory),
+  ])];
+}
+function weaponGroup(group, fallback) {
+  const rows = listRows("CATEGORIES").filter((c) => c.kind === "class" && c.group === group).map((c) => c.id);
+  return rows.length ? rows : fallback;
+}
+const aboutOf = (name) => (rowById("CATEGORIES", name) || {}).about || "";
+
+// **bold**, *italic* and `code`, nothing else — built as nodes, so notes are
+// never parsed as HTML.
+function md(text) {
+  const out = [];
+  const re = /\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(text))) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    out.push(m[1] ? el("strong", {}, m[1]) : m[2] ? el("em", {}, m[2]) : el("code", {}, m[3]));
+    last = re.lastIndex;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
 const S = {
   tables: {},   // name -> {name, editable, file, doc, dirty, gitDirty, loadErrors}
   order: [],
@@ -82,17 +118,6 @@ function rowsOf(v) {
   return [];
 }
 
-function inferFields(rows) {
-  const f = {};
-  for (const r of rows) {
-    for (const [k, v] of Object.entries(r)) {
-      if (k === "id" || f[k]) continue;
-      f[k] = { type: typeof v === "number" ? "number" : typeof v === "boolean" ? "bool" : typeof v === "string" ? "string" : "json" };
-    }
-  }
-  return f;
-}
-
 function orderKeys(keys) {
   const head = FIRST.filter((k) => keys.includes(k));
   return [...head, ...keys.filter((k) => !head.includes(k)).sort()];
@@ -113,10 +138,16 @@ function get(obj, path) {
   return path.split(".").reduce((o, k) => (o == null ? undefined : o[k]), obj);
 }
 
+// A value in a few words: `wood 4, scrap 2` for a map, `8: cannedFood, …`
+// for a list of entries, rather than JSON.
 function fmt(v) {
-  if (v === undefined) return "";
+  if (v === undefined || v === null) return "";
   if (typeof v === "boolean") return v ? "✓" : "✗";
-  if (typeof v === "object") return JSON.stringify(v);
+  if (Array.isArray(v)) {
+    const ids = v.map((x) => (isObj(x) ? String(x.id ?? "…").replace(/^\w+:/, "") : fmt(x)));
+    return v.length && isObj(v[0]) ? `${v.length}: ${ids.join(", ")}` : ids.join(", ");
+  }
+  if (typeof v === "object") return Object.entries(v).map(([k, x]) => `${k} ${fmt(x)}`).join(", ");
   return String(v);
 }
 
@@ -226,8 +257,7 @@ async function load() {
     if (t.editable) {
       S.tables[t.name] = { name: t.name, editable: true, file: t.file, doc: t.doc, dirty: false, gitDirty: t.dirty, loadErrors: t.errors };
     } else {
-      const rows = rowsOf(t.value);
-      S.tables[t.name] = { name: t.name, editable: false, doc: { fields: inferFields(rows), rows } };
+      S.tables[t.name] = { name: t.name, editable: false, doc: t.doc };
     }
   }
   if (!S.tables[S.cur]) S.cur = S.order.find((n) => S.tables[n].editable) || S.order[0];
@@ -275,20 +305,27 @@ async function validate() {
   markFieldErrors();
 }
 
-async function save() {
-  const t = cur();
+const save = () => saveTable(cur());
+
+// Any table, not only the one the detail pane is on: a class picked on a
+// weapon's page is a change to the catalog, saved from there.
+async function saveTable(t) {
   if (!t || !t.editable || !t.dirty) return;
   clearTimeout(vTimer);
+  const mine = t === cur();
   const { ok, j } = await send("PUT", `/api/table/${t.name}`, t);
   if (!ok) {
-    S.errors = j.errors || [];
-    renderList();
-    markFieldErrors();
-    toast(`Not saved: ${S.errors.length} problem${S.errors.length === 1 ? "" : "s"}. Fix them and try again.`, true);
+    const errors = j.errors || [];
+    if (mine) {
+      S.errors = errors;
+      renderList();
+      markFieldErrors();
+    }
+    toast(`${t.name} not saved: ${errors.slice(0, 3).join("; ")}${errors.length > 3 ? " …" : ""}`, true);
     return;
   }
   t.dirty = false;
-  S.errors = [];
+  if (mine) S.errors = [];
   toast(`Saved ${j.file} (+${j.diff.added} −${j.diff.removed} lines). Commit it with git when you're happy.`);
   await load();
 }
@@ -323,7 +360,7 @@ function renderStatus() {
   const git = ed.filter((n) => S.tables[n].gitDirty).map((n) => S.tables[n].file);
   $("#status").replaceChildren();
   add($("#status"),
-    `${S.order.length} tables · ${ed.length} editable · the rest still live in config.gd`,
+    ed.length === S.order.length ? `${S.order.length} tables, all editable` : `${S.order.length} tables · ${ed.length} editable`,
     git.length ? el("span", { class: "warn" }, ` · uncommitted: ${git.join(", ")}`) : "");
 }
 
@@ -339,7 +376,7 @@ function renderNav() {
   const ro = S.order.filter((n) => !S.tables[n].editable);
   const nav = $("#tables");
   nav.replaceChildren();
-  add(nav, el("h4", {}, "Views"), views, el("h4", {}, "Data files"), ed.map(mk), el("h4", {}, "Still in config.gd"), ro.map(mk));
+  add(nav, el("h4", {}, "Views"), views, el("h4", {}, "Data files"), ed.map(mk), ro.length ? el("h4", {}, "Read-only") : "", ro.map(mk));
 }
 
 // Save and Revert act on the table the detail pane is editing, from any view.
@@ -368,7 +405,7 @@ function renderHead() {
     add(head, el("h2", {}, S.view), filter, editButtons(t));
   } else {
     add(head, el("h2", {}, t.name),
-      el("span", { class: "file mono" }, t.editable ? t.file : "read-only — migrate it to edit"),
+      el("span", { class: "file mono" }, t.editable ? t.file : "read-only"),
       filter,
       t.editable ? el("button", { onclick: addRow }, "+ Row") : "",
       editButtons(t));
@@ -413,7 +450,7 @@ function renderGrid() {
   if (!t) return;
   const cols = ["id", ...(classed(t) ? ["class"] : []), ...orderKeys(Object.keys(t.doc.fields))];
   const rows = visibleRows(t);
-  const badIds = new Set(S.errors.map((e) => (e.match(/(?:^|\s)([\w-]+)\.[\w]+:/) || [])[1]).filter(Boolean));
+  const badIds = new Set(S.errors.map((e) => (e.match(/(?:^|\s)([\w-]+)\.[\w]+[.[:]/) || [])[1]).filter(Boolean));
   const th = cols.map((c) => el("th", {
     class: S.sort && S.sort.key === c ? `sorted${S.sort.up ? " up" : ""}` : "",
     title: t.doc.fields[c] ? t.doc.fields[c].type + (t.doc.fields[c].ref ? ` → ${t.doc.fields[c].ref}` : "") : "",
@@ -433,7 +470,7 @@ function cell(v) {
   if (v === undefined) return el("td", { class: "none" }, "·");
   if (typeof v === "number") return el("td", { class: "num" }, String(v));
   if (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) return el("td", {}, swatch(v), v);
-  if (typeof v === "object") return el("td", { class: "obj", title: JSON.stringify(v, null, 1) }, JSON.stringify(v));
+  if (typeof v === "object") return el("td", { class: "obj", title: JSON.stringify(v, null, 1) }, fmt(v));
   return el("td", {}, fmt(v));
 }
 
@@ -526,16 +563,24 @@ function viewWeapons(q) {
         el("td", {}, w ? (found ? `${found} place${found === 1 ? "" : "s"}` : none()) : ""),
         el("td", { class: "small" }, c.ratings ? Object.entries(c.ratings).map(([k, v]) => `${k.replace(/_/g, " ")} ${v}`).join(" · ") : ""));
     })));
+  const melee = weaponGroup("Melee", MELEE);
+  const ranged = weaponGroup("Ranged", RANGED);
+  // Every class shows, empty or not, with the identity it is meant to have:
+  // an empty class is a gap in the arsenal worth seeing.
   const section = (title, subs) => [el("h2", { class: "group" }, title), subs.map((sub) => {
     const list = C.filter((c) => c.subcategory === sub && hit(q, c, rowById("WEAPONS", c.id)));
-    if (!list.length) return "";
+    if (q && !list.length) return "";
     const live = list.filter((c) => c.status === "in game").length;
-    return [el("h3", { class: "section" }, `${sub} · ${live} in game, ${list.length - live} planned`), table(list)];
+    return [el("h3", { class: "section" }, link("CATEGORIES", sub, sub), ` · ${live} in game, ${list.length - live} planned`),
+      aboutOf(sub) ? el("p", { class: "about" }, md(aboutOf(sub))) : "",
+      list.length ? table(list) : el("p", { class: "hint" }, "No weapons in this class yet.")];
   })];
-  const other = C.filter((c) => !MELEE.includes(c.subcategory) && !RANGED.includes(c.subcategory) && hit(q, c));
+  const other = C.filter((c) => !melee.includes(c.subcategory) && !ranged.includes(c.subcategory) && hit(q, c));
+  const why = (rowById("CATEGORIES", "Weapons") || {}).notes;
   return [
-    el("p", { class: "hint" }, "Weapons by class — Notion's six melee classes, then its eight ranged ones — with the game's numbers beside each weapon that exists and the design ratings for the ones that don't yet. The class lives in the catalog: change it there."),
-    section("Melee", MELEE), section("Ranged", RANGED),
+    el("p", { class: "hint" }, "Weapons by class, each with the identity it is meant to have, the game's numbers beside every weapon that exists and the design ratings for the ones that don't yet. Change a weapon's class on its own page; add or reword a class in CATEGORIES."),
+    why ? el("details", { class: "tnotes" }, el("summary", {}, "How weapons are meant to work"), el("div", { class: "prose" }, md(why))) : "",
+    section("Melee", melee), section("Ranged", ranged),
     other.length ? [el("h3", { class: "section" }, "Other classes"), table(other)] : "",
     loose.length ? [el("h3", { class: "section" }, "In the game but not in the catalog"), table(loose.filter((c) => hit(q, c)))] : "",
   ];
@@ -798,8 +843,9 @@ function viewAmmo(q) {
 function viewCatalog(q) {
   const C = listRows("CATALOG").filter((c) => hit(q, c));
   if (!S.tables.CATALOG) return el("p", { class: "hint" }, "No data/catalog.json yet.");
+  const order = categoryList();
   const cats = [...groupBy(C, (c) => c.category || "Uncategorised")].sort((a, b) => {
-    const i = (k) => (CATEGORY_ORDER.indexOf(k) + 1 || 99);
+    const i = (k) => (order.indexOf(k) + 1 || 99);
     return i(a[0]) - i(b[0]);
   });
   const stat = groupBy(listRows("CATALOG"), (c) => c.status);
@@ -807,6 +853,7 @@ function viewCatalog(q) {
     el("p", { class: "hint" }, `Every item, in the game or not: ${[...stat].map(([s, l]) => `${l.length} ${s}`).join(" · ")}. Click one to edit it; the ratings are design intent, 1–5, and the game does not read them.`),
     cats.map(([cat, list]) => [
       el("h3", { class: "section" }, `${cat} · ${list.length}`),
+      aboutOf(cat) ? el("p", { class: "about" }, md(aboutOf(cat))) : "",
       el("table", { class: "vt" },
         el("thead", {}, el("tr", {}, ["Name", "subcategory", "status", "in code", "made at today", "planned bench", "ratings"].map((h) => el("th", {}, h)))),
         el("tbody", {}, list.map((c) => {
@@ -834,7 +881,7 @@ function renderDetail() {
   if (!row) {
     add(box, el("p", { class: "hint" }, S.view ? "Pick anything in the view to see it here, and edit it if its table is a data file."
       : t.editable ? "Pick a row to edit it. Every save is checked against the whole game — types, and every reference in and out."
-        : "Pick a row to see it and what refers to it. This table is still a literal in config.gd, so it is read-only here."));
+        : "Pick a row to see it and what refers to it. This table is read-only here."));
     return;
   }
   add(box, el("header", {}, el("h2", {}, row.name || row.label || row.id), el("code", {}, `${S.cur} › ${row.id}`),
@@ -890,7 +937,7 @@ function fieldsForm(t, row) {
 function blank(type) {
   if (type === "bool") return true;
   if (type === "int" || type === "float") return 0;
-  if (type.startsWith("map<")) return {};
+  if (type.startsWith("map<") || type === "object") return {};
   if (type.startsWith("list<")) return [];
   return "";
 }
@@ -908,34 +955,101 @@ function markFieldErrors() {
   const id = S.sel;
   for (const f of document.querySelectorAll("#fields .field")) {
     const key = f.dataset.key;
-    const mine = S.errors.filter((e) => new RegExp(`(^|\\s)${esc(id)}\\.${esc(key)}:`).test(e));
+    // `pistol.dmg:` and, one level down, `cabinet.entries[3].w:` both belong
+    // to their top-level field; the message keeps the path inside it.
+    const mine = S.errors.filter((e) => new RegExp(`(^|\\s)${esc(id)}\\.${esc(key)}[.\\[:]`).test(e));
     f.classList.toggle("bad", mine.length > 0);
     const box = f.querySelector(".err");
     box.hidden = mine.length === 0;
-    box.textContent = mine.map((e) => e.replace(/^.*?:\s*/, "")).join("; ");
+    box.textContent = mine.map((e) => e.replace(new RegExp(`^.*?${esc(id)}\\.`), "")).join("; ");
   }
 }
 const esc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 function editor(t, row, key, spec) {
   const set = (v) => { row[key] = v; changed(); };
+  if (spec.type === "string" && !spec.ref && !Array.isArray(spec.one_of)) {
+    // Free text that is really a vocabulary (a sprite, an effect) offers the
+    // values already in the column.
+    const suggest = [...new Set(t.doc.rows.map((r) => r[key]).filter((v) => typeof v === "string" && v.length < 40))];
+    return strInput(row[key], null, set, suggest);
+  }
+  return valueEditor(row[key], spec, set);
+}
+
+// The editor for one value of any declared type, at any depth.
+function valueEditor(value, spec, set, suggest) {
   const type = spec.type;
   if (Array.isArray(spec.one_of)) {
-    const opts = spec.one_of.includes(row[key]) ? spec.one_of : [row[key], ...spec.one_of];
-    return el("select", { onchange: (e) => set(e.target.value) }, opts.map((o) => el("option", { value: o, selected: o === row[key] }, o)));
+    const opts = spec.one_of.includes(value) ? spec.one_of : [value, ...spec.one_of];
+    return el("select", { onchange: (e) => set(e.target.value) }, opts.map((o) => el("option", { value: o, selected: o === value }, String(o))));
   }
-  if (type === "bool") return el("input", { type: "checkbox", checked: row[key] === true, onchange: (e) => set(e.target.checked) });
-  if (type === "int" || type === "float") return numInput(row[key], type, set);
-  if (type === "string") {
-    // Free text that is really a vocabulary (a subcategory) offers the values
-    // already in the column.
-    const suggest = spec.ref ? null : [...new Set(t.doc.rows.map((r) => r[key]).filter((v) => typeof v === "string" && v.length < 40))];
-    return strInput(row[key], spec.ref, set, suggest);
-  }
+  if (type === "bool") return el("input", { type: "checkbox", checked: value === true, onchange: (e) => set(e.target.checked) });
+  if (type === "int" || type === "float") return numInput(value, type, set);
+  if (type === "string") return strInput(value, spec.ref, set, suggest);
+  if (type === "object") return objectEditor(isObj(value) ? value : {}, spec.fields, set);
+  if (type === "list<object>") return objectListEditor(Array.isArray(value) ? value : [], spec.fields, set);
   const inner = type.slice(type.indexOf("<") + 1, -1);
-  if (type.startsWith("map<")) return mapEditor(row[key] || {}, inner, spec.key_ref, spec.ref, set);
-  if (type.startsWith("list<")) return listEditor(row[key] || [], inner, spec.ref, set);
-  return el("code", {}, JSON.stringify(row[key]));
+  if (type.startsWith("map<")) return mapEditor(value || {}, inner, spec.key_ref, spec.ref, set);
+  if (type.startsWith("list<")) return listEditor(value || [], inner, spec.ref, set);
+  return el("code", {}, JSON.stringify(value));
+}
+
+// An object field — a recipe's output, a gun, a light — as a small form of
+// its own: the sub-fields it has, each removable, and the ones it could have.
+function objectEditor(obj, fields, set) {
+  const o = { ...obj };
+  const commit = () => set({ ...o });
+  const keys = orderKeys(Object.keys(fields));
+  const box = el("div", { class: "obj" });
+  for (const k of keys.filter((key) => key in o)) {
+    add(box, el("div", { class: "sub" }, el("label", { title: fields[k].type }, k),
+      valueEditor(o[k], fields[k], (v) => { o[k] = v; commit(); }),
+      el("button", { class: "x", title: `Remove ${k}`, onclick: () => { delete o[k]; commit(); renderDetail(); } }, "×")));
+  }
+  const absent = keys.filter((k) => !(k in o));
+  if (absent.length) {
+    const pick = el("select", { class: "small" }, el("option", { value: "" }, "+ field…"),
+      absent.map((k) => el("option", { value: k }, `${k} — ${fields[k].type}`)));
+    pick.addEventListener("change", () => {
+      if (!pick.value) return;
+      const sp = fields[pick.value];
+      o[pick.value] = sp.one_of ? sp.one_of[0] : blank(sp.type);
+      commit();
+      renderDetail();
+    });
+    add(box, pick);
+  }
+  return box;
+}
+
+// Every id a loot entry can name: resources bare, the rest prefixed.
+const entryIds = () => [
+  ...listRows("RES").map((r) => r.id),
+  ...listRows("WEAPONS").filter((w) => w.id !== "fists").map((w) => `weapon:${w.id}`),
+  ...listRows("GEAR").map((g) => `gear:${g.id}`),
+  ...listRows("CONSUMABLES").map((c) => `item:${c.id}`),
+];
+
+// A list of objects — a loot table's entries — as a grid: one line per
+// entry, one column per field, and reorderable, because order is data here.
+function objectListEditor(arr, fields, set) {
+  const items = arr.map((x) => ({ ...x }));
+  const commit = () => set(items.map((x) => ({ ...x })));
+  const cols = orderKeys(Object.keys(fields));
+  const fresh = () => Object.fromEntries(cols.map((c) => [c, fields[c].one_of ? fields[c].one_of[0] : blank(fields[c].type)]));
+  const ids = cols.includes("id") ? entryIds() : null;
+  const grid = el("table", { class: "vt grid-edit" },
+    el("thead", {}, el("tr", {}, cols.map((c) => el("th", { title: fields[c].type }, c)), el("th", {}, ""))),
+    el("tbody", {}, items.map((it, i) => el("tr", {},
+      cols.map((c) => el("td", {}, c in it
+        ? valueEditor(it[c], fields[c], (v) => { it[c] = v; commit(); }, c === "id" ? ids : null)
+        : el("button", { class: "small", title: `Give this entry a ${c}`, onclick: () => { it[c] = fresh()[c]; commit(); renderDetail(); } }, "+"))),
+      el("td", { class: "nowrap" },
+        el("button", { class: "x", title: "Move up", onclick: () => { if (i > 0) { [items[i - 1], items[i]] = [items[i], items[i - 1]]; commit(); renderDetail(); } } }, "↑"),
+        el("button", { class: "x", title: "Remove", onclick: () => { items.splice(i, 1); commit(); renderDetail(); } }, "×"))))));
+  return el("div", { class: "scrollx" }, grid,
+    el("button", { onclick: () => { items.push(fresh()); commit(); renderDetail(); } }, "+ entry"));
 }
 
 // A number box that keeps what was typed. Anything that is not a number of
@@ -1229,8 +1343,27 @@ function catalogCard(table, row) {
       el("span", { class: "hint" }, "Not in the catalog, so no view files it under a category. "),
       S.tables.CATALOG.editable ? el("button", { onclick: () => addToCatalog(row) }, "Add to catalog") : ""));
   }
-  return el("div", {}, el("h3", {}, "Catalog"), el("div", { class: "card" },
-    el("b", {}, c.category || "no category"), c.subcategory ? ` › ${c.subcategory}` : "", " ", badge(c.status),
+  // Category and class are picked right here; the change is to the catalog
+  // and is saved with the button that appears, whatever table this page is.
+  const cat = S.tables.CATALOG;
+  const touch = () => { cat.dirty = true; renderNav(); renderDetail(); };
+  const opts = (list, current) => (current && !list.includes(current) ? [current, ...list] : list);
+  const classes = classList(c.category);
+  const pickCat = cat.editable
+    ? el("select", { title: "Category", onchange: (e) => { c.category = e.target.value; touch(); } },
+      opts(categoryList(), c.category).map((o) => el("option", { value: o, selected: o === c.category }, o)))
+    : el("b", {}, c.category || "no category");
+  const pickClass = cat.editable
+    ? el("select", { title: "Class", onchange: (e) => { if (e.target.value) c.subcategory = e.target.value; else delete c.subcategory; touch(); } },
+      el("option", { value: "" }, "— no class —"),
+      opts(classes, c.subcategory).map((o) => el("option", { value: o, selected: o === c.subcategory }, o)))
+    : c.subcategory ? ` › ${c.subcategory}` : "";
+  return el("div", {}, el("h3", {}, "Category and class"), el("div", { class: "card" },
+    el("div", { class: "row2" }, pickCat, cat.editable ? "›" : "", pickClass, badge(c.status)),
+    aboutOf(c.subcategory) ? el("p", { class: "about" }, el("b", {}, `${c.subcategory}: `), md(aboutOf(c.subcategory))) : "",
+    cat.editable && cat.dirty ? el("div", { class: "row2" },
+      el("button", { class: "primary small", onclick: () => saveTable(cat) }, "Save catalog"),
+      el("span", { class: "hint" }, "the class lives in data/catalog.json")) : "",
     c.bench_plan ? el("div", {}, "planned bench: ", el("b", {}, c.bench_plan)) : "",
     c.ratings ? el("div", {}, Object.entries(c.ratings).map(([k, v]) =>
       el("span", { class: "chip", title: "design intent, 1–5" }, `${k.replace(/_/g, " ")} ${"●".repeat(v)}${"○".repeat(Math.max(0, 5 - v))}`))) : "",

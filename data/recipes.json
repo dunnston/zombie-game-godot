@@ -1,0 +1,735 @@
+{
+  "fields": {
+    "bench": {
+      "type": "int"
+    },
+    "cost": {
+      "type": "map<int>"
+    },
+    "give": {
+      "fields": {
+        "gear": {
+          "type": "string"
+        },
+        "item": {
+          "type": "string"
+        },
+        "n": {
+          "type": "int"
+        },
+        "res": {
+          "type": "map<int>"
+        },
+        "weapon": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "hammer": {
+      "type": "bool"
+    },
+    "name": {
+      "type": "string"
+    },
+    "station": {
+      "type": "string"
+    },
+    "tool": {
+      "type": "string"
+    },
+    "xp": {
+      "type": "int"
+    }
+  },
+  "notes": "Crafting is instant by design: the materials are the whole cost. `bench` is 0 for by hand, 1 for a workbench, 2 for the upgraded one. A `hammer` recipe is lifted to bench 1 by a carried Stone Hammer — the work you could plausibly do on a flat rock — and never any further, so the hammer can never produce a gun. `tool` is a flag the player must be carrying something with (a knife cuts cordage).\n\nOrder matters only for the screen: hand tools first, because the bench costs wood and wood costs a hatchet.",
+  "rows": [
+    {
+      "bench": 0,
+      "cost": {
+        "cloth": 4
+      },
+      "give": {
+        "item": "bandage",
+        "n": 2
+      },
+      "id": "bandage",
+      "name": "Bandage x2",
+      "xp": 3
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "fiber": 4,
+        "sticks": 3,
+        "stone": 3
+      },
+      "give": {
+        "weapon": "axe"
+      },
+      "id": "axe",
+      "name": "Hatchet",
+      "xp": 10
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "fiber": 2,
+        "sticks": 2,
+        "stone": 3
+      },
+      "give": {
+        "weapon": "knife"
+      },
+      "id": "knife",
+      "name": "Stone Knife",
+      "xp": 8
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "fiber": 3,
+        "sticks": 4,
+        "stone": 4
+      },
+      "give": {
+        "weapon": "pick"
+      },
+      "id": "pick",
+      "name": "Stone Pickaxe",
+      "xp": 12
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "fiber": 4,
+        "sticks": 5,
+        "stone": 3
+      },
+      "give": {
+        "weapon": "scythe"
+      },
+      "id": "scythe",
+      "name": "Scythe",
+      "xp": 12
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "fiber": 2,
+        "sticks": 3,
+        "stone": 6
+      },
+      "give": {
+        "weapon": "hammer"
+      },
+      "id": "hammer",
+      "name": "Stone Hammer",
+      "xp": 12
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "fiber": 10
+      },
+      "give": {
+        "res": {
+          "cloth": 4
+        }
+      },
+      "id": "cordage",
+      "name": "Cloth x4",
+      "notes": "Cordage: fiber becomes cloth, but only with a blade to cut it.",
+      "tool": "knife",
+      "xp": 4
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "fiber": 3,
+        "sticks": 3
+      },
+      "give": {
+        "gear": "torch"
+      },
+      "id": "torch",
+      "name": "Torch",
+      "notes": "The first night's answer to \"I cannot see\", made of the two things the ground is covered in. It burns itself up, so it is a thing you keep remaking rather than a thing you own once.",
+      "xp": 6
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "cloth": 2,
+        "fiber": 12,
+        "sticks": 8
+      },
+      "give": {
+        "weapon": "bow"
+      },
+      "id": "bow",
+      "name": "Hunting Bow",
+      "notes": "Bench 0, like the tools: a bow is a stick and a string, and it has to be reachable in the first ten minutes to be the quiet answer to a gun.",
+      "xp": 18
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "fiber": 2,
+        "sticks": 6,
+        "stone": 3
+      },
+      "give": {
+        "res": {
+          "arrow": 10
+        }
+      },
+      "id": "arrow",
+      "name": "Arrows x10",
+      "xp": 3
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "fiber": 12,
+        "sticks": 6
+      },
+      "give": {
+        "res": {
+          "compost": 2
+        }
+      },
+      "id": "compost",
+      "name": "Compost x2",
+      "notes": "A compost heap is a pile of dead plants, so it is bench 0 like the stone tools: farming must be reachable before metalwork or the first bed is a thing you build and then cannot feed.",
+      "xp": 3
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "cloth": 8
+      },
+      "give": {
+        "gear": "workGloves"
+      },
+      "id": "workGloves",
+      "name": "Work Gloves",
+      "xp": 8
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "cloth": 14
+      },
+      "give": {
+        "gear": "denimPants"
+      },
+      "id": "denimPants",
+      "name": "Work Trousers",
+      "xp": 10
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "scrap": 10,
+        "wood": 6
+      },
+      "give": {
+        "weapon": "pipe"
+      },
+      "hammer": true,
+      "id": "pipe",
+      "name": "Steel Pipe",
+      "xp": 12
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "parts": 1,
+        "scrap": 9
+      },
+      "give": {
+        "res": {
+          "ammoP": 24
+        }
+      },
+      "id": "ammoP",
+      "name": "9mm x24",
+      "xp": 6
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "cloth": 5,
+        "med": 5
+      },
+      "give": {
+        "item": "medkit",
+        "n": 1
+      },
+      "id": "medkit",
+      "name": "Medkit",
+      "xp": 8
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "brainRaw": 3,
+        "cloth": 1,
+        "med": 2
+      },
+      "give": {
+        "item": "serum",
+        "n": 1
+      },
+      "id": "serum",
+      "name": "Stabilized Neural Serum",
+      "notes": "Processing raw tissue is the first thing a base does for you that your hands cannot: three times the suppression, none of the nausea.",
+      "xp": 10
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "fiber": 2,
+        "rations": 4
+      },
+      "give": {
+        "item": "jerky",
+        "n": 2
+      },
+      "hammer": true,
+      "id": "jerky",
+      "name": "Dried Meat x2",
+      "notes": "Food is bench work, not chemistry: a fire and a pot. Both of these are buffs with a clock on them and neither is ever required.",
+      "xp": 4
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "rations": 3,
+        "water": 1,
+        "wood": 2
+      },
+      "give": {
+        "item": "hotMeal",
+        "n": 1
+      },
+      "id": "hotMeal",
+      "name": "Hot Meal",
+      "xp": 6
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "cloth": 2,
+        "corn": 4
+      },
+      "give": {
+        "res": {
+          "rations": 8
+        }
+      },
+      "id": "cornRations",
+      "name": "Ration Pack x8  (corn)",
+      "notes": "What a garden is actually for. Corn into rations is the important one: the crew eats Rations out of the shared stash, so a corn patch is what stops a base needing a supply run to stay fed. Herbs into medical is deliberately a trickle — two a day against a pharmacy's eight to sixteen in one search — so a long siege stops running you out of bandages without pharmacies losing their reason to exist.",
+      "xp": 8
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "cloth": 1,
+        "herbs": 4
+      },
+      "give": {
+        "res": {
+          "med": 2
+        }
+      },
+      "id": "herbMed",
+      "name": "Medical x2  (herbs)",
+      "xp": 8
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "herbs": 1,
+        "potato": 3,
+        "water": 1,
+        "wood": 2
+      },
+      "give": {
+        "item": "hotMeal",
+        "n": 2
+      },
+      "id": "hotMealVeg",
+      "name": "Hot Meal x2  (garden)",
+      "notes": "Two meals from your own beds against one from three rations: cooking what you grew is better than cooking what you found, which is the payoff for the days it took.",
+      "xp": 8
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "parts": 1,
+        "scrap": 24
+      },
+      "give": {
+        "weapon": "machete"
+      },
+      "id": "machete",
+      "name": "Machete",
+      "xp": 25
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "parts": 2,
+        "scrap": 20,
+        "wood": 8
+      },
+      "give": {
+        "weapon": "fireaxe"
+      },
+      "id": "fireaxe",
+      "name": "Fire Axe",
+      "notes": "The metal tool tier: the workbench costs wood and wood costs a Hatchet, so these sit exactly one step past the stone tools that got you here.",
+      "xp": 22
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "parts": 3,
+        "scrap": 26,
+        "wood": 6
+      },
+      "give": {
+        "weapon": "steelpick"
+      },
+      "id": "steelpick",
+      "name": "Steel Pickaxe",
+      "xp": 24
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "parts": 4,
+        "scrap": 28
+      },
+      "give": {
+        "weapon": "pistol"
+      },
+      "id": "pistol",
+      "name": "M9 Pistol",
+      "xp": 35
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "cloth": 22,
+        "scrap": 12
+      },
+      "give": {
+        "gear": "lightVest"
+      },
+      "id": "lightVest",
+      "name": "Padded Vest",
+      "xp": 25
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "cloth": 10,
+        "scrap": 6
+      },
+      "give": {
+        "gear": "workBoots"
+      },
+      "id": "workBoots",
+      "name": "Work Boots",
+      "xp": 12
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "scrap": 14
+      },
+      "give": {
+        "gear": "hardHat"
+      },
+      "id": "hardHat",
+      "name": "Hard Hat",
+      "xp": 14
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "cloth": 24,
+        "scrap": 10
+      },
+      "give": {
+        "gear": "paddedLegs"
+      },
+      "id": "paddedLegs",
+      "name": "Padded Leggings",
+      "xp": 26
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "parts": 1,
+        "scrap": 12
+      },
+      "give": {
+        "res": {
+          "ammoS": 14
+        }
+      },
+      "id": "ammoS",
+      "name": "Shells x14",
+      "xp": 7
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "parts": 1,
+        "scrap": 8
+      },
+      "give": {
+        "item": "lockpick",
+        "n": 3
+      },
+      "hammer": true,
+      "id": "lockpick",
+      "name": "Lockpicks x3",
+      "xp": 6
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "cloth": 3,
+        "med": 2
+      },
+      "give": {
+        "res": {
+          "rations": 8
+        }
+      },
+      "hammer": true,
+      "id": "rationPack",
+      "name": "Ration Pack x8",
+      "xp": 5
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "elec": 4,
+        "scrap": 10
+      },
+      "give": {
+        "res": {
+          "fuel": 25
+        }
+      },
+      "id": "fuel",
+      "name": "Fuel x25",
+      "xp": 6
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "elec": 5,
+        "scrap": 6
+      },
+      "give": {
+        "res": {
+          "battery": 2
+        }
+      },
+      "id": "battery",
+      "name": "Batteries x2",
+      "notes": "A battery is findable long before it is craftable — parts bins, desks, glove boxes — so the flashlight is something you scavenge your way into rather than a bench unlock.",
+      "xp": 6
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "elec": 6,
+        "parts": 1,
+        "scrap": 10
+      },
+      "give": {
+        "gear": "flashlight"
+      },
+      "id": "flashlight",
+      "name": "Flashlight",
+      "xp": 18
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "parts": 2,
+        "scrap": 38,
+        "wood": 18
+      },
+      "give": {
+        "weapon": "sledge"
+      },
+      "id": "sledge",
+      "name": "Sledgehammer",
+      "xp": 45
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "elec": 10,
+        "parts": 8,
+        "scrap": 48
+      },
+      "give": {
+        "weapon": "smg"
+      },
+      "id": "smg",
+      "name": "Scrap SMG",
+      "xp": 60
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "parts": 6,
+        "scrap": 44,
+        "wood": 12
+      },
+      "give": {
+        "weapon": "shotgun"
+      },
+      "id": "shotgun",
+      "name": "Pump Shotgun",
+      "xp": 60
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "parts": 2,
+        "scrap": 14
+      },
+      "give": {
+        "res": {
+          "ammoR": 18
+        }
+      },
+      "id": "ammoR",
+      "name": "Rifle Rounds x18",
+      "xp": 8
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "mil": 3,
+        "parts": 12,
+        "scrap": 62
+      },
+      "give": {
+        "weapon": "rifle"
+      },
+      "id": "rifle",
+      "name": "Hunting Rifle",
+      "xp": 90
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "cloth": 20,
+        "mil": 4,
+        "scrap": 46
+      },
+      "give": {
+        "gear": "heavyVest"
+      },
+      "id": "heavyVest",
+      "name": "Riot Armor",
+      "xp": 70
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "elec": 12,
+        "mil": 14,
+        "parts": 18,
+        "scrap": 85
+      },
+      "give": {
+        "weapon": "carbine"
+      },
+      "id": "carbine",
+      "name": "Military Carbine",
+      "xp": 150
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "cloth": 15,
+        "mil": 12,
+        "scrap": 40
+      },
+      "give": {
+        "gear": "milVest"
+      },
+      "id": "milVest",
+      "name": "Plate Carrier",
+      "xp": 120
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "brainMut": 1,
+        "brainRaw": 6,
+        "elec": 2,
+        "med": 4
+      },
+      "give": {
+        "item": "suppressant",
+        "n": 1
+      },
+      "id": "suppressant",
+      "name": "Refined Suppressant",
+      "notes": "The chemistry. `station` is a *different* gate to `bench`: standing at a Chemistry Station is what unlocks these, and no amount of workbench upgrading ever will. `bench` stays 0 for exactly that reason — the two gates are independent, and reading `bench: 2` here would suggest the ladder had anything to do with it.",
+      "station": "chem",
+      "xp": 30
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "brainMut": 2,
+        "brainSpec": 1,
+        "med": 6,
+        "mil": 2
+      },
+      "give": {
+        "item": "experimental",
+        "n": 1
+      },
+      "id": "experimental",
+      "name": "Experimental Suppressant",
+      "station": "chem",
+      "xp": 60
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "brainRaw": 2,
+        "fiber": 8,
+        "med": 1
+      },
+      "give": {
+        "res": {
+          "sludge": 2
+        }
+      },
+      "id": "sludge",
+      "name": "Mutagen Sludge x2",
+      "notes": "The Chemistry Station's second job, and the same bet the whole game is built on: spend the brain matter that holds the meter down and the ground gives you far more back, far faster.",
+      "station": "chem",
+      "xp": 12
+    }
+  ],
+  "shape": "list"
+}

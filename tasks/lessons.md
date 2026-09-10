@@ -341,6 +341,12 @@ yet when an earlier autoload's `_ready` wants to know.
   PowerShell, and it cannot run a `.sh`. Commands for the owner are
   `.\tools\<name>.cmd`, one per line; the `.sh` twins are for Git Bash
   and Linux.
+- "Subcategories for melee and ranged weapons" meant the owner's weapon
+  *classes* (Improvised, Blunt, Bladed… Handguns, Shotguns…) and what each
+  class is for — not a melee/ranged split of the list. I built the split
+  and the owner had to correct it with screenshots. When the owner names a
+  grouping, find it in their own design source (Notion's class tables)
+  and show it back with its words before building the view around it.
 
 ## 2026-09-10 (raised beds, continued)
 

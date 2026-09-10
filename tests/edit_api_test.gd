@@ -195,8 +195,8 @@ func test_every_content_table_is_served_and_the_content_is_consistent() -> void:
 		names.append(t.name)
 	eq(names, EditApi.TABLES)
 	eq(j.tables[0].editable, true, "WEAPONS is a data file")
-	eq(j.tables[4].editable, false, "RECIPES is still a literal")
-	ok(j.tables[4].value.size() > 10, "and is served whole, read-only")
+	eq(j.tables[4].editable, false, "RECIPES has no copy in the test's data dir")
+	ok(j.tables[4].doc.rows.size() > 10, "so it is read from data/ and served whole, read-only")
 	eq(j.problems, [], "nothing in today's content points at something missing")
 
 

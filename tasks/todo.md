@@ -1975,10 +1975,11 @@ change at the end of each phase, never ahead of what is built.
       identical, 300 values
 - [x] `tests/data_test.gd`: canonical form, one-field edit is a one-line
       diff, types, order, read-only, notes stripped, bad files refused
-- [ ] **Owner review of the WEAPONS commit before any other table moves**
-- [ ] RECIPES, STRUCTURES, LOOT, CONTAINERS, RES, CONSUMABLES, GEAR,
-      ENEMIES, CROPS (nested `cost`/`give` need map types in `DataTable`)
-- [ ] Delete `tools/migrate_table.gd` after the last table
+- [x] Owner go-ahead for the rest ("there is still a lot in the config
+      file", round 3)
+- [x] RECIPES, STRUCTURES, LOOT, CONTAINERS, RES, CONSUMABLES, GEAR,
+      ENEMIES, CROPS — see Stage B below
+- [x] Delete `tools/migrate_table.gd` after the last table
 
 ### Phase 2b — the editor
 
@@ -2035,19 +2036,36 @@ change at the end of each phase, never ahead of what is built.
       (crafted at / found in / used in) on every item. Verified over the
       live socket: upload → identical bytes → listed → delete; bad id 404,
       not a PNG 422, no token 403
-- [ ] Stage B: migrate the other nine tables. Needs, in DataTable: row
-      shapes (RECIPES is an array; RES and CONTAINERS rows carry no id;
-      LOOT is a dict of lists) and nested `object` / `list<object>` types
-      (give, loot entries, light). Per table: comments to notes, strict
-      parity (keys, values, Variant types, order) and a var_to_str
-      snapshot before and after; any const expression inside a literal
-      (STASH_SLOTS in STRUCTURES) resolved and reported
+- [x] Stage B: the other nine tables migrated. `DataTable` gained row
+      shapes (`list` for RECIPES, `by_id_bare` for RES and CONTAINERS,
+      `groups` for LOOT) and nested `object` / `list<object>` types with
+      path errors (`cabinet.entries[0].w: expected int`). Per table:
+      comments to notes, strict parity (keys, values, Variant types,
+      order), and an independent var_to_str snapshot of all nine before
+      and after — identical. `config.gd` 2,204 → ~1,580 lines
+- [x] `STASH_SLOTS` is now read from the stash's own `store` in
+      STRUCTURES, not a second 48 beside it; the structures design note
+      moved into `structures.json`
+- [x] Editor: object and list-of-object editors (a recipe's `give`, a
+      loot table's entries as a reorderable grid, a light, a gun); nested
+      errors land on their field; grid cells summarise instead of JSON.
+      Every table is a data file, so the read-only-literal path is gone
+      (tests still use it for tables not copied into their private dir)
+- [x] Weapon classes (owner correction, round 3): `data/categories.json`
+      holds the 11 categories and the 14 weapon classes, melee and ranged,
+      each with the identity from Notion. Catalog `category`/`subcategory`
+      are refs into it. The Weapons view groups by class with the
+      identity on top; an item's card has category and class pickers
+- [x] Browser-verified on a private server: all 14 classes with
+      identities; Steel Pipe → Weapons › Improvised with 14 class options;
+      a bad loot weight is refused on `entries` and blocks Save; Revert
+      clears it. Tests 585/0, `--all` 621 with only the known npm-spawn
+      failure (also on main)
 - [ ] Finding to report: an ordinary zombie's drop chances are hard-coded
-      in `Loot._roll_enemy_drop`, not in config.gd (invariant 5)
-- [ ] Owner: run `tools\edit`, try it, and say whether the other nine
-      tables migrate now (RECIPES next: `cost` is `map<int>` with
-      `key_ref`, `give` needs a shape decision)
-- [ ] Docs: CLAUDE.md and §10 say content lives in `data/`
+      in `Loot._roll_enemy_drop`, not in a table (invariant 5)
+- [x] Docs: invariant 5 (CLAUDE.md and PROJECT.md) says tables are
+      `data/*.json` behind `Config`; PROJECT.md §10 gains *Editing content*;
+      the Notion sync is marked retiring and diffs against `data/`
 
 ### Phase 3 — retire Notion (after the owner confirms 1 and 2)
 

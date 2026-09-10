@@ -11,14 +11,14 @@ extends RefCounted
 ## loot roll for an item that was deleted. Nothing but `DataTable.encode`
 ## ever writes the file.
 ##
-## A table with a file in `data/` is editable. The rest are served read-only
-## from the `config.gd` literal until they migrate, so the editor can browse
-## and cross-reference all of it now.
+## Every content table is a file in `data/`. A table whose file is missing
+## from `data_dir` — which only happens when a test points it at a private
+## copy of one table — is read from `data/` and served read-only.
 
 ## CATALOG is the one table the game never reads: the owner's view of every
 ## item — category, subcategory, planned or in game — that used to live in
 ## Notion's Items table. The rest are `config.gd` tables by their own names.
-const TABLES := ["WEAPONS", "RES", "CONSUMABLES", "GEAR", "RECIPES", "STRUCTURES", "LOOT", "CONTAINERS", "ENEMIES", "CROPS", "CATALOG"]
+const TABLES := ["WEAPONS", "RES", "CONSUMABLES", "GEAR", "RECIPES", "STRUCTURES", "LOOT", "CONTAINERS", "ENEMIES", "CROPS", "CATALOG", "CATEGORIES"]
 ## Read-only context the cross-references and the checks need.
 const CONSTS := ["AMMO_IDS", "WEAR", "HARVEST", "FURNISHING", "BENCH_UPGRADE_COST", "BRAIN_DROPS"]
 ## The tables an item can be defined in, for "is this catalog entry real?".
@@ -45,11 +45,21 @@ var token := ""
 ## `Host` headers the server answers to. Empty means any, for the tests; the
 ## server always fills it, which is what stops DNS rebinding.
 var allowed_hosts: Array = []
+## The consts in CONSTS. The tables are static vars loaded from their files,
+## so they are read from the files, not from here.
 var _config: Dictionary
 
 
 func _init() -> void:
 	_config = (load("res://src/config.gd") as GDScript).get_script_constant_map()
+
+
+## `name`'s document from `data_dir`, or from `data/` when `data_dir` has no copy.
+func _doc(name: String) -> Dictionary:
+	var path := _path(name)
+	if not FileAccess.file_exists(path):
+		path = DataTable.DIR + path.get_file()
+	return DataTable.decode(FileAccess.get_file_as_string(path)).doc
 
 
 ## -> {"status": int, "type": String, "body": PackedByteArray}
@@ -80,7 +90,7 @@ func handle(method: String, path: String, headers: Dictionary, body: String, raw
 		return _text(404, "Not found.")
 	var table := parts[2]
 	if not table in TABLES or not FileAccess.file_exists(_path(table)):
-		return _json(404, {"errors": ["%s is not a data file yet: it still lives in config.gd." % table]})
+		return _json(404, {"errors": ["%s has no file in %s." % [table, data_dir]]})
 	var errors := check(table, body)
 	if not errors.is_empty():
 		return _json(422, {"errors": errors})
@@ -108,24 +118,21 @@ func check(table: String, body: String) -> Array:
 
 
 ## Every table as the game would see it, with `overrides` standing in for
-## their files. -> {"sets": name -> rows or literal, "docs": name -> document}
+## their files. -> {"sets": name -> rows or const, "docs": name -> document}
 func world(overrides: Dictionary = {}) -> Dictionary:
 	var sets := {}
 	var docs := {}
 	for name: String in TABLES:
-		if overrides.has(name):
-			docs[name] = overrides[name]
-		elif FileAccess.file_exists(_path(name)):
-			docs[name] = DataTable.decode(FileAccess.get_file_as_string(_path(name))).doc
-		sets[name] = DataTable.rows(docs[name]) if docs.has(name) else _config.get(name, {})
+		docs[name] = overrides[name] if overrides.has(name) else _doc(name)
+		sets[name] = DataTable.rows(docs[name])
 	for name: String in CONSTS:
 		sets[name] = _config.get(name)
 	return {"sets": sets, "docs": docs}
 
 
 ## Every cross-table reference in the content, checked both ways: a data
-## file's declared refs, and the grammar the literals still carry — recipe
-## costs and outputs, structure costs, loot ids, container tables, ammo.
+## file's declared refs, and the grammar no single field spec can say —
+## recipe costs and outputs, structure costs, loot ids, container tables, ammo.
 ## Deleting or renaming a row something else points at fails here.
 func integrity(w: Dictionary) -> Array:
 	var s: Dictionary = w.sets
@@ -188,7 +195,7 @@ func tables() -> Dictionary:
 			out.append({"name": name, "editable": true, "file": _rel(name), "doc": got.doc,
 				"errors": got.errors, "dirty": dirty.has(_rel(name))})
 		else:
-			out.append({"name": name, "editable": false, "value": _config.get(name)})
+			out.append({"name": name, "editable": false, "doc": _doc(name)})
 	var consts := {}
 	for name: String in CONSTS:
 		consts[name] = _config.get(name)

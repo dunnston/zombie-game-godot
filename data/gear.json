@@ -1,0 +1,234 @@
+{
+  "fields": {
+    "battery": {
+      "type": "string"
+    },
+    "burn": {
+      "type": "float"
+    },
+    "color": {
+      "type": "string"
+    },
+    "consumed": {
+      "type": "bool"
+    },
+    "crit": {
+      "type": "float"
+    },
+    "dr": {
+      "type": "float"
+    },
+    "light": {
+      "fields": {
+        "cone_len": {
+          "type": "float"
+        },
+        "cone_spread": {
+          "type": "float"
+        },
+        "cone_strength": {
+          "type": "float"
+        },
+        "radius": {
+          "type": "float"
+        },
+        "strength": {
+          "type": "float"
+        },
+        "warm": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "name": {
+      "type": "string"
+    },
+    "slot": {
+      "type": "string"
+    },
+    "tier": {
+      "type": "int"
+    },
+    "wt": {
+      "type": "float"
+    }
+  },
+  "notes": "Fifteen armour pieces, three tiers across five slots, plus the two lights. A full tier-1 set is 0.23 DR, a full tier-3 set 0.70, against a hard cap of 0.72: scavenging can make you tough, never immune.\n\n`light` is what Phase 4's renderer punches out of the darkness and `burn` is how many seconds of being lit the thing holds. The torch is the first night's answer — sticks and fiber — and burns itself away. The flashlight is brighter and reaches much further because it is a cone rather than a puddle, and it eats batteries, which you find before you can make them.",
+  "rows": [
+    {
+      "color": "#c9a227",
+      "dr": 0.05,
+      "id": "hardHat",
+      "name": "Hard Hat",
+      "slot": "head",
+      "tier": 1,
+      "wt": 3.0
+    },
+    {
+      "color": "#4d5866",
+      "dr": 0.1,
+      "id": "riotHelm",
+      "name": "Riot Helmet",
+      "slot": "head",
+      "tier": 2,
+      "wt": 5.0
+    },
+    {
+      "color": "#5b6640",
+      "dr": 0.15,
+      "id": "milHelm",
+      "name": "Combat Helmet",
+      "slot": "head",
+      "tier": 3,
+      "wt": 6.0
+    },
+    {
+      "color": "#6f7a52",
+      "dr": 0.1,
+      "id": "lightVest",
+      "name": "Padded Vest",
+      "slot": "body",
+      "tier": 1,
+      "wt": 6.0
+    },
+    {
+      "color": "#4d5866",
+      "dr": 0.2,
+      "id": "heavyVest",
+      "name": "Riot Armor",
+      "slot": "body",
+      "tier": 2,
+      "wt": 11.0
+    },
+    {
+      "color": "#5b6640",
+      "dr": 0.28,
+      "id": "milVest",
+      "name": "Plate Carrier",
+      "slot": "body",
+      "tier": 3,
+      "wt": 14.0
+    },
+    {
+      "color": "#a3763f",
+      "crit": 0.01,
+      "dr": 0.02,
+      "id": "workGloves",
+      "name": "Work Gloves",
+      "notes": "Hands are the one slot that helps you *land* a hit, so `crit` lives here and nowhere else in the table — a rule you can read off the list without a tooltip. Arm guards protect more than tactical gloves and help less, which is the whole difference between armour and dexterity.",
+      "slot": "hands",
+      "tier": 1,
+      "wt": 1.0
+    },
+    {
+      "color": "#4d5866",
+      "crit": 0.03,
+      "dr": 0.04,
+      "id": "tacGloves",
+      "name": "Tactical Gloves",
+      "slot": "hands",
+      "tier": 2,
+      "wt": 2.0
+    },
+    {
+      "color": "#5b6640",
+      "crit": 0.02,
+      "dr": 0.07,
+      "id": "armGuards",
+      "name": "Arm Guards",
+      "slot": "hands",
+      "tier": 3,
+      "wt": 4.0
+    },
+    {
+      "color": "#4a5a72",
+      "dr": 0.04,
+      "id": "denimPants",
+      "name": "Work Trousers",
+      "slot": "legs",
+      "tier": 1,
+      "wt": 2.0
+    },
+    {
+      "color": "#6f7a52",
+      "dr": 0.08,
+      "id": "paddedLegs",
+      "name": "Padded Leggings",
+      "slot": "legs",
+      "tier": 2,
+      "wt": 5.0
+    },
+    {
+      "color": "#5b6640",
+      "dr": 0.12,
+      "id": "milGreaves",
+      "name": "Combat Trousers",
+      "slot": "legs",
+      "tier": 3,
+      "wt": 7.0
+    },
+    {
+      "color": "#6b4a2f",
+      "dr": 0.02,
+      "id": "workBoots",
+      "name": "Work Boots",
+      "slot": "feet",
+      "tier": 1,
+      "wt": 3.0
+    },
+    {
+      "color": "#3f4a38",
+      "dr": 0.05,
+      "id": "combatBoots",
+      "name": "Combat Boots",
+      "slot": "feet",
+      "tier": 2,
+      "wt": 4.0
+    },
+    {
+      "color": "#5b6640",
+      "dr": 0.08,
+      "id": "milBoots",
+      "name": "Assault Boots",
+      "slot": "feet",
+      "tier": 3,
+      "wt": 5.0
+    },
+    {
+      "burn": 210.0,
+      "color": "#e0913a",
+      "consumed": true,
+      "dr": 0.0,
+      "id": "torch",
+      "light": {
+        "radius": 200.0,
+        "strength": 0.8,
+        "warm": "#ffb45a"
+      },
+      "name": "Torch",
+      "slot": "offhand",
+      "tier": 1,
+      "wt": 2.0
+    },
+    {
+      "battery": "battery",
+      "burn": 300.0,
+      "color": "#d8d2c0",
+      "dr": 0.0,
+      "id": "flashlight",
+      "light": {
+        "cone_len": 460.0,
+        "cone_spread": 0.34,
+        "cone_strength": 0.86,
+        "radius": 140.0,
+        "strength": 0.72,
+        "warm": "#fff6cd"
+      },
+      "name": "Flashlight",
+      "slot": "offhand",
+      "tier": 2,
+      "wt": 2.0
+    }
+  ]
+}

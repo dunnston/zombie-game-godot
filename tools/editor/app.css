@@ -127,6 +127,15 @@ table.vt tr.sel td { background: var(--sel); }
 td.small, .small { font-size: 11.5px; }
 .clamp { max-height: 8em; overflow: auto; margin: 4px 0; }
 .err-text { color: var(--bad); }
+p.about { margin: 0 0 8px; max-width: 70ch; }
+.obj { border-left: 2px solid var(--line); padding-left: 8px; }
+.obj .sub { display: grid; grid-template-columns: 96px minmax(0, 1fr) 22px; gap: 4px; align-items: center; margin-bottom: 3px; }
+.obj .sub label { font-family: var(--mono); font-size: 12px; }
+.scrollx { overflow-x: auto; }
+table.grid-edit td { padding: 2px 3px; }
+table.grid-edit input[type=text] { width: 100%; min-width: 48px; }
+table.grid-edit td:first-child input[type=text] { min-width: 150px; }
+td.nowrap { white-space: nowrap; }
 h2.group { font-size: 16px; margin: 22px 0 2px; padding-bottom: 4px; border-bottom: 2px solid var(--accent); }
 td.cls { color: var(--accent); font-size: 12px; }
 .card.summary > div { padding: 2px 0; }

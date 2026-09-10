@@ -13,19 +13,7 @@
       "type": "string"
     },
     "category": {
-      "one_of": [
-        "Weapons",
-        "Tools",
-        "Clothing/Armor",
-        "Ammo",
-        "Medical Items",
-        "Consumables food",
-        "Consumables misc",
-        "Materials",
-        "Building",
-        "Special Items",
-        "Misc Items"
-      ],
+      "ref": "CATEGORIES",
       "type": "string"
     },
     "name": {
@@ -49,6 +37,7 @@
       "type": "string"
     },
     "subcategory": {
+      "ref": "CATEGORIES",
       "type": "string"
     },
     "tool_in_hand": {

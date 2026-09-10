@@ -1,0 +1,320 @@
+{
+  "fields": {
+    "label": {
+      "type": "string"
+    },
+    "rolls": {
+      "type": "list<int>"
+    },
+    "sprite": {
+      "type": "string"
+    },
+    "table": {
+      "type": "string"
+    }
+  },
+  "notes": "Searchable furniture. `table` and `rolls` say what searching one gives up; the world generator only needs the kind to exist.",
+  "rows": [
+    {
+      "id": "cabinet",
+      "label": "Cabinet",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "cabinet",
+      "table": "cabinet"
+    },
+    {
+      "id": "kitchen",
+      "label": "Kitchen Unit",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "cabinet",
+      "table": "kitchen"
+    },
+    {
+      "id": "toolbox",
+      "label": "Toolbox",
+      "rolls": [
+        1,
+        3
+      ],
+      "sprite": "toolbox",
+      "table": "toolbox"
+    },
+    {
+      "id": "shelf",
+      "label": "Shelving",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "shelf",
+      "table": "shelf"
+    },
+    {
+      "id": "pharmacy",
+      "label": "Medicine Cabinet",
+      "rolls": [
+        2,
+        3
+      ],
+      "sprite": "medcab",
+      "table": "pharmacy"
+    },
+    {
+      "id": "electronics",
+      "label": "Parts Bin",
+      "rolls": [
+        2,
+        3
+      ],
+      "sprite": "crate",
+      "table": "electronics"
+    },
+    {
+      "id": "crate",
+      "label": "Supply Crate",
+      "rolls": [
+        1,
+        3
+      ],
+      "sprite": "crate",
+      "table": "crate"
+    },
+    {
+      "id": "safe",
+      "label": "Floor Safe",
+      "rolls": [
+        2,
+        3
+      ],
+      "sprite": "safe",
+      "table": "gunSafe"
+    },
+    {
+      "id": "locker",
+      "label": "Staff Locker",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "locker",
+      "table": "dresser"
+    },
+    {
+      "id": "medcab",
+      "label": "Medicine Cabinet",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "medcab",
+      "table": "vanity"
+    },
+    {
+      "id": "carTrunk",
+      "label": "Car Trunk",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "trunk",
+      "table": "carTrunk"
+    },
+    {
+      "id": "policeLocker",
+      "label": "Police Locker",
+      "rolls": [
+        2,
+        3
+      ],
+      "sprite": "locker",
+      "table": "policeLocker"
+    },
+    {
+      "id": "gunSafe",
+      "label": "Gun Safe",
+      "rolls": [
+        2,
+        3
+      ],
+      "sprite": "safe",
+      "table": "gunSafe"
+    },
+    {
+      "id": "militaryCrate",
+      "label": "Military Crate",
+      "rolls": [
+        3,
+        4
+      ],
+      "sprite": "milcrate",
+      "table": "militaryCrate"
+    },
+    {
+      "id": "hospitalCrate",
+      "label": "Supply Cabinet",
+      "rolls": [
+        2,
+        4
+      ],
+      "sprite": "medcab",
+      "table": "hospitalCrate"
+    },
+    {
+      "id": "fuelPump",
+      "label": "Fuel Pump",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "pump",
+      "table": "fuelPump"
+    },
+    {
+      "id": "fuelDrum",
+      "label": "Fuel Drum",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "drum",
+      "table": "fuelDrum"
+    },
+    {
+      "id": "logPile",
+      "label": "Log Pile",
+      "rolls": [
+        2,
+        3
+      ],
+      "sprite": "logs",
+      "table": "logPile"
+    },
+    {
+      "id": "bookshelf",
+      "label": "Bookshelf",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "bookshelf",
+      "table": "bookshelf"
+    },
+    {
+      "id": "dresser",
+      "label": "Dresser",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "dresser",
+      "table": "dresser"
+    },
+    {
+      "id": "wardrobe",
+      "label": "Wardrobe",
+      "rolls": [
+        1,
+        3
+      ],
+      "sprite": "wardrobe",
+      "table": "wardrobe"
+    },
+    {
+      "id": "desk",
+      "label": "Desk",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "desk",
+      "table": "desk"
+    },
+    {
+      "id": "filing",
+      "label": "Filing Cabinet",
+      "rolls": [
+        1,
+        3
+      ],
+      "sprite": "filing",
+      "table": "filing"
+    },
+    {
+      "id": "fridge",
+      "label": "Refrigerator",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "fridge",
+      "table": "fridge"
+    },
+    {
+      "id": "nightstand",
+      "label": "Nightstand",
+      "rolls": [
+        1,
+        1
+      ],
+      "sprite": "nightstand",
+      "table": "nightstand"
+    },
+    {
+      "id": "vanity",
+      "label": "Bathroom Vanity",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "vanity",
+      "table": "vanity"
+    },
+    {
+      "id": "footlocker",
+      "label": "Footlocker",
+      "rolls": [
+        2,
+        3
+      ],
+      "sprite": "footlocker",
+      "table": "footlocker"
+    },
+    {
+      "id": "vending",
+      "label": "Vending Machine",
+      "rolls": [
+        2,
+        3
+      ],
+      "sprite": "vending",
+      "table": "vending"
+    },
+    {
+      "id": "toolrack",
+      "label": "Tool Rack",
+      "rolls": [
+        1,
+        3
+      ],
+      "sprite": "toolrack",
+      "table": "toolrack"
+    },
+    {
+      "id": "displaycase",
+      "label": "Display Case",
+      "rolls": [
+        2,
+        3
+      ],
+      "sprite": "displaycase",
+      "table": "displaycase"
+    }
+  ],
+  "shape": "by_id_bare"
+}

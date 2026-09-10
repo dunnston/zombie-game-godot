@@ -1,0 +1,249 @@
+{
+  "fields": {
+    "about": {
+      "type": "string"
+    },
+    "category": {
+      "ref": "CATEGORIES",
+      "type": "string"
+    },
+    "group": {
+      "one_of": [
+        "Melee",
+        "Ranged"
+      ],
+      "type": "string"
+    },
+    "kind": {
+      "one_of": [
+        "category",
+        "class"
+      ],
+      "type": "string"
+    }
+  },
+  "notes": "The owner's categories and classes. A catalog row's `category` is one of the category rows here and its `subcategory` is one of the class rows — six melee and eight ranged weapon classes with the identity each is meant to have, the armour slots, Raw and Salvage, and the kinds of building. Ammo is filed by the weapon class that eats it, so it uses the weapon classes. A new class is a new row here. Imported from Notion's Items & Crafting page on 2026-09-10; the game never reads this file.",
+  "rows": [
+    {
+      "about": "Six melee classes and eight ranged.",
+      "id": "Weapons",
+      "kind": "category",
+      "notes": "Melee and ranged are one list, split by class. **Firearms are not simply better than melee.** Guns buy safety and killing power at the cost of ammunition and noise; melee costs stamina and puts you in reach, but preserves ammo and keeps you quiet. That triangle — health risk against stamina against ammo and noise — is the core combat decision.\n\n**Noise is a weapon stat, not a footnote.** A gunshot makes zombies investigate; a shotgun or rifle pulls them from further away; sustained automatic fire builds your own horde. That is what makes pulling the machete instead a real decision when you cannot see what is behind the buildings.\n\n**Properties, not more categories.** Every weapon carries a 1-5 rating for Damage, Attack Speed, Reach, Stamina Cost, Knockback, Stagger, Durability, Crit Chance, Cleave and Noise. That is what makes a machete and a sledgehammer different choices rather than two rungs on one ladder, and it is why the answer to a new weapon idea is usually a row rather than a new class.\n\nRarity should be about the weapon itself. Finding a fire axe is exciting because it is a fire axe, not because it rolled a colour. Modifications (nails in a bat, a reinforced handle, a sharpened blade, a spear tip) come later, and are rows too."
+    },
+    {
+      "about": "Utility kit that is not a weapon: lights, and anything that does a job rather than damage.",
+      "id": "Tools",
+      "kind": "category"
+    },
+    {
+      "about": "By slot: Head, Body, Legs, Hands, Feet.",
+      "id": "Clothing/Armor",
+      "kind": "category"
+    },
+    {
+      "about": "Grouped by the weapon class that eats it.",
+      "id": "Ammo",
+      "kind": "category"
+    },
+    {
+      "about": "Healing. Injuries, blood loss, debuffs.",
+      "id": "Medical Items",
+      "kind": "category"
+    },
+    {
+      "about": "Edible. Hunger and hydration.",
+      "id": "Consumables food",
+      "kind": "category"
+    },
+    {
+      "about": "Single-use and not food.",
+      "id": "Consumables misc",
+      "kind": "category"
+    },
+    {
+      "about": "What everything else is made of. `Raw` comes out of the ground, `Salvage` comes out of containers.",
+      "id": "Materials",
+      "kind": "category"
+    },
+    {
+      "about": "Needs no bench. Walls, gates, spike traps, storage, beds, power — **and the benches themselves are crafted from here.**",
+      "id": "Building",
+      "kind": "category"
+    },
+    {
+      "about": "Unique or quest-related. Empty for now.",
+      "id": "Special Items",
+      "kind": "category"
+    },
+    {
+      "about": "Anything that fits nowhere else. Empty for now.",
+      "id": "Misc Items",
+      "kind": "category"
+    },
+    {
+      "about": "Grab whatever you can. Should dominate the opening hours.",
+      "category": "Weapons",
+      "group": "Melee",
+      "id": "Improvised",
+      "kind": "class"
+    },
+    {
+      "about": "Stagger, knockback, durability.",
+      "category": "Weapons",
+      "group": "Melee",
+      "id": "Blunt",
+      "kind": "class"
+    },
+    {
+      "about": "Faster attacks and high damage, but less crowd control.",
+      "category": "Weapons",
+      "group": "Melee",
+      "id": "Bladed",
+      "kind": "class"
+    },
+    {
+      "about": "High damage at a stamina cost, and a working tool for chopping and breaking. Finding one should be exciting.",
+      "category": "Weapons",
+      "group": "Melee",
+      "id": "Axes",
+      "kind": "class"
+    },
+    {
+      "about": "Reach. Safe against one zombie, awkward when surrounded.",
+      "category": "Weapons",
+      "group": "Melee",
+      "id": "Polearms",
+      "kind": "class"
+    },
+    {
+      "about": "Very slow, stamina-hungry swings that knock down or hit several.",
+      "category": "Weapons",
+      "group": "Melee",
+      "id": "Heavy",
+      "kind": "class"
+    },
+    {
+      "about": "*Always have one.* Quick, light, usable on the move. An excellent backup, never the answer to a horde.",
+      "category": "Weapons",
+      "group": "Ranged",
+      "id": "Handguns",
+      "kind": "class"
+    },
+    {
+      "about": "*Get off me.* Huge close damage and stagger, several targets if they are packed. Loud, low capacity.",
+      "category": "Weapons",
+      "group": "Ranged",
+      "id": "Shotguns",
+      "kind": "class"
+    },
+    {
+      "about": "*Make the shot count.* Damage and accuracy, slow fire. Rural houses, cabins, farms.",
+      "category": "Weapons",
+      "group": "Ranged",
+      "id": "Rifles",
+      "kind": "class"
+    },
+    {
+      "about": "*Oh crap.* Very high fire rate and mobility, burns ammunition. For a sudden breach.",
+      "category": "Weapons",
+      "group": "Ranged",
+      "id": "SMGs",
+      "kind": "class"
+    },
+    {
+      "about": "*Workhorse.* Good range, capacity, rate and damage. The downside is rarity and appetite.",
+      "category": "Weapons",
+      "group": "Ranged",
+      "id": "Assault Rifles",
+      "kind": "class"
+    },
+    {
+      "about": "*Reach out and touch something.* Long range and high damage, slow handling, bad when surrounded. Matters most for base defence.",
+      "category": "Weapons",
+      "group": "Ranged",
+      "id": "Precision Rifles",
+      "kind": "class"
+    },
+    {
+      "about": "*Stay quiet.* Not an inferior gun — it solves a different problem, because gunfire draws zombies. Ammo is recoverable.",
+      "category": "Weapons",
+      "group": "Ranged",
+      "id": "Bows/Crossbows",
+      "kind": "class"
+    },
+    {
+      "about": "Extremely rare end-game weapons.",
+      "category": "Weapons",
+      "group": "Ranged",
+      "id": "Heavy/Special",
+      "kind": "class"
+    },
+    {
+      "category": "Clothing/Armor",
+      "id": "Head",
+      "kind": "class"
+    },
+    {
+      "category": "Clothing/Armor",
+      "id": "Body",
+      "kind": "class"
+    },
+    {
+      "category": "Clothing/Armor",
+      "id": "Hands",
+      "kind": "class"
+    },
+    {
+      "category": "Clothing/Armor",
+      "id": "Legs",
+      "kind": "class"
+    },
+    {
+      "category": "Clothing/Armor",
+      "id": "Feet",
+      "kind": "class"
+    },
+    {
+      "about": "Comes out of the ground.",
+      "category": "Materials",
+      "id": "Raw",
+      "kind": "class"
+    },
+    {
+      "about": "Comes out of containers.",
+      "category": "Materials",
+      "id": "Salvage",
+      "kind": "class"
+    },
+    {
+      "category": "Building",
+      "id": "Wall",
+      "kind": "class"
+    },
+    {
+      "category": "Building",
+      "id": "Storage",
+      "kind": "class"
+    },
+    {
+      "category": "Building",
+      "id": "Defence",
+      "kind": "class"
+    },
+    {
+      "category": "Building",
+      "id": "Power",
+      "kind": "class"
+    },
+    {
+      "category": "Building",
+      "id": "Living",
+      "kind": "class"
+    },
+    {
+      "category": "Building",
+      "id": "Crafting",
+      "kind": "class"
+    }
+  ]
+}

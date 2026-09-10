@@ -1140,7 +1140,11 @@ Phases 1–4 respecting it.
    Base → attributes → perks → gear → Mutation band → effects, rebuilt from
    scratch. Never mutate a stat on purchase, and never on a band change
    either: change `mut_band` and let the one door open.
-5. **Every tunable and content table lives in `config.gd`.**
+5. **Every tunable and content table is reached through `Config`.** Tunables
+   are consts in `config.gd`; content tables are files in `data/`, loaded
+   into `static var`s of the same names (`Config.WEAPONS` is
+   `data/weapons.json`). A number the game uses is in one of the two, never
+   in a sim file. Edit the tables with `tools\edit` (§10), never by hand.
 6. **Anything that walks toward a target needs give-up logic**, even with
    navigation. The prototype's stuck-AI bugs all came from the absence of it.
 7. **Container identity in saves derives from tile position**, never from
@@ -1715,12 +1719,40 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 6. **`gh pr create --base main`.** Then check nothing has drifted:
    `gh pr list --json number,baseRefName` — every open PR must say `main`.
 
+### Editing content — `data/` and `tools\edit`
+
+Content lives in `data/*.json`, one file per table: WEAPONS, RES,
+CONSUMABLES, GEAR, RECIPES, STRUCTURES, LOOT, CONTAINERS, ENEMIES, CROPS,
+plus `catalog.json` (every item, real or planned, with its category, class
+and status — the game never reads it) and `categories.json` (the eleven
+categories and fourteen weapon classes, each with what it is for).
+
+- **The editor:** `.\tools\edit.cmd` (PowerShell) or `tools/edit.sh` starts a
+  headless Godot on `http://127.0.0.1:8765/` and opens it. Loopback only;
+  `--lan` shares it on the local network on purpose; it is never deployed.
+  Views (Workbenches, Weapons by class, Materials, Tools, Ammo, Catalog) sit
+  over the raw tables, and every item shows where it is crafted, found and
+  used, with the odds per search.
+- **A save is refused** unless the file decodes against its `fields`, the
+  field list is unchanged, and nothing anywhere points at something missing
+  (a recipe making a deleted weapon, a loot roll for a renamed item).
+- **The format is `DataTable`'s** (`src/core/data_table.gd`): a `fields`
+  schema, because Godot parses every JSON number as a float; sorted keys,
+  one field per line, fixed floats, so a one-number edit is a one-line diff.
+  Design comments are `notes` on the table or the row. A new or retyped
+  field is a code change in a commit, not an editor change.
+- **Art:** `art/items/<id>.png` (and `<id>_ground.png`), uploaded from an
+  item's Look card. No file, the placeholder draws.
+
 ### Syncing content from Notion
+
+Retiring: content now lives in `data/` and is edited with the tool above;
+this procedure goes when Notion is archived (Phase 3 of the Linear move).
 
 The owner designs content in Notion, on the **Items & Crafting** page under
 DEADLINE (page `3d610d456b16816fbf35d781eeaccb11`). Three tables:
 
-| Table | Data source | Mirrors in `config.gd` |
+| Table | Data source | Mirrors in `data/` |
 | --- | --- | --- |
 | Items | `collection://23c90712-6033-4bf5-b835-114704efbdc6` | `WEAPONS`, `GEAR`, `CONSUMABLES`, `RES`, `RECIPES`, `STRUCTURES` |
 | Workbenches | `collection://98144f5b-c2b1-475d-960e-0efbe4895f44` | the `bench` field on `RECIPES`. The rows are Player Menu, Basic, Advanced, Tech, Recycle; the code today has only 0 = by hand and 1/2 = the one Workbench and its upgrade |
@@ -1758,7 +1790,7 @@ When the owner says **"look at Notion and update the game"**:
    fetch any row whose Notes look long. Read `Recipe` for quantities and
    `Ingredients` for the links; the two should agree, and a mismatch is a
    question for the owner, not a coin toss.
-2. Diff against `config.gd` by `Code ID`. Rows with a blank `Code ID` and
+2. Diff against `data/*.json` by `Code ID`. Rows with a blank `Code ID` and
    `Status = Planned` are new content. Rows whose `Recipe`, `Crafted at`,
    `Found in` or `Breaks down into` differ from the code are changes. Rows
    marked `Cut` come out. On Loot Sources, `Rolls` is the `rolls` field on

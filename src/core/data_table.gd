@@ -9,13 +9,19 @@ class_name DataTable
 ##
 ## - `rows` is an array, because row order is meaningful — the game iterates
 ##   tables in order and the RNG draws against that order.
+## - `shape` says how the rows reach the game, so a table keeps the shape its
+##   literal had: `by_id` (id -> row, the default), `by_id_bare` (id -> row
+##   without its id, as RES was written), `list` (the rows in order, as
+##   RECIPES was) or `groups` (id -> the row's `entries` list, as LOOT was).
 ## - `fields` names every key a row may carry, once, with its type: a scalar
-##   (`int`, `float`, `bool`, `string`) or a `map<…>` / `list<…>` of one.
-##   JSON has one number type and Godot parses all of them as float, so
-##   without it a magazine of 12 would come back as 12.0. It is also what
-##   refuses a typo: a misspelt key used to be a silent no-op. A field whose
-##   value names something in another table says so with `ref` (or `key_ref`
-##   for the keys of a map), and `check_refs` holds it to that.
+##   (`int`, `float`, `bool`, `string`), a `map<…>` / `list<…>` of one, or an
+##   `object` / `list<object>` with `fields` of its own. JSON has one number
+##   type and Godot parses all of them as float, so without it a magazine of
+##   12 would come back as 12.0. It is also what refuses a typo: a misspelt
+##   key used to be a silent no-op. A field whose value names something in
+##   another table says so with `ref` (or `key_ref` for the keys of a map),
+##   and `check_refs` holds it to that; `one_of` lists the only values a
+##   string may take.
 ## - `notes` on the table and on a row is the design reasoning that used to be
 ##   comments beside the literal. The game never reads it; `rows()` strips it.
 ## - Rows stay sparse. A key that is absent means what it always meant.
@@ -27,18 +33,17 @@ class_name DataTable
 
 const DIR := "res://data/"
 const SCALARS := ["int", "float", "bool", "string"]
-## `one_of` lists the only values a string field may take — a category, a
-## status — so a typo is refused rather than becoming a new category.
-const SPEC_KEYS := ["type", "ref", "key_ref", "one_of"]
+const SPEC_KEYS := ["type", "ref", "key_ref", "one_of", "fields"]
 ## Not listed in `fields`: every row has an `id`, and any row may have `notes`.
 const RESERVED := ["id", "notes"]
+const SHAPES := ["by_id", "by_id_bare", "list", "groups"]
 
 
-## The table as the game sees it: rows keyed by id, in file order, notes
-## removed, typed by the schema, and read-only all the way down the way a
-## `const` literal was. A broken file is an engine error, which fails the test
-## run and is loud in the game — never a quietly empty table.
-static func load_rows(table: String) -> Dictionary:
+## The table as the game sees it: rows in file order, notes removed, typed by
+## the schema, in the table's `shape`, and read-only all the way down the way
+## a `const` literal was. A broken file is an engine error, which fails the
+## test run and is loud in the game — never a quietly empty table.
+static func load_table(table: String) -> Variant:
 	var path := DIR + table + ".json"
 	if not FileAccess.file_exists(path):
 		push_error("%s: file not found" % path)
@@ -50,7 +55,7 @@ static func load_rows(table: String) -> Dictionary:
 
 
 ## Parses and checks a file's text. Returns `{"doc": Dictionary, "errors":
-## Array}`; numbers in `doc` are already the type their field declares.
+## Array}`; values in `doc` are already the type their field declares.
 static func decode(text: String) -> Dictionary:
 	var errors := []
 	var parsed: Variant = JSON.parse_string(text)
@@ -58,23 +63,23 @@ static func decode(text: String) -> Dictionary:
 		return {"doc": {}, "errors": ["not a JSON object"]}
 	var doc: Dictionary = parsed
 	for k: String in doc:
-		if not k in ["fields", "notes", "rows"]:
+		if not k in ["fields", "notes", "rows", "shape"]:
 			errors.append("unknown top-level key '%s'" % k)
 	if typeof(doc.get("notes", "")) != TYPE_STRING:
 		errors.append("table notes must be a string")
+	var shape := String(doc.get("shape", "by_id"))
+	if not shape in SHAPES:
+		errors.append("unknown shape '%s': one of %s" % [shape, ", ".join(SHAPES)])
 	var fields: Dictionary = doc.get("fields", {}) if typeof(doc.get("fields")) == TYPE_DICTIONARY else {}
 	if fields.is_empty():
 		errors.append("'fields' must be a non-empty object")
 	for f: String in fields:
-		var spec: Variant = fields[f]
 		if f in RESERVED:
 			errors.append("field '%s' is reserved and must not be declared" % f)
-		elif typeof(spec) != TYPE_DICTIONARY or not valid_type(String(spec.get("type", ""))):
-			errors.append("field '%s' needs a type: %s, or map<…> / list<…> of one" % [f, ", ".join(SCALARS)])
 		else:
-			for setting: String in spec:
-				if not setting in SPEC_KEYS:
-					errors.append("field '%s' has an unknown setting '%s'" % [f, setting])
+			_check_spec(f, fields[f], errors)
+	if shape == "groups" and String(fields.get("entries", {}).get("type", "")) != "list<object>":
+		errors.append("a groups table needs an 'entries' field of type list<object>")
 	if typeof(doc.get("rows")) != TYPE_ARRAY:
 		errors.append("'rows' must be an array")
 		return {"doc": doc, "errors": errors}
@@ -101,55 +106,140 @@ static func decode(text: String) -> Dictionary:
 			if not fields.has(k) or typeof(fields[k]) != TYPE_DICTIONARY:
 				errors.append("%s.%s is not a declared field" % [id, k])
 				continue
-			var typed: Variant = _coerce(row[k], String(fields[k].get("type", "")))
-			if typeof(typed) == TYPE_NIL:
-				errors.append("%s.%s: expected %s, got %s" % [id, k, fields[k].type, JSON.stringify(row[k])])
-				continue
-			row[k] = typed
-			var allowed: Variant = fields[k].get("one_of")
-			if typeof(allowed) == TYPE_ARRAY and not typed in allowed:
-				errors.append("%s.%s: '%s' is not one of %s" % [id, k, typed, ", ".join(PackedStringArray(allowed))])
+			var typed: Variant = _typed(row[k], fields[k], "%s.%s" % [id, k], errors)
+			if typeof(typed) != TYPE_NIL:
+				row[k] = typed
 	return {"doc": doc, "errors": errors}
 
 
 static func valid_type(type: String) -> bool:
+	if type in SCALARS or type == "object" or type == "list<object>":
+		return true
 	for wrap: String in ["map", "list"]:
 		if type.begins_with(wrap + "<") and type.ends_with(">"):
 			return type.substr(wrap.length() + 1, type.length() - wrap.length() - 2) in SCALARS
-	return type in SCALARS
+	return false
+
+
+static func _check_spec(path: String, spec: Variant, errors: Array) -> void:
+	if typeof(spec) != TYPE_DICTIONARY or not valid_type(String(spec.get("type", ""))):
+		errors.append("field '%s' needs a type: %s, or map<…> / list<…> of one, or object / list<object>" % [path, ", ".join(SCALARS)])
+		return
+	for setting: String in spec:
+		if not setting in SPEC_KEYS:
+			errors.append("field '%s' has an unknown setting '%s'" % [path, setting])
+	var nested: bool = String(spec.type) in ["object", "list<object>"]
+	var has_fields := typeof(spec.get("fields")) == TYPE_DICTIONARY
+	if nested and not has_fields:
+		errors.append("field '%s' is an object and needs 'fields'" % path)
+	elif not nested and spec.has("fields"):
+		errors.append("field '%s' is not an object, so it takes no 'fields'" % path)
+	elif nested:
+		for sub: String in spec.fields:
+			_check_spec("%s.%s" % [path, sub], spec.fields[sub], errors)
+	if spec.has("one_of") and typeof(spec.one_of) != TYPE_ARRAY:
+		errors.append("field '%s': one_of must be a list" % path)
+
+
+## The value as `spec` declares it, or null — with the reason, and the exact
+## place (`cabinet.entries[3].w`), appended to `errors`.
+static func _typed(v: Variant, spec: Dictionary, where: String, errors: Array) -> Variant:
+	var type := String(spec.get("type", ""))
+	if type == "object":
+		if typeof(v) != TYPE_DICTIONARY:
+			errors.append("%s: expected an object, got %s" % [where, JSON.stringify(v)])
+			return null
+		var out := {}
+		var ok := true
+		for k: Variant in v:
+			var sub: Variant = spec.fields.get(k)
+			if typeof(sub) != TYPE_DICTIONARY:
+				errors.append("%s.%s is not a declared field" % [where, k])
+				ok = false
+				continue
+			var t: Variant = _typed(v[k], sub, "%s.%s" % [where, k], errors)
+			if typeof(t) == TYPE_NIL:
+				ok = false
+			else:
+				out[String(k)] = t
+		return out if ok else null
+	if type == "list<object>":
+		if typeof(v) != TYPE_ARRAY:
+			errors.append("%s: expected a list of objects, got %s" % [where, JSON.stringify(v)])
+			return null
+		var out := []
+		var ok := true
+		for i in v.size():
+			var t: Variant = _typed(v[i], {"type": "object", "fields": spec.fields}, "%s[%d]" % [where, i], errors)
+			if typeof(t) == TYPE_NIL:
+				ok = false
+			else:
+				out.append(t)
+		return out if ok else null
+	var typed: Variant = _coerce(v, type)
+	if typeof(typed) == TYPE_NIL:
+		errors.append("%s: expected %s, got %s" % [where, type, JSON.stringify(v)])
+		return null
+	var allowed: Variant = spec.get("one_of")
+	if typeof(allowed) == TYPE_ARRAY and not typed in allowed:
+		errors.append("%s: '%s' is not one of %s" % [where, typed, ", ".join(PackedStringArray(allowed))])
+		return null
+	return typed
 
 
 ## Every `ref` names a set the value must be in, and every `key_ref` a set
 ## the keys of a map must be in — "every ammo is in AMMO_IDS", "every cost is
-## a resource". `sets` maps a name to a Dictionary (its keys are the ids) or
-## an Array (its items are). A set that is not there is an error, not a pass:
-## a misspelt `ref` would otherwise check nothing for ever.
+## a resource" — at any depth. `sets` maps a name to a Dictionary (its keys
+## are the ids) or an Array (its items are). A set that is not there is an
+## error, not a pass: a misspelt `ref` would otherwise check nothing for ever.
 static func check_refs(doc: Dictionary, sets: Dictionary) -> Array:
 	var errors := []
 	var fields: Dictionary = doc.get("fields", {})
-	for f: String in fields:
-		for setting: String in ["ref", "key_ref"]:
-			var set_name := String(fields[f].get(setting, ""))
-			if not set_name.is_empty() and not sets.has(set_name):
-				errors.append("field '%s' refers to '%s', which is not a table" % [f, set_name])
+	_spec_sets(fields, "", sets, errors)
 	for row: Variant in doc.get("rows", []):
 		if typeof(row) != TYPE_DICTIONARY:
 			continue
 		for k: String in row:
 			var spec: Variant = fields.get(k)
-			if typeof(spec) != TYPE_DICTIONARY:
-				continue
-			var v: Variant = row[k]
-			var keys: Array = v.keys() if typeof(v) == TYPE_DICTIONARY else []
-			var values: Array = v.values() if typeof(v) == TYPE_DICTIONARY else (v if typeof(v) == TYPE_ARRAY else [v])
-			for pair: Array in [["ref", values], ["key_ref", keys]]:
-				var set_name := String(spec.get(pair[0], ""))
-				if set_name.is_empty() or not sets.has(set_name):
-					continue
-				for x: Variant in pair[1]:
-					if not in_set(sets[set_name], x):
-						errors.append("%s.%s: '%s' is not in %s" % [row.get("id", "?"), k, x, set_name])
+			if typeof(spec) == TYPE_DICTIONARY:
+				_refs(row[k], spec, "%s.%s" % [row.get("id", "?"), k], sets, errors)
 	return errors
+
+
+static func _spec_sets(fields: Dictionary, prefix: String, sets: Dictionary, errors: Array) -> void:
+	for f: String in fields:
+		var spec: Variant = fields[f]
+		if typeof(spec) != TYPE_DICTIONARY:
+			continue
+		for setting: String in ["ref", "key_ref"]:
+			var set_name := String(spec.get(setting, ""))
+			if not set_name.is_empty() and not sets.has(set_name):
+				errors.append("field '%s%s' refers to '%s', which is not a table" % [prefix, f, set_name])
+		if typeof(spec.get("fields")) == TYPE_DICTIONARY:
+			_spec_sets(spec.fields, "%s%s." % [prefix, f], sets, errors)
+
+
+static func _refs(v: Variant, spec: Dictionary, where: String, sets: Dictionary, errors: Array) -> void:
+	var type := String(spec.get("type", ""))
+	if type == "object" and typeof(v) == TYPE_DICTIONARY:
+		for k: Variant in v:
+			var sub: Variant = spec.fields.get(k)
+			if typeof(sub) == TYPE_DICTIONARY:
+				_refs(v[k], sub, "%s.%s" % [where, k], sets, errors)
+		return
+	if type == "list<object>" and typeof(v) == TYPE_ARRAY:
+		for i in v.size():
+			_refs(v[i], {"type": "object", "fields": spec.fields}, "%s[%d]" % [where, i], sets, errors)
+		return
+	var keys: Array = v.keys() if typeof(v) == TYPE_DICTIONARY else []
+	var values: Array = v.values() if typeof(v) == TYPE_DICTIONARY else (v if typeof(v) == TYPE_ARRAY else [v])
+	for pair: Array in [["ref", values], ["key_ref", keys]]:
+		var set_name := String(spec.get(pair[0], ""))
+		if set_name.is_empty() or not sets.has(set_name):
+			continue
+		for x: Variant in pair[1]:
+			if not in_set(sets[set_name], x):
+				errors.append("%s: '%s' is not in %s" % [where, x, set_name])
 
 
 static func in_set(s: Variant, id: Variant) -> bool:
@@ -160,15 +250,28 @@ static func in_set(s: Variant, id: Variant) -> bool:
 	return false
 
 
-## Id -> row, in file order, without notes, deep read-only.
-static func rows(doc: Dictionary) -> Dictionary:
-	var out := {}
+## The rows in the table's `shape`, without notes, deep read-only.
+static func rows(doc: Dictionary) -> Variant:
+	var shape := String(doc.get("shape", "by_id"))
+	var list := []
+	var by := {}
 	for row: Variant in doc.get("rows", []):
 		if typeof(row) != TYPE_DICTIONARY or typeof(row.get("id")) != TYPE_STRING:
 			continue
 		var r: Dictionary = row.duplicate(true)
 		r.erase("notes")
-		out[r.id] = r
+		var id: String = r.id
+		match shape:
+			"list":
+				list.append(r)
+			"groups":
+				by[id] = r.get("entries", [])
+			"by_id_bare":
+				r.erase("id")
+				by[id] = r
+			_:
+				by[id] = r
+	var out: Variant = list if shape == "list" else by
 	_freeze(out)
 	return out
 
@@ -219,8 +322,8 @@ static func float_text(f: float) -> String:
 	return s
 
 
-## The value as `type` declares it, or null when it cannot be one. A map's
-## keys are always strings; its values and a list's items are each coerced.
+## A scalar, or a map / list of one, as `type` declares it; null when it
+## cannot be one. A map's keys are always strings.
 static func _coerce(v: Variant, type: String) -> Variant:
 	if type.begins_with("map<"):
 		if typeof(v) != TYPE_DICTIONARY:

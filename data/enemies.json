@@ -1,0 +1,268 @@
+{
+  "fields": {
+    "atk_cd": {
+      "type": "float"
+    },
+    "atk_range": {
+      "type": "float"
+    },
+    "body": {
+      "type": "string"
+    },
+    "boss": {
+      "type": "bool"
+    },
+    "dark": {
+      "type": "string"
+    },
+    "dmg": {
+      "type": "float"
+    },
+    "gun": {
+      "fields": {
+        "burst": {
+          "type": "int"
+        },
+        "burst_gap": {
+          "type": "float"
+        },
+        "cd": {
+          "type": "float"
+        },
+        "color": {
+          "type": "string"
+        },
+        "dmg": {
+          "type": "float"
+        },
+        "noise": {
+          "type": "float"
+        },
+        "pellets": {
+          "type": "int"
+        },
+        "range": {
+          "type": "float"
+        },
+        "sfx": {
+          "type": "string"
+        },
+        "speed": {
+          "type": "float"
+        },
+        "spread": {
+          "type": "float"
+        },
+        "standoff": {
+          "type": "float"
+        }
+      },
+      "type": "object"
+    },
+    "hp": {
+      "type": "float"
+    },
+    "human": {
+      "type": "bool"
+    },
+    "knock_resist": {
+      "type": "float"
+    },
+    "loot_table": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "r": {
+      "type": "float"
+    },
+    "sense": {
+      "type": "float"
+    },
+    "speed": {
+      "type": "float"
+    },
+    "steal": {
+      "fields": {
+        "flee": {
+          "type": "float"
+        },
+        "stacks": {
+          "type": "int"
+        }
+      },
+      "type": "object"
+    },
+    "struct_mul": {
+      "type": "float"
+    },
+    "threat": {
+      "type": "float"
+    },
+    "xp": {
+      "type": "int"
+    }
+  },
+  "notes": "Four tiers. `struct_mul` scales damage against player structures only: walkers and runners threaten you, brutes are what breaches a wall.",
+  "rows": [
+    {
+      "atk_cd": 1.0,
+      "atk_range": 26.0,
+      "body": "#5c6b45",
+      "dark": "#3d4a2e",
+      "dmg": 13.0,
+      "hp": 58.0,
+      "id": "walker",
+      "knock_resist": 0.0,
+      "name": "Walker",
+      "r": 12.0,
+      "sense": 330.0,
+      "speed": 60.0,
+      "struct_mul": 0.5,
+      "threat": 0.35,
+      "xp": 10
+    },
+    {
+      "atk_cd": 0.65,
+      "atk_range": 25.0,
+      "body": "#7a5a3c",
+      "dark": "#513a26",
+      "dmg": 11.0,
+      "hp": 44.0,
+      "id": "runner",
+      "knock_resist": 0.15,
+      "name": "Runner",
+      "r": 11.0,
+      "sense": 430.0,
+      "speed": 132.0,
+      "struct_mul": 0.4,
+      "threat": 0.5,
+      "xp": 18
+    },
+    {
+      "atk_cd": 1.35,
+      "atk_range": 34.0,
+      "body": "#6b4b52",
+      "dark": "#452f34",
+      "dmg": 34.0,
+      "hp": 300.0,
+      "id": "brute",
+      "knock_resist": 0.75,
+      "name": "Brute",
+      "r": 19.0,
+      "sense": 380.0,
+      "speed": 52.0,
+      "struct_mul": 2.2,
+      "threat": 1.1,
+      "xp": 55
+    },
+    {
+      "atk_cd": 0.8,
+      "atk_range": 26.0,
+      "body": "#8a7a5a",
+      "dark": "#5a4d38",
+      "dmg": 10.0,
+      "hp": 70.0,
+      "human": true,
+      "id": "looter",
+      "knock_resist": 0.1,
+      "loot_table": "raiderBody",
+      "name": "Looter",
+      "notes": "the living\n\nHumans. `human` is what separates them from everything above: they carry no brain matter worth having, they shoot back, and they are here for what is in your stash rather than for you.\n\nThey come because of what you are becoming — a raid of theirs is rolled against the Mutation band (see `MUTATION.human_raid`), which is what makes the meter a bet with two sides instead of a bar with a bonus.\n\nOne thing they deliberately are *not*: zombie food. Nothing in the game has enemy-versus-enemy targeting, and bolting it on for one faction would be a system with one caller. A raider firing a rifle does draw the horde to itself, which is the honest half of that fight and costs nothing.\n\nWhat it is actually here for. It empties what it can reach and runs\n\nfor the map edge; kill it and you get it back.",
+      "r": 12.0,
+      "sense": 460.0,
+      "speed": 118.0,
+      "steal": {
+        "flee": 22.0,
+        "stacks": 3
+      },
+      "struct_mul": 0.6,
+      "threat": 0.6,
+      "xp": 30
+    },
+    {
+      "atk_cd": 1.0,
+      "atk_range": 28.0,
+      "body": "#7a6a8a",
+      "dark": "#4d4258",
+      "dmg": 14.0,
+      "gun": {
+        "burst": 2,
+        "burst_gap": 0.14,
+        "cd": 1.5,
+        "color": "#ffd08a",
+        "dmg": 15.0,
+        "noise": 420.0,
+        "range": 430.0,
+        "sfx": "rifle",
+        "speed": 900.0,
+        "spread": 0.13,
+        "standoff": 300.0
+      },
+      "hp": 120.0,
+      "human": true,
+      "id": "raider",
+      "knock_resist": 0.2,
+      "loot_table": "raiderBody",
+      "name": "Raider",
+      "notes": "A rifle. `standoff` is the range it wants to keep — closer than that\n\nand it backs up, which is what makes fighting one different to\n\nfighting anything else in the game.",
+      "r": 13.0,
+      "sense": 620.0,
+      "speed": 92.0,
+      "struct_mul": 0.8,
+      "threat": 1.0,
+      "xp": 60
+    },
+    {
+      "atk_cd": 1.2,
+      "atk_range": 32.0,
+      "body": "#8a5a5a",
+      "dark": "#573838",
+      "dmg": 26.0,
+      "gun": {
+        "cd": 1.9,
+        "color": "#ffd08a",
+        "dmg": 9.0,
+        "noise": 520.0,
+        "pellets": 5,
+        "range": 210.0,
+        "sfx": "shotgun",
+        "speed": 700.0,
+        "spread": 0.34,
+        "standoff": 120.0
+      },
+      "hp": 260.0,
+      "human": true,
+      "id": "enforcer",
+      "knock_resist": 0.6,
+      "loot_table": "enforcerBody",
+      "name": "Enforcer",
+      "notes": "A shotgun: short, brutal, and it walks toward you while it uses it.",
+      "r": 16.0,
+      "sense": 560.0,
+      "speed": 80.0,
+      "struct_mul": 1.4,
+      "threat": 1.6,
+      "xp": 110
+    },
+    {
+      "atk_cd": 1.6,
+      "atk_range": 44.0,
+      "body": "#7d4348",
+      "boss": true,
+      "dark": "#4a262b",
+      "dmg": 58.0,
+      "hp": 1100.0,
+      "id": "behemoth",
+      "knock_resist": 0.95,
+      "name": "Behemoth",
+      "r": 27.0,
+      "sense": 900.0,
+      "speed": 46.0,
+      "struct_mul": 4.0,
+      "threat": 2.5,
+      "xp": 200
+    }
+  ]
+}

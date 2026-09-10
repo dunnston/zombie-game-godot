@@ -1,0 +1,40 @@
+{
+  "fields": {
+    "crop": {
+      "type": "string"
+    },
+    "days": {
+      "type": "float"
+    },
+    "max": {
+      "type": "int"
+    },
+    "min": {
+      "type": "int"
+    }
+  },
+  "notes": "What a seed becomes, how long it takes and what a bed gives back. `days` is in-game days at full water; a dry bed simply stops the clock.\n\nNames and weights are not repeated here — they live in `RES` and `CONSUMABLES` with everything else, so the two cannot drift apart.",
+  "rows": [
+    {
+      "crop": "potato",
+      "days": 1.0,
+      "id": "seedPotato",
+      "max": 5,
+      "min": 3
+    },
+    {
+      "crop": "corn",
+      "days": 2.0,
+      "id": "seedCorn",
+      "max": 7,
+      "min": 4
+    },
+    {
+      "crop": "herbs",
+      "days": 1.0,
+      "id": "seedHerb",
+      "max": 3,
+      "min": 2
+    }
+  ]
+}
