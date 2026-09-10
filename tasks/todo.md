@@ -1931,3 +1931,55 @@ reverting the fix and watching it fail first.
       deliberately: one system, played first.
 - [ ] **Stamina Cost and Cleave** are now the only two ratings in §10 whose
       mechanic exists without a per-weapon field.
+
+## Off Notion: Linear for tracking, git for content
+
+Branch `claude/notion-to-linear-git-bb7ffc`, off `main` at 6b1a030. Owner's
+brief: Linear first, then a local content editor over the real data, and
+Notion retired only after the owner has confirmed both. Docs (CLAUDE.md, §10)
+change at the end of each phase, never ahead of what is built.
+
+### Phase 1 — Linear
+
+- [ ] **Blocked:** the Linear connector is not reachable from this session yet
+- [ ] Workflow states from Stage (Inbox / Next up / In progress / In review /
+      Shipped / Someday / Dropped); labels from Type, with `Feel` intact;
+      keep Area and Priority
+- [ ] Migrate Ideas & Roadmap; Playtest Log as `playtest` issues, Findings as
+      issue relations
+- [ ] Jim invited as a member
+- [ ] Docs: CLAUDE.md and PROJECT.md point at Linear
+
+### Phase 2a — content out of `config.gd`, one table at a time
+
+- [x] `DataTable`: typed loader (`fields` schema, because Godot parses every
+      JSON number as a float), validation (undeclared key, wrong type,
+      duplicate id), deterministic `encode`, deep read-only rows
+- [x] `tools/migrate_table.gd`: comments to `notes`, canonical write, strict
+      parity (keys, values, Variant types, row order) and a word-for-word
+      check on every comment
+- [x] **WEAPONS** → `data/weapons.json`; `Config.WEAPONS` is a `static var`
+      loaded at boot. Independent `var_to_str` snapshot before and after:
+      identical, 300 values
+- [x] `tests/data_test.gd`: canonical form, one-field edit is a one-line
+      diff, types, order, read-only, notes stripped, bad files refused
+- [ ] **Owner review of the WEAPONS commit before any other table moves**
+- [ ] RECIPES, STRUCTURES, LOOT, CONTAINERS, RES, CONSUMABLES, GEAR,
+      ENEMIES, CROPS (nested `cost`/`give` need map types in `DataTable`)
+- [ ] Delete `tools/migrate_table.gd` after the last table
+
+### Phase 2b — the editor
+
+- [ ] `tools/edit.cmd` / `edit.sh` + a dependency-free local server (GET/PUT
+      `data/*.json`, localhost only, `--lan` opt-in)
+- [ ] Browse/filter, add/edit rows incl. nested objects, notes visible
+- [ ] Cross-reference weapon → recipe, bench, loot, ammo, durability
+- [ ] Validate on save (cost keys in RES, give.weapon in WEAPONS, ammo in
+      AMMO_IDS); JS encoder byte-identical to `DataTable.encode`
+- [ ] Docs: CLAUDE.md and §10 say content lives in `data/`
+
+### Phase 3 — retire Notion (after the owner confirms 1 and 2)
+
+- [ ] Surface the Workbenches gap (Basic/Advanced/Tech/Recycle vs `bench`
+      0/1/2) for the owner to decide
+- [ ] Archive the Notion pages; remove the §10 sync procedure
