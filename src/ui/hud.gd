@@ -84,7 +84,7 @@ func _draw() -> void:
 	# line, because a raid cannot happen in here.
 	var inst := sim.instance
 	if inst != null:
-		var line := "HAUL %d / %d  ·  %d:%02d" % [roundi(p.haul.weight()), roundi(float(Config.INSTANCE.haul_cap)),
+		var line := "HAUL %d / %d  ·  %d:%02d" % [roundi(Instance.haul_load(sim, p)), roundi(float(Config.INSTANCE.haul_cap)),
 			int(inst.t) / 60, int(inst.t) % 60]
 		var icol := Color("#d8c98a")
 		if inst.state == "cleared":

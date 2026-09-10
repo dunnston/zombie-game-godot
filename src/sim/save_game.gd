@@ -340,8 +340,80 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 	# they can be pointed at it.
 	_load_crew(sim, data)
 
+	# Last of all, once everything that has a place is in it.
+	var moved := 0
+	if int(data.get("fingerprint", 0)) != world.fingerprint():
+		moved = _off_the_new_sites(sim)
+
 	sim.events.clear()
+	if moved > 0:
+		sim.notify("A building stands where some of your things were. They are at its door", "#d8c98a", true)
 	return {"ok": true, "reason": ""}
+
+
+## A save from before the instance buildings were stamped on the town (Codex,
+## PR #31). `accepts_fingerprint` lets it load, because nothing it names by
+## tile moved — but a building's footprint was open ground then, and whatever
+## the save left standing on it would load inside a roof: a player too deep
+## for `unstick` to find a way out, a car or a wall overlapping the building.
+## Everything on a footprint goes to that building's door; a structure comes
+## down and its whole cost comes back, because the building is the game's
+## doing, not the player's. Returns how many things moved.
+static func _off_the_new_sites(sim: GameSim) -> int:
+	var tile := float(Config.TILE)
+	var moved := 0
+	for kind in Config.INSTANCES:
+		var d: Dictionary = Config.INSTANCES[kind]
+		var shell: Rect2i = d.shell
+		var f := Instance.door_for(sim, kind)
+		if f.is_empty():
+			continue
+		var out: Vector2 = f.stand
+		var on := func(at: Vector2) -> bool:
+			return shell.has_point(Vector2i(floori(at.x / tile), floori(at.y / tile)))
+		# Structures first: knocking one down spills what was in it where it
+		# stood, and the pickups below carry that to the door with the rest.
+		for s in sim.structs.list.duplicate():
+			if s.destroyed or not shell.has_point(Vector2i(int(s.tx), int(s.ty))):
+				continue
+			for id in s.def.cost:
+				Loot.spawn_entry_pickup(sim, s.pos, Loot.item_entry_id(id), int(s.def.cost[id]))
+			sim.structs.destroy(sim, s)
+			moved += 1
+		# Cars to the building's own lot, a bay each.
+		var lot: Rect2i = d.get("lot", Rect2i(Vector2i(floori(out.x / tile), floori(out.y / tile)), Vector2i(1, 1)))
+		var bay := 0
+		for v in sim.cars.list:
+			if not on.call(v.pos):
+				continue
+			sim.cars.release_tiles(sim, v)
+			v.pos = (Vector2(lot.position) + Vector2(1.0 + (bay % 2) * 3.0, 1.0 + (bay / 2) * 2.5)) * tile
+			v.angle = 0.0
+			sim.cars.occupy_tiles(sim, v)
+			bay += 1
+			moved += 1
+		for q in sim.players:
+			if on.call(q.pos):
+				q.pos = out
+				q.prev_pos = out
+				moved += 1
+		for s in sim.crew.list:
+			if on.call(s.pos):
+				s.pos = out
+				moved += 1
+		for r in sim.crew.rescues:
+			if on.call(r.pos):
+				r.pos = out
+				moved += 1
+		for it in sim.pickups:
+			if on.call(it.pos):
+				it.pos = out
+				moved += 1
+		for b in sim.backpacks:
+			if on.call(b.pos):
+				b.pos = out
+				moved += 1
+	return moved
 
 
 static func load_from(sim: GameSim, slot: int) -> Dictionary:

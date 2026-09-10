@@ -874,7 +874,7 @@ func _draw() -> void:
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#9fd07a") if dr > 0.0 else Color("#8a8f84"))
 			if mode == "pack" and sim.instance != null:
 				draw_string(font, Vector2(_haul_x(), panel.position.y + 60), "HAUL  %.0f / %.0f  ·  out only past the boss" % [
-					player.haul.weight(), float(Config.INSTANCE.haul_cap)],
+					Instance.haul_load(sim, player), float(Config.INSTANCE.haul_cap)],
 					HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#d8c98a"))
 
 	for cell in _cells():

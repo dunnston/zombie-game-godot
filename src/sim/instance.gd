@@ -193,7 +193,14 @@ func tick(sim: GameSim, dt: float) -> void:
 	# Last in `GameSim.tick`, so this is the end of the step: the one place the
 	# map changes under everybody.
 	if not leaving.is_empty():
-		leave(sim, leaving)
+		# The way out was reached, but the step went on after it (Codex, PR
+		# #31): a party that was all dead by the end of it did not walk out
+		# with anything. With anyone still standing it is an extraction, and
+		# the party rule brings the fallen out with everything.
+		var outcome := leaving
+		if outcome == "extracted" and _nobody_standing(sim):
+			outcome = "wiped"
+		leave(sim, outcome)
 		return
 	t += dt
 	# Nothing culls the dead in here — the spawner that does is not running.
@@ -319,6 +326,38 @@ func forfeit(q: PlayerSim) -> void:
 			q.mag.erase(id)
 	gained[q.seat] = {}
 	Equipment.after_equip_change(q)
+
+
+static func _nobody_standing(sim: GameSim) -> bool:
+	for q in sim.present_players():
+		if not q.dead:
+			return false
+	return true
+
+
+## What the haul counts against its cap (Codex, PR #31). Not the pouch's own
+## weight: a find moved into the pack is still a find, and counting only the
+## pouch let a full haul be emptied into spare pack space and filled again.
+## Each item counts once, at the larger of what is in the haul and the finds
+## of it you still hold anywhere — so moving finds between the haul and the
+## pack changes nothing, and your own things put in the haul still count.
+## `delta` asks what it would be with that many more (or fewer) of an id in
+## the haul, for a move that has not happened yet.
+static func haul_load(sim: GameSim, p: PlayerSim, delta := {}) -> float:
+	var found: Dictionary = {} if sim.instance == null else sim.instance.gained.get(p.seat, {})
+	var ids := {}
+	for id in p.haul.entries():
+		ids[id] = true
+	for id in found:
+		ids[id] = true
+	for id in delta:
+		ids[id] = true
+	var load := 0.0
+	for id: String in ids:
+		var in_haul := p.haul.count(id) + int(delta.get(id, 0))
+		var finds := mini(int(found.get(id, 0)), held_count(p, id))
+		load += Items.weight_of(id) * maxi(in_haul, finds)
+	return load
 
 
 static func held_count(q: PlayerSim, id: String) -> int:
