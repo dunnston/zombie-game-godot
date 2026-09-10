@@ -95,6 +95,10 @@ func _build_catalogue() -> void:
 		# feels like — or whether the bench will mend it.
 		["blunt", "Wear what you are holding to a sliver", "you"],
 		["mend", "Mend everything you are carrying", "you"],
+		# A potato is nine minutes and corn is eighteen, which is right in
+		# play and useless at a keyboard trying to see what a harvest feels
+		# like — or whether a row of beds reads at a glance.
+		["ripen", "Ripen and fill every raised bed", "world"],
 		["day", "Set the clock to noon", "world"],
 		["night", "Set the clock to midnight", "world"],
 		["clear", "Kill every enemy loaded", "world"],
@@ -192,6 +196,17 @@ func _verb(id: String) -> void:
 			for row in Wear.worn_carried(player):
 				Wear.mend(Wear.container_for(player, String(row.c)), int(row.i))
 			sim.notify("DEV  everything mended", "#b7e08a")
+		"ripen":
+			var beds := 0
+			for s in sim.structs.list:
+				if not Farming.is_bed(s):
+					continue
+				s.water = Config.FARM.water_max
+				if Farming.planted(s):
+					s.grow = Farming.grow_time(s)
+				beds += 1
+			sim.notify("DEV  %d bed%s watered and ripened" % [beds, "" if beds == 1 else "s"],
+				"#b7e08a" if beds > 0 else "#8a8f84")
 		"human":
 			Mutation.suppress(sim, player, Config.MUTATION.max)
 		"res":

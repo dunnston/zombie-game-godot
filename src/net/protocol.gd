@@ -538,7 +538,11 @@ static func pack_snapshot(sim: GameSim, for_player: PlayerSim, seq: int) -> Dict
 static func pack_structure(s: Dictionary) -> Dictionary:
 	return {"tp": s.type, "tx": s.tx, "ty": s.ty, "hp": r1(s.hp), "mh": s.max_hp, "op": s.open,
 		"tr": s.tier, "fu": r1(s.fuel), "am": s.ammo, "on": s.on, "ac": s.active, "rn": s.running,
-		"pw": s.powered, "st": s.starved, "aim": snappedf(s.aim, 0.05), "arm": s.arm, "fl": s.flash > 0.0}
+		"pw": s.powered, "st": s.starved, "aim": snappedf(s.aim, 0.05), "arm": s.arm, "fl": s.flash > 0.0,
+		# A Raised Bed. The stage is not sent: a guest derives it from `gr` the
+		# same way the host does, so the two cannot disagree about what is in
+		# the ground.
+		"sd": s.seed, "ft": s.fert, "wt": r1(s.water), "gr": r1(s.grow)}
 
 
 ## Everything a guest needs that a snapshot does not carry: names and seats.

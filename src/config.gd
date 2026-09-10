@@ -567,6 +567,15 @@ const RES := {
 	"mil":     {"name": "Military",     "short": "MIL",  "color": "#7fa14a", "wt": 1.0,  "stack": 20},
 	"fuel":    {"name": "Fuel",         "short": "FUEL", "color": "#d2762c", "wt": 1.0,  "stack": 20},
 	"rations": {"name": "Rations",      "short": "FOOD", "color": "#c4a86a", "wt": 1.0,  "stack": 20},
+	# Seeds and fertilizer are resources rather than consumables on purpose:
+	# DEPOSIT ALL moves resources wholesale, so a haul of seeds ends up in the
+	# base pantry where the Farmer will one day go looking for it, and nothing
+	# in the "eat what is to hand" path can ever reach a packet of seed corn.
+	"seedPotato": {"name": "Potato Eyes",   "short": "PSED", "color": "#c9a86a", "wt": 0.1,  "stack": 30},
+	"seedCorn":   {"name": "Corn Seed",     "short": "CSED", "color": "#e0c24a", "wt": 0.1,  "stack": 30},
+	"seedHerb":   {"name": "Herb Seed",     "short": "HSED", "color": "#9aae5a", "wt": 0.1,  "stack": 30},
+	"compost":    {"name": "Compost",       "short": "CMPT", "color": "#5a4a32", "wt": 0.6,  "stack": 20},
+	"sludge":     {"name": "Mutagen Sludge","short": "SLDG", "color": "#b06ad0", "wt": 0.8,  "stack": 10},
 	"arrow":   {"name": "Arrows",       "short": "ARRW", "color": "#b9a072", "wt": 0.15, "stack": 60},
 	"ammoP":   {"name": "9mm Rounds",   "short": "9MM",  "color": "#d8c98a", "wt": 0.2,  "stack": 120},
 	"ammoS":   {"name": "Shells",       "short": "SHEL", "color": "#c9584e", "wt": 0.3,  "stack": 60},
@@ -630,6 +639,88 @@ const CONSUMABLES := {
 		"food": true, "rank": 3, "effect": "wired", "effect_mul": 1.6, "color": "#8a6a3c", "stack": 10, "wt": 0.3},
 	"booze": {"id": "booze", "name": "Bottle of Spirits", "heal": 0.0, "time": 1.8,
 		"food": true, "rank": 6, "effect": "drunk", "color": "#d98a4a", "stack": 8, "wt": 1.0},
+
+	# ------------------------------------------------------ what you grew --
+	#
+	# The crops out of a Raised Bed. Food, like everything above it, and no
+	# hunger bar underneath it either — a potato is a buff you keep a supply
+	# of, not an answer to a meter. `rank` is what makes a tap of F sensible
+	# in a farmer's pack: a potato is the commonest thing that helps, so it
+	# goes first, and corn ranks above it because corn is the thing you were
+	# going to turn into rations for the crew.
+	"potato": {"id": "potato", "name": "Potatoes", "heal": 0.0, "time": 1.4,
+		"food": true, "rank": 0, "effect": "fed", "effect_mul": 0.7, "color": "#c9a86a", "stack": 20, "wt": 0.4},
+	"corn": {"id": "corn", "name": "Corn", "heal": 0.0, "time": 1.4,
+		"food": true, "rank": 2, "effect": "fed", "color": "#e0c24a", "stack": 20, "wt": 0.4},
+	"herbs": {"id": "herbs", "name": "Herbs", "heal": 6.0, "time": 1.2,
+		"food": true, "rank": 3, "effect": "steady", "effect_mul": 0.7, "color": "#8fd08a", "stack": 20, "wt": 0.2},
+}
+
+# -------------------------------------------------------------------- farming --
+
+## The Raised Bed, and why a water meter is not a chore.
+##
+## Pillar 1 is "survival without survival chores", and §7 spent the whole
+## project refusing thirst, hunger and sleep. A garden earns its place only
+## because of three rules, and every number below is chosen to keep them true:
+##
+## 1. **A plant never dies.** Dry soil stops the growth clock; it does not kill
+##    what is in the ground. Forgetting a bed costs you time, never the crop.
+## 2. **Nothing is ever required.** Crops are buffs and cooking inputs exactly
+##    like the rest of the food table. There is still no hunger bar and there
+##    is still never going to be one.
+## 3. **It is delegable.** A Farmer job is the next card; the bed is designed
+##    so that watering, harvesting and replanting are three functions somebody
+##    else can call.
+##
+## Water is Clean Water out of your own pack, which is deliberately the same
+## bottle that buys the Hydrated buff: drink it, or grow with it, is the whole
+## decision the bed exists to pose.
+const FARM := {
+	"water_max": 100.0,
+	# One bottle is half a bed, so two fill it and one is a top-up.
+	"water_per_bottle": 50.0,
+	# A full bed runs dry over a day and a half of game time — about thirteen
+	# minutes of play. Long enough that watering is something you do walking
+	# past rather than something the game asks you for.
+	"dry_days": 1.5,
+	# Where the drawn stages change, as fractions of the way to ripe. Nothing
+	# stores a stage: it is derived from `grow` every time it is asked for, so
+	# nothing can store a stale one.
+	"stage_at": [0.0, 0.33, 0.66, 1.0],
+	"stage_names": ["Seeded", "Sprouting", "Growing", "Ready"],
+	# Every harvest gives a seed of its own kind back, and sometimes a second.
+	# Without this a farm dead-ends the first time loot dries up.
+	"seed_back": 1,
+	"seed_back_bonus": 0.35,
+	"xp_plant": 3,
+	"xp_water": 1,
+	"xp_harvest": 12,
+}
+
+## What a seed becomes, how long it takes and what a bed gives back. `days` is
+## in-game days at full water; a dry bed simply stops the clock.
+##
+## Names and weights are not repeated here — they live in `RES` and
+## `CONSUMABLES` with everything else, so the two cannot drift apart.
+const CROPS := {
+	"seedPotato": {"id": "seedPotato", "crop": "potato", "days": 1.0, "min": 3, "max": 5},
+	"seedCorn":   {"id": "seedCorn",   "crop": "corn",   "days": 2.0, "min": 4, "max": 7},
+	"seedHerb":   {"id": "seedHerb",   "crop": "herbs",  "days": 1.0, "min": 2, "max": 3},
+}
+
+## The optional slot. Yield rather than speed for the everyday one, because
+## the grow clock is what a player plans the day around and a fertilizer that
+## quietly moved it would make the whole thing unreadable.
+##
+## Mutagen Sludge is this game's own bargain restated in a vegetable patch:
+## the brain matter that keeps you human, spent to make the ground give more
+## back. It is also the Chemistry Station's second job.
+const FERTILIZER := {
+	"compost": {"id": "compost", "yield_mul": 1.6, "speed_mul": 1.0,
+		"desc": "Rotted plant matter. Half again as much comes up."},
+	"sludge": {"id": "sludge", "yield_mul": 2.5, "speed_mul": 0.6,
+		"desc": "Whatever is in a zombie's head, it makes things grow. Faster, and far more of it."},
 }
 
 # --------------------------------------------------------------------- gear --
@@ -1313,6 +1404,15 @@ const STRUCTURES := {
 		"solid": true, "tier": 1, "threat": 1.0, "protect": true, "houses": 1,
 		"desc": "Somewhere for one survivor to sleep. No bunk, no recruit.",
 	},
+	# Not solid — you walk through your own garden — and deliberately **not**
+	# `protect`. A vegetable patch is not a fortification: marking it would
+	# widen `BASE.radius` around the allotment and make a raid walk at the
+	# lettuce, and neither of those is what a bed is for.
+	"raisedBed": {
+		"id": "raisedBed", "name": "Raised Bed", "cost": {"wood": 18, "sticks": 8, "fiber": 6}, "hp": 150.0,
+		"solid": false, "tier": 1, "threat": 0.5, "plot": true,
+		"desc": "A seed, some water and a few days. Grows food to cook or eat.",
+	},
 	"watchtower": {
 		"id": "watchtower", "name": "Watchtower", "cost": {"wood": 45, "scrap": 20}, "hp": 420.0,
 		"solid": true, "tier": 1, "threat": 2.0, "protect": true, "post": "sniper",
@@ -1430,6 +1530,10 @@ const RECIPES := [
 	# reachable in the first ten minutes to be the quiet answer to a gun.
 	{"id": "bow", "name": "Hunting Bow", "bench": 0, "cost": {"sticks": 8, "fiber": 12, "cloth": 2}, "give": {"weapon": "bow"}, "xp": 18},
 	{"id": "arrow", "name": "Arrows x10", "bench": 0, "cost": {"sticks": 6, "stone": 3, "fiber": 2}, "give": {"res": {"arrow": 10}}, "xp": 3},
+	# A compost heap is a pile of dead plants, so it is bench 0 like the stone
+	# tools: farming must be reachable before metalwork or the first bed is a
+	# thing you build and then cannot feed.
+	{"id": "compost", "name": "Compost x2", "bench": 0, "cost": {"fiber": 12, "sticks": 6}, "give": {"res": {"compost": 2}}, "xp": 3},
 	{"id": "workGloves", "name": "Work Gloves", "bench": 0, "cost": {"cloth": 8}, "give": {"gear": "workGloves"}, "xp": 8},
 	{"id": "denimPants", "name": "Work Trousers", "bench": 0, "cost": {"cloth": 14}, "give": {"gear": "denimPants"}, "xp": 10},
 
@@ -1443,6 +1547,18 @@ const RECIPES := [
 	# buffs with a clock on them and neither is ever required.
 	{"id": "jerky", "name": "Dried Meat x2", "bench": 1, "hammer": true, "cost": {"rations": 4, "fiber": 2}, "give": {"item": "jerky", "n": 2}, "xp": 4},
 	{"id": "hotMeal", "name": "Hot Meal", "bench": 1, "cost": {"rations": 3, "water": 1, "wood": 2}, "give": {"item": "hotMeal", "n": 1}, "xp": 6},
+	# What a garden is actually for. Corn into rations is the important one:
+	# the crew eats Rations out of the shared stash, so a corn patch is what
+	# stops a base needing a supply run to stay fed. Herbs into medical is
+	# deliberately a trickle — two a day against a pharmacy's eight to sixteen
+	# in one search — so a long siege stops running you out of bandages
+	# without pharmacies losing their reason to exist.
+	{"id": "cornRations", "name": "Ration Pack x8  (corn)", "bench": 1, "cost": {"corn": 4, "cloth": 2}, "give": {"res": {"rations": 8}}, "xp": 8},
+	{"id": "herbMed", "name": "Medical x2  (herbs)", "bench": 1, "cost": {"herbs": 4, "cloth": 1}, "give": {"res": {"med": 2}}, "xp": 8},
+	# Two meals from your own beds against one from three rations: cooking
+	# what you grew is better than cooking what you found, which is the payoff
+	# for the days it took.
+	{"id": "hotMealVeg", "name": "Hot Meal x2  (garden)", "bench": 1, "cost": {"potato": 3, "herbs": 1, "water": 1, "wood": 2}, "give": {"item": "hotMeal", "n": 2}, "xp": 8},
 	{"id": "machete", "name": "Machete", "bench": 1, "cost": {"scrap": 24, "parts": 1}, "give": {"weapon": "machete"}, "xp": 25},
 	# The metal tool tier: the workbench costs wood and wood costs a Hatchet,
 	# so these sit exactly one step past the stone tools that got you here.
@@ -1481,11 +1597,16 @@ const RECIPES := [
 		"cost": {"brainRaw": 6, "brainMut": 1, "med": 4, "elec": 2}, "give": {"item": "suppressant", "n": 1}, "xp": 30},
 	{"id": "experimental", "name": "Experimental Suppressant", "bench": 0, "station": "chem",
 		"cost": {"brainMut": 2, "brainSpec": 1, "med": 6, "mil": 2}, "give": {"item": "experimental", "n": 1}, "xp": 60},
+	# The Chemistry Station's second job, and the same bet the whole game is
+	# built on: spend the brain matter that holds the meter down and the ground
+	# gives you far more back, far faster.
+	{"id": "sludge", "name": "Mutagen Sludge x2", "bench": 0, "station": "chem",
+		"cost": {"brainRaw": 2, "med": 1, "fiber": 8}, "give": {"res": {"sludge": 2}}, "xp": 12},
 ]
 
 const BUILD_ORDER := [
 	"woodWall", "stoneWall", "barricade", "reinforcedWall", "metalWall", "gate", "spike",
-	"workbench", "chemStation", "stash", "chest", "locker", "bedroll", "bunk", "watchtower",
+	"workbench", "chemStation", "stash", "chest", "locker", "bedroll", "bunk", "raisedBed", "watchtower",
 	"generator", "turret", "floodlight",
 ]
 
@@ -1685,17 +1806,21 @@ const LOOT := {
 		{"id": "rations", "min": 3, "max": 8, "w": 34}, {"id": "cloth", "min": 2, "max": 6, "w": 26},
 		{"id": "scrap", "min": 3, "max": 8, "w": 30}, {"id": "med", "min": 1, "max": 3, "w": 14},
 		{"id": "elec", "min": 1, "max": 2, "w": 10}, {"id": "item:bandage", "min": 1, "max": 1, "w": 10},
+		# A packet of seed at the back of a drawer, which is where seed lives.
+		{"id": "seedPotato", "min": 1, "max": 3, "w": 8}, {"id": "seedHerb", "min": 1, "max": 2, "w": 6},
 	],
 	"toolbox": [
 		{"id": "scrap", "min": 6, "max": 14, "w": 34}, {"id": "wood", "min": 8, "max": 18, "w": 30},
 		{"id": "battery", "min": 1, "max": 2, "w": 12}, {"id": "parts", "min": 1, "max": 2, "w": 16},
 		{"id": "elec", "min": 1, "max": 3, "w": 12},
 		{"id": "weapon:pipe", "min": 1, "max": 1, "w": 6}, {"id": "weapon:axe", "min": 1, "max": 1, "w": 5},
+		{"id": "seedPotato", "min": 1, "max": 3, "w": 7},
 	],
 	"shelf": [
 		{"id": "rations", "min": 4, "max": 10, "w": 32}, {"id": "cloth", "min": 4, "max": 10, "w": 28},
 		{"id": "med", "min": 2, "max": 5, "w": 24}, {"id": "scrap", "min": 3, "max": 7, "w": 22},
 		{"id": "item:bandage", "min": 1, "max": 3, "w": 16}, {"id": "elec", "min": 1, "max": 3, "w": 10},
+		{"id": "seedCorn", "min": 1, "max": 3, "w": 8}, {"id": "seedHerb", "min": 1, "max": 3, "w": 8},
 	],
 	"pharmacy": [
 		{"id": "med", "min": 5, "max": 12, "w": 40}, {"id": "item:medkit", "min": 1, "max": 2, "w": 24},
@@ -1764,6 +1889,7 @@ const LOOT := {
 		{"id": "wood", "min": 8, "max": 18, "w": 30}, {"id": "scrap", "min": 8, "max": 18, "w": 30},
 		{"id": "elec", "min": 2, "max": 6, "w": 16}, {"id": "parts", "min": 1, "max": 3, "w": 12},
 		{"id": "cloth", "min": 4, "max": 10, "w": 12},
+		{"id": "seedCorn", "min": 2, "max": 5, "w": 10},
 	],
 	"bookshelf": [
 		{"id": "cloth", "min": 3, "max": 8, "w": 34},      # paper and dust jackets
@@ -1830,6 +1956,9 @@ const LOOT := {
 		{"id": "wood", "min": 5, "max": 12, "w": 22}, {"id": "weapon:pipe", "min": 1, "max": 1, "w": 6},
 		{"id": "weapon:machete", "min": 1, "max": 1, "w": 4}, {"id": "weapon:axe", "min": 1, "max": 1, "w": 8},
 		{"id": "weapon:fireaxe", "min": 1, "max": 1, "w": 3},
+		# A tool rack is a garden shed as often as it is a workshop.
+		{"id": "seedPotato", "min": 2, "max": 4, "w": 10}, {"id": "seedCorn", "min": 1, "max": 3, "w": 8},
+		{"id": "seedHerb", "min": 1, "max": 3, "w": 8}, {"id": "compost", "min": 1, "max": 3, "w": 8},
 	],
 	"displaycase": [
 		{"id": "elec", "min": 4, "max": 10, "w": 34}, {"id": "battery", "min": 1, "max": 3, "w": 16},

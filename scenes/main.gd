@@ -425,6 +425,9 @@ func _process(dt: float) -> void:
 		elif ev.t == "open_boot":
 			if int(ev.get("seat", me.seat)) == me.seat:
 				inventory.open_boot(int(ev.id))
+		elif ev.t == "open_bed":
+			if int(ev.get("seat", me.seat)) == me.seat:
+				inventory.open_bed(Vector2i(ev.tx, ev.ty))
 		fx.on_event(ev)
 		lights.on_event(ev)
 		hud.on_event(ev)

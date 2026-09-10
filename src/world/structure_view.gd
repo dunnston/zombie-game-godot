@@ -12,8 +12,13 @@ const COLORS := {
 	"spike": "#8a8078", "workbench": "#b08a5a", "stash": "#a3763f",
 	"chest": "#8a6a3c", "locker": "#9aa2ab", "bedroll": "#6f7a52",
 	"bunk": "#6f7a52", "watchtower": "#a3763f", "generator": "#71787f",
-	"turret": "#5e6a72", "floodlight": "#c9a227",
+	"turret": "#5e6a72", "floodlight": "#c9a227", "raisedBed": "#5a4632",
 }
+
+## What a crop is drawn in, by stage. A garden has to be readable from the
+## other side of the compound — the whole point of walking over is knowing
+## before you set off whether anything is ready.
+const CROP_TINT := {"potato": "#9fd07a", "corn": "#e0c24a", "herbs": "#8fd08a"}
 
 var sim: GameSim
 ## Whose reach the build ring shows.
@@ -64,6 +69,31 @@ func _draw() -> void:
 				draw_rect(Rect2(pos - Vector2(half - 3, half - 6), Vector2(Config.TILE - 6, Config.TILE - 12)), body)
 				if s.active:
 					draw_arc(pos, 14.0, 0.0, TAU, 20, Color("#9fd0ff", 0.8), 1.5)
+			"raisedBed":
+				# A frame of boards, soil that darkens when it is wet, and
+				# the crop growing out of it in four steps. Ready gets a ring,
+				# the way an active bedroll does, because "is anything ready"
+				# is the question you ask the garden from across the base.
+				var frame := Rect2(pos - Vector2(half - 1, half - 1), Vector2(Config.TILE - 2, Config.TILE - 2))
+				draw_rect(frame, body)
+				var wet := Farming.water_frac(s)
+				var soil := Color("#3a2c1c").lerp(Color("#241a10"), wet)
+				draw_rect(Rect2(pos - Vector2(half - 5, half - 5), Vector2(Config.TILE - 10, Config.TILE - 10)), soil)
+				if Farming.planted(s):
+					var crop: Dictionary = Farming.crop_of(s)
+					var tint := Color(CROP_TINT.get(String(crop.crop), "#9fd07a"))
+					var st := Farming.stage(s)
+					# Three shoots, each taller by stage, so the row of beds
+					# reads as a progress bar without carrying one.
+					var h: float = 2.0 + st * 3.6
+					for i in range(3):
+						var sx: float = pos.x - 7.0 + i * 7.0
+						draw_line(Vector2(sx, pos.y + 8.0), Vector2(sx, pos.y + 8.0 - h),
+							tint.darkened(0.35 - st * 0.1), 2.0)
+						if st >= 2:
+							draw_circle(Vector2(sx, pos.y + 8.0 - h), 1.4 + st * 0.7, tint)
+					if Farming.ready(s):
+						draw_arc(pos, 15.0, 0.0, TAU, 20, Color(tint, 0.75), 1.5)
 			"floodlight":
 				draw_circle(pos, 8.0, body)
 				if s.powered:

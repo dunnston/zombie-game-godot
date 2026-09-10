@@ -236,6 +236,11 @@ func make(sim: GameSim, type: String, tx: int, ty: int, hp_mul := 1.0) -> Dictio
 		"fuel": 0.0, "on": true, "running": false, "powered": false, "starved": false,
 		"noise_t": 0.0, "tier": 1, "destroyed": false, "active": false,
 		"store": store,
+		# A Raised Bed's whole state. The stage is deliberately absent: it is
+		# derived from `grow` by `Farming.progress`, so nothing can save, send
+		# or draw a stale one. `water` here is a 0-100 meter on the soil, not
+		# the Clean Water item of the same id that fills it.
+		"seed": "", "fert": "", "water": 0.0, "grow": 0.0,
 		# Which armament a manned tower is set to. Arrows until told
 		# otherwise, so a tower is never a thing you built that does nothing.
 		"arm": Config.DEFAULT_ARMAMENT if def.get("post", "") == "sniper" else "",
@@ -310,6 +315,9 @@ func destroy(sim: GameSim, s: Dictionary) -> void:
 	# Whatever was in it comes out. Nothing is destroyed for want of
 	# somewhere to put it, not even by a brute.
 	spill_store(sim, s)
+	# A garden is the exception, and on purpose: a brute through the raised
+	# beds takes the crop with it. Salvaging one hands the planting back.
+	Farming.on_removed(sim, s, false)
 	_unlink(s)
 	sim.world_version += 1
 	sim.emit({"t": "struct_down", "x": s.pos.x, "y": s.pos.y, "wall": s.def.get("wall", false)})
@@ -510,6 +518,7 @@ func demolish(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
 	# Whatever was stored in it comes out first: taking your own full chest
 	# apart must not delete what is inside it.
 	spill_store(sim, s)
+	Farming.on_removed(sim, s, true)
 	s.destroyed = true
 	_unlink(s)
 	sim.world_version += 1
@@ -597,6 +606,7 @@ func tick(sim: GameSim, dt: float) -> void:
 			s.powered = has_power(s.pos)
 	_tick_turrets(sim, dt)
 	_tick_traps(sim, dt)
+	Farming.tick(sim, dt)
 
 
 func _tick_generators(sim: GameSim, dt: float) -> void:

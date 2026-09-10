@@ -79,6 +79,34 @@ static func refuel(sim: GameSim, p: PlayerSim, car: int) -> bool:
 	return not v.is_empty() and sim.cars.refuel(sim, v, p)
 
 
+## The four things you can do to a Raised Bed. Each names the bed by tile, the
+## way a chest is named, so the host re-derives it from where the player is
+## actually standing: a guest that could name any tile in the world would
+## otherwise harvest the whole town from its bedroll.
+static func plant(sim: GameSim, p: PlayerSim, at: Vector2i, seed_id: String) -> bool:
+	if _remote("plant", {"tx": at.x, "ty": at.y, "id": seed_id}):
+		return false
+	return Farming.plant(sim, p, Farming.reachable_bed(sim, p, at.x, at.y), seed_id)
+
+
+static func fertilize(sim: GameSim, p: PlayerSim, at: Vector2i, fert_id: String) -> bool:
+	if _remote("fertilize", {"tx": at.x, "ty": at.y, "id": fert_id}):
+		return false
+	return Farming.fertilize(sim, p, Farming.reachable_bed(sim, p, at.x, at.y), fert_id)
+
+
+static func water_bed(sim: GameSim, p: PlayerSim, at: Vector2i) -> bool:
+	if _remote("water_bed", {"tx": at.x, "ty": at.y}):
+		return false
+	return Farming.water(sim, p, Farming.reachable_bed(sim, p, at.x, at.y))
+
+
+static func harvest(sim: GameSim, p: PlayerSim, at: Vector2i) -> int:
+	if _remote("harvest", {"tx": at.x, "ty": at.y}):
+		return 0
+	return Farming.harvest(sim, p, Farming.reachable_bed(sim, p, at.x, at.y))
+
+
 static func equip_best(sim: GameSim, p: PlayerSim) -> int:
 	if _remote("equip_best", {}):
 		return 0
@@ -202,6 +230,14 @@ static func execute(sim: GameSim, p: PlayerSim, name_: String, a: Dictionary) ->
 			var v := sim.cars.by_id(car)
 			var r: float = Config.CAR.enter_range
 			return not v.is_empty() and p.pos.distance_squared_to(v.pos) <= r * r and sim.cars.refuel(sim, v, p)
+		"plant":
+			return Farming.plant(sim, p, Farming.reachable_bed(sim, p, at.x, at.y), String(a.get("id", "")))
+		"fertilize":
+			return Farming.fertilize(sim, p, Farming.reachable_bed(sim, p, at.x, at.y), String(a.get("id", "")))
+		"water_bed":
+			return Farming.water(sim, p, Farming.reachable_bed(sim, p, at.x, at.y))
+		"harvest":
+			return Farming.harvest(sim, p, Farming.reachable_bed(sim, p, at.x, at.y)) > 0
 		"equip_best":
 			return Equipment.equip_best(sim, p) > 0
 		"equip":
