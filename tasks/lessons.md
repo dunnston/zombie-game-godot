@@ -234,3 +234,31 @@ yet when an earlier autoload's `_ready` wants to know.
   a `continue` that skips a `pick_type` — changes every roll after it, so a
   smoke step that depends on having looted well will fail for reasons that
   have nothing to do with it. Steps should stock their own preconditions.
+
+## 2026-09-10 (raised beds)
+
+- `p.pos = x` in a smoke leg keeps whatever velocity the last leg left, so
+  the player drifts out of reach of the thing they were just teleported to
+  before the key is pressed. Three legs failed on it and none of the messages
+  mentioned movement. `_smoke_stand_at` zeroes velocity, previous position
+  and the intent's axes; use it for every teleport from here.
+- A smoke assertion against `_craft_rows()` is an assertion about the height
+  of the panel. Adding one bench-0 recipe pushed the Refined Suppressant off
+  the visible page and failed a checkpoint about the *station gate*. Assert
+  the rule against `visible_recipes`, then scroll the row into shot for the
+  photograph — two assertions, and each fails for its own reason.
+- A test that says "every food is findable" is worth extending rather than
+  weakening. Crops are found the long way round — the seed is in a loot table
+  and a bed turns it into the crop — so teaching the test that third source
+  kept its teeth: a crop whose seed exists nowhere still fails it.
+- Stock a smoke leg for what it actually spends. A round twenty of everything
+  paid for one of four raised beds; the other three came back as empty
+  dictionaries and the *next* line crashed the coroutine, so the run lost
+  thirty checkpoints to a materials bug.
+- Draw the earliest stage of anything as something. A bed sown this morning
+  drew nothing at all, so it looked exactly like an empty one and the row of
+  beds lied about what was in it.
+- Lay out a new panel mode against the panel it shares, not against the
+  screen. The bed's two gauges started at the pack grid's x and ran to the
+  panel edge, straight through thirty inventory cells. The empty column to
+  the right of that grid was where they belonged.

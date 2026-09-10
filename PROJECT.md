@@ -207,10 +207,10 @@ that will not fit is ever destroyed: it lands on the ground.
 | --- | --- |
 | Phase | **5 of 5 built.** 4a progression, 4b day and fire, 4c survivors and vehicles, 4d the front door, the map and the audio, 5 co-op. None of it has been played by the owner yet |
 | Playable | The whole loop, it levels you, it gets dark, you can hold it with other people, and a friend can join you in it. **E** searches, uses and gets a teammate up, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** a torch, **F5** / **F9** save and load, MULTIPLAYER on the title and HOST THIS GAME on the pause menu. |
-| Unit tests | 395 tests, 5167 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials, the survivor combat tests, the UPnP door and the real broker under Node: 431 tests, 5308 assertions. Wall-clock varies with the machine — see §9 |
-| Smoke | 48 checkpoints: a loopback guest joined, walked and parked, and before that walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, the character sheet opened and a point spent, a chest filled, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked , the town map with its districts, Sixth Sense widening the reveal, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it , and every cue reaching a voice |
+| Unit tests | 521 tests, 6471 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials, the survivor combat tests, the UPnP door and the real broker under Node: 557 tests, 6619 assertions. The broker leg needs `npm install --prefix server` once per checkout — `server/node_modules/` is gitignored, so a fresh worktree does not have it and that test fails until it does. Wall-clock varies with the machine — see §9 |
+| Smoke | 67 checkpoints: a loopback guest joined, walked and parked, and before that walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted, broken and mended at the bench that made it, the character sheet opened and a point spent, a chest filled, **four raised beds at four stages, the bed panel, compost dug in and a ripe bed harvested on the key**, a save reloaded, a walker shot, a raid, dusk and night, a torch lit in the dark, a treeline set alight, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked, the town map with its districts, Sixth Sense widening the reveal, a Chemistry Station and the dose it unlocks, the Lurch, a Raider holding its standoff, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it, and every cue reaching a voice |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
-| Save format | **v7** — every player by identity, with whether they are here, so a guest's character comes back to them next week (a guest's seat loads parked; the host's never does), on top of v6's the districts you have found (ids only: the rects are `Config`, so a save cannot carry a stale map), on top of v5's what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
+| Save format | **v11** — what is in every raised bed: the seed, the feed, the water and the growing banked so far. **Not the stage**, which is derived from the last of those on load exactly as it is in play, so a save can no more carry a stale stage than it can a stale stat. On top of v10's weapon condition (on the slot, so it travels with the weapon), v9's and v8's the Mutation meter and the effect clocks (the band derived on load), and v7's every player by identity, with whether they are here, so a guest's character comes back to them next week (a guest's seat loads parked; the host's never does), on top of v6's the districts you have found (ids only: the rects are `Config`, so a save cannot carry a stale map), on top of v5's what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
 
 ### Port status by system
 
@@ -250,10 +250,74 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Minimap and town map | 4d | improved | The prototype showed every enemy in the world; here the reveal radius is what Sixth Sense buys |
 | Audio | 4d | improved | Synthesised at boot, not per shot; rate-limited per kind; the prototype had no distance falloff |
 | Online co-op | 5 | **built** | Host-authoritative over ENet (built in, no broker); the prototype's WebRTC is the same `MultiplayerPeer` face once the extension is dropped in — see §6 |
+| Farming: raised beds, seeds, crops, fertilizer | — | **new** | Not in the prototype and was on §7's refused list until 2026-09-10. A dry bed stalls and never dies, which is the whole reason it is allowed to exist. The Farmer job is the next card |
 
 ---
 
 ## 4. What is built
+
+### A seed, some water, and a few days
+
+- **The Raised Bed** is a tier-1 piece with four fields on it: what is
+  planted, what it has been fed, how wet it is, and how much growing it has
+  banked. **The stage is never stored** — it is derived from `grow` every time
+  it is asked for, so nothing can save, send or draw a stale one. It is not
+  solid (you walk through your own garden) and it is deliberately not
+  `protect`: a vegetable patch is not a fortification and must not widen the
+  base radius or pull a raid at the lettuce.
+- **Farming was on §7's "deliberately not building" list.** It comes off it
+  because that list is against *chores*, and a garden earns its place on three
+  rules that `farming_test.gd` asserts one by one. **A dry bed stalls and
+  never dies** — nothing anywhere takes a planting away, so forgetting costs
+  you time and never the crop. **Nothing is ever required** — crops are buffs
+  and cooking inputs exactly like the rest of the food table, and there is
+  still no hunger field. **It is delegable** — `plant`, `water` and `harvest`
+  each take the player doing it, so the Farmer job is four calls.
+- **Water is Clean Water out of your own pack**, and that is the point: it is
+  the same bottle that buys the Hydrated buff, so *drink it or grow with it*
+  is the decision the bed exists to pose. One bottle is half a tank and a full
+  bed dries out over a day and a half — thirteen minutes of play — which makes
+  watering a thing you do walking past rather than a thing the game asks you
+  for. There is no rain, no well and no water source of its own.
+- **Three crops, and each is a reason.** Potatoes are the bulk crop and the
+  cooking staple. **Corn becomes Rations at a bench**, and Rations are what the
+  crew eats out of the shared stash — so a corn patch is what stops a base
+  needing a supply run to stay fed, and it is why farming exists at all.
+  **Herbs become Medical**, two an in-game day against a pharmacy's eight to
+  sixteen in one search: enough that a siege stops running you out of
+  bandages, nowhere near enough that a pharmacy stops being worth the walk.
+  Cooking with what you grew beats cooking with what you found — two Hot Meals
+  from the garden against one from three rations.
+- **Every harvest hands a seed back**, and sometimes two. A farm that
+  dead-ends the first time the loot tables stop offering seed is a worse
+  outcome than an economy that grows slowly. Seeds are in five loot tables as
+  well, so the first one is found rather than made.
+- **Two fertilizers, both yield rather than speed**, because the grow clock is
+  what you plan the day around and one that quietly moved it would make the
+  whole thing unreadable. **Compost** is fiber and sticks by hand, +60%.
+  **Mutagen Sludge** breaks that rule on purpose because it is the expensive
+  one: made at the **Chemistry Station** out of the brain matter that holds
+  the Mutation meter down, +150% and 40% faster. It is the bargain the whole
+  game runs on, restated in a vegetable patch, and it is that bench's second
+  job. One dose per bed, and it can go in after planting — feeding yesterday's
+  crop still counts, which costs nothing to allow.
+- **`E` at a bed is contextual, the way the generator key is.** A ripe bed
+  harvests where you stand with no screen at all; anything else opens a fifth
+  mode of the pack screen with a typed seed slot, a typed feed slot, the water
+  meter and the growth bar. `Farming.prompt` is the one string the offer and
+  the action are both built from. The band the panel shows is what the bed
+  will actually pay, fertilizer included, so feeding it visibly moves the
+  number — 4–7 Corn becomes 6–11.
+- **A row of beds reads as a progress bar without carrying one**: dots, short
+  shoots, tall shoots, and a ring round the ready one. The smoke run
+  photographs four at four stages, because "can you tell from across the base
+  which one is ready" is a drawing question and one bed cannot answer it.
+- **Destruction loses the planting and salvage returns it** — the same line
+  `destroy` and `demolish` already draw. A brute through the beds is a story;
+  losing a two-day corn crop to a misclick is not.
+- **What is deliberately not here yet: the Farmer.** A fifth survivor job that
+  waters, harvests and replants out of the shared stash is the next card, and
+  every seam above is left open for it.
 
 ### Weapons wear out, and the bench that made one mends it
 
@@ -1048,6 +1112,15 @@ Phases 1–4 respecting it.
 | 2026-09-08 | The sim reports through an event list, not callbacks into nodes | `GameSim.events` is drained by `main.gd` each frame into effects and the HUD. It keeps the sim node-free, and it is the reliable-channel event stream co-op needs. | Expensive later |
 | 2026-09-08 | Raiders come for the player until structures exist | The spec targets the nearest structure so hordes break on the perimeter; with no structures the only target is you. The compound reference figures (§9) are a Phase 3 check. | n/a |
 | 2026-09-08 | A melee target needs the line a bullet needs | The arc checked distance and angle only, so a pipe (73px of threshold) hit through a one-tile wall that holds two bodies 66px apart. Terrain line of sight, not foot collision, so water and fences are still swung over — the same asymmetry shots have. | Yes, one check |
+| 2026-09-10 | **Farming comes off §7's "deliberately not building" list**, and a Raised Bed is buildable | The owner asked for it, and the list was written against *chores* — meters the game nags you about — not against growing things. A garden stays on the right side of pillar 1 on three rules, and all three are asserted in `farming_test.gd`: a dry bed **stalls and never dies**, so forgetting costs time and never the crop; nothing is ever required, so crops are buffs and cooking inputs exactly like the rest of the food table and no hunger field exists; and it is delegable, which the Farmer job will collect. The third amendment to that list, after Mutation and factions. | Yes, but it is a system |
+| 2026-09-10 | Growth stops when the water runs out; it never kills the planting | The obvious version — a crop that withers — is the chore the whole list refuses. It also punishes exactly the thing this game is about: being away from home because something out there needed doing. A throttle costs the player time, which is a real price, and never a walk back to nothing. The water gauge is drawn amber when it is low and grey when it is out, never red, because colouring it like damage would be the screen telling a lie about the rules. | Yes, one `if` |
+| 2026-09-10 | A bed is watered with Clean Water out of your own pack, and there is no rain, no well and no water source of its own | It is deliberately the *same* bottle that buys the Hydrated buff, so drink it or grow with it is the decision the bed exists to pose. `hotMeal` already cost `water: 1`, so the precedent was set. A rain barrel or a river tile would be a second economy for one system and would make the bottle worthless. | Yes — additive |
+| 2026-09-10 | Fertilizer is **yield**, not speed — except the one made of brain matter, which is both | The grow clock is what a player plans the day around, and a fertilizer that quietly moved it would make the whole thing unreadable. Compost is +60% and nothing else. Mutagen Sludge breaks the rule on purpose because it is the expensive one: made at the Chemistry Station out of the brain matter that holds the Mutation meter down, it is this game's own bargain restated in a vegetable patch, and it gives that bench a second job. | Yes, two numbers |
+| 2026-09-10 | Every harvest returns a seed of its own kind, plus a 35% chance of a second | A farm that dead-ends the first time the loot tables stop offering seed is a worse outcome than an economy that grows slowly. Seeds are also in five loot tables, so the first one is found rather than crafted. | Yes, two numbers |
+| 2026-09-10 | A Raised Bed is not `protect`, and it is not solid | `protect` is for pieces somebody planted to make a place theirs — a bunk, a stash, a bench, a tower. Marking a vegetable patch would widen `BASE.radius` around the allotment and make `raid_target` pull a horde at the lettuce. Not solid because you walk through your own garden, like a spike trap or a floodlight. | Yes, two flags |
+| 2026-09-10 | Destroying a bed loses the planting; salvaging one returns it | The same line `destroy` and `demolish` already draw everywhere else. A brute through the beds mid-raid is a real loss and a good story; deciding to move a bed is not, and losing a two-day corn crop to a misclick would be. | Yes, one bool |
+| 2026-09-10 | Herbs become Medical at a bench, at a deliberate trickle | Two Medical per in-game day against a pharmacy's eight to sixteen in one search. Enough that a long siege stops running you out of bandages and serum, nowhere near enough that a pharmacy stops being worth walking to — which is the whole balance question, and the number most likely to want moving. | Yes, one recipe |
+| 2026-09-10 | The bed is a fifth mode of the pack screen, and a ripe bed answers `E` with no screen at all | The same argument CRAFT, CHAR and STORE already won: what you plant is a decision about what you are carrying. The contextual key is the shape `use_generator` has — switching to the useful job takes priority — and `Farming.prompt` is the single string the offer and the action are both built from, so they cannot disagree. | Yes |
 | 2026-09-10 | Condition lives on the **slot**, not on the player — reversing the row below after Codex found what it cost | A slot gains an optional `w`, so condition travels with the weapon into chests, car boots, the ground and other players' packs. The player-keyed version leaked four ways, and Codex caught it on PR #22: a broken weapon left in a chest came back whole to the next person to open it; a freshly crafted weapon was **born broken** because the last one of its kind had been; the free repair the death drop is careful to prevent was one deposit away; and two of a kind could never be told apart. Cheap in practice because weapons are stack-limit 1 (no merge ever has to decide what two joined conditions are) and `Slots.move` already moves a whole stack dictionary. | Yes, but it is the slot model |
 | 2026-09-10 | Condition on the slot, magazines still on the player | Not symmetry for its own sake. A magazine refills for free the moment you have ammunition, so where the count lives barely matters — a found gun coming up loaded is fine. Condition only comes back by paying materials at a bench, so *who owns it* is the entire mechanic. `mag` has the same transfer looseness and it is not a bug there. | Yes |
 | ~~2026-09-09~~ | ~~Wear is kept per weapon **id**, not per instance~~ | **Superseded on 2026-09-10, see above.** The reasoning was that `mag` had already made this trade and a slot is `{id, n}` and nothing else. What it underweighted is that a magazine is refillable and condition is not, so the state has to follow the object. Left here because the wrong version is the interesting half of the record. | n/a |
@@ -1104,6 +1177,29 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 
 ### Next up
 
+0. **Hand the garden to the crew.** The Farmer job: a fifth `JOBS` row and a
+   `_farmer_step` beside `_scavenger_step` — walk to the driest planted bed in
+   the base, water it **out of the shared stash** like every other thing a
+   survivor consumes, harvest what is ripe, haul it back, and replant from the
+   stash's seeds. The framework is already there (a walk with a give-up timer,
+   a timed job, a haul to the stash) and every seam in `Farming` is left open
+   for it, so this is a job row and about a hundred lines, not a system. It is
+   also the third of the three rules farming was allowed on, so it is not
+   optional in the long run. The questions it brings: is one Farmer enough for
+   four beds; does a Farmer drinking the stash's Clean Water read as sensible
+   or as theft; and should they replant automatically or leave the bed empty
+   for you to decide.
+0. **Does a garden feel like a supply line or like a window box?** The farming
+   gate, and the numbers most likely to want moving. A potato is one in-game
+   day and corn is two; a full bed dries out over a day and a half, which is
+   thirteen minutes of play. The questions: is watering something you do
+   walking past, or something you resent; is a dry bed *stalling* obviously
+   better than a dry bed dying, or does nothing-happens read as broken; is
+   four Corn for eight Rations worth two days of a bed; is two Medical an
+   in-game day enough to matter without making a pharmacy pointless; and is
+   Mutagen Sludge a bet anyone takes — is more food ever worth the brain
+   matter that keeps you human? The dev menu has `Ripen and fill every raised
+   bed`, so none of this needs eighteen minutes of watching corn.
 0. **The owner walks, fights, and builds** (the Phase 1, 2 and 3 gates,
    together — three phases are now waiting on one session at the keyboard).
    Phase 3's questions: does searching a container at 1.05s feel like
@@ -1189,15 +1285,27 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 ### Deliberately not building
 
 Thirst, hunger, temperature, illness, sleep, long crafting timers,
-many ammo calibres, farming, dialogue, quests, huge procedural
+many ammo calibres, dialogue, quests, huge procedural
 worlds, realistic electrics or plumbing. PvP, dedicated servers and
 persistent shared worlds. Carried over from the prototype and still right —
-with two amendments, both from 2026-09-09: **Mutation is a meter and it
+with three amendments. Two from 2026-09-09: **Mutation is a meter and it
 stays** (it is the one the whole theme hangs on, and food and drink are
 buffs on top of it rather than bars of their own), and **factions are back
 on the list** — hostile humans who come for a base whose owner has gone too
 far are Phase 6b, because "the living turn on you" is half of what makes the
 meter a bet.
+
+And one from 2026-09-10: **farming comes off the list.** The list is against
+*chores* — meters the game nags you about — and not against growing things.
+A Raised Bed is allowed to exist because of three rules, and if any of them
+ever stops being true the amendment should be reversed rather than argued
+with: **a dry bed stalls and never dies**, so forgetting costs you time and
+never the crop; **nothing is ever required**, so crops are buffs and cooking
+inputs like the rest of the food table and no hunger field exists;
+and **it is delegable**, which is what the Farmer job above collects.
+`farming_test.gd` asserts all three, `test_nothing_here_is_a_hunger_meter`
+most directly. The rest of the list stands, thirst and hunger included —
+growing food is not the same promise as needing it.
 
 ---
 
@@ -1586,6 +1694,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-10 | **A seed, some water, and a few days — the Raised Bed.** Farming comes off §7's "deliberately not building" list, the third amendment to it, because that list is against *chores* and not against growing things. Three rules make a garden allowed, and `farming_test.gd` (27 tests) asserts each: **a dry bed stalls and never dies** — nothing anywhere takes a planting away, so forgetting costs time and never the crop; **nothing is ever required**, so crops are buffs and cooking inputs like everything else in the food table and `test_nothing_here_is_a_hunger_meter` says so; and **it is delegable**, which the Farmer job collects next. `Config.FARM`, `CROPS` and `FERTILIZER`; `raisedBed` in `STRUCTURES`, not solid and deliberately not `protect`; `src/sim/farming.gd` as the whole mechanic, with four fields on the structure and **the stage never stored** — derived from `grow`, so a save, a wire packet and a screen cannot disagree about what is in the ground. Water is Clean Water out of your own pack, the same bottle that buys Hydrated, so *drink it or grow with it* is the decision the bed poses; one bottle is half a tank and a full bed dries out over a day and a half. Three crops and each is a reason: potatoes are the staple, **corn becomes Rations** and Rations are what the crew eats out of the shared stash, **herbs become Medical** at two an in-game day against a pharmacy's eight to sixteen. Every harvest hands a seed back, and seeds are in five loot tables, so a farm can neither dead-end nor be bootstrapped from nothing. Two fertilizers, both yield: Compost by hand at +60%, and **Mutagen Sludge at the Chemistry Station** — brain matter for +150% and 40% faster, that bench's second job and this game's own bargain in a vegetable patch. `E` at a bed is contextual the way the generator key is: a ripe one harvests where you stand, anything else opens a fifth mode of the pack screen with two typed slots and the meters. Destruction loses the planting and salvage returns it. Save v11, four fields on the structure diff, four `Actions` commands, a dev verb and four smoke checkpoints. Fixed in passing: the chem checkpoint had been asserting a recipe was on the *visible* craft page rather than offered at its bench, so it failed the day a recipe was added above it |
 | 2026-09-10 | **Condition moved from the player to the weapon**, from Codex's review of PR #22. The first cut kept `PlayerSim.wear` as weapon id -> uses left, beside `mag`, and that leaked four ways: a broken weapon left in a chest came back whole to the next person to open it, a **freshly crafted weapon was born broken** because the last one of its kind had been, the free repair the death drop is careful to prevent was one deposit away, and two of a kind could never be told apart. A `Slots` stack now carries an optional `w`, so condition travels with the weapon through chests, car boots, the ground, other players' packs, the save and the wire — and an unset slot is a whole weapon, which is what makes a crafted or scavenged one arrive new with nobody arranging it. Cheap in practice: weapons are stack-limit 1, so no merge ever has to decide what two joined conditions are, and `Slots.move` already moved a whole stack dictionary. The death drop is the one place it still flattens, because `held` is a flat id -> count — it keeps **the worse of two**, so flattening can never mend. Repair is addressed by slot rather than by id, which is also what stops a guest naming a weapon it is not carrying. Second finding, also Codex's: **a broken tool is not a tool** — a zero-condition Stone Knife no longer cuts cordage and a zero-condition Stone Hammer is no longer a portable workbench, and nothing deadlocks because every tool recipe and every tool's own recipe is bench 0. `wear_test.gd` is 32 tests, nine of them the transfer paths that were wrong |
 | 2026-09-09 | **Weapons wear out and benches mend them.** `dur` on every weapon in `WEAPONS` as a count of *uses* — one connecting swing, one shot — and `Wear` as the only thing that writes it, kept per weapon id beside `mag` for the same reason `mag` is (a slot is `{id, n}`; two Hatchets share one condition, and that is the accepted cost of the slot model). A swing at air is free; **felling a tree costs a tool twice what a walker does**. Nothing degrades on the way down: one warning at 30%, one at 10%, a condition sliver on the hotbar, and then it is **broken — refused, not destroyed and not quietly worse**, because it is the thing you carry back to the bench. Mending is a share of the recipe scaled by the wear (0.5, main material always ≥ 1) at **the recipe's own bench** — `Crafting.bench_reason` split out of `status` so the gate cannot drift, which makes a Hatchet mendable by hand and a Machete not, for free and forever. MEND rows sit above the recipes on the CRAFT tab (a different verb to the build bar's REPAIR on purpose). A weapon nothing makes is mended nowhere, which is what a unique found-only weapon will lean on — **no such weapon exists yet**. Wear travels with the save (v10), the guest's pack diff, and the backpack you drop when you die, without which walking back to your own corpse would be the cheapest bench in the game. Repair goes through `Actions` like every other screen command. Two dev verbs, `wear_test.gd` (23 tests) and two smoke checkpoints. **The sixteen `dur` numbers are the code's first guess: Notion's Durability column is blank on every in-game weapon** |
 | 2026-09-09 | **The chemistry, the living, and losing control** (Phase 6b). A **Chemistry Station**: the first bench that is not a rung on the workbench ladder, gated by `station` rather than by `bench`, so no amount of upgrading ever produces a suppressant. The chain finishes — Refined −50, and **Experimental −75**, which always pays ninety seconds of Surge and charges a Fever one time in four; the Fever turns you *faster*, so the risk is on the same axis as the reward. **Food and drink arrive as a full table and as buffs only** — nine items, six effects, no hunger meter under any of it and a test that asserts no such field exists. Hydration is what finally writes `mut_rate_mul`. `F` eats the commonest thing that would help; right-click in the pack uses what you clicked, through `Actions`. **The Lurch**: at FERAL your legs stop being yours for a second and a half every couple of minutes, the intent is rewritten rather than guarded, and a guest hands the body to the host for the duration. And **the living**: Looter, Raider and Enforcer, a raid track of their own rolled against your Mutation band (never at HUMAN, 55% at FERAL), hostile bullets that look for people instead of enemies, a `standoff` a rifleman keeps and a shotgun closes, and a Looter that empties your stash and runs for the edge — kill it and you get it back. They carry no brain matter: killing people is never a way to hold the meter down. Two new test files (47 tests) and five more smoke checkpoints. Save v9, protocol 3 |
