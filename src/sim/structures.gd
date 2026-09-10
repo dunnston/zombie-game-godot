@@ -232,6 +232,14 @@ func can_place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim) -> Di
 	# Loot cannot be buried: a container blocks its own tile in the terrain
 	# bitmap, so "Blocked" above has already refused it. The prototype
 	# carried a separate check here; here it could never fire.
+	#
+	# Nor can litter. A loose stone, a bush or a thicket does not block the
+	# tile, so without this a wall went up on top of a stone and the stone
+	# lived on inside it. You clear the ground first.
+	var prop := sim.world.prop_at_tile(tx, ty)
+	if not prop.is_empty():
+		var what := String(prop.get("res", prop.kind))
+		return {"ok": false, "reason": ("Pick up the %s first" if prop.kind == "litter" else "Clear the %s first") % what}
 	if not p.can_afford(sim, def.cost, p.build_cost_mul):
 		return {"ok": false, "reason": "Not enough materials"}
 	return {"ok": true, "reason": ""}
@@ -271,6 +279,13 @@ func make(sim: GameSim, type: String, tx: int, ty: int, hp_mul := 1.0) -> Dictio
 	}
 	list.append(s)
 	grid[key(tx, ty)] = s
+	# Nothing lives on under a piece. `can_place` already refuses a tile with
+	# litter on it; this is for a save made before it did, and for anything
+	# else that calls `make` directly. Out through the chopping door, so the
+	# tile is in `chopped` and stays clear through every later save.
+	var prop := sim.world.prop_at_tile(tx, ty) if sim.world != null else {}
+	if not prop.is_empty() and not prop.solid:
+		sim.world.remove_prop(prop)
 	if s.solid:
 		# A new wall is a new obstacle: the flow fields have to be rebuilt or
 		# the horde walks through it in spirit.

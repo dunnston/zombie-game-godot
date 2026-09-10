@@ -199,6 +199,7 @@ func test_fire_never_touches_anything_the_player_built() -> void:
 
 func test_a_wall_does_not_appear_in_the_fire_list() -> void:
 	_stock()
+	clear_ground(sim, plot.x + 2, plot.y)
 	var wall := sim.structs.place(sim, "woodWall", plot.x + 2, plot.y, p)
 	ok(not wall.is_empty())
 	# The structure dictionary has no `kind`, so it can never read as flammable.

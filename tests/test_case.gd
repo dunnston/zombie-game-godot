@@ -53,6 +53,15 @@ static func clear_plot(n: int) -> Vector2i:
 					return Vector2i(tx, ty)
 	return Vector2i(160, 160)
 
+## Clears litter, a bush or a thicket off a tile before a test builds on it,
+## as a player now has to: nothing is built on litter, and the generator
+## scatters it on the plots these tests use. Solid scenery is left alone —
+## `can_place` already calls that "Blocked", and a test should hear it.
+static func clear_ground(sim: GameSim, tx: int, ty: int) -> void:
+	var prop := sim.world.prop_at_tile(tx, ty)
+	if not prop.is_empty() and not prop.solid:
+		sim.world.remove_prop(prop)
+
 static func tile_centre(t: Vector2i) -> Vector2:
 	return Vector2(t.x * Config.TILE + 16, t.y * Config.TILE + 16)
 
@@ -174,6 +183,8 @@ static func build_compound(sim: GameSim, p: PlayerSim) -> Dictionary:
 	# Placement is range-limited, so the builder walks its own perimeter.
 	var put := func(type: String, x: int, y: int) -> Dictionary:
 		p.pos = Vector2(x * Config.TILE + 16, y * Config.TILE + 16) + Vector2(0, Config.TILE * 2)
+		# A wall refused for a stick on its tile is a gap in the perimeter.
+		clear_ground(sim, x, y)
 		return sim.structs.place(sim, type, x, y, p)
 	for i in range(-5, 6):
 		if i != 0:

@@ -45,6 +45,13 @@ var store_car := 0
 ## reason a chest is one: the reach is checked every frame and walking away
 ## closes the screen.
 var bed_tile := Vector2i(-1, -1)
+## The tile of the workbench or station being used, or (-1, -1). E opens
+## BENCH mode on it; C is CRAFT, which is always by hand. A tile for the same
+## reason a chest is one: walking away closes the screen.
+var bench_tile := Vector2i(-1, -1)
+## The little menu a plain click on something usable opens beside its cell —
+## EAT, DRINK or USE, and DROP. {cell, id, rows: [{act, label, rect}]}.
+var pop := {}
 var craft_top := 0               # first visible recipe row
 var char_top := 0                # first visible perk row
 ## Which attribute's tree the character sheet is showing.
@@ -64,12 +71,14 @@ func _init(sim_: GameSim) -> void:
 
 func toggle() -> void:
 	visible = not visible
+	pop = {}
 	if visible:
-		if mode == "store" or mode == "bed":
+		if mode == "store" or mode == "bed" or mode == "bench":
 			mode = "pack"
 		store_tile = Vector2i(-1, -1)
 		store_car = 0
 		bed_tile = Vector2i(-1, -1)
+		bench_tile = Vector2i(-1, -1)
 	else:
 		_cancel_drag()
 
@@ -101,6 +110,31 @@ func open_bed(tile: Vector2i) -> void:
 	visible = true
 
 
+## Walking up to a workbench or a Chemistry Station and pressing E opens its
+## recipe list here, with the upgrade on a button rather than on the key.
+func open_bench(tile: Vector2i) -> void:
+	bench_tile = tile
+	store_tile = Vector2i(-1, -1)
+	store_car = 0
+	bed_tile = Vector2i(-1, -1)
+	craft_top = 0
+	pop = {}
+	mode = "bench"
+	visible = true
+
+
+## The bench being used, or empty when it is gone or out of reach — which is
+## also how the screen knows to close itself.
+func bench_struct() -> Dictionary:
+	if bench_tile.x < 0:
+		return {}
+	var s := sim.structs.at_tile(bench_tile.x, bench_tile.y)
+	if s.is_empty() or s.destroyed:
+		return {}
+	var r: float = Config.BUILD.bench_range
+	return s if player.pos.distance_squared_to(s.pos) <= r * r else {}
+
+
 ## The bed being worked, or empty when there is none in reach — which is also
 ## how the screen knows to close itself.
 func bed() -> Dictionary:
@@ -121,13 +155,33 @@ func store() -> Slots:
 	return sim.structs.reachable_store(player, store_tile.x, store_tile.y)
 
 
-## The bench the player can craft at from where they stand.
+## The bench this screen crafts at: by hand on the C tab wherever you are
+## standing, and in BENCH mode the tier of the bench that was *opened* — not
+## of whatever else stands in reach, or a Chemistry Station beside a
+## workbench would list the workbench's recipes under its own title (Codex,
+## PR #25). A station is not a rung of the ladder, so it is 0. The host
+## re-derives it from where the player is either way.
 func bench() -> int:
-	return Crafting.bench_tier_at(sim, player)
+	if mode != "bench":
+		return 0
+	var s := bench_struct()
+	return int(s.tier) if s.get("type", "") == "workbench" else 0
+
+
+## The station the opened structure is, or "" for a workbench or none.
+func bench_station() -> String:
+	return String(bench_struct().get("def", {}).get("station", "")) if mode == "bench" else ""
 
 
 func recipes() -> Array:
-	return Crafting.visible_recipes(player, bench(), Crafting.stations_at(sim, player))
+	if mode != "bench":
+		return Crafting.visible_recipes(player, 0)
+	var st := bench_station()
+	if st.is_empty():
+		return Crafting.visible_recipes(player, bench())
+	# A station lists its own work and nothing else: the hand basics are on C.
+	return Crafting.visible_recipes(player, 0, {st: true}).filter(
+		func(r: Dictionary) -> bool: return String(r.get("station", "")) == st)
 
 
 ## Called every frame by the scene: a store screen closes when you walk away
@@ -137,6 +191,9 @@ func tick() -> void:
 		visible = false
 		_cancel_drag()
 	if visible and mode == "bed" and bed().is_empty():
+		visible = false
+		_cancel_drag()
+	if visible and mode == "bench" and bench_struct().is_empty():
 		visible = false
 		_cancel_drag()
 
@@ -154,12 +211,19 @@ func _tabs() -> Array[Dictionary]:
 	var panel := _panel()
 	var out: Array[Dictionary] = []
 	var names := ["pack", "craft", "char", "crew"]
-	if mode == "store" or mode == "bed":
+	if mode == "store" or mode == "bed" or mode == "bench":
 		names = [mode]
 	var x := panel.position.x + 24.0
 	for name in names:
-		out.append({"mode": name, "rect": Rect2(x, panel.position.y + 14.0, 84.0, 24.0)})
-		x += 90.0
+		var label := String(name).to_upper()
+		var w := 84.0
+		if name == "bench":
+			var s := bench_struct()
+			label = "WORKBENCH II" if s.get("type", "") == "workbench" and int(s.get("tier", 1)) >= 2 \
+				else String(s.get("def", {}).get("name", "Workbench")).to_upper()
+			w = 190.0
+		out.append({"mode": name, "label": label, "rect": Rect2(x, panel.position.y + 14.0, w, 24.0)})
+		x += w + 6.0
 	return out
 
 
@@ -193,7 +257,7 @@ func _cells() -> Array[Dictionary]:
 				"rect": Rect2(x0, y0 + i * (CELL + GAP), CELL, CELL)})
 
 	# The pack grid moves right in store mode but is otherwise the same grid.
-	if mode != "craft" and mode != "char" and mode != "crew":
+	if mode != "craft" and mode != "bench" and mode != "char" and mode != "crew":
 		for i in range(player.bag.size()):
 			out.append({"kind": "bag", "slot": "", "index": i,
 				"rect": Rect2(gx + (i % BAG_COLS) * (CELL + GAP), y0 + (i / BAG_COLS) * (CELL + GAP), CELL, CELL)})
@@ -215,12 +279,14 @@ func _cells() -> Array[Dictionary]:
 ## looks clickable is clickable.
 func _craft_rows() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	if mode != "craft":
+	if mode != "craft" and mode != "bench":
 		return out
 	var panel := _panel()
 	var list: Array = []
-	for row in Wear.worn_carried(player):
-		list.append({"repair": row})
+	# Mending is a workbench's job (or your hands'); a station mends nothing.
+	if bench_station().is_empty():
+		for row in Wear.worn_carried(player):
+			list.append({"repair": row})
 	for r in recipes():
 		list.append({"recipe": r})
 	var top := panel.position.y + 76.0
@@ -290,6 +356,14 @@ func repair_centre(id: String) -> Vector2:
 	return Vector2.ZERO
 
 
+## The middle of a panel button, for the smoke run's cursor.
+func button_centre(id: String) -> Vector2:
+	for b in _buttons():
+		if b.id == id:
+			return b.rect.get_center()
+	return Vector2.ZERO
+
+
 ## The middle of an attribute or perk row on the character sheet, likewise.
 func char_row_centre(attr := "", perk := "") -> Vector2:
 	for r in _char_rows():
@@ -338,6 +412,17 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	var mb := event as InputEventMouseButton
 	mouse = mb.position
+	# The click menu owns the next press, wherever it lands: on a row it does
+	# that row, anywhere else it just closes. Either way nothing else happens,
+	# so dismissing it can never also drag or drop something.
+	if not pop.is_empty() and mb.pressed:
+		var act := ""
+		for row in pop.rows:
+			if row.rect.has_point(mouse) and mb.button_index == MOUSE_BUTTON_LEFT:
+				act = String(row.act)
+		_pop_do(act)
+		queue_redraw()
+		return
 	if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
 		if mode == "char":
 			char_top += 1
@@ -428,6 +513,14 @@ func _buttons() -> Array[Dictionary]:
 			out.append({"id": "harvest", "label": "HARVEST", "rect": Rect2(panel.position.x + 132.0, y, 110.0, 24.0)})
 	elif mode == "pack":
 		out.append({"id": "equip_best", "label": "EQUIP BEST", "rect": Rect2(panel.position.x + 24.0, y, 120.0, 24.0)})
+	elif mode == "bench":
+		# The upgrade lives here, priced, rather than on E: the key you press
+		# to look at a bench must never be the key that spends on it.
+		var s := bench_struct()
+		if s.get("type", "") == "workbench" and int(s.get("tier", 1)) < 2:
+			var w := 300.0
+			out.append({"id": "upgrade", "label": "UPGRADE  ·  %s" % Structures.cost_label(Config.BENCH_UPGRADE_COST),
+				"rect": Rect2(panel.position.x + panel.size.x - 24.0 - w, panel.position.y + 44.0, w, 22.0)})
 	return out
 
 
@@ -445,6 +538,8 @@ func _press_button(id: String) -> void:
 			Actions.harvest(sim, player, bed_tile)
 		"equip_best":
 			Actions.equip_best(sim, player)
+		"upgrade":
+			Actions.upgrade_bench(sim, player, bench_tile)
 
 
 func _press(cell: Dictionary, mb: InputEventMouseButton) -> void:
@@ -492,6 +587,9 @@ func _release(cell: Dictionary) -> void:
 				Actions.drop_stack(sim, player, from.kind, from.index, true, store_tile, store_car)
 		return
 	if cell.kind == from.kind and cell.index == from.index and cell.slot == from.slot:
+		# Pressed and let go on the same cell: a click, not a drag. On
+		# something you can eat or use, that opens the menu that says so.
+		_open_pop(cell)
 		return
 	# A bed's slots are typed: dragging a Machete at the seed cell is refused
 	# with a reason rather than silently doing nothing, because a refusal you
@@ -586,6 +684,51 @@ func _cancel_drag() -> void:
 	drag = {}
 
 
+## What using `id` is called on the click menu, or "" when it is not
+## something you use: EAT, DRINK or USE. A lockpick or Neural Tissue is
+## carried for something else, and so is anything that is not a consumable.
+static func use_verb(id: String) -> String:
+	if Items.kind_of(id) != "consumable":
+		return ""
+	var c: Dictionary = Config.CONSUMABLES.get(id, {})
+	if c.is_empty() or c.get("tool", false):
+		return ""
+	return String(c.get("verb", "EAT" if c.get("food", false) else "USE"))
+
+
+## Opens the click menu beside a pack or hotbar cell holding something usable.
+func _open_pop(cell: Dictionary) -> void:
+	pop = {}
+	if cell.kind != "bag" and cell.kind != "hotbar":
+		return
+	var id := String(_stack_in(cell).get("id", ""))
+	var verb := use_verb(id)
+	if verb.is_empty():
+		return
+	var at: Vector2 = cell.rect.position + Vector2(cell.rect.size.x + 2.0, 0.0)
+	var rows: Array = []
+	var i := 0
+	for r in [["use", verb], ["drop", "DROP"]]:
+		rows.append({"act": r[0], "label": r[1], "rect": Rect2(at + Vector2(0.0, i * 24.0), Vector2(78.0, 22.0))})
+		i += 1
+	pop = {"cell": cell, "id": id, "rows": rows}
+
+
+## Does what the menu row says — if the cell still holds what it was opened
+## on — and closes the menu. Through `Actions`, so on a guest it is a command
+## to the host like every other pack gesture (invariant 8).
+func _pop_do(act: String) -> void:
+	var cell: Dictionary = pop.get("cell", {})
+	var id := String(pop.get("id", ""))
+	pop = {}
+	if act.is_empty() or cell.is_empty() or String(_stack_in(cell).get("id", "")) != id:
+		return
+	if act == "use":
+		Actions.use_slot(sim, player, cell.kind, cell.index)
+	elif act == "drop":
+		Actions.drop_stack(sim, player, cell.kind, cell.index, true, store_tile, store_car)
+
+
 # ----------------------------------------------------------------- drawing --
 
 func _draw() -> void:
@@ -603,7 +746,7 @@ func _draw() -> void:
 		var on: bool = t.mode == mode
 		draw_rect(t.rect, Color("#242a32") if on else Color("#181b20"))
 		draw_rect(t.rect, Color("#d8e8c0") if on else Color("#3a4048"), false, 1.0)
-		draw_string(font, t.rect.position + Vector2(0, 17), t.mode.to_upper(), HORIZONTAL_ALIGNMENT_CENTER,
+		draw_string(font, t.rect.position + Vector2(0, 17), t.label, HORIZONTAL_ALIGNMENT_CENTER,
 			t.rect.size.x, 13, Color("#ebe6d6") if on else Color("#8a8f84"))
 
 	# The weight bar counts pack and hotbar together, because that is the
@@ -622,7 +765,7 @@ func _draw() -> void:
 		HORIZONTAL_ALIGNMENT_RIGHT, bar.size.x, 11, wcol)
 
 	match mode:
-		"craft":
+		"craft", "bench":
 			_draw_craft(font, panel)
 		"char":
 			_draw_char(font, panel)
@@ -662,10 +805,18 @@ func _draw() -> void:
 			HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 40, 10, Color(1, 1, 1, 0.4))
 	elif mode != "char" and mode != "crew":
 		draw_string(font, Vector2(panel.position.x + 24, panel.position.y + panel.size.y - 8),
-			"drag to move  ·  right-click to equip, stow or use  ·  ctrl+click to drop  ·  shift+click to split",
+			"drag to move  ·  click food to eat  ·  right-click to equip, stow or use  ·  ctrl+click to drop  ·  shift+click to split",
 			HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 40, 10, Color(1, 1, 1, 0.4))
 
-	if not drag.is_empty():
+	if not pop.is_empty():
+		# Drawn last and instead of the tooltip, so nothing sits over it.
+		for row in pop.rows:
+			var hot: bool = row.rect.has_point(mouse)
+			draw_rect(row.rect, Color("#2c333c") if hot else Color("#1c2026"))
+			draw_rect(row.rect, Color("#9fd07a") if hot else Color("#4a525c"), false, 1.0)
+			draw_string(font, row.rect.position + Vector2(0, 15), row.label, HORIZONTAL_ALIGNMENT_CENTER,
+				row.rect.size.x, 11, Color("#ebe6d6"))
+	elif not drag.is_empty():
 		var r := Rect2(mouse - Vector2(CELL, CELL) / 2.0, Vector2(CELL, CELL))
 		draw_rect(r, Color(Items.color_of(drag.id), 0.8))
 		draw_string(font, r.position + Vector2(0, CELL - 6), _short(drag.id), HORIZONTAL_ALIGNMENT_CENTER, CELL, 9, Color.BLACK)
@@ -753,15 +904,11 @@ func _draw_bed(font: Font, panel: Rect2) -> void:
 
 func _draw_craft(font: Font, panel: Rect2) -> void:
 	var b := bench()
-	var where := "By hand"
-	if b >= 2:
-		where = "At Workbench II"
-	elif b == 1:
-		where = "At a Workbench"
-	if b == 0 and Crafting.has_tool(player, "hammer"):
-		where += "  ·  Stone Hammer in your pack"
-	for st in Crafting.stations_at(sim, player):
-		where += "  ·  %s" % Crafting.station_name(String(st))
+	var where := "By hand  ·  everything else is made at a workbench"
+	if mode == "bench":
+		var st := bench_station()
+		where = ("At the " + Crafting.station_name(st)) if not st.is_empty() \
+			else ("At Workbench II" if b >= 2 else "At a Workbench")
 	draw_string(font, panel.position + Vector2(24, 60), where, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
 
 	for row in _craft_rows():

@@ -322,22 +322,30 @@ const PHASES := [
 ## How dark the world is through the day, sampled as a ramp rather than
 ## stepped per phase — dusk has to creep in, not snap. `a` is the darkness
 ## alpha and `c` is what the dark is tinted.
+##
+## Deep night is near-black on purpose: past the edge of your torch you
+## should see almost nothing. The whole curve was scaled by 1.17 from its
+## first version (peak 0.82) after the owner's first playtest found night
+## still bright and a lit torch invisible against it — and `DARKNESS_FULL`
+## and `DARK_ENOUGH` were scaled by the same factor, so every multiplier
+## that reads the dark (spawns, sense, speed, Threat, Mutation) lands at
+## exactly the moment it did before. Only what you can see changed.
 const DARKNESS_KEYS := [
-	{"t": 0.00, "a": 0.62, "c": "#101a3a"},
-	{"t": 0.10, "a": 0.22, "c": "#2a3358"},
+	{"t": 0.00, "a": 0.725, "c": "#101a3a"},
+	{"t": 0.10, "a": 0.257, "c": "#2a3358"},
 	{"t": 0.16, "a": 0.00, "c": "#0a0c09"},
 	{"t": 0.56, "a": 0.00, "c": "#0a0c09"},
-	{"t": 0.66, "a": 0.30, "c": "#3a2740"},
-	{"t": 0.74, "a": 0.62, "c": "#161436"},
-	{"t": 0.82, "a": 0.82, "c": "#070c1c"},
-	{"t": 0.96, "a": 0.78, "c": "#080f24"},
-	{"t": 1.00, "a": 0.62, "c": "#101a3a"},
+	{"t": 0.66, "a": 0.351, "c": "#3a2740"},
+	{"t": 0.74, "a": 0.725, "c": "#161436"},
+	{"t": 0.82, "a": 0.959, "c": "#070c1c"},
+	{"t": 0.96, "a": 0.913, "c": "#080f24"},
+	{"t": 1.00, "a": 0.725, "c": "#101a3a"},
 ]
 
 ## Full night for the purpose of the multipliers below. The curve peaks a
 ## little above this, so `k` is clamped and the small hours are not worse
-## than the rest of the night.
-const DARKNESS_FULL := 0.8
+## than the rest of the night. 0.8 x 1.17, with the curve above.
+const DARKNESS_FULL := 0.936
 
 ## What the dark is worth to everything else. `k` is darkness over
 ## DARKNESS_FULL, clamped to 0..1: more of them out there, noticing you
@@ -351,8 +359,8 @@ const NIGHT := {
 }
 
 ## Above this darkness a light is worth carrying — what the HUD hint and the
-## torch prompt read.
-const DARK_ENOUGH := 0.35
+## torch prompt read. 0.35 x 1.17, with the darkness curve.
+const DARK_ENOUGH := 0.41
 
 # ----------------------------------------------------------------- mutation --
 
@@ -372,8 +380,9 @@ const DARK_ENOUGH := 0.35
 const MUTATION := {
 	"max": 100.0,
 	## Nothing to full, untouched, in in-game days. `DAY_LENGTH` is 540s, so
-	## 2.5 of them is about twenty-two minutes of play.
-	"days_to_full": 2.5,
+	## 7.5 of them is about sixty-seven minutes of play. It was 2.5 (twenty-two
+	## minutes) until the owner's first session found it "way too fast".
+	"days_to_full": 7.5,
 	## Multiplied into the base rate by the danger tier under your feet: worse
 	## ground turns you faster, which is the cost of going somewhere good.
 	## Indexed by tier; 0 is the tierless outskirts.
@@ -381,10 +390,11 @@ const MUTATION := {
 	## What full darkness is worth on top, scaled by the darkness curve.
 	"night_mul": 1.2,
 	## A zombie's melee connecting is a *bite* this often. Every hit adding
-	## mutation would make this a second health bar; one in seven makes a
-	## crowd something you get out of rather than trade with.
-	"bite_chance": 0.14,
-	"per_bite": 12.0,
+	## mutation would make this a second health bar; one in ten makes a
+	## crowd something you get out of rather than trade with. Halved from one
+	## in seven at +12 on the owner's first playtest.
+	"bite_chance": 0.10,
+	"per_bite": 6.0,
 	## Any single hit this big — bite or not, a Behemoth's swing or a fall —
 	## is the body being overwhelmed.
 	"heavy_damage": 25.0,
@@ -598,9 +608,11 @@ const CONSUMABLES := {
 	# off the Mutation meter; `effect` is what it does to you on the way down.
 	# Quality is why a Brute is worth walking toward and a Behemoth is worth
 	# a magazine: the tissue a body gives up depends on what the body was.
-	"brainRaw": {"id": "brainRaw", "name": "Raw Brain Matter", "heal": 0.0, "time": 2.0,
+	# `verb` is what the pack's click menu calls using it; without one it is
+	# EAT for food and USE for everything else.
+	"brainRaw": {"id": "brainRaw", "name": "Raw Brain Matter", "heal": 0.0, "time": 2.0, "verb": "EAT",
 		"mut": 10.0, "effect": "nausea", "color": "#c07f9a", "stack": 20, "wt": 0.4},
-	"brainMut": {"id": "brainMut", "name": "Mutated Brain Matter", "heal": 0.0, "time": 2.2,
+	"brainMut": {"id": "brainMut", "name": "Mutated Brain Matter", "heal": 0.0, "time": 2.2, "verb": "EAT",
 		"mut": 20.0, "effect": "nausea", "effect_mul": 1.5, "color": "#b06ad0", "stack": 20, "wt": 0.4},
 	# Not eaten: this is the ingredient the chemistry is built on. `tool`
 	# keeps it out of every "use what is to hand" path, the way a lockpick is.
@@ -640,13 +652,13 @@ const CONSUMABLES := {
 		"food": true, "rank": 5, "effect": "fed", "effect_mul": 2.0, "color": "#7fa14a", "stack": 10, "wt": 0.8},
 	"candyBar": {"id": "candyBar", "name": "Candy Bar", "heal": 0.0, "time": 0.8,
 		"food": true, "rank": 0, "effect": "wired", "effect_mul": 0.6, "color": "#d0709a", "stack": 20, "wt": 0.2},
-	"water": {"id": "water", "name": "Clean Water", "heal": 0.0, "time": 1.2,
+	"water": {"id": "water", "name": "Clean Water", "heal": 0.0, "time": 1.2, "verb": "DRINK",
 		"food": true, "rank": 1, "effect": "hydrated", "color": "#6ad0c4", "stack": 15, "wt": 0.8},
-	"soda": {"id": "soda", "name": "Warm Soda", "heal": 0.0, "time": 1.2,
+	"soda": {"id": "soda", "name": "Warm Soda", "heal": 0.0, "time": 1.2, "verb": "DRINK",
 		"food": true, "rank": 2, "effect": "wired", "color": "#c95a8a", "stack": 15, "wt": 0.7},
-	"coffee": {"id": "coffee", "name": "Instant Coffee", "heal": 0.0, "time": 1.6,
+	"coffee": {"id": "coffee", "name": "Instant Coffee", "heal": 0.0, "time": 1.6, "verb": "DRINK",
 		"food": true, "rank": 3, "effect": "wired", "effect_mul": 1.6, "color": "#8a6a3c", "stack": 10, "wt": 0.3},
-	"booze": {"id": "booze", "name": "Bottle of Spirits", "heal": 0.0, "time": 1.8,
+	"booze": {"id": "booze", "name": "Bottle of Spirits", "heal": 0.0, "time": 1.8, "verb": "DRINK",
 		"food": true, "rank": 6, "effect": "drunk", "color": "#d98a4a", "stack": 8, "wt": 1.0},
 
 	# ------------------------------------------------------ what you grew --
@@ -813,7 +825,7 @@ const GEAR := {
 	"milBoots":    {"id": "milBoots",    "name": "Assault Boots",   "slot": "feet",  "dr": 0.08, "wt": 5.0,  "tier": 3, "color": "#5b6640"},
 	"torch": {
 		"id": "torch", "name": "Torch", "slot": "offhand", "dr": 0.0, "wt": 2.0, "tier": 1,
-		"color": "#e0913a", "light": {"radius": 200.0, "strength": 0.80, "warm": "#ffb45a"},
+		"color": "#e0913a", "light": {"radius": 300.0, "strength": 1.15, "warm": "#ffb45a"},
 		"burn": 210.0, "consumed": true,
 	},
 	"flashlight": {
@@ -881,11 +893,11 @@ const WEAPONS := {
 	"fists":     {"id": "fists",     "name": "Fists",            "kind": "melee", "dmg": 9.0,  "cd": 0.42, "range": 34.0, "arc": 1.0,  "knock": 70.0,  "crit": 0.0,  "crit_mul": 1.6, "color": "#c8b89a"},
 	"pipe":      {"id": "pipe",      "name": "Steel Pipe",       "kind": "melee", "dmg": 24.0, "cd": 0.40, "range": 48.0, "arc": 1.15, "knock": 150.0, "stagger": 0.35, "crit": 0.03, "crit_mul": 1.9, "dur": 220, "color": "#9aa2ab"},
 	"machete":   {"id": "machete",   "name": "Machete",          "kind": "melee", "dmg": 40.0, "cd": 0.34, "range": 54.0, "arc": 1.0,  "knock": 110.0, "bleed": 6.0, "crit": 0.08, "crit_mul": 1.9, "chop_mul": 1.3, "dur": 260, "color": "#cfd6dd"},
-	"axe":       {"id": "axe",       "name": "Hatchet",          "kind": "melee", "dmg": 30.0, "cd": 0.52, "range": 48.0, "arc": 0.9,  "knock": 130.0, "stagger": 0.30, "crit": 0.05, "crit_mul": 2.1, "tool": true, "axe": true, "chop_mul": 2.4, "dur": 140, "color": "#b08a5a"},
-	"pick":      {"id": "pick",      "name": "Stone Pickaxe",    "kind": "melee", "dmg": 26.0, "cd": 0.62, "range": 50.0, "arc": 0.9,  "knock": 150.0, "stagger": 0.35, "crit": 0.05, "crit_mul": 2.2, "tool": true, "pick": true, "chop_mul": 2.2, "tool_mul": 2.4, "dur": 140, "color": "#9a9088"},
-	"knife":     {"id": "knife",     "name": "Stone Knife",      "kind": "melee", "dmg": 19.0, "cd": 0.28, "range": 40.0, "arc": 0.8,  "knock": 60.0,  "bleed": 4.0, "crit": 0.12, "crit_mul": 1.7, "tool": true, "knife": true, "chop_mul": 1.5, "dur": 160, "color": "#c2b8a6"},
-	"scythe":    {"id": "scythe",    "name": "Scythe",           "kind": "melee", "dmg": 24.0, "cd": 0.46, "range": 62.0, "arc": 1.6,  "knock": 80.0,  "bleed": 4.5, "crit": 0.05, "crit_mul": 1.8, "tool": true, "scythe": true, "chop_mul": 2.0, "tool_mul": 2.2, "dur": 150, "color": "#b9b3a2"},
-	"hammer":    {"id": "hammer",    "name": "Stone Hammer",     "kind": "melee", "dmg": 36.0, "cd": 0.72, "range": 46.0, "arc": 1.2,  "knock": 240.0, "stagger": 0.55, "crit": 0.03, "crit_mul": 2.2, "tool": true, "hammer": true, "chop_mul": 1.8, "structure_mul": 0.8, "dur": 150, "color": "#8a8078"},
+	"axe":       {"id": "axe",       "name": "Hatchet",          "kind": "melee", "dmg": 30.0, "cd": 0.52, "range": 48.0, "arc": 0.9,  "knock": 130.0, "stagger": 0.30, "crit": 0.05, "crit_mul": 2.1, "tool": true, "axe": true, "chop_mul": 2.4, "dur": 600, "color": "#b08a5a"},
+	"pick":      {"id": "pick",      "name": "Stone Pickaxe",    "kind": "melee", "dmg": 26.0, "cd": 0.62, "range": 50.0, "arc": 0.9,  "knock": 150.0, "stagger": 0.35, "crit": 0.05, "crit_mul": 2.2, "tool": true, "pick": true, "chop_mul": 2.2, "tool_mul": 2.4, "dur": 600, "color": "#9a9088"},
+	"knife":     {"id": "knife",     "name": "Stone Knife",      "kind": "melee", "dmg": 19.0, "cd": 0.28, "range": 40.0, "arc": 0.8,  "knock": 60.0,  "bleed": 4.0, "crit": 0.12, "crit_mul": 1.7, "tool": true, "knife": true, "chop_mul": 1.5, "dur": 600, "color": "#c2b8a6"},
+	"scythe":    {"id": "scythe",    "name": "Scythe",           "kind": "melee", "dmg": 24.0, "cd": 0.46, "range": 62.0, "arc": 1.6,  "knock": 80.0,  "bleed": 4.5, "crit": 0.05, "crit_mul": 1.8, "tool": true, "scythe": true, "chop_mul": 2.0, "tool_mul": 2.2, "dur": 600, "color": "#b9b3a2"},
+	"hammer":    {"id": "hammer",    "name": "Stone Hammer",     "kind": "melee", "dmg": 36.0, "cd": 0.72, "range": 46.0, "arc": 1.2,  "knock": 240.0, "stagger": 0.55, "crit": 0.03, "crit_mul": 2.2, "tool": true, "hammer": true, "chop_mul": 1.8, "structure_mul": 0.8, "dur": 600, "color": "#8a8078"},
 	"fireaxe":   {"id": "fireaxe",   "name": "Fire Axe",         "kind": "melee", "dmg": 34.0, "cd": 0.46, "range": 52.0, "arc": 1.0,  "knock": 190.0, "stagger": 0.40, "crit": 0.05, "crit_mul": 2.2, "tool": true, "axe": true, "chop_mul": 4.2, "dur": 420, "color": "#c4463a"},
 	"steelpick": {"id": "steelpick", "name": "Steel Pickaxe",    "kind": "melee", "dmg": 30.0, "cd": 0.56, "range": 54.0, "arc": 0.9,  "knock": 210.0, "stagger": 0.45, "crit": 0.05, "crit_mul": 2.3, "tool": true, "pick": true, "chop_mul": 4.4, "tool_mul": 2.4, "dur": 420, "color": "#aeb6bd"},
 	"sledge":    {"id": "sledge",    "name": "Sledgehammer",     "kind": "melee", "dmg": 78.0, "cd": 0.86, "range": 60.0, "arc": 1.7,  "knock": 340.0, "stagger": 0.90, "crit": 0.02, "crit_mul": 2.8, "shake": 5.0, "chop_mul": 1.6, "structure_mul": 1.0, "dur": 300, "color": "#8d7a5e"},
@@ -902,8 +914,11 @@ const WEAPONS := {
 ## nothing, which is the same rule that already makes flailing at the scenery
 ## free. A weapon with no `dur` never wears at all — that is what Fists are.
 ##
-## `chop_mul` is the other half of the honest version: felling a tree is what
-## actually blunts an axe, and it costs a tool twice what a walker does.
+## `chop_mul` is what one connecting chop costs against one connecting blow.
+## It was 2, with stone tools at 140-160 uses — a Hatchet felled about
+## seventeen trees — and the owner's first session found that far too fast.
+## At 1, with the five stone tools at 600, a Hatchet fells about a hundred
+## (six chops a tree at Strength 2; `wear_test` measures it off the swing).
 ##
 ## Repair is the structure rule, applied to a recipe instead of a build cost:
 ## a share of what the thing cost to make, scaled by how worn it is, at the
@@ -918,8 +933,8 @@ const WEAPONS := {
 const WEAR := {
 	# What a repair costs, as a share of the recipe, scaled by the wear.
 	"repair_cost_share": 0.5,
-	# Harvesting is harder on a tool than fighting is.
-	"chop_mul": 2,
+	# One chop wears a tool exactly as much as one blow.
+	"chop_mul": 1,
 	# "Worn" and "nearly gone": one warning each, once per crossing.
 	"worn_at": 0.3,
 	"spent_at": 0.1,
@@ -1619,11 +1634,14 @@ const STRUCTURES := {
 }
 
 ## Crafting is instant by design: the materials are the whole cost. `bench`
-## is 0 for by hand, 1 for a workbench, 2 for the upgraded one. A `hammer`
-## recipe is lifted to bench 1 by a carried Stone Hammer — the work you could
-## plausibly do on a flat rock — and never any further, so the hammer can
-## never produce a gun. `tool` is a flag the player must be carrying
-## something with (a knife cuts cordage).
+## is 0 for by hand, 1 for a workbench, 2 for the upgraded one. `tool` is a
+## flag the player must be carrying something with (a knife cuts cordage).
+##
+## **By hand is exactly six things** — Bandage, Hatchet, Stone Knife, Stone
+## Pickaxe, Stone Hammer, Torch — the owner's call on 2026-09-10: the C menu
+## is what you need before you have a base, and everything else is made at
+## the bench. `crafting_test` holds the list to that. (A carried Stone Hammer
+## used to lift a few bench-1 recipes to by-hand; that went with it.)
 ##
 ## Order matters only for the screen: hand tools first, because the bench
 ## costs wood and wood costs a hatchet.
@@ -1632,26 +1650,24 @@ const RECIPES := [
 	{"id": "axe", "name": "Hatchet", "bench": 0, "cost": {"sticks": 3, "stone": 3, "fiber": 4}, "give": {"weapon": "axe"}, "xp": 10},
 	{"id": "knife", "name": "Stone Knife", "bench": 0, "cost": {"sticks": 2, "stone": 3, "fiber": 2}, "give": {"weapon": "knife"}, "xp": 8},
 	{"id": "pick", "name": "Stone Pickaxe", "bench": 0, "cost": {"sticks": 4, "stone": 4, "fiber": 3}, "give": {"weapon": "pick"}, "xp": 12},
-	{"id": "scythe", "name": "Scythe", "bench": 0, "cost": {"sticks": 5, "stone": 3, "fiber": 4}, "give": {"weapon": "scythe"}, "xp": 12},
+	{"id": "scythe", "name": "Scythe", "bench": 1, "cost": {"sticks": 5, "stone": 3, "fiber": 4}, "give": {"weapon": "scythe"}, "xp": 12},
 	{"id": "hammer", "name": "Stone Hammer", "bench": 0, "cost": {"sticks": 3, "stone": 6, "fiber": 2}, "give": {"weapon": "hammer"}, "xp": 12},
 	# Cordage: fiber becomes cloth, but only with a blade to cut it.
-	{"id": "cordage", "name": "Cloth x4", "bench": 0, "tool": "knife", "cost": {"fiber": 10}, "give": {"res": {"cloth": 4}}, "xp": 4},
+	{"id": "cordage", "name": "Cloth x4", "bench": 1, "tool": "knife", "cost": {"fiber": 10}, "give": {"res": {"cloth": 4}}, "xp": 4},
 	# The first night's answer to "I cannot see", made of the two things the
 	# ground is covered in. It burns itself up, so it is a thing you keep
 	# remaking rather than a thing you own once.
 	{"id": "torch", "name": "Torch", "bench": 0, "cost": {"sticks": 3, "fiber": 3}, "give": {"gear": "torch"}, "xp": 6},
-	# Bench 0, like the tools: a bow is a stick and a string, and it has to be
-	# reachable in the first ten minutes to be the quiet answer to a gun.
-	{"id": "bow", "name": "Hunting Bow", "bench": 0, "cost": {"sticks": 8, "fiber": 12, "cloth": 2}, "give": {"weapon": "bow"}, "xp": 18},
-	{"id": "arrow", "name": "Arrows x10", "bench": 0, "cost": {"sticks": 6, "stone": 3, "fiber": 2}, "give": {"res": {"arrow": 10}}, "xp": 3},
-	# A compost heap is a pile of dead plants, so it is bench 0 like the stone
-	# tools: farming must be reachable before metalwork or the first bed is a
-	# thing you build and then cannot feed.
-	{"id": "compost", "name": "Compost x2", "bench": 0, "cost": {"fiber": 12, "sticks": 6}, "give": {"res": {"compost": 2}}, "xp": 3},
-	{"id": "workGloves", "name": "Work Gloves", "bench": 0, "cost": {"cloth": 8}, "give": {"gear": "workGloves"}, "xp": 8},
-	{"id": "denimPants", "name": "Work Trousers", "bench": 0, "cost": {"cloth": 14}, "give": {"gear": "denimPants"}, "xp": 10},
+	# The first bench's quiet answer to a gun: cheap, and a workbench away.
+	{"id": "bow", "name": "Hunting Bow", "bench": 1, "cost": {"sticks": 8, "fiber": 12, "cloth": 2}, "give": {"weapon": "bow"}, "xp": 18},
+	{"id": "arrow", "name": "Arrows x10", "bench": 1, "cost": {"sticks": 6, "stone": 3, "fiber": 2}, "give": {"res": {"arrow": 10}}, "xp": 3},
+	# A compost heap is a pile of dead plants: first-bench work, so a garden
+	# is fed from the same workbench that is the first thing a base builds.
+	{"id": "compost", "name": "Compost x2", "bench": 1, "cost": {"fiber": 12, "sticks": 6}, "give": {"res": {"compost": 2}}, "xp": 3},
+	{"id": "workGloves", "name": "Work Gloves", "bench": 1, "cost": {"cloth": 8}, "give": {"gear": "workGloves"}, "xp": 8},
+	{"id": "denimPants", "name": "Work Trousers", "bench": 1, "cost": {"cloth": 14}, "give": {"gear": "denimPants"}, "xp": 10},
 
-	{"id": "pipe", "name": "Steel Pipe", "bench": 1, "hammer": true, "cost": {"wood": 6, "scrap": 10}, "give": {"weapon": "pipe"}, "xp": 12},
+	{"id": "pipe", "name": "Steel Pipe", "bench": 1, "cost": {"wood": 6, "scrap": 10}, "give": {"weapon": "pipe"}, "xp": 12},
 	{"id": "ammoP", "name": "9mm x24", "bench": 1, "cost": {"scrap": 9, "parts": 1}, "give": {"res": {"ammoP": 24}}, "xp": 6},
 	{"id": "medkit", "name": "Medkit", "bench": 1, "cost": {"med": 5, "cloth": 5}, "give": {"item": "medkit", "n": 1}, "xp": 8},
 	# Processing raw tissue is the first thing a base does for you that your
@@ -1659,7 +1675,7 @@ const RECIPES := [
 	{"id": "serum", "name": "Stabilized Neural Serum", "bench": 1, "cost": {"brainRaw": 3, "med": 2, "cloth": 1}, "give": {"item": "serum", "n": 1}, "xp": 10},
 	# Food is bench work, not chemistry: a fire and a pot. Both of these are
 	# buffs with a clock on them and neither is ever required.
-	{"id": "jerky", "name": "Dried Meat x2", "bench": 1, "hammer": true, "cost": {"rations": 4, "fiber": 2}, "give": {"item": "jerky", "n": 2}, "xp": 4},
+	{"id": "jerky", "name": "Dried Meat x2", "bench": 1, "cost": {"rations": 4, "fiber": 2}, "give": {"item": "jerky", "n": 2}, "xp": 4},
 	{"id": "hotMeal", "name": "Hot Meal", "bench": 1, "cost": {"rations": 3, "water": 1, "wood": 2}, "give": {"item": "hotMeal", "n": 1}, "xp": 6},
 	# What a garden is actually for. Corn into rations is the important one:
 	# the crew eats Rations out of the shared stash, so a corn patch is what
@@ -1684,8 +1700,8 @@ const RECIPES := [
 	{"id": "hardHat", "name": "Hard Hat", "bench": 1, "cost": {"scrap": 14}, "give": {"gear": "hardHat"}, "xp": 14},
 	{"id": "paddedLegs", "name": "Padded Leggings", "bench": 1, "cost": {"cloth": 24, "scrap": 10}, "give": {"gear": "paddedLegs"}, "xp": 26},
 	{"id": "ammoS", "name": "Shells x14", "bench": 1, "cost": {"scrap": 12, "parts": 1}, "give": {"res": {"ammoS": 14}}, "xp": 7},
-	{"id": "lockpick", "name": "Lockpicks x3", "bench": 1, "hammer": true, "cost": {"scrap": 8, "parts": 1}, "give": {"item": "lockpick", "n": 3}, "xp": 6},
-	{"id": "rationPack", "name": "Ration Pack x8", "bench": 1, "hammer": true, "cost": {"med": 2, "cloth": 3}, "give": {"res": {"rations": 8}}, "xp": 5},
+	{"id": "lockpick", "name": "Lockpicks x3", "bench": 1, "cost": {"scrap": 8, "parts": 1}, "give": {"item": "lockpick", "n": 3}, "xp": 6},
+	{"id": "rationPack", "name": "Ration Pack x8", "bench": 1, "cost": {"med": 2, "cloth": 3}, "give": {"res": {"rations": 8}}, "xp": 5},
 	{"id": "fuel", "name": "Fuel x25", "bench": 1, "cost": {"scrap": 10, "elec": 4}, "give": {"res": {"fuel": 25}}, "xp": 6},
 	# A battery is findable long before it is craftable — parts bins, desks,
 	# glove boxes — so the flashlight is something you scavenge your way into
