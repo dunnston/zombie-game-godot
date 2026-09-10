@@ -199,9 +199,9 @@ func _on_event(ev: Dictionary) -> void:
 ## first one.
 func _spawn_tracer(ev: Dictionary) -> void:
 	var w: Dictionary = Config.WEAPONS.get(String(ev.get("w", "")), {})
-	var speed: float = float(w.get("speed", 1000.0))
-	var life: float = float(w.get("life", 0.5))
-	var color := "#c8a878" if w.get("bow", false) else ("#ffd08a" if String(w.get("id", "")) == "shotgun" else "#ffe6a8")
+	var speed: float = float(ev.get("sp", w.get("speed", 1000.0)))
+	var life: float = float(ev.get("lf", w.get("life", 0.5)))
+	var color := String(ev.get("c", "#c8a878" if w.get("bow", false) else ("#ffd08a" if String(w.get("id", "")) == "shotgun" else "#ffe6a8")))
 	var at := Vector2(float(ev.x), float(ev.y))
 	sim.bullets.append({"pos": at, "prev": at, "vel": Vector2.from_angle(float(ev.a)) * speed,
 		"dmg": 0.0, "life": life, "knock": 0.0, "pierce": 0, "hits": [], "owner": "remote",

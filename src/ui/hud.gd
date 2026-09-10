@@ -45,6 +45,17 @@ func tick(dt: float) -> void:
 			notices.remove_at(i)
 
 
+## The boss worth a bar: awake — hunting, or hurt — and close enough to be the
+## fight you are in. On a guest it is whatever the snapshot says it is.
+func _boss_near(p: PlayerSim) -> EnemySim:
+	for e in sim.enemies.list:
+		if e.dead or not e.def.get("boss", false):
+			continue
+		if (e.aggro or e.hp < e.max_hp) and e.pos.distance_to(p.pos) < 1100.0:
+			return e
+	return null
+
+
 func _draw() -> void:
 	var font := ThemeDB.fallback_font
 	var p: PlayerSim = player if player != null else sim.players[0]
@@ -93,6 +104,21 @@ func _draw() -> void:
 		elif not inst.keys.is_empty():
 			line += "  ·  YOU HAVE THE %s KEY" % String(inst.keys.keys()[0]).to_upper()
 		draw_string(font, Vector2(0, 72), line, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 14, icol)
+
+	# The boss, once it is awake and near: its name, what is left of it, and
+	# the marks where the fight changes, so the phase beat is expected rather
+	# than a surprise.
+	var boss := _boss_near(p)
+	if boss != null:
+		var bw := 420.0
+		var bx := (vp.x - bw) / 2.0
+		var by := 100.0
+		draw_string(font, Vector2(0, by - 5.0), String(boss.def.name).to_upper(), HORIZONTAL_ALIGNMENT_CENTER, vp.x, 14, Color("#e8c0b0"))
+		draw_rect(Rect2(bx, by, bw, 9), Color(0, 0, 0, 0.65))
+		draw_rect(Rect2(bx, by, bw * clampf(boss.hp / boss.max_hp, 0.0, 1.0), 9), Color("#c8423a"))
+		for ph in Config.BOSSES.get(boss.type, {}).get("phases", []).slice(1):
+			var mx: float = bx + bw * float(ph.at)
+			draw_line(Vector2(mx, by - 2.0), Vector2(mx, by + 11.0), Color("#ebe6d6"), 2.0)
 
 	# The raid banner.
 	var raid := sim.raid

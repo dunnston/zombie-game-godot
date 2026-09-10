@@ -21,6 +21,10 @@ class_name Damage
 static func damage_enemy(sim: GameSim, e: EnemySim, dmg: float, from: Vector2, knock := 0.0, crit := false, source: Variant = null, no_alert := false, no_fx := false, hit_kind := "bullet") -> float:
 	if e.dead or dmg <= 0.0:
 		return 0.0
+	# A boss changing phase: the beat that says the fight just changed, and
+	# nothing lands on it until it is over (`Boss._shift`).
+	if e.shield_t > 0.0:
+		return 0.0
 	e.hp -= dmg
 	e.flash = 0.11
 	if not no_alert:

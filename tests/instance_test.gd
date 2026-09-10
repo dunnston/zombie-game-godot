@@ -169,7 +169,8 @@ func test_the_door_opens_onto_the_foyer_and_the_town_is_set_aside() -> void:
 	eq(sim.structs.count(), 0, "nothing of your base in here")
 	eq(sim.stash, null)
 	eq(sim.enemies.list.size(), sim.world.enemy_spots.size() + 1, "the placed crowd and the boss")
-	ok(inst.boss != null and inst.boss.type == "behemoth", "the stand-in boss")
+	ok(inst.boss != null and inst.boss.type == String(Config.INSTANCES.school.boss), "its boss")
+	ok(inst.boss.brain != null, "with its script")
 	eq(inst.held.world, town, "the town is held, not thrown away")
 
 
