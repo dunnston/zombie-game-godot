@@ -106,6 +106,10 @@ func _build_catalogue() -> void:
 		["night", "Set the clock to midnight", "world"],
 		["clear", "Kill every enemy loaded", "world"],
 		["quiet", "Clear the threat meter", "world"],
+		# The School is a walk from anywhere and a fight at the end, which is
+		# right in play and useless at a keyboard checking the way out.
+		["school", "Walk into Pine Hollow High", "world"],
+		["boss", "Put down the School's boss", "world"],
 	]:
 		_all.append({"kind": "verb", "id": v[0], "label": v[1], "note": v[2]})
 
@@ -195,6 +199,24 @@ func _verb(id: String) -> void:
 				sim.notify("DEV  %s is down to its last use" % Config.WEAPONS[wid].name, "#d9c46a")
 			else:
 				sim.notify("DEV  that does not wear out", "#8a8f84")
+		"school":
+			if sim.instance != null:
+				sim.notify("DEV  already inside", "#8a8f84")
+				return
+			var door := Instance.door_for(sim, "school")
+			if door.is_empty():
+				return
+			player.driving_id = 0
+			player.pos = door.stand
+			player.prev_pos = door.stand
+			# Through the real door, refusals and all: a dev key that walked
+			# past the daily chain would test nothing about the chain.
+			Instance.enter(sim, player, "school")
+		"boss":
+			if sim.instance == null or sim.instance.boss == null or sim.instance.boss.dead:
+				sim.notify("DEV  no boss standing", "#8a8f84")
+				return
+			Damage.kill_enemy(sim, sim.instance.boss, player)
 		"mend":
 			for row in Wear.worn_carried(player):
 				Wear.mend(Wear.container_for(player, String(row.c)), int(row.i))

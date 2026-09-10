@@ -188,6 +188,7 @@ static func container(p: PlayerSim, name: String, store: Slots = null) -> Slots:
 	match name:
 		"bag": return p.bag
 		"hotbar": return p.hotbar
+		"haul": return p.haul
 		"store": return store
 	return null
 
@@ -206,12 +207,28 @@ static func move_stack(sim: GameSim, p: PlayerSim, from_cont: String, from_index
 	var to := container(p, to_cont, store)
 	if from == null or to == null:
 		return false
-	# Weight is the capacity rule, and taking out of a chest is the one move
-	# that can add weight to a player — everything else here shuffles what
-	# they already carry. Without this you could stand at the cap and drag an
-	# arbitrarily heavy stack out of a locker, which is the hole every capped
-	# path (pickups, TAKE SUPPLIES, crafting) exists to close.
-	if from_cont == "store" and to_cont != "store":
+	# The haul is for carrying *out* of an instance, and it is only open inside
+	# one: anywhere else it would be a second backpack that weighs nothing.
+	# Inside, it holds what its own budget allows and not a gram more.
+	if to_cont == "haul" and from_cont != "haul":
+		if sim == null or sim.instance == null:
+			return false
+		var s := from.at(from_index)
+		if not s.is_empty():
+			var room: float = Config.INSTANCE.haul_cap - p.haul.weight()
+			var dest := to.at(to_index)
+			if not dest.is_empty() and dest.id != s.id:
+				room += Items.weight_of(dest.id) * dest.n
+			if Items.weight_of(s.id) * s.n > room + 1e-9:
+				sim.notify("The haul cannot take that much", "#c96a5a")
+				return false
+	# Weight is the capacity rule, and taking out of a chest — or out of the
+	# haul, which is outside your carry budget for the same reason a chest is —
+	# is the one move that can add weight to a player; everything else here
+	# shuffles what they already carry. Without this you could stand at the cap
+	# and drag an arbitrarily heavy stack out of a locker, which is the hole
+	# every capped path (pickups, TAKE SUPPLIES, crafting) exists to close.
+	if (from_cont == "store" or from_cont == "haul") and (to_cont == "bag" or to_cont == "hotbar"):
 		var s := from.at(from_index)
 		if not s.is_empty():
 			var dest := to.at(to_index)

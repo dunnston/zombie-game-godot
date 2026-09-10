@@ -79,6 +79,21 @@ func _draw() -> void:
 	draw_string(font, Vector2(0, 32), label, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 20, Color("#ebe6d6"))
 	draw_string(font, Vector2(0, 52), "danger " + "◆".repeat(tier), HORIZONTAL_ALIGNMENT_CENTER, vp.x, 13, TIER_COLORS[tier])
 
+	# A run: what you are carrying out, how long it has taken against the
+	# eight-to-twelve-minute budget, and what is open. On the raid banner's
+	# line, because a raid cannot happen in here.
+	var inst := sim.instance
+	if inst != null:
+		var line := "HAUL %d / %d  ·  %d:%02d" % [roundi(p.haul.weight()), roundi(float(Config.INSTANCE.haul_cap)),
+			int(inst.t) / 60, int(inst.t) % 60]
+		var icol := Color("#d8c98a")
+		if inst.state == "cleared":
+			line += "  ·  THE WAY OUT IS OPEN"
+			icol = Color("#ffe08a")
+		elif not inst.keys.is_empty():
+			line += "  ·  YOU HAVE THE %s KEY" % String(inst.keys.keys()[0]).to_upper()
+		draw_string(font, Vector2(0, 72), line, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 14, icol)
+
 	# The raid banner.
 	var raid := sim.raid
 	if raid != null:

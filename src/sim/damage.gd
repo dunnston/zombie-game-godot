@@ -300,12 +300,18 @@ static func kill_player(sim: GameSim, p: PlayerSim, cause := "died") -> void:
 	p.reviving = {}
 	sim.stats.deaths += 1
 	sim.emit({"t": "player_died", "seat": p.seat, "x": p.pos.x, "y": p.pos.y, "cause": cause})
+	var head := "YOU TURNED" if cause == "turned" else "YOU DIED"
+	var col := "#b07ad0" if cause == "turned" else "#e05a4a"
+	# Inside an instance there is no pack to leave: when the run ends you come
+	# out with what you brought, less what you found (`Instance.leave`), and
+	# nothing is left lying in a map that is about to stop existing.
+	if sim.instance != null:
+		sim.notify("%s — %s keeps what you found" % [head, Instance.title(sim.instance.kind)], col, true)
+		return
 	# Everything you were carrying stays where you fell, in a pack you can
 	# walk back to. You keep the starting weapon, so a respawn is never
 	# completely toothless.
 	var pack := Loot.drop_backpack(sim, p)
-	var head := "YOU TURNED" if cause == "turned" else "YOU DIED"
-	var col := "#b07ad0" if cause == "turned" else "#e05a4a"
 	sim.notify(head if pack.is_empty() else head + " — your pack is where you fell", col, true)
 
 
@@ -353,18 +359,24 @@ static func heal_player(sim: GameSim, p: PlayerSim, amount: float) -> float:
 	return gained
 
 
-static func respawn_player(sim: GameSim, p: PlayerSim) -> void:
+## `at` puts them somewhere chosen — outside an instance's door, when a run
+## ends — and `note` is what the screen says about it.
+static func respawn_player(sim: GameSim, p: PlayerSim, at := Vector2.INF, note := "") -> void:
+	# Inside an instance nobody comes back on their own: the run ends when the
+	# party does (`Instance.tick`), and everyone wakes outside its door.
+	if sim.instance != null and at == Vector2.INF:
+		return
 	# A bedroll is a respawn point: waking up beside your own base is the
 	# whole reason to have built one.
 	var at_bedroll := false
-	if p.spawn_tile.x >= 0:
+	if at == Vector2.INF and p.spawn_tile.x >= 0:
 		var bed := sim.structs.at_tile(p.spawn_tile.x, p.spawn_tile.y)
 		if not bed.is_empty() and bed.type == "bedroll":
 			p.pos = sim.world.unstick(bed.pos + Vector2(0, Config.TILE), p.r, sim.structs)
 			at_bedroll = true
 		else:
 			p.spawn_tile = Vector2i(-1, -1)
-	var spot := p.pos if at_bedroll else sim.pick_random_spawn(Vector2.INF, 0.0, 520.0)
+	var spot := at if at != Vector2.INF else (p.pos if at_bedroll else sim.pick_random_spawn(Vector2.INF, 0.0, 520.0))
 	p.pos = spot
 	p.vel = Vector2.ZERO
 	p.hp = p.max_hp
@@ -384,4 +396,7 @@ static func respawn_player(sim: GameSim, p: PlayerSim) -> void:
 		p.stam = p.max_stam
 	p.slot = clampi(p.slot, 0, maxi(0, p.hotbar.size() - 1))
 	sim.emit({"t": "respawn", "seat": p.seat, "x": p.pos.x, "y": p.pos.y})
-	sim.notify("You wake up at your bedroll" if at_bedroll else "Respawned somewhere in the wild", "#9fd0ff", true)
+	if not note.is_empty():
+		sim.notify(note, "#9fd0ff", true)
+	else:
+		sim.notify("You wake up at your bedroll" if at_bedroll else "Respawned somewhere in the wild", "#9fd0ff", true)

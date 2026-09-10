@@ -32,6 +32,19 @@ static func slot_path(slot: int) -> String:
 # ------------------------------------------------------------------ saving --
 
 static func to_dict(sim: GameSim) -> Dictionary:
+	# From inside an instance the game is written as though the party had just
+	# walked out: the town, everyone at its door, what they found gone. A run
+	# is never saved (§7). The town is swapped in to be written and back out.
+	var inst := sim.instance
+	if inst != null:
+		inst.swap(sim)
+	var out := _town_dict(sim, inst)
+	if inst != null:
+		inst.swap(sim)
+	return out
+
+
+static func _town_dict(sim: GameSim, inst: Instance) -> Dictionary:
 	var looted: Array[String] = []
 	for c in sim.world.containers:
 		if c.looted:
@@ -51,7 +64,7 @@ static func to_dict(sim: GameSim) -> Dictionary:
 
 	var players: Array = []
 	for p in sim.players:
-		players.append({
+		var rec := {
 			"seat": p.seat, "name": p.display_name,
 			# Who the character belongs to and whether they are here. The
 			# host's save keeps every player by identity (v7), so a guest who
@@ -78,7 +91,10 @@ static func to_dict(sim: GameSim) -> Dictionary:
 			"light_doused": p.light_doused, "light_charge": p.light_charge.duplicate(),
 			"spawn_tx": p.spawn_tile.x, "spawn_ty": p.spawn_tile.y,
 			"driving_id": p.driving_id, "car_keys": p.car_keys.duplicate(),
-		})
+		}
+		if inst != null and not p.away:
+			rec.merge(inst.walked_out_record(p), true)
+		players.append(rec)
 
 	var piles: Array = []
 	for it in sim.pickups:
@@ -115,6 +131,9 @@ static func to_dict(sim: GameSim) -> Dictionary:
 		# The districts you have stood in. Only the ids: the rects are `Config`,
 		# so a save cannot carry a stale map of a town that has been re-laid.
 		"discovered": _discovered(sim),
+		# Which instances were cleared, and on which day. Absent in an older
+		# save, which is what "never cleared" looks like, so no version bump.
+		"cleared": sim.cleared.duplicate(),
 		"structures": structures,
 		"stash": sim.stash.to_record() if sim.stash != null else [],
 		"pickups": piles,
@@ -173,7 +192,9 @@ static func read_slot(slot: int) -> Dictionary:
 static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictionary:
 	var world_seed := int(data.get("world_seed", 20240917))
 	var world := reuse if reuse != null and reuse.world_seed == world_seed else World.new(world_seed)
-	if int(data.get("fingerprint", 0)) != world.fingerprint():
+	# `accepts_fingerprint` also takes the town from before the School was
+	# stamped on it, so a save from last week still loads (see World).
+	if not world.accepts_fingerprint(int(data.get("fingerprint", 0))):
 		return {"ok": false, "reason": "This save was made by a different world generator (fingerprint mismatch); it cannot be loaded"}
 
 	sim.start(world, int(data.get("run_seed", 1)))
@@ -188,6 +209,8 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 	sim.threat.value = float(data.get("threat", 0.0))
 	sim.threat.tier = Threat.tier_of(sim.threat.value)
 	sim.structs.bench_tier = int(data.get("bench_tier", 0))
+	for k in data.get("cleared", {}):
+		sim.cleared[String(k)] = int(data.cleared[k])
 	for k in data.get("stats", {}):
 		sim.stats[k] = data.stats[k]
 	sim.enemies.list.clear()

@@ -17,6 +17,7 @@ var props_above: PropRenderer
 var enemy_view: EnemyView
 var pickup_view: PickupView
 var structure_view: StructureView
+var instance_view: InstanceView
 var fx: FxView
 var lights: LightView
 var survivor_view: SurvivorView
@@ -81,6 +82,8 @@ func _ready() -> void:
 	add_child(pickup_view)
 	structure_view = StructureView.new(sim)
 	add_child(structure_view)
+	instance_view = InstanceView.new(sim)
+	add_child(instance_view)
 	enemy_view = EnemyView.new(sim)
 	add_child(enemy_view)
 	vehicle_view = VehicleView.new(sim)
@@ -433,6 +436,18 @@ func _process(dt: float) -> void:
 				inventory.open_bench(Vector2i(ev.tx, ev.ty))
 				if build_bar.open:
 					build_bar.toggle()
+		elif ev.t == "open_instance":
+			if int(ev.get("seat", me.seat)) == me.seat:
+				inventory.open_door(String(ev.kind))
+				if build_bar.open:
+					build_bar.toggle()
+		elif ev.t == "open_leave":
+			if int(ev.get("seat", me.seat)) == me.seat:
+				inventory.open_leave()
+		elif ev.t == "instance_enter" or ev.t == "instance_leave":
+			# The map under everybody changed: every view that cached the old
+			# one is rebuilt, the way a load rebuilds them.
+			_rebuild_views()
 		fx.on_event(ev)
 		lights.on_event(ev)
 		hud.on_event(ev)
@@ -451,6 +466,7 @@ func _process(dt: float) -> void:
 	props_above.queue_redraw()
 	pickup_view.queue_redraw()
 	structure_view.queue_redraw()
+	instance_view.queue_redraw()
 	if build_bar.open:
 		build_bar.queue_redraw()
 	inventory.tick()
@@ -1028,6 +1044,117 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 	await smoke.frames(90)
 	if rocked.hp >= hp:
 		smoke.fail("a bleeding walker lost no health over a second and a half")
+
+
+## Presses `action` and holds it until `done` says the game has answered, then
+## lets go. A fixed number of frames can pass without a physics step at a high
+## refresh rate, and the check would then ask before the game had (§8).
+func _smoke_press_until(smoke: Node, action: String, done: Callable, cap := 480) -> bool:
+	Input.action_press(action)
+	var ok := false
+	for i in range(cap):
+		await smoke.frames(1)
+		if done.call():
+			ok = true
+			break
+	Input.action_release(action)
+	await smoke.frames(2)
+	return ok
+
+
+## Pine Hollow High, end to end: the sealed building and its door, the panel
+## that asks, the foyer, the key in the principal's desk, the chained gym, the
+## stand-in boss, and out through the exit with the door chained behind you.
+## The fight itself is PR C's; here the boss is put down so the way out can be.
+func smoke_school(smoke: Node) -> void:
+	var p := sim.players[0]
+	var back := p.pos
+	var door := Instance.door_for(sim, "school")
+	if door.is_empty():
+		smoke.fail("there is no door to the School in the town")
+		return
+	p.god_mode = true
+	_smoke_stand_at(door.stand)
+	camera.position = p.pos
+	await smoke.frames(3)
+	var offered := String(Interact.best_target(sim, p).get("kind", ""))
+	if offered != "instance_door":
+		smoke.fail("E at the School's door offers '%s'" % offered)
+	await smoke.checkpoint("school_door")
+
+	if not await _smoke_press_until(smoke, "interact", func() -> bool: return inventory.visible and inventory.mode == "door", 60):
+		smoke.fail("E at the School's door did not open its panel")
+	await smoke.checkpoint("school_panel")
+	var enter := inventory.button_centre("enter")
+	if enter == Vector2.ZERO:
+		smoke.fail("the door panel has no ENTER")
+	else:
+		await smoke_click(enter)
+	for i in range(30):
+		if sim.instance != null:
+			break
+		await smoke.frames(1)
+	var inst := sim.instance
+	if inst == null or sim.world.layout != "school":
+		smoke.fail("ENTER did not take you inside")
+		p.god_mode = false
+		return
+	await smoke.frames(4)
+	await smoke.checkpoint("school_foyer")
+
+	# The key, through the search channel the way any cupboard is searched.
+	var desk := {}
+	for c in sim.world.containers:
+		if c.has("key"):
+			desk = c
+	if desk.is_empty() or not smoke_stand_beside(desk):
+		smoke.fail("could not get to the principal's desk")
+	elif not await _smoke_press_until(smoke, "interact", func() -> bool: return inst.keys.get("gym", false)):
+		smoke.fail("searching the principal's desk did not find the gym key")
+
+	# The chained door, on E, with the key.
+	var chained := {}
+	var exit := {}
+	for f in sim.world.features:
+		if String(f.kind) == "chained":
+			chained = f
+		elif String(f.kind) == "exit":
+			exit = f
+	_smoke_stand_at(Vector2(chained.x, chained.y + 44.0))
+	camera.position = p.pos
+	await smoke.frames(3)
+	if not await _smoke_press_until(smoke, "interact", func() -> bool: return chained.open, 60):
+		smoke.fail("E with the key did not unchain the gym")
+	await smoke.checkpoint("school_gym_open")
+
+	# The stand-in, on its feet, and then put down: the way out is what this
+	# leg is about, and PR C is the fight.
+	_smoke_stand_at(Vector2(chained.x, chained.y - 90.0))
+	camera.position = p.pos
+	await smoke.frames(4)
+	await smoke.checkpoint("school_boss")
+	Damage.kill_enemy(sim, inst.boss, p)
+	await smoke.frames(3)
+	if inst.state != "cleared":
+		smoke.fail("the boss is down and the School is not cleared")
+
+	_smoke_stand_at(Vector2(exit.x, exit.y + 44.0))
+	camera.position = p.pos
+	await smoke.frames(3)
+	if not await _smoke_press_until(smoke, "interact", func() -> bool: return sim.instance == null, 60):
+		smoke.fail("the exit did not let you out")
+	await smoke.frames(4)
+	if not sim.cleared.has("school"):
+		smoke.fail("walked out past the boss and the School is not marked cleared")
+	if p.pos.distance_to(door.stand) > 4.0:
+		smoke.fail("came out %.0fpx from the door" % p.pos.distance_to(door.stand))
+	if Instance.refusal(sim, p, "school").is_empty():
+		smoke.fail("the School would open again the same day")
+	await smoke.checkpoint("school_out")
+	p.god_mode = false
+	_smoke_stand_at(back)
+	camera.position = p.pos
+	await smoke.frames(2)
 
 
 ## The scripted session: walk, sprint, photograph the districts, then fight.
@@ -1636,6 +1763,11 @@ func smoke_run(smoke: Node) -> void:
 	p.perks.erase("sixthSense")
 	Perks.recompute_stats(p)
 
+	# The School: the first instanced dungeon, through the real key and the
+	# real panel. Late in the run on purpose — going in draws on the shared
+	# RNG, and every roll after that moves (§8).
+	await smoke_school(smoke)
+
 	# The front door. The smoke run starts in the world rather than at the
 	# title, so this drives the menu directly — but through the same rows and
 	# the same signal a click goes through, not by calling the handlers.
@@ -2164,7 +2296,9 @@ func _quick_load() -> void:
 ## A game with a slot writes itself down on a timer. One without does not:
 ## autosave must never invent a slot behind the player's back.
 func _tick_autosave(dt: float) -> void:
-	if slot < 0 or role == "guest":
+	# Never from inside an instance: a run is never saved (§7). A save the
+	# player asks for is written as the walked-out game (`SaveGame.to_dict`).
+	if slot < 0 or role == "guest" or sim.instance != null:
 		return
 	_autosave_t += dt
 	if _autosave_t < Saves.AUTOSAVE_EVERY:

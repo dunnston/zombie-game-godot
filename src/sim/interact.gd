@@ -70,6 +70,13 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 	if not car.is_empty():
 		return {"kind": "vehicle", "ref": car, "label": sim.cars.prompt(p, car)}
 
+	# Doors that answer the key instead of letting you through: an instance's
+	# way in, and inside one the way out, the chained gym and the exit. Ahead
+	# of containers, because a cabinet by the door is not why you walked here.
+	var door := _door_target(sim, p)
+	if not door.is_empty():
+		return door
+
 	var best := {}
 	var best_d := reach2
 	for c in sim.world.containers:
@@ -129,6 +136,33 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 	if not prop.is_empty():
 		var rule: Dictionary = Config.HARVEST.get(prop.harvest, {})
 		return {"kind": "gather", "ref": prop, "label": "Gather " + rule.get("label", "SCRAPS").capitalize()}
+	return {}
+
+
+## The instance door within reach, and what it has to say for itself. An
+## opened chained door and an exit the boss still guards say nothing.
+static func _door_target(sim: GameSim, p: PlayerSim) -> Dictionary:
+	var f := Instance.feature_near(sim, p, ["instance_door", "leave", "chained", "exit"])
+	if f.is_empty():
+		return {}
+	var inst := sim.instance
+	var cleared := inst != null and inst.state == "cleared"
+	match String(f.kind):
+		"instance_door":
+			return {"kind": "instance_door", "ref": f, "label": Instance.door_label(sim, p, f)}
+		"leave":
+			return {"kind": "leave", "ref": f, "label": "Walk out with everything you found" if cleared
+				else "Leave — and lose everything you found in here"}
+		"chained":
+			if f.open:
+				return {}
+			var has_key: bool = inst != null and inst.keys.get(String(f.key), false)
+			return {"kind": "chained", "ref": f, "label": "Unlock the gym" if has_key
+				else "Chained shut — the key is somewhere in the school"}
+		"exit":
+			if not cleared:
+				return {}
+			return {"kind": "exit", "ref": f, "label": "Walk out with everything you found"}
 	return {}
 
 
@@ -306,6 +340,29 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 				Farming.harvest(sim, p, s)
 			else:
 				sim.emit({"t": "open_bed", "seat": p.seat, "tx": s.tx, "ty": s.ty})
+		"instance_door":
+			var f: Dictionary = target.ref
+			var why := Instance.refusal(sim, p, String(f.id))
+			if not why.is_empty():
+				sim.notify(why, "#c96a5a")
+			else:
+				# The sim does not know about screens: it says the door was
+				# offered and the presentation asks whether you mean it.
+				sim.emit({"t": "open_instance", "seat": p.seat, "kind": String(f.id)})
+		"leave":
+			# Nothing to lose once the boss is down, so nothing to confirm.
+			# Taken at the end of this step, not now: this is the middle of a
+			# player's tick (`Instance.leaving`).
+			if sim.instance != null and sim.instance.state == "cleared":
+				sim.instance.leaving = "extracted"
+			else:
+				sim.emit({"t": "open_leave", "seat": p.seat})
+		"chained":
+			if sim.instance != null:
+				sim.instance.unlock(sim, target.ref)
+		"exit":
+			if sim.instance != null:
+				sim.instance.leaving = "extracted"
 
 
 static func _finish_search(sim: GameSim, p: PlayerSim) -> void:
@@ -319,6 +376,9 @@ static func _finish_search(sim: GameSim, p: PlayerSim) -> void:
 	var at := Vector2(c.x, c.y)
 	var result := Loot.grant_loot(sim, p, Loot.roll_container(sim, c, p.loot_mul, p.rare_loot_mul, p.double_drop_chance), at)
 	sim.emit({"t": "loot", "x": at.x, "y": at.y, "lines": result.lines, "major": result.major})
+	# The key an instance hid in this one: a fact the party learns, not an item.
+	if c.has("key") and sim.instance != null:
+		sim.instance.found_key(sim, String(c.key))
 	Progression.add_xp(sim, p, 6 + int(c.rolls[1]) * 3, "LOOT")
 	sim.threat.add(sim, Config.THREAT.per_loot, p)
 

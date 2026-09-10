@@ -142,6 +142,10 @@ var hotwire_speed_mul := 1.0
 ## how you get "nonexistent function 'new'".
 var bag: Slots
 var hotbar: Slots
+## What you found inside an instance and are trying to carry out (§6.2): its
+## own weight budget, so a good run does not make you slow for the boss, and
+## empty everywhere else. Emptied into the pack when a run ends.
+var haul: Slots
 var equip := {"head": "", "body": "", "hands": "", "legs": "", "feet": "", "offhand": ""}
 var start_weapon: String = Config.START_KIT.weapon
 var slot := 0
@@ -195,6 +199,7 @@ var intent := Intent.new()
 func _init() -> void:
 	bag = Slots.new(Config.PLAYER.inv_slots)
 	hotbar = Slots.new(Config.PLAYER.hotbar_slots)
+	haul = Slots.new(Config.INSTANCE.haul_slots)
 	attrs = Perks.starting_attrs()
 	# So the literals above are never what anything reads: a fresh survivor's
 	# stats come from the same pass that a fully built one's do.

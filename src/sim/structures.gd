@@ -203,6 +203,11 @@ func can_place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim) -> Di
 	var def: Dictionary = Config.STRUCTURES.get(type, {})
 	if def.is_empty():
 		return {"ok": false, "reason": "Unknown"}
+	# The explicit exception to pillar 7 (`tasks/instanced-dungeons.md` §5):
+	# six Stone Walls around a boss and a gun through them would skip every
+	# phase it has. First, because nothing else about the tile matters.
+	if sim.instance != null:
+		return {"ok": false, "reason": "Nothing can be built in here"}
 	if not is_unlocked(type):
 		return {"ok": false, "reason": "Needs Workbench II"}
 	if tx < 1 or ty < 1 or tx >= W - 1 or ty >= W - 1:

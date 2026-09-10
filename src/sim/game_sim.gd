@@ -44,6 +44,12 @@ var stash: Slots = null
 ## the bitmap, this is the destructible map (invariant 2).
 var structs: Structures = null
 
+## The instanced dungeon being run, or null in the town. While it is set, every
+## map field above belongs to the inside and the town is held by the Instance.
+var instance: Instance = null
+## Instance kind -> the day it was last cleared. One clear a day.
+var cleared := {}
+
 ## The view drains these every frame: shots, hits, kills, notices, shakes.
 ## Co-op sends the same list to guests.
 var events: Array[Dictionary] = []
@@ -96,6 +102,10 @@ func start(world_: World, run_seed: int = 1) -> void:
 	raid = null
 	raids_done = 0
 	human_raids_done = 0
+	# A load from inside a run lands in the town: whatever the Instance was
+	# holding is dropped along with it.
+	instance = null
+	cleared.clear()
 	bullets.clear()
 	enemies.list.clear()
 	enemies.corpses.clear()
@@ -423,33 +433,44 @@ func _discover(p: PlayerSim) -> void:
 
 func tick(dt: float) -> void:
 	time += dt
+	# Inside an instance the town is set aside, and nothing that runs it ticks:
+	# not its clock, Threat, raids, crew, cars or base, and not the standing
+	# population — a dungeon is a finite crowd you can clear. The inside has a
+	# clock of its own, frozen at its light.
+	var town := instance == null
 	# The clock first: everything below it that asks about the dark — the
 	# spawner, the sense check, walk speed, Threat — should be asking about
 	# this tick and not the last one.
-	clock.tick(self, dt)
+	if town:
+		clock.tick(self, dt)
 	enemies.rebuild_spatial()
 	for p in players:
 		p.tick(self, dt)
 		_discover(p)
 	enemies.tick_ai(self, dt)
 	Combat.tick_bullets(self, dt)
-	structs.tick(self, dt)
+	if town:
+		structs.tick(self, dt)
 	# After the structures and before the spawner: fire kills, and a kill
 	# should deposit its quiet before the refill check reads the field.
 	fire.tick(self, dt)
 	# After the structures so a builder patches what this tick damaged, and
 	# before the spawner so a survivor kill deposits its quiet in time.
-	crew.tick(self, dt)
-	cars.tick(self, dt)
+	if town:
+		crew.tick(self, dt)
+		cars.tick(self, dt)
 	Loot.update_pickups(self, dt)
 	# Quiet decays before the spawner reads it, so a lull always ends on time.
 	quiet.tick(dt)
-	enemies.tick_spawning(self, dt)
-	threat.tick(self, dt)
-	if raid != null:
-		raid.tick(self, dt)
-	elif threat.raid_ready(self):
-		Raid.start(self, Raid.humans_come_for(self))
+	if town:
+		enemies.tick_spawning(self, dt)
+		threat.tick(self, dt)
+		if raid != null:
+			raid.tick(self, dt)
+		elif threat.raid_ready(self):
+			Raid.start(self, Raid.humans_come_for(self))
+	else:
+		instance.tick(self, dt)
 	for c in enemies.corpses:
 		c.t += dt
 	while not enemies.corpses.is_empty() and enemies.corpses[0].t > enemies.corpses[0].life:
