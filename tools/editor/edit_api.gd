@@ -20,7 +20,7 @@ extends RefCounted
 ## Notion's Items table. The rest are `config.gd` tables by their own names.
 const TABLES := ["WEAPONS", "RES", "CONSUMABLES", "GEAR", "RECIPES", "STRUCTURES", "LOOT", "CONTAINERS", "ENEMIES", "CROPS", "CATALOG"]
 ## Read-only context the cross-references and the checks need.
-const CONSTS := ["AMMO_IDS", "WEAR", "HARVEST", "FURNISHING", "BENCH_UPGRADE_COST"]
+const CONSTS := ["AMMO_IDS", "WEAR", "HARVEST", "FURNISHING", "BENCH_UPGRADE_COST", "BRAIN_DROPS"]
 ## The tables an item can be defined in, for "is this catalog entry real?".
 const ITEM_TABLES := ["WEAPONS", "GEAR", "CONSUMABLES", "RES", "STRUCTURES"]
 const ART_DIR := "res://art/items/"
@@ -31,8 +31,14 @@ const STATIC := {
 	"/app.css": ["app.css", "text/css; charset=utf-8"],
 }
 
-## Tests point this somewhere under user:// so a run never edits real content.
+## An uploaded image must be a PNG, and a sensible one.
+const PNG_MAGIC := [137, 80, 78, 71, 13, 10, 26, 10]
+const MAX_ART_BYTES := 4 * 1024 * 1024
+const MAX_ART_SIDE := 2048
+
+## Tests point these somewhere under user:// so a run never edits real content.
 var data_dir := DataTable.DIR
+var art_dir := ART_DIR
 ## Required on every write. The page gets it inside index.html, which another
 ## origin cannot read.
 var token := ""
@@ -47,7 +53,8 @@ func _init() -> void:
 
 
 ## -> {"status": int, "type": String, "body": PackedByteArray}
-func handle(method: String, path: String, headers: Dictionary, body: String) -> Dictionary:
+## `raw` is the body as bytes, for an image upload; `body` is the same as text.
+func handle(method: String, path: String, headers: Dictionary, body: String, raw := PackedByteArray()) -> Dictionary:
 	if not allowed_hosts.is_empty() and not String(headers.get("host", "")) in allowed_hosts:
 		return _text(403, "Unknown host.")
 	path = path.get_slice("?", 0)
@@ -59,10 +66,14 @@ func handle(method: String, path: String, headers: Dictionary, body: String) -> 
 		if path == "/api/tables":
 			return _json(200, tables())
 		return _text(404, "Not found.")
-	if method != "PUT" and method != "POST":
+	if not method in ["PUT", "POST", "DELETE"]:
 		return _text(405, "Method not allowed.")
 	if token.is_empty() or String(headers.get("x-edit-token", "")) != token:
 		return _text(403, "Missing or wrong edit token. Reload the page.")
+	if path.begins_with("/api/art/"):
+		return _write_art(method, path.substr(9), raw)
+	if method == "DELETE":
+		return _text(405, "Method not allowed.")
 	var parts := path.split("/", false)
 	var route := "%s %s" % [method, parts[1] if parts.size() == 3 and parts[0] == "api" else ""]
 	if not route in ["PUT table", "POST validate"]:
@@ -182,9 +193,10 @@ func tables() -> Dictionary:
 	for name: String in CONSTS:
 		consts[name] = _config.get(name)
 	var art := []
-	for f: String in DirAccess.get_files_at(ART_DIR):
-		if f.ends_with(".png"):
-			art.append(f.get_basename())
+	if DirAccess.dir_exists_absolute(art_dir):
+		for f: String in DirAccess.get_files_at(art_dir):
+			if f.ends_with(".png"):
+				art.append(f.get_basename())
 	return {"tables": out, "consts": consts, "art": art, "problems": integrity(world())}
 
 
@@ -247,11 +259,64 @@ func _static(path: String) -> Dictionary:
 	return {"status": 200, "type": spec[1], "body": text.to_utf8_buffer()}
 
 
+## Upload (PUT) or remove (DELETE) `art/items/<id>.png` or `<id>_ground.png`.
+## The name must be an item that exists — in a table, or planned in the
+## catalog — and the bytes a real PNG of a sane size: the game will draw
+## whatever lands in this folder.
+func _write_art(method: String, file: String, raw: PackedByteArray) -> Dictionary:
+	var m := RegEx.create_from_string("^([A-Za-z0-9_]+)\\.png$").search(file)
+	if m == null:
+		return _json(404, {"errors": ["Art files are named <item id>.png or <item id>_ground.png."]})
+	var id := m.get_string(1).trim_suffix("_ground")
+	if not _art_ids().has(id):
+		return _json(404, {"errors": ["There is no item called '%s' to give art to." % id]})
+	var path := art_dir + file
+	var rel := "art/items/" + file
+	if method == "DELETE":
+		if not FileAccess.file_exists(path):
+			return _json(404, {"errors": ["%s does not exist." % rel]})
+		DirAccess.remove_absolute(path)
+		if FileAccess.file_exists(path + ".import"):
+			DirAccess.remove_absolute(path + ".import")
+		return _json(200, {"errors": [], "file": rel, "removed": true})
+	if method != "PUT":
+		return _text(405, "Method not allowed.")
+	if raw.size() > MAX_ART_BYTES:
+		return _json(413, {"errors": ["That image is over %d MB." % (MAX_ART_BYTES / 1024 / 1024)]})
+	if raw.size() < 8 or Array(raw.slice(0, 8)) != PNG_MAGIC:
+		return _json(422, {"errors": ["That is not a PNG file."]})
+	var img := Image.new()
+	if img.load_png_from_buffer(raw) != OK:
+		return _json(422, {"errors": ["That PNG could not be read."]})
+	if img.get_width() > MAX_ART_SIDE or img.get_height() > MAX_ART_SIDE:
+		return _json(422, {"errors": ["That image is %dx%d; keep it to %d px a side." % [img.get_width(), img.get_height(), MAX_ART_SIDE]]})
+	DirAccess.make_dir_recursive_absolute(art_dir)
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		return _json(500, {"errors": ["Could not write %s." % rel]})
+	f.store_buffer(raw)
+	f.close()
+	return _json(200, {"errors": [], "file": rel, "width": img.get_width(), "height": img.get_height()})
+
+
+## Every id art may be named after: the items in the game, and the planned
+## ones in the catalog, so art can arrive before the item does.
+func _art_ids() -> Dictionary:
+	var w := world()
+	var ids := {}
+	for t: String in ["WEAPONS", "GEAR", "CONSUMABLES", "RES"]:
+		for k: Variant in w.sets[t]:
+			ids[String(k)] = true
+	for r: Variant in w.docs.get("CATALOG", {}).get("rows", []):
+		ids[String(r.get("id", ""))] = true
+	return ids
+
+
 ## An item's art, by file name only: `pistol.png`, never a path.
 func _art(file: String) -> Dictionary:
 	if RegEx.create_from_string("^[A-Za-z0-9_]+\\.png$").search(file) == null:
 		return _text(404, "Not found.")
-	var bytes := FileAccess.get_file_as_bytes(ART_DIR + file)
+	var bytes := FileAccess.get_file_as_bytes(art_dir + file)
 	if bytes.is_empty():
 		return _text(404, "No art yet.")
 	return {"status": 200, "type": "image/png", "body": bytes}

@@ -20,13 +20,19 @@ const CATEGORY_ORDER = ["Weapons", "Tools", "Clothing/Armor", "Ammo", "Medical I
 // The planned benches from Notion's Workbenches table, and their catalog rows.
 const PLANNED_BENCHES = [["Player Menu", null], ["Basic", "basicBench"], ["Advanced", "advancedBench"], ["Tech", "techBench"]];
 // Owner-facing views over the tables. Each returns the view's content.
-const VIEWS = { Workbenches: viewWorkbenches, Materials: viewMaterials, Tools: viewTools, Ammo: viewAmmo, Catalog: viewCatalog };
+const VIEWS = { Workbenches: viewWorkbenches, Weapons: viewWeapons, Materials: viewMaterials, Tools: viewTools, Ammo: viewAmmo, Catalog: viewCatalog };
+// Notion's weapon classes, in its order: six melee, then eight ranged.
+const MELEE = ["Improvised", "Blunt", "Bladed", "Axes", "Polearms", "Heavy"];
+const RANGED = ["Handguns", "Shotguns", "Rifles", "SMGs", "Assault Rifles", "Precision Rifles", "Bows/Crossbows", "Heavy/Special"];
+// The tables whose rows are items, and so have a catalog class and a look.
+const CLASSED = ["WEAPONS", "GEAR", "CONSUMABLES", "RES"];
 
 const S = {
   tables: {},   // name -> {name, editable, file, doc, dirty, gitDirty, loadErrors}
   order: [],
   consts: {},
   art: [],      // file names (no .png) present in art/items/
+  artVer: Date.now(), // bumped on upload so the browser fetches the new picture
   problems: [], // broken references across all content, from the server
   view: null,   // a key of VIEWS, or null for a table
   cur: null,    // the table the detail pane edits
@@ -380,13 +386,19 @@ function renderProblems() {
   if (other.length) add(box, el("b", {}, "Already broken in the content on disk:"), el("ul", {}, other.map((e) => el("li", {}, e))));
 }
 
+// An item's catalog class ("Blunt", "Salvage"), shown and filtered as if it
+// were a column (`class=Blunt`), though it lives in the catalog.
+const classOf = (id) => { const c = catalogRow(id); return c ? c.subcategory || c.category : undefined; };
+const classed = (t) => CLASSED.includes(t.name) && !!S.tables.CATALOG;
+const decorate = (t, r) => (classed(t) ? { ...r, class: classOf(r.id) } : r);
+
 function visibleRows(t) {
   const preds = parseFilter(S.filter);
-  let rows = t.doc.rows.filter((r) => preds.every((p) => p(r)));
+  let rows = t.doc.rows.filter((r) => { const d = decorate(t, r); return preds.every((p) => p(d)); });
   if (S.sort) {
     const { key, up } = S.sort;
     rows = [...rows].sort((a, b) => {
-      const x = a[key], y = b[key];
+      const x = decorate(t, a)[key], y = decorate(t, b)[key];
       if (x === undefined) return 1;
       if (y === undefined) return -1;
       const c = typeof x === "number" && typeof y === "number" ? x - y : String(fmt(x)).localeCompare(fmt(y));
@@ -399,7 +411,7 @@ function visibleRows(t) {
 function renderGrid() {
   const t = cur();
   if (!t) return;
-  const cols = ["id", ...orderKeys(Object.keys(t.doc.fields))];
+  const cols = ["id", ...(classed(t) ? ["class"] : []), ...orderKeys(Object.keys(t.doc.fields))];
   const rows = visibleRows(t);
   const badIds = new Set(S.errors.map((e) => (e.match(/(?:^|\s)([\w-]+)\.[\w]+:/) || [])[1]).filter(Boolean));
   const th = cols.map((c) => el("th", {
@@ -410,7 +422,7 @@ function renderGrid() {
   const body = rows.map((r) => el("tr", {
     class: [r.id === S.sel ? "sel" : "", badIds.has(r.id) ? "bad" : ""].join(" ").trim(),
     onclick: () => go(S.cur, r.id),
-  }, cols.map((c) => cell(r[c]))));
+  }, cols.map((c) => (c === "class" ? el("td", { class: "cls", title: "from the catalog" }, classOf(r.id) || "·") : cell(r[c])))));
   const count = el("p", { class: "hint", style: "margin:6px 14px" },
     rows.length === t.doc.rows.length ? `${rows.length} rows` : `${rows.length} of ${t.doc.rows.length} rows`,
     S.sort ? " · sorted for viewing; the file keeps its order" : "");
@@ -492,6 +504,194 @@ function plannedBenches(q) {
         recycler.notes ? el("div", { class: "hint prose clamp" }, recycler.notes) : "",
         recyclable.filter((c) => hit(q, c)).map((c) => el("div", { class: "line" },
           el("a", { class: "go", onclick: () => openItem(c.id) }, c.name), el("span", { class: "hint" }, ` → ${c.breaks_down_into}`)))) : ""));
+}
+
+function viewWeapons(q) {
+  const C = listRows("CATALOG").filter((c) => c.category === "Weapons");
+  const filed = new Set(C.map((c) => c.id));
+  const loose = listRows("WEAPONS").filter((w) => !filed.has(w.id)).map((w) => ({ id: w.id, name: w.name, status: "in game" }));
+  const table = (list) => el("table", { class: "vt" },
+    el("thead", {}, el("tr", {}, ["Name", "status", "dmg", "cd", "reach / mag", "stagger · bleed", "uses", "crafted at", "found in", "design ratings"].map((h) => el("th", {}, h)))),
+    el("tbody", {}, list.map((c) => {
+      const w = rowById("WEAPONS", c.id);
+      const made = w ? recipesMaking(c.id) : [];
+      const found = w ? foundSpots(c.id).length : 0;
+      return el("tr", { class: S.sel === c.id ? "sel" : "", onclick: () => openItem(c.id) },
+        el("td", {}, swatch(w && w.color), c.name), el("td", {}, badge(c.status)),
+        el("td", { class: "num" }, w ? w.dmg : ""), el("td", { class: "num" }, w ? w.cd : ""),
+        el("td", { class: "num" }, w ? (w.kind === "gun" ? `mag ${w.mag}` : w.range) : ""),
+        el("td", {}, w ? [w.stagger ? `stagger ${w.stagger}s` : "", w.bleed ? `bleed ${w.bleed}/s` : ""].filter(Boolean).join(" · ") : ""),
+        el("td", { class: "num" }, w ? (w.dur ?? "∞") : ""),
+        el("td", {}, w ? (made.length ? [...new Set(made.map(placeLabel))].join(", ") : "found only") : c.bench_plan ? `planned: ${c.bench_plan}` : ""),
+        el("td", {}, w ? (found ? `${found} place${found === 1 ? "" : "s"}` : none()) : ""),
+        el("td", { class: "small" }, c.ratings ? Object.entries(c.ratings).map(([k, v]) => `${k.replace(/_/g, " ")} ${v}`).join(" · ") : ""));
+    })));
+  const section = (title, subs) => [el("h2", { class: "group" }, title), subs.map((sub) => {
+    const list = C.filter((c) => c.subcategory === sub && hit(q, c, rowById("WEAPONS", c.id)));
+    if (!list.length) return "";
+    const live = list.filter((c) => c.status === "in game").length;
+    return [el("h3", { class: "section" }, `${sub} · ${live} in game, ${list.length - live} planned`), table(list)];
+  })];
+  const other = C.filter((c) => !MELEE.includes(c.subcategory) && !RANGED.includes(c.subcategory) && hit(q, c));
+  return [
+    el("p", { class: "hint" }, "Weapons by class — Notion's six melee classes, then its eight ranged ones — with the game's numbers beside each weapon that exists and the design ratings for the ones that don't yet. The class lives in the catalog: change it there."),
+    section("Melee", MELEE), section("Ranged", RANGED),
+    other.length ? [el("h3", { class: "section" }, "Other classes"), table(other)] : "",
+    loose.length ? [el("h3", { class: "section" }, "In the game but not in the catalog"), table(loose.filter((c) => hit(q, c)))] : "",
+  ];
+}
+
+// ------------------------------------------------------- finding and odds --
+
+// Loot.roll_container: a search makes a whole number of rolls between the
+// container's two `rolls` values, each a weighted pick with replacement. So
+// the chance of at least one of an entry is 1 − (1 − p)^r, averaged over r.
+// Base odds: Luck and the loot perks are on top of this.
+function searchChance(p, rolls) {
+  const [lo, hi] = Array.isArray(rolls) ? rolls : [1, 1];
+  let s = 0;
+  for (let r = lo; r <= hi; r++) s += 1 - Math.pow(1 - p, r);
+  return s / (hi - lo + 1);
+}
+const pct = (x) => `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
+// A body that carries a named table rolls it twice (Loot._roll_enemy_drop).
+const BODY_ROLLS = [2, 2];
+const bodiesRolling = (table) => listRows("ENEMIES").filter((e) => e.loot_table === table);
+// A loot entry's item id: `weapon:pistol` → pistol, `scrap` → scrap. Keys
+// are per-car and not items.
+function entryItem(entry) {
+  const m = String(entry).match(/^(weapon|gear|armor|item|key):(.*)$/);
+  return m ? (m[1] === "key" ? null : m[2]) : String(entry);
+}
+
+// Every container and body an item can come out of, best odds first — the
+// loot tables, and the brain matter a kill drops (BRAIN_DROPS, where `also`
+// comes with the main drop, so it has the same chance).
+function foundSpots(id) {
+  const out = [];
+  for (const s of lootSources(lootId(id))) {
+    for (const c of s.containers) out.push({ chance: searchChance(s.share, c.rolls), per: "search", table: s.table, e: s.e, where: link("CONTAINERS", c.id, c.label || c.id), name: c.label || c.id });
+    for (const b of bodiesRolling(s.table)) out.push({ chance: searchChance(s.share, BODY_ROLLS), per: "kill", table: s.table, e: s.e, where: link("ENEMIES", b.id, `${b.name || b.id} body`), name: `${b.name || b.id} body` });
+  }
+  for (const [enemy, d] of Object.entries(S.consts.BRAIN_DROPS || {})) {
+    const hitDrop = d.id === id ? d : d.also && d.also.id === id ? d.also : null;
+    if (!hitDrop) continue;
+    const name = `${(rowById("ENEMIES", enemy) || {}).name || enemy} body`;
+    out.push({ chance: d.chance, per: "kill", table: null, e: hitDrop, where: link("ENEMIES", enemy, name), name });
+  }
+  return out.sort((a, b) => b.chance - a.chance);
+}
+
+// What a loot table can give, with per-roll and (given rolls) per-search odds.
+function tableContents(tableName, rolls, perWhat) {
+  const lt = rowById("LOOT", tableName);
+  const entries = lt && Array.isArray(lt.entries) ? lt.entries : [];
+  const total = entries.reduce((a, e) => a + (e.w || 0), 0);
+  const rows = entries.map((e) => ({ e, p: total ? e.w / total : 0 })).sort((a, b) => b.p - a.p);
+  if (!rows.length) return el("p", { class: "hint" }, `No loot table called ${tableName}.`);
+  return el("table", { class: "vt" },
+    el("thead", {}, el("tr", {}, ["Item", "at a time", "per roll", perWhat].filter(Boolean).map((h) => el("th", {}, h)))),
+    el("tbody", {}, rows.map(({ e, p }) => {
+      const id = entryItem(e.id);
+      return el("tr", { class: S.sel === id ? "sel" : "", onclick: () => id && openItem(id) },
+        el("td", {}, id ? [swatch((findItem(id) || { row: {} }).row.color), itemName(id)] : e.id),
+        el("td", { class: "num" }, e.min === e.max ? String(e.min) : `${e.min}–${e.max}`),
+        el("td", { class: "num" }, pct(p)),
+        perWhat ? el("td", { class: "num" }, el("b", {}, pct(searchChance(p, rolls)))) : "");
+    })));
+}
+
+function containerCard(c) {
+  const F = S.consts.FURNISHING || {};
+  const stands = Object.entries(F).map(([b, list]) => {
+    const total = list.reduce((a, x) => a + x[1], 0);
+    const w = list.filter((x) => x[0] === c.id).reduce((a, x) => a + x[1], 0);
+    return w ? `${b} (${pct(w / total)} of its furniture)` : null;
+  }).filter(Boolean);
+  return el("div", {},
+    el("h3", {}, "Can contain"),
+    el("p", { class: "hint" }, "A search rolls ", link("LOOT", c.table, `table ${c.table}`), ` ${c.rolls[0]}–${c.rolls[1]} times. `,
+      "“Per search” is the chance of at least one, at base odds."),
+    tableContents(c.table, c.rolls, "per search"),
+    el("h3", {}, "Stands in"),
+    stands.length ? el("p", {}, stands.join(" · ")) : el("p", { class: "hint" }, "No building's furnishing table places it; the world generator puts it where it stands."));
+}
+
+function lootTableCard(lt) {
+  const conts = listRows("CONTAINERS").filter((c) => c.table === lt.id);
+  const bodies = bodiesRolling(lt.id);
+  return el("div", {},
+    el("h3", {}, "Rolled by"),
+    conts.length || bodies.length ? el("ul", { class: "refs" },
+      conts.map((c) => el("li", {}, link("CONTAINERS", c.id, c.label || c.id), el("span", { class: "hint" }, ` · ${c.rolls[0]}–${c.rolls[1]} rolls a search`))),
+      bodies.map((b) => el("li", {}, link("ENEMIES", b.id, `${b.name || b.id} body`), el("span", { class: "hint" }, " · 2 rolls a kill"))))
+      : el("p", { class: "hint" }, "Nothing rolls this table."),
+    el("h3", {}, "Contents"), tableContents(lt.id, null, null));
+}
+
+function enemyCard(e) {
+  // What the body gives up besides a loot table: its BRAIN_DROPS row, one
+  // roll a kill however many loot perks are stacked on top.
+  const d = (S.consts.BRAIN_DROPS || {})[e.id];
+  return el("div", {},
+    d ? [el("h3", {}, "Brain matter"), el("div", { class: "line" },
+      el("b", {}, pct(d.chance)), " a kill: ", el("a", { class: "go", onclick: () => openItem(d.id) }, itemName(d.id)), ` ${d.min}–${d.max}`,
+      d.also ? [" and ", el("a", { class: "go", onclick: () => openItem(d.also.id) }, itemName(d.also.id)), ` ${d.also.min}–${d.also.max}`] : "",
+      el("span", { class: "hint" }, " (BRAIN_DROPS)"))] : "",
+    e.loot_table ? [el("h3", {}, "Carries"), el("p", { class: "hint" }, "Its body rolls ", link("LOOT", e.loot_table, `table ${e.loot_table}`), " twice."),
+      tableContents(e.loot_table, BODY_ROLLS, "per kill")] : "");
+}
+
+// The three questions about any item, answered first: where do I make it,
+// where do I find it, what is it for.
+function itemSummary(id) {
+  const made = recipesMaking(id);
+  const used = [...recipesUsing(id), ...structuresUsing(id)];
+  const spots = foundSpots(id);
+  const harvest = rowsOf(S.consts.HARVEST || {}).filter((h) => h.res === id || h.bonus === id);
+  return el("div", { class: "card summary" },
+    el("div", {}, el("b", {}, "Crafted at: "), made.length ? made.map((r, i) => [i ? " · " : "",
+      link("RECIPES", r.id, placeLabel(r)), r.station && r.bench ? ` + bench ${r.bench}` : "", r.hammer ? " (or by hand, carrying a Stone Hammer)" : ""])
+      : el("span", { class: "hint" }, "can't be crafted")),
+    el("div", {}, el("b", {}, "Found in: "), spots.length
+      ? [spots.slice(0, 4).map((s, i) => [i ? ", " : "", s.where, ` ${pct(s.chance)}`]), spots.length > 4 ? ` and ${spots.length - 4} more below` : ""]
+      : el("span", { class: "hint" }, "no container or body")),
+    harvest.length ? el("div", {}, el("b", {}, "Harvested from: "), harvest.map((h) => h.id).join(", ")) : "",
+    el("div", {}, el("b", {}, "Used in: "), used.length ? `${used.length} recipe${used.length === 1 ? "" : "s"}` : el("span", { class: "hint" }, "nothing")));
+}
+
+// ------------------------------------------------------------------- art --
+
+async function toPng(file) {
+  if (file.type === "image/png") return file;
+  const bmp = await createImageBitmap(file);
+  const c = document.createElement("canvas");
+  c.width = bmp.width;
+  c.height = bmp.height;
+  c.getContext("2d").drawImage(bmp, 0, 0);
+  return new Promise((res) => c.toBlob(res, "image/png"));
+}
+
+async function uploadArt(name, file) {
+  let png;
+  try { png = await toPng(file); } catch { return toast(`${file.name} is not an image the browser can read.`, true); }
+  const r = await fetch(`/api/art/${name}.png`, { method: "PUT", headers: { "Content-Type": "image/png", "X-Edit-Token": TOKEN }, body: png });
+  const text = await r.text();
+  let j;
+  try { j = JSON.parse(text); } catch { j = { errors: [text] }; }
+  if (!r.ok) return toast(`Not saved: ${(j.errors || [text]).join("; ")}`, true);
+  S.artVer = Date.now();
+  toast(`Saved ${j.file} (${j.width}×${j.height}). The game uses it now; commit it with git.`);
+  await load();
+}
+
+async function removeArt(name) {
+  if (!confirm(`Delete art/items/${name}.png? The item goes back to its placeholder.`)) return;
+  const r = await fetch(`/api/art/${name}.png`, { method: "DELETE", headers: { "X-Edit-Token": TOKEN } });
+  if (!r.ok) return toast(`Not removed: ${await r.text()}`, true);
+  S.artVer = Date.now();
+  toast(`Removed art/items/${name}.png.`);
+  await load();
 }
 
 function materialTable(ids, q) {
@@ -961,13 +1161,19 @@ function lootSources(entryId) {
   return out;
 }
 
+// Where an item can be found: every container and body, with the chance of
+// at least one per search or per kill, best first.
 function lootCards(entryId, empty) {
-  const src = lootSources(entryId);
-  if (!src.length) return el("p", { class: "hint" }, empty);
-  return src.map((s) => el("div", { class: "card" },
-    link("LOOT", s.table, `LOOT ${s.table}`), ` — weight ${s.e.w} of the table (${(s.share * 100).toFixed(1)}% a roll), ${s.e.min}–${s.e.max} at a time`,
-    s.containers.length ? el("div", { class: "hint" }, "in: ", s.containers.map((c, i) =>
-      [i ? ", " : "", link("CONTAINERS", c.id, c.label || c.id), Array.isArray(c.rolls) ? ` (${c.rolls[0]}–${c.rolls[1]} rolls)` : ""])) : ""));
+  const id = entryItem(entryId);
+  const spots = foundSpots(id);
+  const orphan = lootSources(entryId).filter((s) => !s.containers.length && !bodiesRolling(s.table).length);
+  if (!spots.length && !orphan.length) return el("p", { class: "hint" }, empty);
+  return el("div", { class: "card" },
+    el("div", { class: "hint" }, "Chance of at least one, at base odds (Luck and the loot perks add to it)."),
+    spots.map((s) => el("div", { class: "line" }, s.where, " ", el("b", {}, pct(s.chance)),
+      el("span", { class: "hint" }, ` a ${s.per} · ${s.e.min === s.e.max ? s.e.min : `${s.e.min}–${s.e.max}`} at a time · `),
+      s.table ? link("LOOT", s.table, `table ${s.table}`) : el("span", { class: "hint" }, "brain drop"))),
+    orphan.map((s) => el("div", { class: "line" }, link("LOOT", s.table, `table ${s.table}`), el("span", { class: "hint" }, " — nothing rolls this table"))));
 }
 
 function recipeCard(r) {
@@ -977,24 +1183,42 @@ function recipeCard(r) {
     el("div", {}, chips(r.cost), tags, r.xp ? el("span", { class: "chip tag" }, `${r.xp} xp`) : ""));
 }
 
-// How the item looks: its art if art/items/ has any, else the placeholder the
-// game draws, and the file names that would change that.
+// How the item looks, and where to change it: upload or drop an image on
+// either slot. The icon is the pack and hotbar; the ground sprite is
+// optional and falls back to the icon. Without either the game draws the
+// placeholder shown here.
 function lookCard(table, row) {
-  if (!["WEAPONS", "GEAR", "CONSUMABLES", "RES"].includes(table) || row.id === "fists") return "";
+  if (![...CLASSED, "CATALOG"].includes(table) || row.id === "fists") return "";
   const id = row.id;
   const has = (n) => S.art.includes(n);
-  const pip = table === "RES" || table === "CONSUMABLES";
-  const ph = () => el("span", { class: pip ? "ph pip" : "ph crate", style: `background:${row.color || "#ebe6d6"}` });
-  const img = (n) => el("img", { src: `/art/items/${n}.png`, alt: n, class: "art" });
+  const item = findItem(id) || { table, row };
+  const pip = item.table === "RES" || item.table === "CONSUMABLES";
+  const color = item.row.color || "#8b929a";
+  const slot = (suffix, caption) => {
+    const name = id + suffix;
+    const shown = has(name) ? name : suffix && has(id) ? id : null;
+    const pick = el("input", { type: "file", accept: "image/png,image/jpeg,image/webp,image/gif", hidden: true,
+      onchange: (e) => e.target.files[0] && uploadArt(name, e.target.files[0]) });
+    const fig = el("figure", {
+      class: "drop", title: "Drop an image here, or use Upload",
+      ondragover: (e) => { e.preventDefault(); fig.classList.add("over"); },
+      ondragleave: () => fig.classList.remove("over"),
+      ondrop: (e) => { e.preventDefault(); fig.classList.remove("over"); const f = e.dataTransfer.files[0]; if (f) uploadArt(name, f); },
+    },
+    shown ? el("img", { src: `/art/items/${shown}.png?v=${S.artVer}`, alt: shown, class: "art" }) : el("span", { class: pip ? "ph pip" : "ph crate", style: `background:${color}` }),
+    el("figcaption", {}, caption, suffix && !has(name) && has(id) ? " (icon)" : ""),
+    el("div", { class: "row2 center" },
+      el("button", { class: "small", onclick: () => pick.click() }, has(name) ? "Replace" : "Upload"),
+      has(name) ? el("button", { class: "small danger", onclick: () => removeArt(name) }, "Remove") : ""),
+    pick);
+    return fig;
+  };
   return el("div", {}, el("h3", {}, "Look"), el("div", { class: "card" },
-    el("div", { class: "looks" },
-      el("figure", {}, has(id) ? img(id) : ph(), el("figcaption", {}, "pack & hotbar")),
-      el("figure", {}, has(`${id}_ground`) ? img(`${id}_ground`) : has(id) ? img(id) : ph(), el("figcaption", {}, "on the ground"))),
+    el("div", { class: "looks" }, slot("", "icon — pack & hotbar"), slot("_ground", "on the ground")),
     el("div", { class: "hint" },
-      has(id) ? ["Using ", el("code", {}, `art/items/${id}.png`), has(`${id}_ground`) ? [" and ", el("code", {}, `${id}_ground.png`)] : "", ". "]
-        : `Placeholder: the game draws a ${pip ? "coloured pip" : "coloured crate"} in this row's colour. `,
-      "For real art, drop ", el("code", {}, `art/items/${id}.png`), " (icon) and optionally ", el("code", {}, `${id}_ground.png`),
-      " (dropped) — the game picks them up with no code change. See art/items/README.md.")));
+      has(id) ? "" : `Placeholder until there is art: the game draws a ${pip ? "coloured pip" : "coloured crate"} in this row's colour. `,
+      "Upload or drop a PNG (JPG and WebP are converted). It is saved as ", el("code", {}, `art/items/${id}.png`),
+      " and the game uses it straight away; commit it with git like any other change.")));
 }
 
 function catalogCard(table, row) {
@@ -1081,12 +1305,17 @@ function weaponCard(w) {
 
 function xref(t, row) {
   const box = el("section", {});
+  const isItem = (CLASSED.includes(t.name) || (t.name === "CATALOG" && findItem(row.id))) && row.id !== "fists";
+  if (isItem) add(box, el("h3", {}, "At a glance"), itemSummary(row.id));
   add(box, lookCard(t.name, row), catalogCard(t.name, row));
   if (t.name === "CATALOG") add(box, catalogBack(row));
   if (t.name === "WEAPONS") add(box, weaponCard(row));
   if (t.name === "RES" || t.name === "CONSUMABLES" || t.name === "GEAR") {
-    add(box, madeAndUsed(row.id), el("h3", {}, "Found in"), lootCards(lootId(row.id), "No loot table rolls it."));
+    add(box, madeAndUsed(row.id), el("h3", {}, "Found in"), lootCards(lootId(row.id), "No container or body gives it."));
   }
+  if (t.name === "CONTAINERS") add(box, containerCard(row));
+  if (t.name === "LOOT") add(box, lootTableCard(row));
+  if (t.name === "ENEMIES") add(box, enemyCard(row));
   if (t.name !== "CATALOG") {
     const refs = referencedBy(t.name, row.id);
     add(box, el("h3", {}, `Referenced by (${refs.length})`), refs.length

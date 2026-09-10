@@ -2027,6 +2027,23 @@ change at the end of each phase, never ahead of what is built.
       drag ghost and ground draw it when present and the placeholder
       otherwise. No art ships, so the game draws exactly as before.
       `icons_test.gd`; the editor shows each item's look and the file name
+- [x] Stage A (owner ask, round 3): image upload/replace/remove on the Look
+      card (server-validated PNG, named after a real or planned item);
+      Weapons view by Notion class, melee then ranged, and a `class`
+      column on the item tables; containers ⇄ items both ways with chance
+      per search (and per kill for bodies, and BRAIN_DROPS); "At a glance"
+      (crafted at / found in / used in) on every item. Verified over the
+      live socket: upload → identical bytes → listed → delete; bad id 404,
+      not a PNG 422, no token 403
+- [ ] Stage B: migrate the other nine tables. Needs, in DataTable: row
+      shapes (RECIPES is an array; RES and CONTAINERS rows carry no id;
+      LOOT is a dict of lists) and nested `object` / `list<object>` types
+      (give, loot entries, light). Per table: comments to notes, strict
+      parity (keys, values, Variant types, order) and a var_to_str
+      snapshot before and after; any const expression inside a literal
+      (STASH_SLOTS in STRUCTURES) resolved and reported
+- [ ] Finding to report: an ordinary zombie's drop chances are hard-coded
+      in `Loot._roll_enemy_drop`, not in config.gd (invariant 5)
 - [ ] Owner: run `tools\edit`, try it, and say whether the other nine
       tables migrate now (RECIPES next: `cost` is `map<int>` with
       `key_ref`, `give` needs a shape decision)

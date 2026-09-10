@@ -79,14 +79,16 @@ func _process(_delta: float) -> bool:
 				_send(peer, {"status": 413, "type": "text/plain", "body": "Request too large or too slow.".to_utf8_buffer()})
 				conns.erase(c)
 			continue
-		var res := api.handle(req.method, req.path, req.headers, req.body)
+		var res := api.handle(req.method, req.path, req.headers, req.body, req.get("raw", PackedByteArray()))
 		_send(peer, res)
 		if res.status >= 400:
 			print("  %s %s -> %d" % [req.method, req.path, res.status])
-		elif req.method == "PUT":
+		elif req.method == "PUT" or req.method == "DELETE":
 			var info: Variant = JSON.parse_string((res.body as PackedByteArray).get_string_from_utf8())
-			if typeof(info) == TYPE_DICTIONARY:
+			if typeof(info) == TYPE_DICTIONARY and info.has("diff"):
 				print("  saved %s (+%d -%d lines)" % [info.get("file", "?"), info.diff.added, info.diff.removed])
+			elif typeof(info) == TYPE_DICTIONARY:
+				print("  %s %s" % ["removed" if req.method == "DELETE" else "saved", info.get("file", "?")])
 		conns.erase(c)
 	OS.delay_msec(5)
 	return false
@@ -113,8 +115,10 @@ func _parse(buf: PackedByteArray) -> Dictionary:
 	var length := int(headers.get("content-length", "0"))
 	if buf.size() < end + 4 + length:
 		return {}
+	# The raw bytes as well as the text: an image upload is not UTF-8.
+	var raw := buf.slice(end + 4, end + 4 + length)
 	return {"method": first[0], "path": first[1].uri_decode(), "headers": headers,
-		"body": buf.slice(end + 4, end + 4 + length).get_string_from_utf8()}
+		"body": raw.get_string_from_utf8(), "raw": raw}
 
 
 func _send(peer: StreamPeerTCP, res: Dictionary) -> void:

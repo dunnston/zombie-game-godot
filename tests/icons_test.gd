@@ -55,9 +55,13 @@ func test_art_keeps_its_shape_inside_a_slot() -> void:
 
 func test_every_file_in_the_art_folder_is_named_after_an_item() -> void:
 	# The folder the game really reads. A typo would otherwise ship a picture
-	# that no item ever shows.
+	# that no item ever shows. A planned item in the catalog may have art
+	# before it exists; the editor allows exactly the same names.
+	var planned := {}
+	for r: Variant in DataTable.decode(FileAccess.get_file_as_string(DataTable.DIR + "catalog.json")).doc.get("rows", []):
+		planned[String(r.get("id", ""))] = true
 	for f: String in DirAccess.get_files_at(project_dir):
 		if not f.ends_with(".png"):
 			continue
 		var id := f.get_basename().trim_suffix("_ground")
-		ok(Items.has(id), "art/items/%s is named after no item" % f)
+		ok(Items.has(id) or planned.has(id), "art/items/%s is named after no item" % f)

@@ -4,6 +4,7 @@ extends "res://tests/test_case.gd"
 ## the real weapon table would be a very quiet disaster.
 
 const DIR := "user://edit_api_test/"
+const ART := "user://edit_api_art/"
 
 var api: EditApi
 var original := ""
@@ -17,11 +18,66 @@ func before_each() -> void:
 	f.close()
 	api = EditApi.new()
 	api.data_dir = DIR
+	api.art_dir = ART
 	api.token = "secret"
 
 
 func after_each() -> void:
 	DirAccess.remove_absolute(DIR + "weapons.json")
+	if DirAccess.dir_exists_absolute(ART):
+		for f in DirAccess.get_files_at(ART):
+			DirAccess.remove_absolute(ART + f)
+
+
+func _png(w: int, h: int) -> PackedByteArray:
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color.RED)
+	return img.save_png_to_buffer()
+
+
+func _art_put(file: String, bytes: PackedByteArray, token := "secret") -> Dictionary:
+	return api.handle("PUT", "/api/art/" + file, {"x-edit-token": token}, "", bytes)
+
+
+func test_an_icon_is_uploaded_served_and_listed() -> void:
+	var png := _png(32, 16)
+	var res := _art_put("pistol.png", png)
+	eq(res.status, 200, str(_body(res)))
+	eq(_body(res).width, 32.0)
+	eq(FileAccess.get_file_as_bytes(ART + "pistol.png"), png, "the bytes land as sent")
+	var got := api.handle("GET", "/art/items/pistol.png?v=123", {}, "")
+	eq(got.status, 200)
+	eq(got.body, png)
+	has(_body(api.handle("GET", "/api/tables", {}, "")).art, "pistol", "and the page learns it exists")
+	eq(_art_put("pistol_ground.png", png).status, 200, "a ground sprite is named after the item too")
+
+
+func test_art_for_a_planned_item_is_allowed_before_the_item_exists() -> void:
+	# The catalog is not in the test's data dir, so plant a one-row copy.
+	var f := FileAccess.open(DIR + "catalog.json", FileAccess.WRITE)
+	f.store_string('{"fields": {"name": {"type": "string"}}, "rows": [{"id": "katana", "name": "Katana"}]}')
+	f.close()
+	eq(_art_put("katana.png", _png(8, 8)).status, 200)
+	DirAccess.remove_absolute(DIR + "catalog.json")
+
+
+func test_art_must_be_a_real_png_for_a_real_item() -> void:
+	has(_body(_art_put("nosuch.png", _png(8, 8))).errors, "There is no item called 'nosuch' to give art to.")
+	has(_body(_art_put("pistol.png", "not an image at all".to_utf8_buffer())).errors, "That is not a PNG file.")
+	eq(_art_put("pistol.png", _png(3000, 4)).status, 422, "nor a 3000 px strip")
+	eq(_art_put("pistol.png", _png(8, 8), "guess").status, 403, "and never without the token")
+	for bad: String in ["../pistol.png", "pistol.jpg", "pis tol.png", "..%2Fpistol.png"]:
+		eq(_art_put(bad, _png(8, 8)).status, 404, bad)
+	ok(DirAccess.get_files_at(ART).is_empty(), "nothing was written by any of it")
+
+
+func test_art_can_be_removed() -> void:
+	_art_put("pistol.png", _png(8, 8))
+	var res := api.handle("DELETE", "/api/art/pistol.png", {"x-edit-token": "secret"}, "")
+	eq(res.status, 200)
+	ok(not FileAccess.file_exists(ART + "pistol.png"))
+	eq(api.handle("DELETE", "/api/art/pistol.png", {"x-edit-token": "secret"}, "").status, 404, "twice is a 404")
+	eq(api.handle("DELETE", "/api/table/WEAPONS", {"x-edit-token": "secret"}, "").status, 405, "a data file is never deleted")
 
 
 func _doc() -> Dictionary:

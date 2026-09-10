@@ -336,6 +336,12 @@ yet when an earlier autoload's `_ready` wants to know.
   the cached texture. Asserting identity (`eq(ground, icon)`) rather than
   "both are non-null" is what found it.
 
+- The owner types commands in Windows PowerShell 5.1. I gave them
+  `cd "…" && tools/edit.sh` and it failed twice over: no `&&` in that
+  PowerShell, and it cannot run a `.sh`. Commands for the owner are
+  `.\tools\<name>.cmd`, one per line; the `.sh` twins are for Git Bash
+  and Linux.
+
 ## 2026-09-10 (raised beds, continued)
 
 - A review finding can be right about the fact and wrong about the target.
