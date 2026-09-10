@@ -223,6 +223,30 @@ func test_an_unripe_bed_refuses_to_be_harvested() -> void:
 	eq(String(s.seed), "seedPotato", "and the crop is still standing")
 
 
+func test_the_harvest_popup_draws_a_crop() -> void:
+	# A crop is a consumable, not a RES row, and `FxView` once looked its
+	# colour up in `Config.RES` — a script error on every harvest. The
+	# assertion is on the text the view chose to draw, not on the event.
+	var s := _bed()
+	Farming.plant(sim, p, s, "seedPotato")
+	Farming.water(sim, p, s)
+	Farming.water(sim, p, s)
+	_grow(DAY + 1.0)
+	sim.events.clear()
+	var n := Farming.harvest(sim, p, s)
+	gt(n, 0)
+	var fx := FxView.new(sim)
+	for ev in sim.events:
+		if ev.t == "harvest":
+			fx.on_event(ev)
+	var texts := fx.particles.filter(func(q): return q.kind == "text")
+	fx.free()
+	eq(texts.size(), 1, "one popup for the crop")
+	if texts.size() == 1:
+		eq(String(texts[0].text), "%s +%d" % [Items.name_of("potato").to_upper(), n])
+		eq(texts[0].color, Color(Items.color_of("potato")), "in the crop's own colour")
+
+
 # ----------------------------------------------------------- fertilizer --
 
 func test_compost_pays_more_and_changes_nothing_else() -> void:

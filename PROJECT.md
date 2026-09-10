@@ -1038,7 +1038,8 @@ All simulation, all `RefCounted`, all under `src/sim/`:
 
 Presentation: **`EnemyView`** (tiered bodies, arms raised in the wind-up,
 hurt flash and bar, raid tick, fading corpses), **`FxView`** (tracers,
-blood, sparks, muzzle flash, debris, damage numbers, harvest labels, the
+blood, sparks, muzzle flash, debris, damage numbers, harvest labels — coloured
+through `Items.color_of`, since a crop is a consumable and not a RES row — the
 swing arc, rings), the **`Hud`** (hotbar with magazines, reload, Q meds,
 Threat meter with tier, raid banner, notices, hurt vignette, death), and
 `main.gd` draining events into them with camera shake.

@@ -40,7 +40,9 @@ func on_event(ev: Dictionary) -> void:
 			_debris(Vector2(ev.x, ev.y), 4, Color("#4a3a22"))
 		"harvest":
 			_debris(Vector2(ev.x, ev.y), 14, Color("#3f5226") if ev.res == "wood" else Color("#6a6660"))
-			_text(Vector2(ev.x, ev.y - 20), "%s +%d" % [ev.label, ev.n], Color(Config.RES[ev.res].color), 12, 1.0)
+			# `res` is any item, not only a RES row: a raised bed yields crops,
+			# which are consumables.
+			_text(Vector2(ev.x, ev.y - 20), "%s +%d" % [ev.label, ev.n], Color(Items.color_of(ev.res)), 12, 1.0)
 		"float":
 			_text(Vector2(ev.x, ev.y), ev.text, Color(ev.color), 12, 0.7)
 		"ring":

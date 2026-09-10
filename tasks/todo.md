@@ -2054,3 +2054,17 @@ clean `main` (one run there). The third run on this branch passed with
 nothing changed, and the change touches only a test the game never loads,
 so it is the same family of timing flake as the build-mode click above —
 recorded, not fixed here.
+
+## The harvest popup reads any item's colour
+
+- [x] **Every smoke run logged a SCRIPT ERROR in `FxView.on_event`.** A
+      raised bed emits `harvest` with the crop as `res`, and a crop is a
+      consumable; the popup looked its colour up in `Config.RES`, so every
+      garden harvest errored and drew no label. It now asks
+      `Items.color_of`, which covers every kind of item.
+- [x] `farming_test` harvests a real bed, feeds the events to an `FxView`
+      and asserts on the popup it drew. Putting the old lookup back fails
+      it with the smoke's own error.
+
+Numbers: 562 / 7181 fast, 598 / 7329 with `--all`, zero failures. Smoke
+71/71, and no SCRIPT ERROR in its log.
