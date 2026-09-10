@@ -184,13 +184,13 @@ func _verb(id: String) -> void:
 			if Wear.wears(wid):
 				# Down to one use, not to zero: the next swing is what breaks
 				# it, so the break itself can be watched rather than arrived at.
-				player.wear[wid] = 1
+				player.hotbar.set_wear_at(player.slot, 1)
 				sim.notify("DEV  %s is down to its last use" % Config.WEAPONS[wid].name, "#d9c46a")
 			else:
 				sim.notify("DEV  that does not wear out", "#8a8f84")
 		"mend":
-			for wid2 in Wear.worn_carried(player):
-				Wear.mend(player, wid2)
+			for row in Wear.worn_carried(player):
+				Wear.mend(Wear.container_for(player, String(row.c)), int(row.i))
 			sim.notify("DEV  everything mended", "#b7e08a")
 		"human":
 			Mutation.suppress(sim, player, Config.MUTATION.max)

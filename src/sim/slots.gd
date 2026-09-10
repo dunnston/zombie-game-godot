@@ -8,6 +8,14 @@ extends RefCounted
 ## array typed and matches how the rest of the sim spells "nothing here".
 ## Capacity in slots is enforced here; capacity in *weight* is the caller's
 ## business, because the player's budget spans two containers at once.
+##
+## A slot may also carry `w`: uses left, for a weapon that wears (see `Wear`).
+## It is the one piece of per-object state a stack has, and it is here rather
+## than on the player because condition has to travel with the weapon — into
+## a chest, onto the ground, into somebody else's hands. Absent means "new",
+## so nothing has to write a full value into a slot to say the obvious. Only
+## weapons wear and weapons never stack, so no merge ever has to decide what
+## the condition of two joined stacks would be.
 
 var slots: Array[Dictionary] = []
 
@@ -71,10 +79,31 @@ func entries() -> Dictionary:
 	return out
 
 
+## Uses left in the slot at `i`, or -1 for a slot that says nothing — which
+## is every slot that is not a worn weapon.
+func wear_at(i: int) -> int:
+	var s := at(i)
+	return int(s.get("w", -1)) if not s.is_empty() else -1
+
+
+## Writes the condition of the slot at `i`. -1 clears it back to "new".
+func set_wear_at(i: int, w: int) -> void:
+	if i < 0 or i >= slots.size() or slots[i].is_empty():
+		return
+	if w < 0:
+		slots[i].erase("w")
+	else:
+		slots[i]["w"] = w
+
+
 ## Adds up to `n` units, topping up part-used stacks before opening new
 ## slots. Returns how many actually fitted so the caller can spill the rest —
 ## no path may destroy material for want of somewhere to put it.
-func add(id: String, n: int) -> int:
+##
+## `wear` is uses left for a weapon that arrives already worn — out of a
+## chest, off the ground, out of the pack of somebody who died. -1 is the
+## ordinary case: a new thing, whole.
+func add(id: String, n: int, wear := -1) -> int:
 	if n <= 0 or not Items.has(id):
 		return 0
 	var maximum := Items.stack_limit(id)
@@ -93,6 +122,8 @@ func add(id: String, n: int) -> int:
 			continue
 		var take := mini(maximum, left)
 		slots[i] = {"id": id, "n": take}
+		if wear >= 0:
+			slots[i]["w"] = wear
 		left -= take
 	return n - left
 
@@ -101,7 +132,7 @@ func add(id: String, n: int) -> int:
 ## `allowance`. Returns how many were added; the caller puts the rest on the
 ## ground. Slot space can still refuse what weight allowed, and `add` reports
 ## what actually fitted.
-func add_capped(id: String, n: int, allowance: float) -> int:
+func add_capped(id: String, n: int, allowance: float, wear := -1) -> int:
 	if n <= 0 or not Items.has(id):
 		return 0
 	var per := Items.weight_of(id)
@@ -110,7 +141,7 @@ func add_capped(id: String, n: int, allowance: float) -> int:
 		fit = mini(n, maxi(0, floori((allowance - weight()) / per + 1e-9)))
 	if fit <= 0:
 		return 0
-	return add(id, fit)
+	return add(id, fit, wear)
 
 
 ## Removes up to `n` units. Returns how many were actually removed.
@@ -201,6 +232,8 @@ func move_amount(from: int, to: int, n: int, other: Slots = null) -> bool:
 		return false
 	if b.is_empty():
 		dst.slots[to] = {"id": a.id, "n": got}
+		if a.has("w"):
+			dst.slots[to]["w"] = a.w
 	else:
 		b.n += got
 	a.n -= got
@@ -222,11 +255,17 @@ func split(from: int, to: int) -> bool:
 	return true
 
 
-## For saving and for the wire: a compact list of [index, id, n].
+## For saving and for the wire: a compact list of [index, id, n], with a
+## fourth field only where a slot has a condition to report. Keeping it
+## optional means every stack in the game writes exactly what it used to.
 func to_record() -> Array:
 	var out: Array = []
 	for i in range(slots.size()):
-		if not slots[i].is_empty():
+		if slots[i].is_empty():
+			continue
+		if slots[i].has("w"):
+			out.append([i, slots[i].id, slots[i].n, int(slots[i].w)])
+		else:
 			out.append([i, slots[i].id, slots[i].n])
 	return out
 
@@ -237,3 +276,5 @@ func from_record(rec: Array) -> void:
 		var i: int = e[0]
 		if i >= 0 and i < slots.size():
 			slots[i] = {"id": String(e[1]), "n": int(e[2])}
+			if e.size() > 3:
+				slots[i]["w"] = int(e[3])

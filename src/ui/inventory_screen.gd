@@ -184,8 +184,8 @@ func _craft_rows() -> Array[Dictionary]:
 		return out
 	var panel := _panel()
 	var list: Array = []
-	for id in Wear.worn_carried(player):
-		list.append({"repair": id})
+	for row in Wear.worn_carried(player):
+		list.append({"repair": row})
 	for r in recipes():
 		list.append({"recipe": r})
 	var top := panel.position.y + 76.0
@@ -250,7 +250,7 @@ func recipe_centre(id: String) -> Vector2:
 ## The middle of a weapon's MEND row, for the smoke run's cursor.
 func repair_centre(id: String) -> Vector2:
 	for r in _craft_rows():
-		if r.has("repair") and String(r.repair) == id:
+		if r.has("repair") and String(r.repair.id) == id:
 			return r.rect.get_center()
 	return Vector2.ZERO
 
@@ -336,7 +336,7 @@ func _click_chrome(at: Vector2) -> bool:
 	for r in _craft_rows():
 		if r.rect.has_point(at):
 			if r.has("repair"):
-				Actions.repair_weapon(sim, player, String(r.repair), bench())
+				Actions.repair_weapon(sim, player, String(r.repair.c), int(r.repair.i), bench())
 			else:
 				Actions.craft(sim, player, r.recipe, bench())
 			return true
@@ -596,14 +596,17 @@ func _draw_craft(font: Font, panel: Rect2) -> void:
 		var st := {}
 		var verb := "CRAFT"
 		if row.has("repair"):
-			var wid: String = row.repair
+			var at: Dictionary = row.repair
+			var cont := Wear.container_for(player, String(at.c))
 			# "MEND", not "REPAIR": REPAIR is the build bar's word for a wall,
 			# and two different jobs sharing one verb is how a player learns
 			# the wrong thing about which tool does what.
 			verb = "MEND"
-			name_ = "%s  ·  %d%%" % [Config.WEAPONS[wid].name, roundi(Wear.frac(player, wid) * 100.0)]
-			cost = Wear.repair_cost(player, wid)
-			st = Wear.repair_status(sim, player, wid, b)
+			# The percentage is also what tells two Machetes apart, now that
+			# they can be worn differently and each gets its own row.
+			name_ = "%s  ·  %d%%" % [Config.WEAPONS[at.id].name, roundi(Wear.frac(cont, int(at.i)) * 100.0)]
+			cost = Wear.repair_cost(cont, int(at.i))
+			st = Wear.repair_status(sim, player, String(at.c), int(at.i), b)
 		else:
 			var r: Dictionary = row.recipe
 			name_ = r.name
@@ -759,11 +762,13 @@ func _draw_tooltip(font: Font, stack: Dictionary) -> void:
 	elif kind == "weapon":
 		var w: Dictionary = Config.WEAPONS[id]
 		lines.append("%.0f damage  ·  %s" % [w.dmg, w.kind])
+		# Off the stack itself, so the tooltip describes the weapon under the
+		# cursor rather than some other one of the same name.
 		if Wear.wears(id):
-			if Wear.is_broken(player, id):
+			if Wear.broken_in(stack):
 				lines.append("BROKEN  ·  mend it at the bench that made it")
 			else:
-				lines.append("condition %d / %d" % [Wear.left(player, id), Wear.max_of(id)])
+				lines.append("condition %d / %d" % [Wear.left_in(stack), Wear.max_of(id)])
 	elif kind == "consumable":
 		var c: Dictionary = Config.CONSUMABLES[id]
 		if float(c.heal) > 0.0:

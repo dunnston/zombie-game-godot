@@ -554,8 +554,7 @@ static func pack_roster(sim: GameSim) -> Array:
 static func pack_inventory(p: PlayerSim) -> Dictionary:
 	return {
 		"bag": p.bag.to_record(), "hotbar": p.hotbar.to_record(), "equip": p.equip.duplicate(),
-		"mag": p.mag.duplicate(), "wear": p.wear.duplicate(),
-		"car_keys": p.car_keys.duplicate(), "attrs": p.attrs.duplicate(),
+		"mag": p.mag.duplicate(), "car_keys": p.car_keys.duplicate(), "attrs": p.attrs.duplicate(),
 		"perks": p.perks.duplicate(), "sk": p.skill_points, "slot": p.slot,
 		"light_on": p.light_on, "light_fuel": p.light_fuel, "light_id": p.light_id,
 		"light_charge": p.light_charge.duplicate(), "spawn_tx": p.spawn_tile.x, "spawn_ty": p.spawn_tile.y,
@@ -567,6 +566,9 @@ static func pack_inventory(p: PlayerSim) -> Dictionary:
 ## are the snapshot's business; this is the pack, the body slots and the
 ## build, and the recompute that follows any change to them.
 static func apply_inventory(p: PlayerSim, rec: Dictionary) -> void:
+	# Condition rides inside these two records, as the fourth field on a slot:
+	# it is part of what the pack *is*, and the pack diff already goes the
+	# moment anything a guest carries changes.
 	p.bag.from_record(rec.get("bag", []))
 	p.hotbar.from_record(rec.get("hotbar", []))
 	for k in p.equip:
@@ -574,12 +576,6 @@ static func apply_inventory(p: PlayerSim, rec: Dictionary) -> void:
 	p.mag.clear()
 	for k in rec.get("mag", {}):
 		p.mag[String(k)] = int(rec.mag[k])
-	# Wear rides with the pack rather than in the snapshot stride: it changes
-	# only when the host swings or fires, and the pack diff already goes the
-	# moment anything a guest carries changes.
-	p.wear.clear()
-	for k in rec.get("wear", {}):
-		p.wear[String(k)] = int(rec.wear[k])
 	p.car_keys.clear()
 	for k in rec.get("car_keys", []):
 		p.car_keys.append(String(k))

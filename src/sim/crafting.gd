@@ -52,11 +52,19 @@ static func station_name(station: String) -> String:
 
 ## Whether the player is carrying a tool with the given flag ("knife",
 ## "hammer"). Carried, not held: you do not have to swap to it.
+##
+## A broken one does not count. "Broken weapons do nothing until mended" has
+## to mean the bench too, or a zero-condition Stone Knife would still cut
+## cordage and a zero-condition Stone Hammer would still be a workbench you
+## carry — which would make the hammer's whole privilege survive the thing
+## that took it away. Nothing deadlocks: every recipe that names a tool is
+## bench 0, and so is the recipe that mends the tool, so a broken knife is
+## always mendable by hand.
 static func has_tool(p: PlayerSim, flag: String) -> bool:
 	for cont in [p.hotbar, p.bag]:
 		for i in range(cont.size()):
 			var w: Dictionary = Config.WEAPONS.get(cont.id_at(i), {})
-			if w.get(flag, false):
+			if w.get(flag, false) and not Wear.is_broken(cont, i):
 				return true
 	return false
 

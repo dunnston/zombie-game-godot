@@ -2,16 +2,21 @@ class_name Wear
 extends RefCounted
 ## Weapons wear out, and the bench that made one is where it is mended.
 ##
-## Wear is kept the way a magazine is kept: `PlayerSim.wear` is weapon id ->
-## uses left, exactly as `PlayerSim.mag` is weapon id -> rounds loaded. That
-## is deliberate and it has a consequence worth saying out loud — two
-## Hatchets in one pack share one wear value, the same way two pistols
-## already share one magazine. A slot is `{id, n}` and nothing else
-## (`Slots`), so per-instance durability would mean per-instance state in
-## every container, every save record and every wire diff. Matching `mag` is
-## the smaller, truer answer.
+## **Condition belongs to the weapon, not to the carrier.** It lives in the
+## slot, as the optional `w` on a `Slots` stack, so it travels wherever the
+## weapon travels: into a chest, into a car boot, onto the ground, into
+## somebody else's pack. Anything else leaks — a broken weapon left in a
+## chest would come back whole to the next person to open it, a fresh weapon
+## would arrive already broken because the last one of its kind had been, and
+## the free repair the death drop is careful to prevent would be one deposit
+## away.
 ##
-## `use` is the only thing that writes it — the same rule `Mutation.add`
+## This is deliberately *not* how `PlayerSim.mag` works, and the difference is
+## the point: a magazine refills for free the moment you have ammunition, so
+## it barely matters where the count is kept. Condition only comes back by
+## paying materials at a bench, which makes who owns it the whole mechanic.
+##
+## `use` is the only thing that spends it — the same rule `Mutation.add`
 ## carries, and for the same reason: it is what makes a guest agree with the
 ## host about whether the axe in its hand still swings.
 
@@ -28,45 +33,87 @@ static func wears(id: String) -> bool:
 	return max_of(id) > 0
 
 
-## Uses left. Unknown means untouched, so a weapon just picked up is whole
-## without anyone having to write a full value into the dictionary first.
-static func left(p: PlayerSim, id: String) -> int:
+## Uses left, read off a stack. An unset stack is a whole weapon, so nothing
+## has to write a full value into a slot to say the obvious — which is also
+## what makes a crafted or scavenged weapon arrive new without anyone
+## arranging it.
+##
+## The stack is the core because the pack screen is handed one directly; the
+## container forms below are the same question asked by slot.
+static func left_in(stack: Dictionary) -> int:
+	if stack.is_empty():
+		return 0
+	var id := String(stack.get("id", ""))
 	if not wears(id):
 		return 0
-	return clampi(int(p.wear.get(id, max_of(id))), 0, max_of(id))
+	var raw := int(stack.get("w", -1))
+	return max_of(id) if raw < 0 else clampi(raw, 0, max_of(id))
 
 
-## 0.0 to 1.0. Something that never wears reads as whole, so every caller
-## can ask without checking `wears` first.
-static func frac(p: PlayerSim, id: String) -> float:
-	if not wears(id):
+static func broken_in(stack: Dictionary) -> bool:
+	return wears(String(stack.get("id", ""))) and left_in(stack) <= 0
+
+
+static func left(cont: Slots, i: int) -> int:
+	return 0 if cont == null else left_in(cont.at(i))
+
+
+## 0.0 to 1.0. Something that cannot wear reads as whole, so every caller can
+## ask without checking `wears` first.
+static func frac(cont: Slots, i: int) -> float:
+	if cont == null or not wears(cont.id_at(i)):
 		return 1.0
-	return float(left(p, id)) / float(max_of(id))
+	return float(left(cont, i)) / float(max_of(cont.id_at(i)))
 
 
-static func is_broken(p: PlayerSim, id: String) -> bool:
-	return wears(id) and left(p, id) <= 0
+static func is_broken(cont: Slots, i: int) -> bool:
+	return cont != null and wears(cont.id_at(i)) and left(cont, i) <= 0
 
 
-static func is_worn(p: PlayerSim, id: String) -> bool:
-	return wears(id) and left(p, id) < max_of(id)
+static func is_worn(cont: Slots, i: int) -> bool:
+	if cont == null:
+		return false
+	var id := cont.id_at(i)
+	return wears(id) and left(cont, i) < max_of(id)
 
 
-## Spend `n` uses of `id`. The one writer.
+## Sets a slot back to new.
+static func mend(cont: Slots, i: int) -> void:
+	if cont != null and wears(cont.id_at(i)):
+		cont.set_wear_at(i, max_of(cont.id_at(i)))
+
+
+# ------------------------------------------------------------- what is held --
+
+## Everything combat needs to know about the weapon in the player's hand. The
+## held slot is `hotbar[slot]` and this is the only place that says so.
+
+static func held_broken(p: PlayerSim) -> bool:
+	return is_broken(p.hotbar, p.slot)
+
+
+static func use_held(sim: GameSim, p: PlayerSim, n := 1) -> void:
+	use(sim, p, p.hotbar, p.slot, n)
+
+
+## Spend `n` uses of the weapon in a slot. The one writer.
 ##
 ## The warnings fire on the crossing rather than on the frame, so holding a
 ## trigger cannot spam them, and the weapon's numbers do not change on the
 ## way down: it swings exactly as well at 5% as at 100% and then it stops.
 ## A weapon that got quietly worse would be a chore you could not see, and
 ## pillar 1 is survival without those.
-static func use(sim: GameSim, p: PlayerSim, id: String, n := 1) -> void:
-	if not wears(id) or n <= 0:
+static func use(sim: GameSim, p: PlayerSim, cont: Slots, i: int, n := 1) -> void:
+	if cont == null or n <= 0:
 		return
-	var before := left(p, id)
+	var id := cont.id_at(i)
+	if not wears(id):
+		return
+	var before := left(cont, i)
 	if before <= 0:
 		return
 	var after := maxi(0, before - n)
-	p.wear[id] = after
+	cont.set_wear_at(i, after)
 	var cap := max_of(id)
 	var name_: String = Config.WEAPONS[id].name
 	if after <= 0:
@@ -85,12 +132,6 @@ static func _crossed(before: int, after: int, cap: int, mark: float) -> bool:
 	return float(before) > at and float(after) <= at
 
 
-## Sets `id` back to new. Used by repair and by the dev menu.
-static func mend(p: PlayerSim, id: String) -> void:
-	if wears(id):
-		p.wear[id] = max_of(id)
-
-
 # ----------------------------------------------------------------- repair --
 
 ## The recipe that makes this weapon, or empty. A weapon nothing makes is
@@ -105,9 +146,9 @@ static func recipe_for(id: String) -> Dictionary:
 	return {}
 
 
-## What mending `id` costs: a share of what it cost to make, scaled by how
-## much of it is gone. The main material is always at least one, so no repair
-## is ever free — the same shape, and the same reasoning, as
+## What mending the weapon in a slot costs: a share of what it cost to make,
+## scaled by how much of it is gone. The main material is always at least one,
+## so no repair is ever free — the same shape, and the same reasoning, as
 ## `Structures.repair_cost`.
 ##
 ## Deliberately *not* scaled by `build_cost_mul`, which the structure version
@@ -117,11 +158,13 @@ static func recipe_for(id: String) -> Dictionary:
 ## one for a share of a price the perk does not touch has to ignore it too,
 ## or a high-INT survivor would find repairing cheaper than crafting for a
 ## reason nothing in the game ever states.
-static func repair_cost(p: PlayerSim, id: String) -> Dictionary:
-	var r := recipe_for(id)
-	if r.is_empty() or not is_worn(p, id):
+static func repair_cost(cont: Slots, i: int) -> Dictionary:
+	if cont == null or not is_worn(cont, i):
 		return {}
-	var gone := 1.0 - frac(p, id)
+	var r := recipe_for(cont.id_at(i))
+	if r.is_empty():
+		return {}
+	var gone := 1.0 - frac(cont, i)
 	var out := {}
 	var main_id := ""
 	var main_n := -1
@@ -138,15 +181,28 @@ static func repair_cost(p: PlayerSim, id: String) -> Dictionary:
 	return out
 
 
-## Why `id` cannot be mended where the player stands, in the order they meet
-## it. The bench gate is the recipe's own — "the same bench it was made at"
-## is literally `Crafting.bench_reason` asked about the same row.
-static func repair_status(sim: GameSim, p: PlayerSim, id: String, bench: int) -> Dictionary:
+## The container a repair may name. The pack and the hotbar and nothing else:
+## a bench mends what you brought to it, not what is still in the chest, and
+## on a guest this is what stops a slot index naming somebody else's locker.
+static func container_for(p: PlayerSim, cont_kind: String) -> Slots:
+	match cont_kind:
+		"bag": return p.bag
+		"hotbar": return p.hotbar
+	return null
+
+
+## Why the weapon in this slot cannot be mended where the player stands, in
+## the order they meet it. The bench gate is the recipe's own — "the same
+## bench it was made at" is literally `Crafting.bench_reason` asked about the
+## same row.
+static func repair_status(sim: GameSim, p: PlayerSim, cont_kind: String, i: int, bench: int) -> Dictionary:
+	var cont := container_for(p, cont_kind)
+	if cont == null:
+		return {"ok": false, "reason": "Not something you are carrying"}
+	var id := cont.id_at(i)
 	if not wears(id):
 		return {"ok": false, "reason": "Nothing to mend"}
-	if p.count_carried(id) <= 0:
-		return {"ok": false, "reason": "You are not carrying one"}
-	if not is_worn(p, id):
+	if not is_worn(cont, i):
 		return {"ok": false, "reason": "Not worn"}
 	var r := recipe_for(id)
 	if r.is_empty():
@@ -154,37 +210,46 @@ static func repair_status(sim: GameSim, p: PlayerSim, id: String, bench: int) ->
 	var why := Crafting.bench_reason(sim, p, r, bench)
 	if not why.is_empty():
 		return {"ok": false, "reason": why}
-	if not p.can_afford(sim, repair_cost(p, id)):
+	if not p.can_afford(sim, repair_cost(cont, i)):
 		return {"ok": false, "reason": "Missing materials"}
 	return {"ok": true, "reason": ""}
 
 
 ## Mend one weapon at the bench that makes it. Called through `Actions`, so
 ## on a guest this same function runs on the host with the same gates.
-static func repair(sim: GameSim, p: PlayerSim, id: String, bench: int) -> bool:
-	var st := repair_status(sim, p, id, bench)
+##
+## The slot rather than the weapon id, for the reason `use_slot` names: a slot
+## is what was clicked, and an id would let a guest mend something it is not
+## holding — and now that two Machetes can be worn differently, an id would
+## not even say which one.
+static func repair(sim: GameSim, p: PlayerSim, cont_kind: String, i: int, bench: int) -> bool:
+	var st := repair_status(sim, p, cont_kind, i, bench)
 	if not st.ok:
 		sim.notify(st.reason, "#c96a5a")
 		return false
-	var cost := repair_cost(p, id)
+	var cont := container_for(p, cont_kind)
+	var cost := repair_cost(cont, i)
 	p.spend(sim, cost)
-	mend(p, id)
-	var label := "%s mended — %s" % [Config.WEAPONS[id].name, Structures.cost_label(cost)]
+	mend(cont, i)
+	var label := "%s mended — %s" % [Config.WEAPONS[cont.id_at(i)].name, Structures.cost_label(cost)]
 	Progression.add_xp(sim, p, 3, "REPAIR")
 	sim.emit({"t": "crafted", "x": p.pos.x, "y": p.pos.y, "text": label})
 	sim.notify(label, "#7ce08a")
 	return true
 
 
-## Every worn weapon the player is carrying, whichever container it is in.
+## Every worn weapon the player is carrying, as `{c, i, id}` — the container
+## it is in, the slot, and what it is. Two Machetes worn differently are two
+## rows now, which is the point of keeping condition on the object.
+##
 ## The craft screen lists these above the recipes; a row that cannot be
 ## mended here still shows, with the reason, for the same reason a recipe
 ## does — "needs a Workbench" is a plan and a blank list is a mystery.
-static func worn_carried(p: PlayerSim) -> Array[String]:
-	var out: Array[String] = []
-	for cont in [p.hotbar, p.bag]:
+static func worn_carried(p: PlayerSim) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for kind in ["hotbar", "bag"]:
+		var cont := container_for(p, kind)
 		for i in range(cont.size()):
-			var id: String = cont.id_at(i)
-			if not id.is_empty() and is_worn(p, id) and not out.has(id):
-				out.append(id)
+			if is_worn(cont, i):
+				out.append({"c": kind, "i": i, "id": cont.id_at(i)})
 	return out

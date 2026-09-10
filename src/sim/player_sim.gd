@@ -143,9 +143,8 @@ var equip := {"head": "", "body": "", "hands": "", "legs": "", "feet": "", "offh
 var start_weapon: String = Config.START_KIT.weapon
 var slot := 0
 var mag := {}                    # weapon id -> rounds loaded
-## Weapon id -> uses left, kept exactly like `mag` and for the same reasons.
-## Unknown means whole; `Wear` is the only thing that writes it.
-var wear := {}
+## Condition is deliberately NOT here: it lives on the slot, so it travels
+## with the weapon into a chest or another player's pack. See `Wear`.
 
 # The off-hand light. The charge lives here rather than in the slot, because
 # a slot is only {id, n}; Equipment keeps the two in step.

@@ -194,8 +194,8 @@ func _draw() -> void:
 		# A sliver of condition along the bottom of the slot, and only once
 		# there is something to say. A weapon must never break as a surprise:
 		# this is the warning the notifications punctuate, not replace.
-		if Wear.is_worn(p, id):
-			var frac := Wear.frac(p, id)
+		if Wear.is_worn(p.hotbar, i):
+			var frac := Wear.frac(p.hotbar, i)
 			var wb := Rect2(r.position.x + 4, r.position.y + r.size.y - 4, r.size.x - 8, 3)
 			draw_rect(wb, Color(0, 0, 0, 0.55))
 			var wcol := Color("#9fd07a")
@@ -205,7 +205,7 @@ func _draw() -> void:
 				wcol = Color("#d9c46a")
 			draw_rect(Rect2(wb.position, Vector2(wb.size.x * frac, wb.size.y)), wcol)
 		var wpn: Dictionary = Config.WEAPONS.get(id, {})
-		if Wear.is_broken(p, id):
+		if Wear.is_broken(p.hotbar, i):
 			draw_string(font, Vector2(r.position.x, r.position.y + 39), "BROKEN", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 10, Color("#c96a5a"))
 		elif wpn.get("kind", "") == "gun":
 			var ammo := "%d / %d" % [p.mag.get(id, 0), p.count_res(wpn.ammo)]

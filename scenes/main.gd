@@ -995,9 +995,9 @@ func smoke_run(smoke: Node) -> void:
 	# same list, and clicking it costs materials and gives the tool back.
 	p.hotbar.slots[0] = {"id": "axe", "n": 1}
 	p.slot = 0
-	p.wear["axe"] = 1
-	Wear.use(sim, p, "axe", 1)
-	if not Wear.is_broken(p, "axe"):
+	p.hotbar.set_wear_at(0, 1)
+	Wear.use_held(sim, p, 1)
+	if not Wear.is_broken(p.hotbar, 0):
 		smoke.fail("the Hatchet would not break")
 	await smoke.frames(3)
 	await smoke.checkpoint("weapon_broken")
@@ -1007,7 +1007,7 @@ func smoke_run(smoke: Node) -> void:
 	var sticks_before := p.count_res("sticks")
 	await smoke_click(mend_at)
 	await smoke.frames(3)
-	if Wear.is_broken(p, "axe"):
+	if Wear.is_broken(p.hotbar, 0):
 		smoke.fail("clicking MEND did not mend it")
 	if p.count_res("sticks") >= sticks_before:
 		smoke.fail("mending cost nothing")

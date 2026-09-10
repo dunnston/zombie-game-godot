@@ -69,7 +69,7 @@ static func to_dict(sim: GameSim) -> Dictionary:
 			# same way it is derived from it in play.
 			"mutation": p.mutation, "effects": p.effects.duplicate(),
 			"slot": p.slot, "bag": p.bag.to_record(), "hotbar": p.hotbar.to_record(),
-			"equip": p.equip.duplicate(), "mag": p.mag.duplicate(), "wear": p.wear.duplicate(),
+			"equip": p.equip.duplicate(), "mag": p.mag.duplicate(),
 			"light_on": p.light_on, "light_fuel": p.light_fuel, "light_id": p.light_id,
 			"light_charge": p.light_charge.duplicate(),
 			"spawn_tx": p.spawn_tile.x, "spawn_ty": p.spawn_tile.y,
@@ -78,7 +78,8 @@ static func to_dict(sim: GameSim) -> Dictionary:
 
 	var piles: Array = []
 	for it in sim.pickups:
-		piles.append({"x": it.pos.x, "y": it.pos.y, "kind": it.kind, "id": it.id, "n": it.n})
+		piles.append({"x": it.pos.x, "y": it.pos.y, "kind": it.kind, "id": it.id, "n": it.n,
+			"w": int(it.get("w", -1))})
 	var packs: Array = []
 	for b in sim.backpacks:
 		packs.append({"x": b.pos.x, "y": b.pos.y, "held": b.held.duplicate(), "mag": b.mag.duplicate(),
@@ -254,8 +255,6 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 			p.equip[k] = String(rec.equip[k])
 		for k in rec.get("mag", {}):
 			p.mag[k] = int(rec.mag[k])
-		for k in rec.get("wear", {}):
-			p.wear[k] = int(rec.wear[k])
 		p.light_id = String(rec.get("light_id", ""))
 		p.light_fuel = float(rec.get("light_fuel", 0.0))
 		for k in rec.get("light_charge", {}):
@@ -291,7 +290,8 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 
 	sim.pickups.clear()
 	for rec in data.get("pickups", []):
-		Loot.spawn_pickup(sim, Vector2(float(rec.x), float(rec.y)), String(rec.kind), String(rec.id), int(rec.n))
+		Loot.spawn_pickup(sim, Vector2(float(rec.x), float(rec.y)), String(rec.kind), String(rec.id),
+			int(rec.n), null, int(rec.get("w", -1)))
 	sim.backpacks.clear()
 	for rec in data.get("backpacks", []):
 		var held := {}

@@ -1757,6 +1757,12 @@ This is that card.
       pool of hit points. `WEAR` holds the four tunables
 - [x] `Wear` (`src/sim/wear.gd`) — `use` as the only writer, the crossing
       warnings, `mend`, and the repair bill and its gate
+- [x] **Condition on the slot, not the player** (Codex, PR #22). `Slots`
+      stacks carry an optional `w`; it travels through chests, boots, the
+      ground, other players' packs, the save and the wire. The first cut kept
+      it on `PlayerSim` and a freshly crafted weapon was born broken
+- [x] **A broken tool is not a tool** (Codex, PR #22) — no cordage from a
+      dead knife, no portable bench from a dead hammer
 - [x] Wear spent on a swing that connects and on a shot; a swing at air is
       free; a chop costs `WEAR.chop_mul`
 - [x] Broken refuses, keeps its slot, and says so once every three seconds
@@ -1767,7 +1773,7 @@ This is that card.
 - [x] `Actions.repair_weapon` and its host branch (invariant 8)
 - [x] Save v10, the guest's pack diff, and the death-drop backpack
 - [x] Two dev verbs so a break can be watched rather than waited for
-- [x] `wear_test.gd` (23 tests) and two smoke checkpoints
+- [x] `wear_test.gd` (32 tests) and two smoke checkpoints
 
 ### Left for the owner
 
