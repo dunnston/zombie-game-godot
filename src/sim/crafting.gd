@@ -55,11 +55,8 @@ static func station_name(station: String) -> String:
 ##
 ## A broken one does not count. "Broken weapons do nothing until mended" has
 ## to mean the bench too, or a zero-condition Stone Knife would still cut
-## cordage and a zero-condition Stone Hammer would still be a workbench you
-## carry — which would make the hammer's whole privilege survive the thing
-## that took it away. Nothing deadlocks: every recipe that names a tool is
-## bench 0, and so is the recipe that mends the tool, so a broken knife is
-## always mendable by hand.
+## cordage. Nothing deadlocks: every tool a recipe names is itself a bench-0
+## recipe, so a broken knife is always mendable by hand.
 static func has_tool(p: PlayerSim, flag: String) -> bool:
 	for cont in [p.hotbar, p.bag]:
 		for i in range(cont.size()):
@@ -69,11 +66,9 @@ static func has_tool(p: PlayerSim, flag: String) -> bool:
 	return false
 
 
-## The recipes worth showing at this bench. A Stone Hammer in the pack shows
-## the simple bench-1 work too, so the tool advertises what it is for instead
-## of the list silently growing when you happen to look.
-static func visible_recipes(p: PlayerSim, bench: int, stations := {}) -> Array:
-	var hammer := has_tool(p, "hammer")
+## The recipes worth showing at this bench. By hand (bench 0) that is the six
+## things you make before you have a base; everything else is bench work.
+static func visible_recipes(_p: PlayerSim, bench: int, stations := {}) -> Array:
 	var out: Array = []
 	for r in Config.RECIPES:
 		# A station recipe is shown only at its station: it is not the top of
@@ -84,7 +79,7 @@ static func visible_recipes(p: PlayerSim, bench: int, stations := {}) -> Array:
 			if stations.has(st):
 				out.append(r)
 			continue
-		if r.bench <= bench or (r.get("hammer", false) and hammer and r.bench <= 1):
+		if r.bench <= bench:
 			out.append(r)
 	return out
 
@@ -97,11 +92,7 @@ static func visible_recipes(p: PlayerSim, bench: int, stations := {}) -> Array:
 ## a second copy of the gate would be a second thing to keep in step.
 ## Returns "" when the bench is fine.
 static func bench_reason(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> String:
-	# A Stone Hammer is a workbench for simple work — what you could
-	# plausibly do on a flat rock. It never reaches Workbench II and it never
-	# unlocks a gun, because no `hammer` recipe is above bench 1.
-	var effective := maxi(bench, 1) if r.get("hammer", false) and has_tool(p, "hammer") else bench
-	if r.bench > effective:
+	if r.bench > bench:
 		return "Needs a Workbench" if r.bench == 1 else "Needs Workbench II"
 	# Asked of the world rather than taken from the caller: on a guest this
 	# same function runs on the host, where standing beside the station is the

@@ -113,12 +113,15 @@ func test_wear_lands_on_the_slot_in_hand_and_not_on_its_twin() -> void:
 	eq(Wear.left(p.hotbar, 1), Wear.max_of("axe"), "the one in the next slot is untouched")
 
 
-func test_chopping_costs_more_than_fighting() -> void:
-	eq(int(Config.WEAR.chop_mul), 2, "work is harder on a tool than a walker")
-	_hold("axe")
-	var before := Wear.left(p.hotbar, 0)
-	Wear.use_held(sim, p, int(Config.WEAR.chop_mul))
-	eq(Wear.left(p.hotbar, 0), before - 2)
+func test_a_hatchet_fells_about_a_hundred_trees() -> void:
+	# The owner's first session: a Hatchet that felled seventeen trees broke
+	# "much too fast". Measured through the real swing, not the table.
+	eq(int(Config.WEAR.chop_mul), 1, "a chop wears a tool as much as a blow")
+	var axe: Dictionary = Config.WEAPONS.axe
+	var per_swing: float = axe.dmg * p.melee_mul * Combat.chop_multiplier(axe, p, Config.HARVEST.wood)
+	var swings_per_tree := ceili(470.0 / per_swing)
+	var trees := Wear.max_of("axe") / (swings_per_tree * int(Config.WEAR.chop_mul))
+	ok(trees >= 90 and trees <= 110, "a Hatchet fells %d trees" % trees)
 
 
 func test_wear_stops_at_zero_and_never_goes_under() -> void:
@@ -193,26 +196,18 @@ func test_a_broken_tool_is_not_a_tool() -> void:
 	for i in range(p.bag.size()):
 		if p.bag.id_at(i) == "knife":
 			knife_at = i
-	ok(Crafting.status(sim, p, _recipe("cordage"), 0).ok, "a whole knife cuts cordage")
+	ok(Crafting.status(sim, p, _recipe("cordage"), 1).ok, "a whole knife cuts cordage")
 	p.bag.set_wear_at(knife_at, 0)
-	var st := Crafting.status(sim, p, _recipe("cordage"), 0)
+	var st := Crafting.status(sim, p, _recipe("cordage"), 1)
 	ok(not st.ok, "a broken one does not")
 	eq(st.reason, "Needs a Stone Knife")
 
 
-func test_a_broken_hammer_is_not_a_portable_bench() -> void:
-	_stock()
-	p.bag.add("hammer", 1)
-	var at := -1
-	for i in range(p.bag.size()):
-		if p.bag.id_at(i) == "hammer":
-			at = i
-	ok(Crafting.status(sim, p, _recipe("pipe"), 0).ok, "a whole hammer lifts bench-1 work")
-	p.bag.set_wear_at(at, 0)
-	ok(not Crafting.status(sim, p, _recipe("pipe"), 0).ok, "a broken one does not")
-	# And it can still be mended, so nothing deadlocks: the hammer's own
-	# recipe is bench 0 and names no tool.
-	ok(Wear.repair_status(sim, p, "bag", at, 0).ok, "you can always mend it by hand")
+func test_every_tool_a_recipe_names_is_mendable_by_hand() -> void:
+	# The deadlock rule: a broken tool must never be needed to mend itself.
+	for r in Config.RECIPES:
+		if r.has("tool"):
+			eq(int(Wear.recipe_for(String(r.tool)).get("bench", -1)), 0, "%s needs a %s" % [r.id, r.tool])
 
 
 # ------------------------------------------------------------------ mending --

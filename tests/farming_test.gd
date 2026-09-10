@@ -512,8 +512,9 @@ func test_what_a_garden_is_for() -> void:
 	has(found, "sludge")
 	eq(String(found.sludge.get("station", "")), "chem")
 	eq(int(found.sludge.bench), 0)
-	# Compost is bench 0, or the first bed is a thing you build and cannot use.
-	eq(int(found.compost.bench), 0)
+	# Compost is first-bench work (the owner, 2026-09-10: by hand is the six
+	# basics). A garden is fed from the workbench a base builds first.
+	eq(int(found.compost.bench), 1)
 
 
 func test_every_seed_grows_something_real() -> void:

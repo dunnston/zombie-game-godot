@@ -92,8 +92,10 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 		var entry := {}
 		if s.store != null:
 			entry = {"kind": "store", "ref": s, "label": "Open %s  (%d/%d)" % [s.def.name, s.store.used(), s.store.size()]}
-		elif s.type == "workbench":
-			entry = {"kind": "bench", "ref": s, "label": "Workbench II" if s.tier >= 2 else "Upgrade Workbench  ·  %s" % Structures.cost_label(Config.BENCH_UPGRADE_COST)}
+		elif s.type == "workbench" or s.def.has("station"):
+			# E opens the bench; it never spends anything. Upgrading is a button
+			# inside, with its price on it, rather than the key you press to look.
+			entry = {"kind": "bench", "ref": s, "label": "Use %s" % ("Workbench II" if s.type == "workbench" and s.tier >= 2 else s.def.name)}
 		elif s.type == "gate":
 			entry = {"kind": "gate", "ref": s, "label": "Close gate" if s.open else "Open gate"}
 		elif s.type == "generator":
@@ -282,7 +284,10 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 		"generator":
 			sim.structs.use_generator(sim, target.ref, p)
 		"bench":
-			sim.structs.upgrade_bench(sim, target.ref, p)
+			# The sim does not know about screens: it says a bench was opened
+			# and the presentation decides what that looks like.
+			var s: Dictionary = target.ref
+			sim.emit({"t": "open_bench", "seat": p.seat, "tx": s.tx, "ty": s.ty})
 		"repair":
 			sim.structs.repair(sim, target.ref, p)
 		"bedroll":
