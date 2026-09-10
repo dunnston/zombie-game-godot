@@ -1737,7 +1737,8 @@ plus `catalog.json` (every item, real or planned, with its category, class
 and status — the game never reads it) and `categories.json` (the eleven
 categories and fourteen weapon classes, each with what it is for).
 
-- **The editor:** `.\tools\edit.cmd` (PowerShell) or `tools/edit.sh` starts a
+- **The editor:** double-click `Content Editor.cmd` in the project folder
+  (the same as `.\tools\edit.cmd`; `tools/edit.sh` off Windows). It starts a
   headless Godot on `http://127.0.0.1:8765/` and opens it. Loopback only;
   `--lan` shares it on the local network on purpose; it is never deployed.
   Views (Workbenches, Weapons by class, Materials, Tools, Ammo, Catalog) sit

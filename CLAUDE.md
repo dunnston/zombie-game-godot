@@ -21,8 +21,9 @@ that repo's `PROJECT.md` is the design spec and is not edited from here.
 to WebRTC", "room codes", "UPnP didn't work", "my friend can't connect",
 "no port forwarding".
 - The Godot MCP (`run_project`, `get_debug_output`) reads `GODOT_PATH` from `~/.claude.json`.
-- **Content lives in `data/`** and is edited with `.\tools\edit.cmd` (a local
-  page; PROJECT.md §10, *Editing content*). The owner's shell is Windows
+- **Content lives in `data/`** and is edited with the local editor: the owner
+  double-clicks `Content Editor.cmd` in the project folder (it calls
+  `tools\edit.cmd`; PROJECT.md §10, *Editing content*). The owner's shell is Windows
   PowerShell 5.1: give `.\tools\<name>.cmd` commands, one per line.
 - **Content was designed in Notion (retiring):** DEADLINE → *Items & Crafting* (page
   `3d610d456b16816fbf35d781eeaccb11`) holds the Items, Workbenches and Loot
