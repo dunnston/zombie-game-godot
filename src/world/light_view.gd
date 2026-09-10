@@ -20,9 +20,6 @@ static var _cone: Texture2D
 
 var sim: GameSim
 var modulate_node: CanvasModulate
-## The additive half of the night tint. A DirectionalLight2D in 2D lights the
-## whole canvas evenly, which is exactly the constant term an overlay adds.
-var ambient: DirectionalLight2D
 var _pool: Array[PointLight2D] = []
 var _used := 0
 ## Muzzle flashes are events, not states: each one is a light with a life.
@@ -40,12 +37,6 @@ func _ready() -> void:
 	modulate_node = CanvasModulate.new()
 	modulate_node.color = Color.WHITE
 	add_child(modulate_node)
-	ambient = DirectionalLight2D.new()
-	ambient.blend_mode = Light2D.BLEND_MODE_ADD
-	ambient.shadow_enabled = false
-	ambient.energy = 0.0
-	ambient.visible = false
-	add_child(ambient)
 
 
 func on_event(ev: Dictionary) -> void:
@@ -64,24 +55,33 @@ func on_event(ev: Dictionary) -> void:
 # ------------------------------------------------------------------ update --
 
 func tick() -> void:
-	var dark: Dictionary = sim.clock.darkness()
-	var alpha: float = float(dark.alpha)
-	var tint := Color(String(dark.color))
-	# A translucent overlay of `color` at `alpha` leaves a pixel at
-	# `pixel * (1 - alpha) + color * alpha`. That is a multiply *and* an add,
-	# and a CanvasModulate can only do the multiply — folding the tint into it
-	# gives `pixel * ((1 - alpha) + color * alpha)`, which is a different
-	# curve: it leaves black pixels black instead of tinting them, and drags
-	# every dark colour far below where the overlay would have put it. Night
-	# came out much darker than the numbers say it should be.
+	var alpha: float = float(sim.clock.darkness().alpha)
+	# One coloured multiply is the whole night.
 	#
-	# So the multiply is the multiply, and the additive term is a
-	# DirectionalLight2D — which in 2D adds a constant across the whole canvas
-	# and is exactly the `color * alpha` that was missing.
-	modulate_node.color = Color(1.0 - alpha, 1.0 - alpha, 1.0 - alpha)
-	ambient.color = tint
-	ambient.energy = alpha
-	ambient.visible = alpha > 0.001
+	# This was two nodes: a grey `CanvasModulate` for `1 - alpha` and an
+	# additive `DirectionalLight2D` for `color * alpha`, on the reasoning that
+	# the overlay the prototype painted is a multiply *and* an add, and a
+	# CanvasModulate can only multiply. The add was supposed to be the term
+	# that tints a black pixel.
+	#
+	# It never was. Godot's canvas shader saves `base_color` *before* the
+	# canvas modulate and every light pass multiplies by it —
+	# `light_color.rgb *= base_color.rgb` — so an additive light over black
+	# ground adds nothing, and over lit ground it adds `tint * alpha * pixel`.
+	# That is a multiply wearing an add's clothes, and it left a floor under
+	# how dark night could get: at the old #161436 and #070c1c the map still
+	# came through at a seventh of daylight, which is exactly the "never got so
+	# dark that I couldn't see" the owner reported with a torch equipped.
+	#
+	# So it is one multiply, `lerp(WHITE, tint, alpha)` — identical arithmetic
+	# to what the two nodes actually produced, one node instead of two, no
+	# whole-screen light pass per frame, and the darkness now lives entirely
+	# in `Config.DARKNESS_KEYS` where it can be read off. Real lights still
+	# add on top, because they multiply that same unmodulated `base_color`:
+	# a torch at midnight brings its circle back to nearly full brightness.
+	# The arithmetic itself is `DayNight.canvas_tint_at`, so the fast suite can
+	# assert on how dark the picture is without standing up a viewport.
+	modulate_node.color = sim.clock.canvas_tint()
 
 	_used = 0
 	# Nothing needs lighting in broad daylight, and a hundred idle lights are
@@ -180,9 +180,18 @@ func _next() -> PointLight2D:
 
 # ----------------------------------------------------------- the textures --
 
-## A radial falloff, generated once. Squared falloff rather than linear: a
-## linear ramp reads as a flat disc with a hard-ish rim, and a torch should
-## be bright in the middle and vague at the edge.
+## A radial falloff, generated once: `(1 - d^2)^2`, flat at the centre and
+## flat again where it reaches zero.
+##
+## It was `(1 - d)^2` — bright core, quick fade — chosen against a linear
+## ramp because a linear ramp reads as a flat disc with a hard rim. Squared
+## distance-from-centre solves the rim without the collapse: `(1 - d)^2` is
+## already down to a quarter at half the radius, so a 300px torch was a 75px
+## puddle inside a wide grey haze, and against a night that is now genuinely
+## black that haze banded into visible contour rings. This curve holds 0.71
+## at 40% of the radius and 0.41 at 60%, and its slope is zero at both ends,
+## so there is no rim at the outside and no hotspot at the middle — a torch
+## you can walk by, still vague at the edge.
 static func _point_texture() -> Texture2D:
 	if _point != null:
 		return _point
@@ -191,15 +200,20 @@ static func _point_texture() -> Texture2D:
 	for y in range(POINT_TEX):
 		for x in range(POINT_TEX):
 			var d := Vector2(x - c + 0.5, y - c + 0.5).length() / c
-			var a := clampf(1.0 - d, 0.0, 1.0)
+			var a := clampf(1.0 - d * d, 0.0, 1.0)
 			a = a * a
 			img.set_pixel(x, y, Color(1, 1, 1, a))
 	_point = ImageTexture.create_from_image(img)
 	return _point
 
 
-## A wedge pointing along +X, so the node's rotation is the aim. Fades along
-## its length and across its width, so the edges of the beam are soft.
+## A wedge pointing along +X, so the node's rotation is the aim. A beam holds
+## its brightness down most of its length and dies at the tip — `1 - d^2`
+## along it, which is 0.75 at half its reach where the old `1 - d` was 0.5 —
+## and fades across its width as `(1 - off^2)^2`, squared so the sides of the
+## beam are soft rather than a visible wedge with edges. That reach and that
+## softness are the whole difference between the flashlight and the torch,
+## and what the batteries buy.
 static func _cone_texture() -> Texture2D:
 	if _cone != null:
 		return _cone
@@ -215,7 +229,8 @@ static func _cone_texture() -> Texture2D:
 			if dx > 0.0 and d <= 1.0:
 				var off := absf(atan2(dy, dx)) / spread
 				if off < 1.0:
-					a = clampf(1.0 - d, 0.0, 1.0) * clampf(1.0 - off * off, 0.0, 1.0)
+					var across := clampf(1.0 - off * off, 0.0, 1.0)
+					a = clampf(1.0 - d * d, 0.0, 1.0) * across * across
 			img.set_pixel(x, y, Color(1, 1, 1, a))
 	_cone = ImageTexture.create_from_image(img)
 	return _cone

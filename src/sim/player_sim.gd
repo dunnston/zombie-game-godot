@@ -154,6 +154,11 @@ var mag := {}                    # weapon id -> rounds loaded
 var light_on := false
 var light_fuel := 0.0
 var light_id := ""
+## You put it out on purpose. An equipped light strikes itself when the dark
+## arrives, so without this the next frame would undo every deliberate
+## dousing — and going dark to lose something following you is a real move.
+## Daybreak clears it, so tomorrow night lights itself again.
+var light_doused := false
 ## Burn left per light id, so swapping between two lights and back does not
 ## refill either one.
 var light_charge := {}
@@ -473,6 +478,19 @@ func tick(sim: GameSim, dt: float) -> void:
 	Mutation.tick(sim, self, dt)
 	if dead:
 		return                          # turning is a death, and it happens here
+
+	# The light, above the downed and driving branches on purpose: it is a
+	# clock, not an action. Everything it does — striking itself when the dark
+	# comes, spending `burn`, going out at dawn, burning away — is the world
+	# happening to you, and none of it stops because you are bleeding out or
+	# behind a wheel. Down here with the rest of the tick it would have meant
+	# a torch carried into a car never lit, and a lit one hanging in the air
+	# for free: visible (`LightView` draws a downed player's light, and a
+	# driver's follows the car), burning no fuel and never doused by the dawn.
+	# Pressing T stays at the bottom with the other input, because striking a
+	# torch *is* an action and you cannot do it from the floor.
+	Equipment.update_light(sim, self, dt)
+
 	# ...and if it is driving, everything below this reads its intent, not
 	# yours. Rewritten once here rather than guarded in twenty branches.
 	if lurch_t > 0.0 and not downed:
@@ -585,7 +603,6 @@ func tick(sim: GameSim, dt: float) -> void:
 
 	if it.light:
 		Equipment.toggle_light(sim, self)
-	Equipment.update_light(sim, self, dt)
 	Interact.tick(sim, self, dt)
 	if not it.build_action.is_empty():
 		_build(sim, it)

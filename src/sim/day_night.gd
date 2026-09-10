@@ -61,7 +61,12 @@ func phase_name() -> String:
 
 ## How dark it is, and what colour the dark is, blended along
 ## `Config.DARKNESS_KEYS` so dusk creeps in rather than snapping between
-## phases. Returns `{alpha, color}`.
+## phases. Returns `{alpha, color}`, the colour as a `Color`.
+##
+## The colour is interpolated like the alpha. It used to step to whichever
+## key was nearer, which was invisible while the tint only tinted — now that
+## `LightView` multiplies the canvas by it, a step is a step in how much of
+## the map you can see, and the deep-night keys are far apart.
 static func darkness_at(at: float) -> Dictionary:
 	var keys: Array = Config.DARKNESS_KEYS
 	for i in range(keys.size() - 1):
@@ -69,12 +74,26 @@ static func darkness_at(at: float) -> Dictionary:
 		var b: Dictionary = keys[i + 1]
 		if at >= a.t and at <= b.t:
 			var k: float = (at - a.t) / maxf(1e-6, b.t - a.t)
-			return {"alpha": lerpf(a.a, b.a, k), "color": a.c if k < 0.5 else b.c}
-	return {"alpha": 0.0, "color": "#0a0c09"}
+			return {"alpha": lerpf(a.a, b.a, k),
+				"color": Color(String(a.c)).lerp(Color(String(b.c)), k)}
+	return {"alpha": 0.0, "color": Color("#0a0c09")}
 
 
 func darkness() -> Dictionary:
 	return darkness_at(t)
+
+
+## What the whole canvas is multiplied by at `at`: `LightView` sets exactly
+## this on its `CanvasModulate` and nothing else darkens the world, so this
+## is "how much of the map you can see" as a number a test can hold. 1 is
+## noon and near-black is night. Real lights add on top of it.
+static func canvas_tint_at(at: float) -> Color:
+	var d := darkness_at(at)
+	return Color.WHITE.lerp(d.color, float(d.alpha))
+
+
+func canvas_tint() -> Color:
+	return canvas_tint_at(t)
 
 
 func is_night() -> bool:

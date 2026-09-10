@@ -202,12 +202,14 @@ func test_a_dropped_stack_lands_on_the_ground_and_waits_for_you_to_step_off() ->
 
 
 func test_a_torch_burns_down_and_takes_itself_with_it() -> void:
+	sim.clock.t = 0.82                        # the small hours: dark enough
 	p.bag.add("torch", 1)
 	Equipment.equip_from_bag(sim, p, 0)
 	eq(p.equip.offhand, "torch")
 	near(p.light_fuel, 210.0, 0.01, "a torch comes ready to burn")
-	ok(Equipment.toggle_light(sim, p))
-	ok(p.lit, "and being lit is what the enemies read")
+	ok(not p.lit, "not until a tick has run")
+	run(sim, 0.05)
+	ok(p.lit, "the dark strikes it, and being lit is what the enemies read")
 	p.light_fuel = 0.5
 	run(sim, 1.0)
 	ok(not p.lit)
