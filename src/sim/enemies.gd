@@ -409,6 +409,7 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 		e.flash = maxf(0.0, e.flash - dt)
 		e.atk_cd = maxf(0.0, e.atk_cd - dt)
 		e.slow_t = maxf(0.0, e.slow_t - dt)
+		e.stagger_cd = maxf(0.0, e.stagger_cd - dt)
 		e.alert_t = maxf(0.0, e.alert_t - dt)
 		e.anim += dt * (2.0 + e.speed * 0.03)
 		e.growl_t -= dt
@@ -416,6 +417,32 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 			e.growl_t = rng.frange(4.0, 16.0)
 			if p != null and e.pos.distance_squared_to(p.pos) < 620.0 * 620.0:
 				sim.emit({"t": "growl", "x": e.pos.x, "y": e.pos.y})
+
+		# ------------------------------------------------------------ bleeding --
+		# Spent here rather than in a pass of its own. `Fire` needs its own
+		# scan because a burning thing sets light to its neighbours; a wound
+		# does nothing but empty, so it costs one branch on a loop that was
+		# running anyway — and a run where nothing is bleeding pays nothing.
+		if e.bleed_t > 0.0:
+			Damage.tick_bleed(sim, e, dt)
+			if e.dead:
+				continue
+
+		# ----------------------------------------------------------- staggered --
+		# Rocked, and doing nothing about anything until it is over: no
+		# targeting, no step of its own, no swing. Before the human branches
+		# as well as the melee ones, so a staggered Raider stops shooting and
+		# a staggered Looter stops running for the treeline.
+		#
+		# Velocity is kept and decayed rather than zeroed, so the knockback
+		# from the blow that did this still carries it backwards — being
+		# rocked should look like being hit, not like being paused.
+		if e.stagger_t > 0.0:
+			e.stagger_t = maxf(0.0, e.stagger_t - dt)
+			e.vel *= exp(-7.5 * dt)
+			e.pos = world.move_circle(e.pos, e.vel * dt, e.r, structs)
+			e.last_pos = e.pos
+			continue
 
 		# ---------------------------------------------------------- targeting --
 		var d_player2 := INF if p == null else e.pos.distance_squared_to(p.pos)

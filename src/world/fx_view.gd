@@ -20,6 +20,12 @@ func on_event(ev: Dictionary) -> void:
 			_text(Vector2(ev.x, ev.y - ev.r), str(roundi(ev.dmg)), Color("#ffe08a") if ev.crit else Color.WHITE, 15 if ev.crit else 12)
 		"kill":
 			_blood(Vector2(ev.x, ev.y), Vector2.ZERO, 16)
+		"stagger":
+			# A ring off the body rather than more blood: the hit that caused
+			# this already threw its own, and what wants saying here is that
+			# something stopped, not that something was hurt.
+			particles.append({"kind": "ring", "pos": Vector2(ev.x, ev.y), "life": 0.28, "max": 0.28,
+				"r0": float(ev.r) * 0.6, "r1": float(ev.r) * 1.9, "color": Color("#e8e0c8")})
 		"player_hit":
 			_blood(Vector2(ev.x, ev.y), Vector2(ev.dx, ev.dy), 6, Color("#a02020"))
 			_text(Vector2(ev.x, ev.y - 26), "-%d" % roundi(ev.dmg), Color("#ff8a7a"), 13)

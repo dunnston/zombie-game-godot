@@ -16,7 +16,7 @@ extends RefCounted
 
 ## Bumped whenever anything in here changes shape. A guest whose number
 ## differs is refused before it can misread a byte.
-const PROTOCOL := 3
+const PROTOCOL := 4
 
 const RELIABLE := 1
 const STATE := 2
@@ -36,6 +36,8 @@ const EF_AGGRO := 2
 const EF_RAID := 4
 const EF_BURN := 8
 const EF_WINDUP := 16
+const EF_STAGGER := 32
+const EF_BLEED := 64
 
 ## Vehicle flags.
 const VF_DESTROYED := 1
@@ -423,6 +425,11 @@ static func pack_enemies(sim: GameSim, centre: Vector2, radius: float) -> Packed
 		if e.raid: f |= EF_RAID
 		if e.burn_t > 0.0: f |= EF_BURN
 		if e.windup > 0.0: f |= EF_WINDUP
+		# Both cosmetic on the far end — a guest never ticks either clock, it
+		# only needs to know that the thing in front of it is reeling and
+		# that it is losing blood, so one bit each is the whole cost.
+		if e.stagger_t > 0.0: f |= EF_STAGGER
+		if e.bleed_t > 0.0: f |= EF_BLEED
 		out.append(float(e.id))
 		out.append(float(types.find(e.type)))
 		out.append(r1(e.pos.x))

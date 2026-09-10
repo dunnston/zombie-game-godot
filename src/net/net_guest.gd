@@ -489,6 +489,11 @@ func _apply_enemies(en: PackedFloat32Array) -> void:
 			e.raid = bool(f & NetProtocol.EF_RAID)
 			e.burn_t = 1.0 if f & NetProtocol.EF_BURN else 0.0
 			e.windup = 0.3 if f & NetProtocol.EF_WINDUP else 0.0
+			# A nominal clock each, the same trick the burn above uses: the
+			# host owns the real one, and all the view asks is whether it is
+			# above zero.
+			e.stagger_t = 0.3 if f & NetProtocol.EF_STAGGER else 0.0
+			e.bleed_t = 1.0 if f & NetProtocol.EF_BLEED else 0.0
 			if f & NetProtocol.EF_FLASH:
 				e.flash = 0.11
 			if at.distance_squared_to(e.pos) > 300.0 * 300.0:

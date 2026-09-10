@@ -65,6 +65,12 @@ static func recompute_stats(p: PlayerSim) -> void:
 		if Config.EFFECTS.has(id):
 			_apply_mods(p, Config.EFFECTS[id])
 
+	# Last of all, because gear, the band and the effect clock have all had
+	# their say by now and a cap applied before any of them would not be a
+	# cap. Gloves, Luck, Lucky Strike and a Surge stack; they stop here.
+	p.crit_chance = clampf(p.crit_chance, 0.0, Config.MAX_CRIT)
+	p.crit_dmg = maxf(0.0, p.crit_dmg)
+
 	p.max_hp = roundf(p.max_hp)
 	p.max_stam = roundf(p.max_stam)
 	p.carry_cap = roundf(p.carry_cap)
@@ -105,6 +111,10 @@ static func _apply_attributes(p: PlayerSim) -> void:
 	p.turret_mul += 0.05 * r.call("int")
 
 	p.crit_chance += 0.02 * r.call("lck")
+	# Luck is how often a hit finds the soft parts *and* how bad it is when it
+	# does, so the attribute writes both halves. It is also what stops
+	# `crit_dmg` being a stat with a reader and no source.
+	p.crit_dmg += 0.03 * r.call("lck")
 	p.rare_loot_mul += 0.05 * r.call("lck")
 
 
@@ -187,12 +197,18 @@ static func _apply_mods(p: PlayerSim, table: Dictionary) -> void:
 
 ## Damage reduction from the five armour slots, capped. The off-hand holds a
 ## light and protects nothing.
+##
+## Crit comes off the same pass but only the hands ever carry it — see the
+## note on the glove rows in `Config.GEAR`. It is summed rather than capped
+## here: the cap belongs at the end of the recompute, above, because the band
+## and the effect clock both land after this.
 static func _apply_gear(p: PlayerSim) -> void:
 	var dr := 0.0
 	for slot in Config.ARMOR_SLOTS:
 		var id: String = p.equip.get(slot, "")
 		if not id.is_empty() and Config.GEAR.has(id):
 			dr += float(Config.GEAR[id].dr)
+			p.crit_chance += float(Config.GEAR[id].get("crit", 0.0))
 	p.armor_dr = minf(p.armor_dr + dr, Config.MAX_GEAR_DR)
 
 

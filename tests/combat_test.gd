@@ -341,3 +341,57 @@ func test_a_bandage_heals_over_time_and_roots_you() -> void:
 	p.intent.use = true
 	run(sim, 1.0 / 60.0)
 	eq(p.using.id, "medkit", "a big wound is worth the medkit")
+
+
+# ------------------------------------------------------------------- crit --
+
+func test_crit_comes_off_the_weapon_you_are_holding() -> void:
+	# What this replaced: `crit_chance + 0.06` at 1.9x for every melee weapon
+	# in the game and `crit_chance` at 1.8x for every gun, so a Stone Knife
+	# and a Sledgehammer critted identically.
+	var knife: Dictionary = Config.WEAPONS.knife
+	var sledge: Dictionary = Config.WEAPONS.sledge
+	near(Combat.crit_chance(p, knife), p.crit_chance + knife.crit, 1e-9)
+	near(Combat.crit_mul(p, sledge), sledge.crit_mul + p.crit_dmg, 1e-9)
+	ok(Combat.crit_chance(p, knife) > Combat.crit_chance(p, sledge), "a knife finds the gap more often")
+	ok(Combat.crit_mul(p, sledge) > Combat.crit_mul(p, knife), "and the sledgehammer costs more when it does")
+	ok(Combat.crit_chance(p, Config.WEAPONS.rifle) > Combat.crit_chance(p, Config.WEAPONS.shotgun),
+		"a rifle is aimed and a shotgun is pointed")
+	near(Combat.crit_chance(p, Config.WEAPONS.fists), p.crit_chance, 1e-9, "fists add nothing")
+
+
+func test_every_weapon_says_what_a_critical_is_worth() -> void:
+	for id in Config.WEAPONS:
+		var w: Dictionary = Config.WEAPONS[id]
+		ok(w.has("crit") and w.has("crit_mul"), "%s does not say" % id)
+		ok(float(w.crit) >= 0.0 and float(w.crit) < 0.4, "%s crit chance is out of range" % id)
+		gt(float(w.crit_mul), 1.0, "%s criticals must be worth having" % id)
+
+
+func test_gloves_and_chemistry_move_it_and_the_cap_holds() -> void:
+	var w: Dictionary = Config.WEAPONS.machete
+	var bare := Combat.crit_chance(p, w)
+	p.equip["hands"] = "tacGloves"
+	Equipment.recompute_stats(p)
+	near(Combat.crit_chance(p, w), bare + Config.GEAR.tacGloves.crit, 1e-9, "the hands are the slot that helps")
+
+	var gloved := Combat.crit_chance(p, w)
+	var mul := Combat.crit_mul(p, w)
+	p.effects["surge"] = 60.0
+	Equipment.recompute_stats(p)
+	gt(Combat.crit_chance(p, w), gloved, "a Surge sharpens you")
+	gt(Combat.crit_mul(p, w), mul, "and makes a critical cost more")
+
+	p.effects.erase("surge")
+	p.effects["drunk"] = 60.0
+	Equipment.recompute_stats(p)
+	ok(Combat.crit_chance(p, w) < gloved, "and you could not hit a wall")
+
+	# The cap is headroom, not a wall a real build hits: a maxed Luck ladder
+	# stays well under it, and only something absurd is clamped.
+	p.effects.clear()
+	p.attrs["lck"] = Config.ATTR_MAX
+	p.perks["luckyStrike"] = 3
+	Equipment.recompute_stats(p)
+	ok(Combat.crit_chance(p, w) < Config.MAX_CRIT, "the best build in the game is under the cap")
+	near(Combat.crit_chance(p, {"crit": 5.0}), Config.MAX_CRIT, 1e-9, "and nothing gets past it")
