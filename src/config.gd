@@ -320,32 +320,39 @@ const PHASES := [
 ]
 
 ## How dark the world is through the day, sampled as a ramp rather than
-## stepped per phase — dusk has to creep in, not snap. `a` is the darkness
-## alpha and `c` is what the dark is tinted.
+## stepped per phase — dusk has to creep in, not snap.
 ##
-## Deep night is near-black on purpose: past the edge of your torch you
-## should see almost nothing. The whole curve was scaled by 1.17 from its
-## first version (peak 0.82) after the owner's first playtest found night
-## still bright and a lit torch invisible against it — and `DARKNESS_FULL`
-## and `DARK_ENOUGH` were scaled by the same factor, so every multiplier
-## that reads the dark (spawns, sense, speed, Threat, Mutation) lands at
-## exactly the moment it did before. Only what you can see changed.
+## `a` is how far the world's own light is gone and `c` is what the dark is
+## tinted; `LightView` multiplies the canvas by `lerp(WHITE, c, a)`, so `c`
+## at `a` = 1 *is* what you can see. That is why the deep-night keys are
+## near-black rather than merely dark blue: the tint is a floor under the
+## night, and at #161436 the old curve left the map readable at about a
+## seventh of its daylight brightness — the owner's second playtest found it
+## "never got so dark that I couldn't see", which was that floor and not the
+## alpha.
+##
+## Past the edge of your torch you should now see nothing at all. The alphas
+## were scaled by 1/0.959 so the curve peaks at exactly 1.0, and
+## `DARKNESS_FULL` and `DARK_ENOUGH` were scaled by the same factor — so
+## every multiplier that reads the dark (spawns, sense, speed, Threat,
+## Mutation) still lands at exactly the moment it did before. Only what you
+## can see changed, as with the 1.17 scaling before it.
 const DARKNESS_KEYS := [
-	{"t": 0.00, "a": 0.725, "c": "#101a3a"},
-	{"t": 0.10, "a": 0.257, "c": "#2a3358"},
+	{"t": 0.00, "a": 0.756, "c": "#101a3a"},
+	{"t": 0.10, "a": 0.268, "c": "#2a3358"},
 	{"t": 0.16, "a": 0.00, "c": "#0a0c09"},
 	{"t": 0.56, "a": 0.00, "c": "#0a0c09"},
-	{"t": 0.66, "a": 0.351, "c": "#3a2740"},
-	{"t": 0.74, "a": 0.725, "c": "#161436"},
-	{"t": 0.82, "a": 0.959, "c": "#070c1c"},
-	{"t": 0.96, "a": 0.913, "c": "#080f24"},
-	{"t": 1.00, "a": 0.725, "c": "#101a3a"},
+	{"t": 0.66, "a": 0.366, "c": "#3a2740"},
+	{"t": 0.74, "a": 0.756, "c": "#0f0d26"},
+	{"t": 0.82, "a": 1.000, "c": "#04060f"},
+	{"t": 0.96, "a": 0.952, "c": "#04060f"},
+	{"t": 1.00, "a": 0.756, "c": "#101a3a"},
 ]
 
-## Full night for the purpose of the multipliers below. The curve peaks a
-## little above this, so `k` is clamped and the small hours are not worse
-## than the rest of the night. 0.8 x 1.17, with the curve above.
-const DARKNESS_FULL := 0.936
+## Full night for the purpose of the multipliers below. The curve peaks at
+## this or a hair above, so `k` is clamped and the small hours are not worse
+## than the rest of the night. 0.8 x 1.17 / 0.959, with the curve above.
+const DARKNESS_FULL := 0.976
 
 ## What the dark is worth to everything else. `k` is darkness over
 ## DARKNESS_FULL, clamped to 0..1: more of them out there, noticing you
@@ -358,9 +365,12 @@ const NIGHT := {
 	"threat": 0.9,
 }
 
-## Above this darkness a light is worth carrying — what the HUD hint and the
-## torch prompt read. 0.35 x 1.17, with the darkness curve.
-const DARK_ENOUGH := 0.41
+## Above this darkness a light is worth carrying: what the HUD hint reads,
+## and the switch an equipped torch strikes itself on. 0.35 x 1.17 / 0.959,
+## with the darkness curve. It is crossed at t 0.673 and again at 0.067, so
+## the dark is 0.394 of a day — 213 seconds, which is what a torch's 210 of
+## burn is measured against: one torch is one night.
+const DARK_ENOUGH := 0.4275
 
 # ----------------------------------------------------------------- mutation --
 

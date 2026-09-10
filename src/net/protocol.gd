@@ -582,7 +582,7 @@ static func pack_inventory(p: PlayerSim) -> Dictionary:
 		"mag": p.mag.duplicate(), "car_keys": p.car_keys.duplicate(), "attrs": p.attrs.duplicate(),
 		"perks": p.perks.duplicate(), "sk": p.skill_points, "slot": p.slot,
 		"light_on": p.light_on, "light_fuel": p.light_fuel, "light_id": p.light_id,
-		"light_charge": p.light_charge.duplicate(), "spawn_tx": p.spawn_tile.x, "spawn_ty": p.spawn_tile.y,
+		"light_doused": p.light_doused, "light_charge": p.light_charge.duplicate(), "spawn_tx": p.spawn_tile.x, "spawn_ty": p.spawn_tile.y,
 		"lv": p.level, "xp": p.xp, "xn": p.xp_next, "swc": p.second_wind_cd,
 	}
 
@@ -614,6 +614,7 @@ static func apply_inventory(p: PlayerSim, rec: Dictionary) -> void:
 	p.light_on = bool(rec.get("light_on", false))
 	p.light_fuel = float(rec.get("light_fuel", 0.0))
 	p.light_id = String(rec.get("light_id", ""))
+	p.light_doused = bool(rec.get("light_doused", false))
 	p.light_charge.clear()
 	for k in rec.get("light_charge", {}):
 		p.light_charge[String(k)] = float(rec.light_charge[k])

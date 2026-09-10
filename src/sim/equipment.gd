@@ -29,9 +29,13 @@ static func after_equip_change(p: PlayerSim) -> void:
 	var g: Dictionary = Config.GEAR.get(id, {})
 	if g.is_empty() or not g.has("light"):
 		# Nothing lit. Bank what the last light had left, so picking it back
-		# up resumes rather than restarts.
+		# up resumes rather than restarts, and forget which light it was — the
+		# same torch put back on is a light newly taken up, and strikes itself
+		# like any other.
 		if not p.light_id.is_empty():
 			p.light_charge[p.light_id] = p.light_fuel
+			p.light_id = ""
+			p.light_fuel = 0.0
 		p.light_on = false
 	elif p.light_id != id:
 		if not p.light_id.is_empty():
@@ -41,6 +45,11 @@ static func after_equip_change(p: PlayerSim) -> void:
 		# flat, so finding one is not the same as having light — you still
 		# need a battery.
 		p.light_fuel = p.light_charge.get(id, 0.0 if g.has("battery") else float(g.burn))
+		# A light you have just taken up is one you mean to use, so the dark
+		# will strike it: `update_light` does that the moment it is dark
+		# enough, which is why nothing is lit here. Equipping it at noon does
+		# not spend a second of it.
+		p.light_doused = false
 		p.light_on = false
 	p.lit = p.light_on
 	recompute_stats(p)
@@ -273,9 +282,11 @@ static func drop_equipped(sim: GameSim, p: PlayerSim, slot: String) -> bool:
 
 # -------------------------------------------------------------------- light --
 
-## Strike it or douse it. A flat flashlight spends a battery from the pack
-## first, then the stash — running out mid-street should send you home rather
-## than end the night.
+## Strike it or douse it, by hand. The dark does this for you (see
+## `update_light`) — T is for going dark on purpose, and for a flashlight
+## whose battery has not been spent yet. A flat flashlight spends one from
+## the pack first, then the stash: running out mid-street should send you
+## home rather than end the night.
 static func toggle_light(sim: GameSim, p: PlayerSim) -> bool:
 	var g := equipped_light(p)
 	if g.is_empty():
@@ -284,7 +295,14 @@ static func toggle_light(sim: GameSim, p: PlayerSim) -> bool:
 	if p.light_on:
 		p.light_on = false
 		p.lit = false
+		# Meant. Nothing relights it until you do, or until a new day.
+		p.light_doused = true
 		return true
+	if not sim.clock.is_dark():
+		# Refused rather than lit for one frame and then put out by
+		# `update_light`. On a flashlight that frame would have cost a battery.
+		sim.notify("No need yet — it lights itself when it gets dark", "#d9c46a")
+		return false
 	if p.light_fuel <= 0.0:
 		if not g.has("battery"):
 			return false                      # a spent torch is gone already
@@ -297,19 +315,42 @@ static func toggle_light(sim: GameSim, p: PlayerSim) -> bool:
 		p.light_fuel = g.burn
 		sim.notify("Fresh battery", "#b7e08a")
 	p.light_on = true
+	p.light_doused = false
 	p.lit = true
 	return true
 
 
+## What the light does with a second of being carried: strike itself when it
+## gets dark, burn while it is lit, go out with the dawn, and burn out.
+##
+## The dark striking it is the whole point (pillar 1, survival without the
+## chores): the owner equipped a torch, waited for night and expected to see
+## by it. Pressing a second key every dusk is a chore, and forgetting it is a
+## death. So an equipped light with fuel in it lights when the world crosses
+## `DARK_ENOUGH` and puts itself out at first light — which is also what
+## makes `burn` mean something, because a torch's 210 seconds is measured
+## against a 213-second night. One torch is one night, and none of it is
+## spent walking around at noon.
 static func update_light(sim: GameSim, p: PlayerSim, dt: float) -> void:
-	if not p.light_on:
-		p.lit = false
-		return
 	var g := equipped_light(p)
 	if g.is_empty():
 		p.light_on = false
 		p.lit = false
 		return
+	if not sim.clock.is_dark():
+		# Daylight puts it out and forgives a deliberate dousing.
+		p.light_on = false
+		p.lit = false
+		p.light_doused = false
+		return
+	if not p.light_on:
+		# A flashlight with a flat battery still waits for T, because T is what
+		# spends the battery — finding one is not the same as having light.
+		if p.light_doused or p.light_fuel <= 0.0:
+			p.lit = false
+			return
+		p.light_on = true
+		sim.notify("%s lit" % g.name, "#e0913a")
 	p.light_fuel = maxf(0.0, p.light_fuel - dt)
 	p.lit = true
 	if p.light_fuel > 0.0:

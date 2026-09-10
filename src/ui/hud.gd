@@ -173,14 +173,35 @@ func _draw() -> void:
 	draw_rect(Rect2(cb.position, Vector2(cb.size.x * sim.clock.t, cb.size.y)), pcol)
 	# Readable, and specific about the next step: the first playtest found a
 	# faint "T for a light" easy to miss, and a torch in the pack is not a
-	# torch in the off-hand.
+	# torch in the off-hand. A light in the off-hand now strikes itself, so
+	# there are only three ways to be in the dark unlit, and the hint names
+	# whichever one it is.
+	var lamp: Dictionary = Equipment.equipped_light(p)
 	if sim.clock.is_dark() and not p.lit:
 		var key := KeyBinds.primary_label("light")
 		# Short: this column is 220px wide and the first cut ran off the screen.
-		var hint := "dark — %s lights your torch" % key if not Equipment.equipped_light(p).is_empty() \
-			else "dark — wear a Torch, then %s" % key
+		# Nothing worn; worn but put out on purpose; or worn and flat, which
+		# only a flashlight can be — a spent torch is gone. Which of the last
+		# two is read off the fuel rather than `light_doused`, because fuel is
+		# in the per-frame snapshot and a guest's copy of the flag is not.
+		var hint := "dark — wear a Torch in your off-hand"
+		if not lamp.is_empty():
+			hint = "dark — %s to light it again" % key if p.light_fuel > 0.0 \
+				else "%s is flat — %s loads a battery" % [String(lamp.name), key]
 		draw_string(font, Vector2(tx, ty + 58), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12,
 			Color(0.95, 0.75, 0.4, 0.6 + 0.4 * dark))
+	elif p.lit and not lamp.is_empty():
+		# What is left of it. A torch that burns out in the middle of a field is
+		# the difference between a bad night and an unfair one, so the burn-down
+		# is on the screen rather than a surprise.
+		var burn: float = maxf(1.0, float(lamp.get("burn", 1.0)))
+		var left: float = clampf(p.light_fuel / burn, 0.0, 1.0)
+		draw_string(font, Vector2(tx, ty + 58), "%s  %ds" % [String(lamp.name), roundi(p.light_fuel)],
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#e0913a"))
+		var lb := Rect2(tx + 96, ty + 50, 124, 4)
+		draw_rect(lb, Color(0, 0, 0, 0.55))
+		draw_rect(Rect2(lb.position, Vector2(lb.size.x * left, lb.size.y)),
+			Color("#e0913a") if left > 0.25 else Color("#c96a5a"))
 
 	# The hotbar: six slots, and the selected one is what you are holding.
 	var slot_w := 74.0

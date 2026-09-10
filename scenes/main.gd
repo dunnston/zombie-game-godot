@@ -1395,16 +1395,56 @@ func smoke_run(smoke: Node) -> void:
 		smoke.fail("night is not worth anything: %s" % str(night))
 	await smoke.checkpoint("night")
 
-	# A torch in the off-hand, lit. This is what Phase 3a's light fields were
-	# put there for and the first time anything has read them.
+	# A torch in the off-hand. Worn, not struck: the dark strikes it, which is
+	# the behaviour the owner's second playtest asked for, and this is the only
+	# place it is checked in the real scene rather than in a harness.
 	p.bag.add("gear:torch", 1)
 	p.equip["offhand"] = "torch"
 	Equipment.after_equip_change(p)
-	Equipment.toggle_light(sim, p)
+	if p.lit:
+		smoke.fail("equipping the torch lit it before a frame had run")
 	await smoke.frames(4)
 	if not p.lit:
-		smoke.fail("the torch did not light")
+		smoke.fail("the dark did not light the torch")
+	var burned: float = 210.0 - p.light_fuel
+	if burned <= 0.0:
+		smoke.fail("a lit torch is not burning down (fuel %.2f)" % p.light_fuel)
 	await smoke.checkpoint("torch_lit")
+
+	# And T is going dark on purpose: it stays out until you strike it again,
+	# which is what the picture at this checkpoint is of.
+	Equipment.toggle_light(sim, p)
+	await smoke.frames(4)
+	if p.lit:
+		smoke.fail("T did not put the torch out")
+	await smoke.checkpoint("torch_doused")
+	Equipment.toggle_light(sim, p)
+	await smoke.frames(2)
+	if not p.lit:
+		smoke.fail("T did not strike the torch again")
+
+	# The flashlight, which is the other half of the light table and had never
+	# been on screen: a smaller puddle and a long cone in front, and a battery
+	# it will not light without.
+	p.bag.add("gear:flashlight", 1)
+	p.equip["offhand"] = "flashlight"
+	Equipment.after_equip_change(p)
+	await smoke.frames(4)
+	if p.lit:
+		smoke.fail("a flat flashlight lit itself")
+	p.bag.add("battery", 1)
+	if not Equipment.toggle_light(sim, p):
+		smoke.fail("the flashlight refused a battery that was in the pack")
+	# Aimed along +X so the cone is unmistakable in the screenshot.
+	p.angle = 0.0
+	await smoke.frames(4)
+	if not p.lit:
+		smoke.fail("the flashlight did not light")
+	await smoke.checkpoint("flashlight_cone")
+	# Back to the torch for what follows: the fire leg reads better by one.
+	p.equip["offhand"] = "torch"
+	Equipment.after_equip_change(p)
+	await smoke.frames(2)
 
 	# Fire: light the scenery and watch it burn. Planted rather than found,
 	# so the checkpoint does not depend on what the generator put nearby.

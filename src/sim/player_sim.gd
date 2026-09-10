@@ -154,6 +154,11 @@ var mag := {}                    # weapon id -> rounds loaded
 var light_on := false
 var light_fuel := 0.0
 var light_id := ""
+## You put it out on purpose. An equipped light strikes itself when the dark
+## arrives, so without this the next frame would undo every deliberate
+## dousing — and going dark to lose something following you is a real move.
+## Daybreak clears it, so tomorrow night lights itself again.
+var light_doused := false
 ## Burn left per light id, so swapping between two lights and back does not
 ## refill either one.
 var light_charge := {}

@@ -75,7 +75,7 @@ static func to_dict(sim: GameSim) -> Dictionary:
 			"slot": p.slot, "bag": p.bag.to_record(), "hotbar": p.hotbar.to_record(),
 			"equip": p.equip.duplicate(), "mag": p.mag.duplicate(),
 			"light_on": p.light_on, "light_fuel": p.light_fuel, "light_id": p.light_id,
-			"light_charge": p.light_charge.duplicate(),
+			"light_doused": p.light_doused, "light_charge": p.light_charge.duplicate(),
 			"spawn_tx": p.spawn_tile.x, "spawn_ty": p.spawn_tile.y,
 			"driving_id": p.driving_id, "car_keys": p.car_keys.duplicate(),
 		})
@@ -264,6 +264,9 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 		for k in rec.get("light_charge", {}):
 			p.light_charge[k] = float(rec.light_charge[k])
 		p.light_on = bool(rec.get("light_on", false))
+		# An older save has no answer to this and false is the right one: a torch
+		# loaded into the dark lights itself, which is what it would have done.
+		p.light_doused = bool(rec.get("light_doused", false))
 		p.spawn_tile = Vector2i(int(rec.get("spawn_tx", -1)), int(rec.get("spawn_ty", -1)))
 		p.driving_id = int(rec.get("driving_id", 0))
 		for k in rec.get("car_keys", []):
