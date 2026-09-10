@@ -84,6 +84,14 @@ func base_centre() -> Dictionary:
 	for s in list:
 		if s.destroyed:
 			continue
+		# A garden is not a base. Counted here, twelve raised beds in a field
+		# outrank a whole compound and drag the point a raid converges on out
+		# into the allotment — and a single bed in open country was enough to
+		# make `has_base` true, so the game announced "they are heading for
+		# your base" at somebody who had planted a potato. Beds are still
+		# destructible; they are just not where you live. (Codex, PR #24.)
+		if s.def.get("plot", false):
+			continue
 		var w: float = 3.0 if s.def.get("protect", false) else 1.0
 		sum += s.pos * w
 		n += w
@@ -114,17 +122,33 @@ func in_base(at: Vector2) -> bool:
 ## the most valuable: that is what makes a horde break on the perimeter,
 ## which is the whole reason to build one. Protected pieces pull a little
 ## harder, so a raider already inside heads for the workbench, not back out.
+##
+## A raised bed is the other end of the same scale — the least attractive
+## thing in a base, so a horde reaching a compound eats the walls and the
+## workbench before the vegetables. It stays eligible on purpose: **this is
+## the only route by which anything ever damages a structure** (an enemy's
+## `pending_struct` comes from its `objective` and nowhere else), so a bed
+## excluded here would be indestructible, and "a brute through the beds takes
+## the crop with it" would be a promise the game could not keep.
 func raid_target(from: Vector2) -> Dictionary:
 	var best := {}
 	var best_score := INF
 	for s in list:
 		if s.destroyed:
 			continue
-		var score: float = from.distance_squared_to(s.pos) * (0.55 if s.def.get("protect", false) else 1.0)
+		var score: float = from.distance_squared_to(s.pos) * _raid_pull(s.def)
 		if score < best_score:
 			best_score = score
 			best = s
 	return best
+
+
+## How attractive a piece is to a raider, as a multiplier on its distance:
+## below one pulls harder, above one pushes to the back of the queue.
+static func _raid_pull(def: Dictionary) -> float:
+	if def.get("plot", false):
+		return B.raid_pull_plot
+	return B.raid_pull_protect if def.get("protect", false) else 1.0
 
 
 ## The armament a manned tower is set to, falling back to the free default.

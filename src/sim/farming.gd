@@ -127,10 +127,19 @@ static func prompt(s: Dictionary) -> String:
 
 # ------------------------------------------------------------------- work --
 
-## Everything below spends out of the pack and then the shared stash, which is
-## what `PlayerSim.spend` already does for a wall or a recipe. A garden beside
-## your stash is pleasant to work; one out in a field is a thing you carry
-## water to.
+## Everything below spends out of the pack and then the shared stash, through
+## `PlayerSim.can_afford` and `spend` — the same pair a wall, a repair and a
+## recipe already use.
+##
+## **The stash is reachable from anywhere in the world, and always has been.**
+## `total_res` adds `sim.stash` with no distance test at all, so a Steel Wall
+## has always been payable from a stash on the far side of town; farming
+## inherits that rather than introducing it. An earlier version of this
+## comment claimed a field bed was "a thing you carry water to", which the
+## code has never done (Codex, PR #24). Range-checking the stash is a change
+## to the whole economy and every system that spends, not a farming rule —
+## making this the one place that checked would be a surprise, not a fix. It
+## is on the roadmap as its own card.
 
 static func plant(sim: GameSim, p: PlayerSim, s: Dictionary, seed_id: String) -> bool:
 	if not is_bed(s):
@@ -212,9 +221,18 @@ static func harvest(sim: GameSim, p: PlayerSim, s: Dictionary) -> int:
 		return 0
 	var crop: Dictionary = crop_of(s)
 	var seed_id := String(s.seed)
+	# Fertilizer is the *only* multiplier on a harvest, and the panel prints
+	# the band it produces. `p.loot_mul` used to be in here as well, which
+	# made the panel promise 3-5 and pay 4-6 to anyone with a rank of
+	# Scrounger (Codex, PR #24). Taking it out rather than printing it: the
+	# perk's own description is "+35% resources **from containers**", a crop
+	# you grew is nearer to a craft than to a find, and crafting has never
+	# scaled with a loot perk. It also keeps the feed slot the one dial the
+	# whole system is built around, instead of a number quietly stacked on by
+	# a Perception build.
 	var mul: float = float(fert_of(s).get("yield_mul", 1.0))
 	var base: int = sim.rng.irange(int(crop.min), int(crop.max))
-	var n := maxi(1, floori(base * mul * p.loot_mul))
+	var n := maxi(1, floori(base * mul))
 
 	var seeds: int = int(F.seed_back)
 	if sim.rng.chance(float(F.seed_back_bonus)):

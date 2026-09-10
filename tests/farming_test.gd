@@ -295,6 +295,79 @@ func _on_ground(id: String) -> int:
 	return n
 
 
+# ------------------------------------------------------ beds and raids --
+#
+# All three from Codex on PR #24.
+
+func test_a_garden_is_not_a_base() -> void:
+	# Counted in `base_centre`, twelve beds in a field outrank a compound and
+	# drag the point a raid converges on out into the allotment.
+	# Off the row of beds, and inside `BUILD.range` — a bench six tiles out is
+	# refused for being too far, not for being a bench.
+	var far := Vector2i(plot.x + 3, plot.y + 3)
+	for i in range(4):
+		_bed(1 + i)
+	var only_beds := sim.structs.base_centre()
+	ok(not only_beds.has_base, "a row of beds is not somewhere you live")
+
+	# A bench two tiles away is, and it is the whole of the answer.
+	p.bag.add("wood", 200)
+	p.bag.add("scrap", 200)
+	var bench := sim.structs.place(sim, "workbench", far.x, far.y, p)
+	ok(not bench.is_empty(), "the bench went down")
+	var c := sim.structs.base_centre()
+	ok(c.has_base)
+	near(c.pos.x, bench.pos.x, 0.001, "four beds did not pull the centre off the bench")
+	near(c.pos.y, bench.pos.y, 0.001)
+
+
+func test_a_bed_is_the_last_thing_a_horde_goes_for_and_not_the_none_thing() -> void:
+	var bed := _bed(1)
+	p.bag.add("wood", 200)
+	# A wall the same distance away on the other side.
+	var wall := sim.structs.place(sim, "woodWall", plot.x - 1, plot.y, p)
+	ok(not wall.is_empty())
+	near(p.pos.distance_to(bed.pos), p.pos.distance_to(wall.pos), 1.0, "same distance either way")
+	eq(sim.structs.raid_target(p.pos), wall, "the wall is the more interesting of the two")
+
+	# But a bed on its own is still a target — which matters more than the
+	# ordering does, because an enemy's `pending_struct` comes from its
+	# objective and nowhere else. A bed nothing ever targets is a bed nothing
+	# can ever destroy, and `Farming.on_removed` would be dead code.
+	sim.structs.demolish(sim, wall, p)
+	eq(sim.structs.raid_target(p.pos), bed, "and it is still destructible")
+
+
+func test_a_horde_can_still_take_the_garden() -> void:
+	# The promise in PROJECT.md §4, end to end: a bed reached by a raid is
+	# damaged, destroyed, and takes the planting with it.
+	var s := _bed()
+	Farming.plant(sim, p, s, "seedCorn")
+	Farming.fertilize(sim, p, s, "compost")
+	var seeds := p.total_res(sim, "seedCorn")
+	sim.structs.damage(sim, s, s.max_hp + 1.0)
+	ok(s.destroyed, "a bed is not indestructible")
+	eq(String(s.seed), "", "and the crop went with it")
+	eq(p.total_res(sim, "seedCorn") + _on_ground("seedCorn"), seeds, "nothing came back")
+
+
+func test_the_panel_promises_what_the_harvest_pays() -> void:
+	# Fertilizer is the only multiplier on a harvest, so the band the screen
+	# prints is the band you get. `p.loot_mul` used to be in the harvest and
+	# not in the band, which made the panel lie to anyone with a rank of
+	# Scrounger.
+	var s := _bed()
+	Farming.plant(sim, p, s, "seedPotato")
+	Farming.water(sim, p, s)
+	Farming.water(sim, p, s)
+	_grow(DAY + 1.0)
+	p.loot_mul = 3.0                    # a Scrounger build, and then some
+	var row: Dictionary = Config.CROPS.seedPotato
+	var n := Farming.harvest(sim, p, s)
+	ok(n >= int(row.min) and n <= int(row.max),
+		"a loot perk moved the harvest: %d is outside %d-%d" % [n, row.min, row.max])
+
+
 # --------------------------------------------------------------- reach --
 
 func test_a_bed_out_of_reach_is_no_bed_at_all() -> void:

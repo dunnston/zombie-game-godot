@@ -1404,6 +1404,17 @@ const BUILD := {
 	"salvage_share": 0.5,
 	"store_reach_bonus": 40.0,
 	"bench_range": 110.0,
+	# How attractive a piece is to a raider, as a multiplier on its distance:
+	# below one pulls harder, above one goes to the back of the queue. A raid
+	# still walks at the *nearest* thing, which is what makes a horde break on
+	# a perimeter; these only break the tie. A protected piece pulls a raider
+	# already inside toward the workbench rather than back out, and a raised
+	# bed is the least interesting thing in a base — a horde eats the walls
+	# and the bench before the vegetables, but it can still eat the
+	# vegetables. (0.55 was inline in `raid_target`; invariant 5 says it lives
+	# here.)
+	"raid_pull_protect": 0.55,
+	"raid_pull_plot": 1.6,
 }
 
 const STRUCTURES := {
