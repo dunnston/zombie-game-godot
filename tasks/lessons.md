@@ -234,3 +234,15 @@ yet when an earlier autoload's `_ready` wants to know.
   a `continue` that skips a `pick_type` — changes every roll after it, so a
   smoke step that depends on having looted well will fail for reasons that
   have nothing to do with it. Steps should stock their own preconditions.
+- A clock and the fields that only mean something while it runs must be
+  cleared together, in the one place it runs out. Bleed zeroed `bleed_t` on
+  expiry and left `bleed_dps` and `bleed_by` behind, so the "keep the deeper
+  wound" rule compared the next cut against a wound that had already
+  finished: a knife opening something a machete had bled dry bled at the
+  machete's rate and paid the machete's owner the kill. The bug is invisible
+  in the mechanic's own tests, because every one of them opens a wound and
+  watches it end — none opened a *second* one afterwards. (Codex, PR #23.)
+- When a card says a system is missing, confirm it still is before building
+  it. A card asked for three and one had shipped the day before;
+  the audit line predated the merge. Grep for the field name before planning
+  to build it — half an hour of reading beat rebuilding a working system.

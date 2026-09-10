@@ -41,6 +41,95 @@ static func damage_enemy(sim: GameSim, e: EnemySim, dmg: float, from: Vector2, k
 	return dmg
 
 
+## Rock an enemy back, and take the swing it was committed to with it. The
+## one writer of `stagger_t` and `stagger_cd`, for the reason `Mutation.add`
+## and `Wear.use` are the one writer of theirs: it is what makes a guest agree
+## with the host about whether the thing in front of it is still coming.
+##
+## It lives here rather than in `Combat` because this is already the file that
+## knows how hard a body resists being moved — `knock_resist` scales the shove
+## above and the stagger below, so "a Brute is hard to rock" is one fact in
+## one place instead of two tables that have to be kept agreeing.
+##
+## Returns the seconds actually landed, which is 0 for every way it can be
+## refused: nothing left to stagger, still inside the immunity window, or a
+## body so heavy that what got through is under `Config.STAGGER.min`. That
+## last one is how a Behemoth shrugs off a sledgehammer without a single line
+## anywhere naming a Behemoth.
+static func stagger_enemy(sim: GameSim, e: EnemySim, secs: float, crit := false) -> float:
+	if e == null or e.dead or secs <= 0.0 or e.stagger_cd > 0.0:
+		return 0.0
+	var t: float = secs * (1.0 - e.knock_resist) * (Config.STAGGER.crit_mul if crit else 1.0)
+	if t < Config.STAGGER.min:
+		return 0.0
+	e.stagger_t = t
+	# The immunity covers the stagger itself and then runs on past it, so the
+	# window is "cannot be locked", not "cannot be touched while down".
+	e.stagger_cd = t + Config.STAGGER.immune
+	# Whatever it had committed to is gone — the bite, the punch at your wall,
+	# the survivor it had picked out. `atk_cd` is deliberately *not* refunded:
+	# it was spent starting that swing, and losing it is the reward for the
+	# interrupt.
+	e.windup = 0.0
+	e.pending_struct = {}
+	e.pending_survivor = null
+	e.blocker = {}
+	sim.emit({"t": "stagger", "x": e.pos.x, "y": e.pos.y, "r": e.r})
+	return t
+
+
+## Open a wound. The one writer of the bleed fields.
+##
+## A fresh cut refreshes the clock and keeps the *higher* rate rather than
+## stacking: the deepest cut is the one that is bleeding. Without that rule a
+## Stone Knife at 0.28s would multiply itself into the best weapon in the game
+## against anything big, which is not what a stone knife is for.
+##
+## **"Deeper" only ever means deeper than a wound that is still open.**
+## `bleed_dps` and `bleed_by` mean nothing once `bleed_t` has run out, and
+## `tick_bleed` clears both on the way past zero so that this comparison
+## cannot read a number that has already expired.
+##
+## Takes no `sim`, unlike everything else here, because it emits nothing: the
+## blood the hit already threw is the telegraph, and `EnemyView` draws the
+## rest straight off `bleed_t`.
+static func bleed_enemy(e: EnemySim, dps: float, by: PlayerSim = null) -> bool:
+	if e == null or e.dead or dps <= 0.0:
+		return false
+	e.bleed_t = Config.BLEED.time
+	if dps >= e.bleed_dps:
+		e.bleed_dps = dps
+		# Whoever cut deepest owns the kill, so a body that drops seconds
+		# later still pays its XP and its drops to a person rather than to
+		# nobody. Held as a reference the way `pending_survivor` is.
+		e.bleed_by = by
+	return true
+
+
+## One frame of bleeding, spent from the enemy's own tick.
+##
+## `no_alert` and `no_fx` for the reasons the docstring at the top of this
+## file gives: a wound must not re-startle its owner sixty times a second,
+## and it must not answer every one of those frames with seven blood
+## particles and a damage number.
+##
+## A closed wound leaves nothing behind (Codex, PR #23). Zeroing the clock
+## alone left the rate and the owner standing, and because `bleed_enemy` keeps
+## the higher of the two rates, the next cut was measured against a wound that
+## had already finished: a Stone Knife opening something a Machete had bled
+## dry inherited the Machete's 6 dps, and the kill went to whoever had swung
+## the Machete. Both are cleared here, which is what makes that comparison
+## safe.
+static func tick_bleed(sim: GameSim, e: EnemySim, dt: float) -> void:
+	if e.bleed_t <= 0.0:
+		return
+	e.bleed_t = maxf(0.0, e.bleed_t - dt)
+	damage_enemy(sim, e, e.bleed_dps * dt, e.pos, 0.0, false, e.bleed_by, true, true, "bleed")
+	if e.bleed_t <= 0.0:
+		e.bleed_dps = 0.0
+		e.bleed_by = null
+
+
 static func kill_enemy(sim: GameSim, e: EnemySim, source: Variant = null) -> void:
 	if e.dead:
 		return

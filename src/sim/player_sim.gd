@@ -86,6 +86,9 @@ var range_mul := 1.0
 var fire_rate_mul := 1.0
 var reload_mul := 1.0
 var crit_chance := 0.08
+## Added to the weapon's own `crit_mul`, so what a critical costs the thing it
+## lands on is part weapon and part you. Luck writes it; so does a Surge.
+var crit_dmg := 0.03
 var free_shot_chance := 0.0
 var noise_mul := 1.0
 var threat_mul := 1.0

@@ -227,7 +227,7 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Enemies, spawning, chase | 2 | ported | Count radius widened past the spawn ring (§6); stuck test is relative to pace (§6) |
 | Noise | 2 | ported | One `Sound.make_noise`; alert + destination, never aggro |
 | Quiet field / pressure | 2, 3b | ported | A base standing nearby quietens the ground, and losing it makes it dangerous again |
-| Combat: melee, bow, guns, bullets | 2 | ported | Now fed by the hotbar; `TEST_KIT` is what the tests hold |
+| Combat: melee, bow, guns, bullets | 2 | improved | Fed by the hotbar; and what a weapon does on a hit is the weapon's — blunt things stagger, edged things bleed, crit is per weapon plus gloves and buffs |
 | Damage routing | 2, 5 | ported | Alone you die; with a teammate standing you go down for thirty seconds, and E beside you gets you up |
 | Navigation | 2 | **new** | Flow field per living player; enemies chasing you follow it |
 | Raids and threat | 2, 3b | ported | Raiders walk at the nearest structure; the compound harness reproduces §9 |
@@ -254,6 +254,65 @@ The spec for each row is in `tasks/port-inventory.md`.
 ---
 
 ## 4. What is built
+
+### Blunt things stagger, edged things bleed
+
+Three weapon systems, and one sentence of content design holding them
+together: **what a weapon does to what it hits is now the weapon's, not the
+game's.** Before this, every melee weapon in the game staggered nothing, bled
+nothing, and critted identically.
+
+- **Stagger interrupts a committed swing.** `stagger` on a weapon is seconds,
+  and what lands is `stagger x (1 - knock_resist)` — the resistance that
+  already scales knockback, so "a Brute is hard to rock" is the same fact
+  that makes it hard to shove rather than a second table saying it twice.
+  A stagger clears the enemy's `windup` and everything it had picked out, and
+  **`atk_cd` is not refunded**: the swing it had started is gone, and that is
+  what you bought. A staggered enemy does nothing at all — no targeting, no
+  step, no attack — which is also true of a Raider holding its distance and a
+  Looter running for the treeline.
+- **A floor makes bosses immune without naming them.** Anything under
+  `STAGGER.min` (0.12s) does nothing, so a Behemoth at 0.95 resistance takes
+  0.045s off a Sledgehammer and shrugs. No line anywhere says "Behemoth".
+- **`STAGGER.immune` is the rule the whole thing rests on.** After it
+  recovers, an enemy cannot be staggered again for 2.2s. Without it a Stone
+  Knife at 0.28s would hold a walker still for ever and melee would stop
+  being a fight. It is also why all eight shotgun pellets carry a stagger and
+  the crowd gets one shove rather than eight.
+- **Bleed is what a blade leaves behind.** `bleed` is damage per second and
+  `BLEED.time` (5s) is how long a wound runs. A fresh cut refreshes the clock
+  and keeps the *higher* rate — the deepest cut is the one that is bleeding —
+  so a fast knife rewards staying on a target without multiplying itself into
+  a boss-killer. It carries who opened it, so a body that drops seconds later
+  still pays its XP and its drops to a person. It is flat from the weapon and
+  deliberately not scaled by `melee_mul`. **This is the mechanic cut on
+  2026-09-08 for being declared and never read**, back on the terms the
+  decision log set: the same three weapons, spec'd.
+- **No weapon has both**, and that is the design rather than an accident:
+  blunt weapons and shotguns interrupt, the Machete, Stone Knife and Scythe
+  cut, Fists do neither. A test asserts the split holds.
+- **Crit is per weapon, and per what you are wearing and what you have
+  taken.** `Combat.crit_chance` and `Combat.crit_mul` are the only two places
+  either question is answered. Chance is the player's (Luck, Lucky Strike,
+  gloves, the Mutation band, the effect clock — all arriving already summed
+  and capped through `recompute_stats`) plus the weapon's `crit`. Severity is
+  the weapon's `crit_mul` plus the player's `crit_dmg`. The two pull opposite
+  ways on purpose: a Hunting Rifle or a Stone Knife finds the gap often for
+  less, a Sledgehammer almost never for 2.8x.
+- **The hands are the crit slot**, and the only one — gloves carry `crit`,
+  no other gear does. `MAX_CRIT` (0.75) is clamped once at the end of the
+  recompute, because the band and the effect clock both land after gear and a
+  cap applied earlier would not be a cap. It is headroom: the best legitimate
+  build in the game is nowhere near it.
+- **Both new conditions cost one bit each on the wire** (`EF_STAGGER`,
+  `EF_BLEED`, protocol 4). A guest never ticks either clock; it only needs to
+  know that the thing in front of it is reeling and losing blood. Bleeding is
+  spent inside the enemy loop that was already running, so unlike fire it
+  needs no scan of its own and a run where nothing is bleeding pays nothing.
+- The numbers are the code's first guess, exactly as `dur` was: Notion's
+  `Crit Chance` column was blank on every weapon and `Stagger` was set on two
+  Planned shotguns only. Both columns have been filled in from what was
+  built, so the design table and the game now agree.
 
 ### Weapons wear out, and the bench that made one mends it
 
@@ -877,10 +936,15 @@ All simulation, all `RefCounted`, all under `src/sim/`:
   swinging through a wall), harvest stamina and the winded latch, tool
   gates and hints,
   guns with magazines, spread, pellets, recoil, shell-at-a-time reloads,
-  the bow as a one-round gun.
+  the bow as a one-round gun, and `crit_chance` / `crit_mul` — the only two
+  places the game asks how often a hit is a critical and what it costs.
 - **`Damage`** — enemy damage with knockback and resistance, kills (xp to
   the killer, threat, quiet, corpse), player damage with invulnerability,
-  death, healing, respawn on tier-1 ground clear of enemies.
+  death, healing, respawn on tier-1 ground clear of enemies. It owns the two
+  conditions a blow can leave as well: `stagger_enemy` (resisted, floored,
+  with the immunity window, and it takes the wind-up with it) and
+  `bleed_enemy` / `tick_bleed`. One writer each, beside the resistance they
+  both read.
 - **`Threat`** and **`Raid`** — the meter (gain scaled by night, decay,
   pinned at 100, tier warnings); the raid (12s warning, waves, 0.22s spawn
   cadence on a 520–800px ring, hp x(1 + 0.06 x index), anti-stall
@@ -1055,6 +1119,12 @@ Phases 1–4 respecting it.
 | 2026-09-09 | The repair gate is the recipe's own bench, not a table of its own | "Repaired at the same bench they are made" is literally `Crafting.bench_reason` asked about the same recipe row — which is why that gate was split out of `Crafting.status` rather than copied. A new weapon needs no repair entry, and the two can never drift apart. | Yes |
 | 2026-09-09 | The weapon repair bill ignores `build_cost_mul`; the structure one still takes it | That multiplier is Engineer and the Intelligence ladder making what you *construct* cheaper, and `Crafting.craft` already ignores it — a Machete costs 24 scrap at any Intelligence. Charging a share of a price the perk does not touch, and then discounting the share, would make mending cheaper than making for a reason nothing in the game states. | Yes, one argument |
 | 2026-09-09 | Durability numbers are the code's first guess, not Notion's | Notion's `Durability` column is where the owner's per-weapon intent belongs, and **it is blank for every weapon in the game** — one Planned row (AK-Style Rifle, 5) is the only value in it. §10 says not to read that column as a spec, so the table in `Config.WEAPONS` is a first pass to be played and argued with, and the write-back is the owner's to make. | Yes, sixteen numbers |
+| 2026-09-10 | Stagger is deterministic seconds, resisted by `knock_resist`, with an immunity window | A chance roll per hit was the other option and is more dramatic. Deterministic wins on three counts: the same blow does the same thing every time, which is what a player learns a weapon by; host and guest agree without either touching the seeded RNG; and the rule that stops a stun-lock has to exist either way, so the roll buys nothing but variance. Reusing `knock_resist` rather than adding a `stagger_resist` keeps one fact about how heavy a body is in one place. | Yes |
+| 2026-09-10 | An enemy is stagger-immune for `STAGGER.immune` after it recovers | Without it a Stone Knife at 0.28s cooldown holds a walker still for ever, and every fight against anything that is not a boss becomes a lock. With it, an interrupt is a thing you spend and time. It is also what makes a shotgun's eight pellets one shove rather than eight, at no extra cost. | Yes |
+| 2026-09-10 | A bleed does not stack; the deepest cut wins and refreshes | Stacking makes a fast weapon multiply itself — a Stone Knife at 0.28s would out-damage everything in the game against a Behemoth by standing still and cutting. Taking the higher rate and refreshing the clock still rewards staying on the target, and it keeps the number on screen readable: it is the weapon's, not the weapon's times how long you have been at it. | Yes |
+| 2026-09-10 | Bleed is flat from the weapon and ignores `melee_mul` | A cut bleeds the same however strong you are. The realism argument goes the other way, but the readable one wins: `bleed` on the row is what the wound does, full stop, and a Strength ladder that silently doubled it would make the field a lie. Damage is where Strength belongs and it already is there. | Yes, one multiplier |
+| 2026-09-10 | A stagger does not refund the enemy's `atk_cd` | It was spent starting the swing that has just been taken away, and losing it is the reward for the interrupt. Refunding would make an interrupted enemy swing again sooner than one you left alone, which is exactly backwards. | Yes |
+| 2026-09-10 | Crit chance and severity are per weapon; the cap is clamped once, at the end | `crit_chance + 0.06` at 1.9x for every melee weapon and `crit_chance` at 1.8x for every gun meant a Stone Knife and a Sledgehammer critted identically, and no piece of content could ever say otherwise. Two functions in `Combat` are now the only answer to either question. The `MAX_CRIT` clamp sits at the end of `recompute_stats` rather than beside the gear sum because the Mutation band and the effect clock both apply after gear — a cap applied any earlier is not a cap. | Yes |
 | 2026-09-08 | `bleed` dropped from the machete, knife and scythe | The prototype declared it on three weapons and never read it anywhere. Advertising a mechanic nothing implements is worse than not having it (pillar 5); those three are already separated by damage, cadence, reach and arc. Comes back as a spec'd mechanic or not at all. | Yes |
 | 2026-09-08 | An unfinished raid pays XP on the same share as salvage | The floor was `0.5 + share/2`, so a horde you never touched still paid half its XP — the exact "hiding beats defending" the salvage share exists to prevent. | Yes, one expression |
 | 2026-09-08 | The save fingerprint is taken when generation finishes, not when the save is written | It has to describe the *generator*, not the run. Taken live it included the current collision bitmap and prop count, so felling a single tree changed it and the save refused itself on load. A test fells a tree and asserts the fingerprint does not move. | Yes |
@@ -1126,6 +1196,19 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    peaks at 0.82 alpha, which is the prototype's number, and the tint is now
    applied the way the prototype applied it — so this is the real curve
    rather than the too-dark one the first cut of `LightView` produced.
+1. **Is an interrupt worth carrying a heavy weapon for?** The stagger gate.
+   A Sledgehammer takes 0.86s to swing and stops a walker dead for 0.9s; a
+   Machete swings at 0.34s, stops nothing, and leaves it bleeding. That trade
+   is the whole question, and the numbers most likely to move are the
+   immunity window (2.2s — long enough that you cannot lock a walker, short
+   enough that a crowd control weapon is still a crowd control weapon?) and
+   the floor (0.12s, which is what makes a Behemoth immune: should a boss
+   flinch at all?). The rest: does a stagger read at a glance in a crowd —
+   arms down and body lurched back, against arms up for the wind-up — or do
+   the two poses blur; is the Pump Shotgun's shove the "get off me" the
+   design says it is; does 6 dps of bleeding on a Machete feel like anything
+   next to 40 damage a swing, or is it a number you never notice. The dev
+   menu has `Stagger and open up everything near you`.
 1. **Does breaking a weapon read as tension or as a chore?** The wear gate,
    and the one most likely to want its numbers moved. A Hatchet is 140
    connecting swings and a tree costs two of them, so it is roughly seventy
@@ -1530,13 +1613,14 @@ groups, and the difference decides how much work a change to one is:
 | Rating | Where it stands |
 | --- | --- |
 | Damage, Attack Speed, Reach, Knockback, Noise | **Already per-weapon** in `WEAPONS` as `dmg`, `cd`, `range`, `knock` and (guns) `noise`. A change here is a number. |
-| Stamina Cost, Crit Chance, Cleave | **The mechanic exists; the per-weapon field does not.** A swing costs a flat `PLAYER.stam_swing` (2.0) whatever you hold; `crit_chance` is a player stat off Luck and perks, rolled in both `melee_attack` and `fire_gun`; cleave is real but derived from the weapon's `arc` (`melee_targets` allows 6 targets over 1.4 radians, otherwise 3). A change here means making an existing system read a per-weapon value. |
+| Crit Chance, Stagger | **Built 2026-09-10**, and now per-weapon in `WEAPONS` as `crit` / `crit_mul` and `stagger`. The columns were blank (Crit Chance on every row; Stagger on all but two Planned shotguns), so the code's numbers were written first and all seventeen in-game weapon rows filled in from them — the ratings and the game agree as of that date, and a change to either column is now a real change to make. **On Stagger, 1 means the weapon does not interrupt at all**: only nine weapons stagger, and the scale had to say so rather than leaving a blank that reads as missing data. |
 | Durability | **Built 2026-09-09**, and now per-weapon in `WEAPONS` as `dur` — a count of uses, with repair at the recipe's own bench. The Notion column is **blank on every row but one**, so the numbers in the code are the code's first guess; filling that column in and syncing it back is a real change to make, and it is the owner's call, not a sync's. |
-| Stagger | **Not in the game at all.** Nothing interrupts an enemy mid-attack. Its own roadmap card. |
+| Stamina Cost, Cleave | **The mechanic exists; the per-weapon field does not.** A swing costs a flat `PLAYER.stam_swing` (2.0) whatever you hold; cleave is real but derived from the weapon's `arc` (`melee_targets` allows 6 targets over 1.4 radians, otherwise 3). A change here means making an existing system read a per-weapon value. |
 
-Do not read a number in the last two groups as a spec to implement. The
-middle group in particular is a small change to a system that already works,
-not a new feature, and confusing the two in either direction wastes a phase.
+Do not read a number in the bottom group as a spec to implement: it is a
+small change to a system that already works, not a new feature, and confusing
+the two in either direction wastes a phase. The two built groups are the
+opposite — a number moved there is a number the game will use.
 
 When the owner says **"look at Notion and update the game"**:
 
@@ -1586,6 +1670,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-10 | **Blunt things stagger, edged things bleed, and crit comes off the weapon.** Three systems and one sentence of content design. **Stagger** is `stagger` seconds per weapon, resisted by the `knock_resist` that already scales knockback — no second table — and it clears the enemy's `windup` and everything it had picked out, without refunding `atk_cd`: the swing you took away is what you bought. A staggered enemy does nothing at all, Raiders and Looters included. Two rules make it work: a **floor** (`STAGGER.min`, 0.12s) that leaves a Behemoth at 0.95 resistance shrugging off a Sledgehammer with no line anywhere naming a Behemoth, and **`STAGGER.immune`** (2.2s after recovery), without which a 0.28s Stone Knife holds a walker still for ever — it is also what makes a shotgun's eight pellets one shove rather than eight. **Bleed returns** on exactly the three weapons it was cut from on 2026-09-08, on the terms the decision log set: `bleed` dps for `BLEED.time`, no stacking (the deepest cut wins and refreshes), flat from the weapon rather than scaled by `melee_mul`, and carrying who opened it so a body that drops seconds later still pays the right person. It is spent inside the enemy loop that was already running, so unlike fire it needs no scan of its own. **Crit stops being hard-coded**: `crit_chance + 0.06` at 1.9x for melee and `crit_chance` at 1.8x for guns meant a Stone Knife and a Sledgehammer critted identically. Now `Combat.crit_chance` and `Combat.crit_mul` are the only answer, summing the player's half (Luck — which also gains `crit_dmg` — perks, gloves, the Mutation band, the effect clock) with the weapon's `crit` and `crit_mul`, which pull opposite ways: rifle 0.15 at 2.5x, sledge 0.02 at 2.8x. Gloves are the only gear that carries crit and `MAX_CRIT` is clamped once at the end of the recompute, because the band and the effects land after gear. Protocol 4 for one bit each on the wire; `stagger_test.gd` and `bleed_test.gd` (36 tests, 515 fast / 551 with `--all`), crit assertions in `combat_test.gd`, a dev verb and two smoke checkpoints. **The numbers were the code's first guess and Notion's Crit Chance and Stagger columns have been filled in from them** — blank before on every in-game weapon. Fixed from Codex's review of PR #23: a closed wound left its rate and its owner behind, and since a fresh cut keeps the *higher* of the two rates, the next one was measured against a wound that had already finished — a Stone Knife opening something a Machete had bled dry inherited the Machete's 6 dps and credited it the kill. `tick_bleed` clears both as the clock passes zero, and the fields now mean nothing unless `bleed_t` is above it |
 | 2026-09-10 | **Condition moved from the player to the weapon**, from Codex's review of PR #22. The first cut kept `PlayerSim.wear` as weapon id -> uses left, beside `mag`, and that leaked four ways: a broken weapon left in a chest came back whole to the next person to open it, a **freshly crafted weapon was born broken** because the last one of its kind had been, the free repair the death drop is careful to prevent was one deposit away, and two of a kind could never be told apart. A `Slots` stack now carries an optional `w`, so condition travels with the weapon through chests, car boots, the ground, other players' packs, the save and the wire — and an unset slot is a whole weapon, which is what makes a crafted or scavenged one arrive new with nobody arranging it. Cheap in practice: weapons are stack-limit 1, so no merge ever has to decide what two joined conditions are, and `Slots.move` already moved a whole stack dictionary. The death drop is the one place it still flattens, because `held` is a flat id -> count — it keeps **the worse of two**, so flattening can never mend. Repair is addressed by slot rather than by id, which is also what stops a guest naming a weapon it is not carrying. Second finding, also Codex's: **a broken tool is not a tool** — a zero-condition Stone Knife no longer cuts cordage and a zero-condition Stone Hammer is no longer a portable workbench, and nothing deadlocks because every tool recipe and every tool's own recipe is bench 0. `wear_test.gd` is 32 tests, nine of them the transfer paths that were wrong |
 | 2026-09-09 | **Weapons wear out and benches mend them.** `dur` on every weapon in `WEAPONS` as a count of *uses* — one connecting swing, one shot — and `Wear` as the only thing that writes it, kept per weapon id beside `mag` for the same reason `mag` is (a slot is `{id, n}`; two Hatchets share one condition, and that is the accepted cost of the slot model). A swing at air is free; **felling a tree costs a tool twice what a walker does**. Nothing degrades on the way down: one warning at 30%, one at 10%, a condition sliver on the hotbar, and then it is **broken — refused, not destroyed and not quietly worse**, because it is the thing you carry back to the bench. Mending is a share of the recipe scaled by the wear (0.5, main material always ≥ 1) at **the recipe's own bench** — `Crafting.bench_reason` split out of `status` so the gate cannot drift, which makes a Hatchet mendable by hand and a Machete not, for free and forever. MEND rows sit above the recipes on the CRAFT tab (a different verb to the build bar's REPAIR on purpose). A weapon nothing makes is mended nowhere, which is what a unique found-only weapon will lean on — **no such weapon exists yet**. Wear travels with the save (v10), the guest's pack diff, and the backpack you drop when you die, without which walking back to your own corpse would be the cheapest bench in the game. Repair goes through `Actions` like every other screen command. Two dev verbs, `wear_test.gd` (23 tests) and two smoke checkpoints. **The sixteen `dur` numbers are the code's first guess: Notion's Durability column is blank on every in-game weapon** |
 | 2026-09-09 | **The chemistry, the living, and losing control** (Phase 6b). A **Chemistry Station**: the first bench that is not a rung on the workbench ladder, gated by `station` rather than by `bench`, so no amount of upgrading ever produces a suppressant. The chain finishes — Refined −50, and **Experimental −75**, which always pays ninety seconds of Surge and charges a Fever one time in four; the Fever turns you *faster*, so the risk is on the same axis as the reward. **Food and drink arrive as a full table and as buffs only** — nine items, six effects, no hunger meter under any of it and a test that asserts no such field exists. Hydration is what finally writes `mut_rate_mul`. `F` eats the commonest thing that would help; right-click in the pack uses what you clicked, through `Actions`. **The Lurch**: at FERAL your legs stop being yours for a second and a half every couple of minutes, the intent is rewritten rather than guarded, and a guest hands the body to the host for the duration. And **the living**: Looter, Raider and Enforcer, a raid track of their own rolled against your Mutation band (never at HUMAN, 55% at FERAL), hostile bullets that look for people instead of enemies, a `standoff` a rifleman keeps and a shotgun closes, and a Looter that empties your stash and runs for the edge — kill it and you get it back. They carry no brain matter: killing people is never a way to hold the meter down. Two new test files (47 tests) and five more smoke checkpoints. Save v9, protocol 3 |

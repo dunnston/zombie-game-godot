@@ -34,6 +34,26 @@ var windup := 0.0                # committed to a swing that lands when this hit
 var anim := 0.0
 var slow_t := 0.0
 
+## Rocked by a blow. While `stagger_t` runs this thing does nothing at all —
+## no targeting, no step, no swing — and the wind-up it was committed to is
+## gone. `stagger_cd` is the window in which it cannot be staggered again,
+## and it is the whole reason a fast weapon is not a lock: see `Config.STAGGER`.
+## `Damage.stagger_enemy` is the only writer of either.
+var stagger_t := 0.0
+var stagger_cd := 0.0
+
+## Bleeding. `bleed_dps` is the rate of the deepest wound it is carrying and
+## `bleed_by` is who opened it, so a kill that lands seconds later still pays
+## its XP and its drops to the right person. `Damage.bleed_enemy` is the one
+## writer; `Enemies.tick_ai` is the one place it is spent.
+##
+## **The last two mean nothing unless `bleed_t` is above zero**, and
+## `Damage.tick_bleed` clears them as the clock runs out. Anything reading a
+## rate or an owner off a wound that has closed is reading a ghost.
+var bleed_t := 0.0
+var bleed_dps := 0.0
+var bleed_by: PlayerSim = null
+
 # Alight. `burn_t` counts the fire down and `burn_spread_t` is when it next
 # tries to take something with it. Both live here rather than in a list, so a
 # dead enemy takes its fire with it and nothing has to be reaped.

@@ -95,6 +95,9 @@ func _build_catalogue() -> void:
 		# feels like — or whether the bench will mend it.
 		["blunt", "Wear what you are holding to a sliver", "you"],
 		["mend", "Mend everything you are carrying", "you"],
+		# Seeing an interrupt land needs something mid-swing to interrupt,
+		# which is a fight you have to arrange. This is that fight, on demand.
+		["rock", "Stagger and open up everything near you", "world"],
 		["day", "Set the clock to noon", "world"],
 		["night", "Set the clock to midnight", "world"],
 		["clear", "Kill every enemy loaded", "world"],
@@ -192,6 +195,19 @@ func _verb(id: String) -> void:
 			for row in Wear.worn_carried(player):
 				Wear.mend(Wear.container_for(player, String(row.c)), int(row.i))
 			sim.notify("DEV  everything mended", "#b7e08a")
+		"rock":
+			# Through the same two writers the weapons use, resistance and
+			# immunity included — so what this shows is the real mechanic and
+			# not a second one that only the dev menu can reach. A Behemoth
+			# standing here will refuse, which is the correct answer.
+			var rocked := 0
+			for e in sim.enemies.list:
+				if e.dead or e.pos.distance_squared_to(player.pos) > 400.0 * 400.0:
+					continue
+				if Damage.stagger_enemy(sim, e, 1.2) > 0.0:
+					rocked += 1
+				Damage.bleed_enemy(e, 6.0, player)
+			sim.notify("DEV  %d rocked and bleeding" % rocked, "#d9c46a")
 		"human":
 			Mutation.suppress(sim, player, Config.MUTATION.max)
 		"res":

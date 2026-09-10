@@ -29,6 +29,7 @@ const DIRECT := {
 	"reload_done": "reload_done",
 	"swing": "swing",
 	"bullet_wall": "hit_wall",
+	"stagger": "stagger",
 	"kill": "zombie_die",
 	"growl": "growl",
 	"player_hit": "player_hurt",

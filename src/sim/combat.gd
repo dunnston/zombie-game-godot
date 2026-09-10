@@ -67,6 +67,11 @@ static func tick_bullets(sim: GameSim, dt: float) -> void:
 				if pos.distance_squared_to(e.pos) > rr * rr:
 					continue
 				Damage.damage_enemy(sim, e, b.dmg, b.prev, b.knock, b.crit, b.owner)
+				# A round that carries one. Pierce keeps it at full strength
+				# for the body behind: a rifle bullet through two walkers
+				# rocks both, and the per-enemy immunity is what stops that
+				# being a problem.
+				Damage.stagger_enemy(sim, e, b.get("stagger", 0.0), b.crit)
 				if b.pierce > 0:
 					b.pierce -= 1
 					b.dmg *= 0.75
@@ -103,6 +108,29 @@ static func _hit_someone(sim: GameSim, b: Dictionary, pos: Vector2) -> bool:
 		sim.crew.damage(sim, s, b.dmg, b.prev)
 		return true
 	return false
+
+
+# --------------------------------------------------------------------- crit --
+
+## How often a hit with `w` lands as a critical, and how hard it lands when it
+## does. **These two are the only place either question is answered**, which is
+## the point of them: before, `melee_attack` rolled `crit_chance + 0.06` at
+## 1.9x and `fire_gun` rolled `crit_chance` at 1.8x, so a Stone Knife and a
+## Sledgehammer critted identically and no piece of content could say otherwise.
+##
+## The player's half — Luck, Lucky Strike, gloves, the Mutation band, whatever
+## is still on the effect clock — arrives already summed and already capped by
+## `recompute_stats`, which is invariant 4 doing its job. All that is left here
+## is the weapon in the hand.
+static func crit_chance(p: PlayerSim, w: Dictionary) -> float:
+	return clampf(p.crit_chance + float(w.get("crit", 0.0)), 0.0, Config.MAX_CRIT)
+
+
+## The weapon's own multiplier, plus whatever the player carries as `crit_dmg`.
+## Additive rather than multiplied so a buff reads as what it says: Surge is
+## "+0.3 on a critical", not "+30% of whatever you happen to be holding".
+static func crit_mul(p: PlayerSim, w: Dictionary) -> float:
+	return float(w.get("crit_mul", Config.CRIT_MUL_DEFAULT)) + p.crit_dmg
 
 
 # -------------------------------------------------------------------- melee --
@@ -189,9 +217,19 @@ static func melee_attack(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 	if not hits.is_empty():
 		p.stam = maxf(0.0, p.stam - P.stam_swing)
 		sim.emit({"t": "shake", "amount": w.get("shake", 1.6)})
+		var chance := crit_chance(p, w)
+		var mul := crit_mul(p, w)
+		var stagger: float = w.get("stagger", 0.0)
+		var bleed: float = w.get("bleed", 0.0)
 		for e in hits:
-			var crit := sim.rng.chance(p.crit_chance + 0.06)
-			Damage.damage_enemy(sim, e, dmg * (1.9 if crit else 1.0), p.pos, w.knock, crit, p, false, false, "melee")
+			var crit := sim.rng.chance(chance)
+			Damage.damage_enemy(sim, e, dmg * (mul if crit else 1.0), p.pos, w.knock, crit, p, false, false, "melee")
+			# Both after the damage, and both refused on a corpse by their own
+			# `dead` check, so neither is spent on something this swing has
+			# already put down. No weapon carries both — blunt things stagger
+			# and edged things bleed — but nothing here has to know that.
+			Damage.stagger_enemy(sim, e, stagger, crit)
+			Damage.bleed_enemy(e, bleed, p)
 		Wear.use_held(sim, p, 1)
 	elif chop_prop(sim, p, w, dmg):
 		p.stam = maxf(0.0, p.stam - chop_stam_cost(p))
@@ -310,14 +348,27 @@ static func fire_gun(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 	var muzzle := p.pos + Vector2.from_angle(p.angle) * (p.r + 12.0)
 	var pellets: int = w.get("pellets", 1)
 	var color := "#c8a878" if w.get("bow", false) else ("#ffd08a" if w.id == "shotgun" else "#ffe6a8")
+	var chance := crit_chance(p, w)
+	var mul := crit_mul(p, w)
+	var stagger: float = w.get("stagger", 0.0)
 	for i in range(pellets):
 		var a: float = p.angle + (sim.rng.next() - 0.5) * spread * 2.0
-		var crit := sim.rng.chance(p.crit_chance)
-		spawn_bullet(sim, muzzle, a,
+		var crit := sim.rng.chance(chance)
+		var b := spawn_bullet(sim, muzzle, a,
 			w.speed * (0.92 + sim.rng.next() * 0.16),
-			w.dmg * p.gun_mul * (1.8 if crit else 1.0),
+			w.dmg * p.gun_mul * (mul if crit else 1.0),
 			w.life * p.range_mul, w.knock, w.get("pierce", 0), p, crit,
 			w.id if i == 0 else "", color)   # one sound per shot, not per pellet
+		# Written onto the round rather than passed in: `spawn_bullet` has
+		# twelve parameters already, and this way every other source of a
+		# bullet — a turret, a raider's rifle, the cosmetic tracer a guest
+		# draws — carries no stagger by simply not having the key.
+		#
+		# All eight shotgun pellets carry it, and only the first to connect
+		# does anything: the immunity window in `stagger_enemy` is what turns
+		# a spread into one shove instead of eight.
+		if stagger > 0.0:
+			b.stagger = stagger
 
 	# No flash from a bow: a muzzle flash is a light source at night, and a
 	# bow that lit up the treeline would give away the one thing it is for.
