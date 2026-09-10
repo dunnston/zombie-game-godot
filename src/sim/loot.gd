@@ -156,7 +156,7 @@ static func give_entry(sim: GameSim, p: PlayerSim, entry: Dictionary) -> Diction
 					spawn_entry_pickup(sim, p.pos, w.ammo, give - got)
 				return {"text": "%s (spare ammo +%d)" % [w.name, got], "color": "#d8c98a"}
 			return {"text": "%s (already carried)" % w.name, "color": "#8a8f84"}
-		if not _give_item(p, wid, true):
+		if not _give_item(p, wid, true, int(entry.get("w", -1))):
 			return {"text": "%s — NO ROOM" % w.name, "color": "#c96a5a", "overflow": {"entry": id, "n": 1}}
 		if not p.mag.has(wid):
 			p.mag[wid] = w.get("mag", 0)
@@ -212,15 +212,15 @@ static func give_entry(sim: GameSim, p: PlayerSim, entry: Dictionary) -> Diction
 ## Weight is the capacity rule, so it applies here too: a six-unit rifle at
 ## 199 of 200 units carried is refused and stays on the ground, exactly as an
 ## overweight stack of scrap would be. Slot space alone is not enough.
-static func _give_item(p: PlayerSim, id: String, prefer_hotbar: bool) -> bool:
+static func _give_item(p: PlayerSim, id: String, prefer_hotbar: bool, wear := -1) -> bool:
 	if p.carried_weight() + Items.weight_of(id) > p.carry_cap + 1e-9:
 		return false
 	if prefer_hotbar and p.hotbar.first_empty() >= 0:
-		return p.hotbar.add(id, 1) > 0
+		return p.hotbar.add(id, 1, wear) > 0
 	if p.bag.first_empty() >= 0:
-		return p.bag.add(id, 1) > 0
+		return p.bag.add(id, 1, wear) > 0
 	if p.hotbar.first_empty() >= 0:
-		return p.hotbar.add(id, 1) > 0
+		return p.hotbar.add(id, 1, wear) > 0
 	return false
 
 
@@ -260,7 +260,10 @@ static func grant_loot(sim: GameSim, p: PlayerSim, entries: Array, at: Vector2) 
 ## ignores that one player's magnet until they have stepped clear of it once —
 ## a state, not a timer. Everyone else may take it immediately: putting
 ## something down at a teammate's feet is how you hand it to them.
-static func spawn_pickup(sim: GameSim, at: Vector2, kind: String, id: String, n := 1, owner: PlayerSim = null) -> Dictionary:
+## `wear` is uses left for a weapon that is going down worn; -1 for
+## everything else. A dropped weapon has to keep its condition or the ground
+## would be a free bench.
+static func spawn_pickup(sim: GameSim, at: Vector2, kind: String, id: String, n := 1, owner: PlayerSim = null, wear := -1) -> Dictionary:
 	var pos := at
 	var guard := 0
 	while sim.world.is_blocked_px(pos.x, pos.y) and guard < 24:
@@ -274,6 +277,8 @@ static func spawn_pickup(sim: GameSim, at: Vector2, kind: String, id: String, n 
 		"t": 0.0, "bob": sim.loot_rng.frange(0.0, TAU), "life": 600.0,
 		"inert_for": owner,
 	}
+	if wear >= 0:
+		it["w"] = wear
 	sim.pickups.append(it)
 	return it
 
@@ -316,7 +321,7 @@ static func update_pickups(sim: GameSim, dt: float) -> void:
 			it.vel += (p.pos - it.pos) / d * pull * dt
 		if d2 < pow(range_ * 0.45, 2.0):
 			var entry := pickup_entry_id(it)
-			var r := give_entry(sim, p, {"id": entry, "n": it.n})
+			var r := give_entry(sim, p, {"id": entry, "n": it.n, "w": int(it.get("w", -1))})
 			if not r.is_empty() and r.has("overflow") and r.overflow.entry == entry:
 				# No room: leave it, and shove it clear so it stops being
 				# offered every frame. The entry has to match the pile — this
@@ -351,10 +356,22 @@ static func stash_or_drop(sim: GameSim, id: String, n: int, at: Vector2) -> int:
 ## starting weapon, so a respawn is never completely toothless.
 static func drop_backpack(sim: GameSim, p: PlayerSim) -> Dictionary:
 	var held := {}
+	# Condition has to be read off the slots before they are cleared, and it
+	# flattens to one value per id here because `held` is a flat id -> count
+	# and always has been — the same loss `mag` already takes on a death
+	# drop. Without it, walking back to your own body would be a free repair
+	# on everything in it, which would make dying the cheapest bench in the
+	# game. The worst of two is kept, so the flattening can never mend.
+	var worn := {}
 	for cont in [p.bag, p.hotbar]:
 		var entries: Dictionary = cont.entries()
 		for id in entries:
 			held[id] = held.get(id, 0) + entries[id]
+		for i in range(cont.size()):
+			var wid: String = cont.id_at(i)
+			if Wear.wears(wid):
+				var uses := Wear.left(cont, i)
+				worn[wid] = mini(int(worn.get(wid, uses)), uses)
 	for slot in p.equip:
 		var id: String = p.equip[slot]
 		if not id.is_empty():
@@ -377,7 +394,8 @@ static func drop_backpack(sim: GameSim, p: PlayerSim) -> Dictionary:
 
 	if held.is_empty():
 		return {}
-	var pack := {"pos": p.pos, "held": held, "mag": p.mag.duplicate(), "t": 0.0, "seat": p.seat}
+	var pack := {"pos": p.pos, "held": held, "mag": p.mag.duplicate(),
+		"wear": worn, "t": 0.0, "seat": p.seat}
 	sim.backpacks.append(pack)
 	# The rounds went into the pack with the gun. Leaving them on the player
 	# would hand a freshly found replacement the dead one's magazine, and
@@ -392,7 +410,8 @@ static func collect_backpack(sim: GameSim, p: PlayerSim, pack: Dictionary) -> in
 	var moved := 0
 	for id in pack.held.keys():
 		var want: int = pack.held[id]
-		var got := p.bag.add_capped(id, want, p.pack_allowance())
+		var got := p.bag.add_capped(id, want, p.pack_allowance(),
+			int(pack.get("wear", {}).get(id, -1)))
 		pack.held[id] -= got
 		if pack.held[id] <= 0:
 			pack.held.erase(id)

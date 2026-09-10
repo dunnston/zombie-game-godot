@@ -171,18 +171,30 @@ func _cells() -> Array[Dictionary]:
 
 
 ## The recipe rows on screen, as {recipe, rect}.
-func _recipe_rows() -> Array[Dictionary]:
+## The craft list: everything worn that you are carrying, then everything the
+## bench can make. Repairs go on top because they are the shorter list and
+## the more urgent one — a broken axe is why you walked to the bench.
+##
+## A row carries `repair` (a weapon id) or `recipe` (a row from `RECIPES`),
+## never both, and both are drawn and hit-tested off this one list so what
+## looks clickable is clickable.
+func _craft_rows() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if mode != "craft":
 		return out
 	var panel := _panel()
-	var list := recipes()
+	var list: Array = []
+	for row in Wear.worn_carried(player):
+		list.append({"repair": row})
+	for r in recipes():
+		list.append({"recipe": r})
 	var top := panel.position.y + 76.0
 	var visible_rows := int((panel.size.y - 130.0) / ROW)
 	craft_top = clampi(craft_top, 0, maxi(0, list.size() - visible_rows))
 	for i in range(craft_top, mini(list.size(), craft_top + visible_rows)):
-		out.append({"recipe": list[i],
-			"rect": Rect2(panel.position.x + 24.0, top + (i - craft_top) * ROW, panel.size.x - 48.0, ROW - 2.0)})
+		var row: Dictionary = list[i].duplicate()
+		row["rect"] = Rect2(panel.position.x + 24.0, top + (i - craft_top) * ROW, panel.size.x - 48.0, ROW - 2.0)
+		out.append(row)
 	return out
 
 
@@ -229,8 +241,16 @@ func cell_centre(kind: String, index: int, slot := "") -> Vector2:
 
 ## The middle of a named recipe's row, likewise.
 func recipe_centre(id: String) -> Vector2:
-	for r in _recipe_rows():
-		if r.recipe.id == id:
+	for r in _craft_rows():
+		if r.has("recipe") and r.recipe.id == id:
+			return r.rect.get_center()
+	return Vector2.ZERO
+
+
+## The middle of a weapon's MEND row, for the smoke run's cursor.
+func repair_centre(id: String) -> Vector2:
+	for r in _craft_rows():
+		if r.has("repair") and String(r.repair.id) == id:
 			return r.rect.get_center()
 	return Vector2.ZERO
 
@@ -313,9 +333,12 @@ func _click_chrome(at: Vector2) -> bool:
 		if b.rect.has_point(at):
 			_press_button(b.id)
 			return true
-	for r in _recipe_rows():
+	for r in _craft_rows():
 		if r.rect.has_point(at):
-			Actions.craft(sim, player, r.recipe, bench())
+			if r.has("repair"):
+				Actions.repair_weapon(sim, player, String(r.repair.c), int(r.repair.i), bench())
+			else:
+				Actions.craft(sim, player, r.recipe, bench())
 			return true
 	for r in _crew_rows():
 		if not r.rect.has_point(at):
@@ -566,21 +589,39 @@ func _draw_craft(font: Font, panel: Rect2) -> void:
 		where += "  ·  %s" % Crafting.station_name(String(st))
 	draw_string(font, panel.position + Vector2(24, 60), where, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
 
-	for row in _recipe_rows():
-		var r: Dictionary = row.recipe
+	for row in _craft_rows():
 		var rect: Rect2 = row.rect
-		var st := Crafting.status(sim, player, r, b)
-		var hot: bool = rect.has_point(mouse)
-		if hot:
+		var name_ := ""
+		var cost := {}
+		var st := {}
+		var verb := "CRAFT"
+		if row.has("repair"):
+			var at: Dictionary = row.repair
+			var cont := Wear.container_for(player, String(at.c))
+			# "MEND", not "REPAIR": REPAIR is the build bar's word for a wall,
+			# and two different jobs sharing one verb is how a player learns
+			# the wrong thing about which tool does what.
+			verb = "MEND"
+			# The percentage is also what tells two Machetes apart, now that
+			# they can be worn differently and each gets its own row.
+			name_ = "%s  ·  %d%%" % [Config.WEAPONS[at.id].name, roundi(Wear.frac(cont, int(at.i)) * 100.0)]
+			cost = Wear.repair_cost(cont, int(at.i))
+			st = Wear.repair_status(sim, player, String(at.c), int(at.i), b)
+		else:
+			var r: Dictionary = row.recipe
+			name_ = r.name
+			cost = r.cost
+			st = Crafting.status(sim, player, r, b)
+		if rect.has_point(mouse):
 			draw_rect(rect, Color("#242a32"))
-		draw_string(font, rect.position + Vector2(6, 15), r.name, HORIZONTAL_ALIGNMENT_LEFT, 220, 12,
+		draw_string(font, rect.position + Vector2(6, 15), name_, HORIZONTAL_ALIGNMENT_LEFT, 220, 12,
 			Color("#ebe6d6") if st.ok else Color("#7a7f76"))
-		draw_string(font, rect.position + Vector2(230, 15), Structures.cost_label(r.cost), HORIZONTAL_ALIGNMENT_LEFT, 260, 11,
+		draw_string(font, rect.position + Vector2(230, 15), Structures.cost_label(cost), HORIZONTAL_ALIGNMENT_LEFT, 260, 11,
 			Color("#c9a227") if st.ok else Color("#8a6a5a"))
 		if not st.ok:
 			draw_string(font, rect.position + Vector2(0, 15), st.reason, HORIZONTAL_ALIGNMENT_RIGHT, rect.size.x - 8, 11, Color("#c96a5a"))
 		else:
-			draw_string(font, rect.position + Vector2(0, 15), "CRAFT", HORIZONTAL_ALIGNMENT_RIGHT, rect.size.x - 8, 11, Color("#9fd07a"))
+			draw_string(font, rect.position + Vector2(0, 15), verb, HORIZONTAL_ALIGNMENT_RIGHT, rect.size.x - 8, 11, Color("#9fd07a"))
 
 
 ## The character sheet. Attributes down the left with their per-rank line,
@@ -721,6 +762,13 @@ func _draw_tooltip(font: Font, stack: Dictionary) -> void:
 	elif kind == "weapon":
 		var w: Dictionary = Config.WEAPONS[id]
 		lines.append("%.0f damage  ·  %s" % [w.dmg, w.kind])
+		# Off the stack itself, so the tooltip describes the weapon under the
+		# cursor rather than some other one of the same name.
+		if Wear.wears(id):
+			if Wear.broken_in(stack):
+				lines.append("BROKEN  ·  mend it at the bench that made it")
+			else:
+				lines.append("condition %d / %d" % [Wear.left_in(stack), Wear.max_of(id)])
 	elif kind == "consumable":
 		var c: Dictionary = Config.CONSUMABLES[id]
 		if float(c.heal) > 0.0:

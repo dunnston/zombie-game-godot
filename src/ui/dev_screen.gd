@@ -90,6 +90,11 @@ func _build_catalogue() -> void:
 		# play and useless at a keyboard trying to see what FERAL feels like.
 		["mutate", "+20 Mutation", "you"],
 		["human", "Clear the Mutation meter", "you"],
+		# Wearing a weapon out honestly is several hundred swings, which is
+		# right in play and useless at a keyboard trying to see what breaking
+		# feels like — or whether the bench will mend it.
+		["blunt", "Wear what you are holding to a sliver", "you"],
+		["mend", "Mend everything you are carrying", "you"],
 		["day", "Set the clock to noon", "world"],
 		["night", "Set the clock to midnight", "world"],
 		["clear", "Kill every enemy loaded", "world"],
@@ -174,6 +179,19 @@ func _verb(id: String) -> void:
 			Progression.add_xp(sim, player, 1000, "DEV")
 		"mutate":
 			Mutation.add(sim, player, 20.0, "dev")
+		"blunt":
+			var wid := player.held_id()
+			if Wear.wears(wid):
+				# Down to one use, not to zero: the next swing is what breaks
+				# it, so the break itself can be watched rather than arrived at.
+				player.hotbar.set_wear_at(player.slot, 1)
+				sim.notify("DEV  %s is down to its last use" % Config.WEAPONS[wid].name, "#d9c46a")
+			else:
+				sim.notify("DEV  that does not wear out", "#8a8f84")
+		"mend":
+			for row in Wear.worn_carried(player):
+				Wear.mend(Wear.container_for(player, String(row.c)), int(row.i))
+			sim.notify("DEV  everything mended", "#b7e08a")
 		"human":
 			Mutation.suppress(sim, player, Config.MUTATION.max)
 		"res":

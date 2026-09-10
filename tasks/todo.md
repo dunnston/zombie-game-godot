@@ -1744,3 +1744,51 @@ ghost's failure now carries the cursor position and the focus flag. Runs
 reach all 61 checkpoints where they used to stop at 55, and the residue is
 one leg in three runs rather than six. PROJECT.md §8 gains the lesson, which
 replaces the one that blamed load.
+
+---
+
+## Weapons wear out (2026-09-09)
+
+The Notion catalogue has had a `Durability` column since the taxonomy pass,
+listed in `PROJECT.md` §10 as one of the two ratings with nothing behind it.
+This is that card.
+
+- [x] `dur` on all sixteen weapons in `WEAPONS`; a count of *uses*, not a
+      pool of hit points. `WEAR` holds the four tunables
+- [x] `Wear` (`src/sim/wear.gd`) — `use` as the only writer, the crossing
+      warnings, `mend`, and the repair bill and its gate
+- [x] **Condition on the slot, not the player** (Codex, PR #22). `Slots`
+      stacks carry an optional `w`; it travels through chests, boots, the
+      ground, other players' packs, the save and the wire. The first cut kept
+      it on `PlayerSim` and a freshly crafted weapon was born broken
+- [x] **A broken tool is not a tool** (Codex, PR #22) — no cordage from a
+      dead knife, no portable bench from a dead hammer
+- [x] Wear spent on a swing that connects and on a shot; a swing at air is
+      free; a chop costs `WEAR.chop_mul`
+- [x] Broken refuses, keeps its slot, and says so once every three seconds
+- [x] `Crafting.bench_reason` split out of `Crafting.status`, so repair asks
+      the recipe's own bench rather than carrying a second copy of the gate
+- [x] MEND rows above the recipes on the CRAFT tab; condition sliver and
+      BROKEN on the hotbar; condition in the pack tooltip
+- [x] `Actions.repair_weapon` and its host branch (invariant 8)
+- [x] Save v10, the guest's pack diff, and the death-drop backpack
+- [x] Two dev verbs so a break can be watched rather than waited for
+- [x] `wear_test.gd` (32 tests) and two smoke checkpoints
+
+### Left for the owner
+
+- [ ] **Play it and move the numbers.** Sixteen `dur` values, `chop_mul`,
+      `repair_cost_share` and the two warning marks are all first guesses.
+      The roadmap card in §7 lists the questions.
+- [ ] **Fill in Notion's `Durability` column.** It is blank on every weapon
+      that is in the game — the only value in it is the AK-Style Rifle's 5,
+      on a Planned row. Notion owns the intent; the code owns the behaviour,
+      so the 1-5 ratings want writing down and then mapping onto `dur`.
+- [ ] **Decide whether unique weapons are a thing.** The mechanic is ready —
+      a weapon with no recipe is mended nowhere, and `dur` is where "lasts
+      longer" lives — but nothing uses it, because every weapon in the game
+      but Fists is craftable. The Planned list has obvious candidates (the
+      Katana is already written up as rare and display-case-only).
+- [ ] **Armour and tools?** Only weapons wear today. Gear has no `dur` and
+      neither does anything else. Left deliberately: one system, played
+      first.

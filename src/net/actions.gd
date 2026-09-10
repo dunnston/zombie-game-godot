@@ -29,6 +29,17 @@ static func craft(sim: GameSim, p: PlayerSim, recipe: Dictionary, bench: int) ->
 	return Crafting.craft(sim, p, recipe, bench)
 
 
+## Mend a worn weapon at the bench that made it. The slot rather than the
+## weapon id, for the reason `use_slot` names — a slot is what was clicked,
+## and an id would let a guest mend something it is not carrying. The host
+## re-derives the bench from where the player is actually standing, so a
+## guest naming a tier it is nowhere near buys nothing.
+static func repair_weapon(sim: GameSim, p: PlayerSim, cont_kind: String, index: int, bench: int) -> bool:
+	if _remote("repair_weapon", {"c": cont_kind, "i": index, "tier": bench}):
+		return false
+	return Wear.repair(sim, p, cont_kind, index, bench)
+
+
 static func raise_attribute(sim: GameSim, p: PlayerSim, id: String) -> bool:
 	if _remote("attr", {"id": id}):
 		return false
@@ -169,6 +180,9 @@ static func execute(sim: GameSim, p: PlayerSim, name_: String, a: Dictionary) ->
 			if r.is_empty():
 				return false
 			return Crafting.craft(sim, p, r, mini(int(a.get("tier", 0)), Crafting.bench_tier_at(sim, p)))
+		"repair_weapon":
+			return Wear.repair(sim, p, String(a.get("c", "")), int(a.get("i", -1)),
+				mini(int(a.get("tier", 0)), Crafting.bench_tier_at(sim, p)))
 		"attr":
 			return Progression.raise_attribute(sim, p, String(a.get("id", "")))
 		"perk":

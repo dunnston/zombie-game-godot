@@ -764,8 +764,8 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 	inventory.mode = "craft"
 	await smoke.frames(3)
 	var listed := false
-	for row in inventory._recipe_rows():
-		if String(row.recipe.id) == "suppressant":
+	for row in inventory._craft_rows():
+		if row.has("recipe") and String(row.recipe.id) == "suppressant":
 			listed = true
 	if not listed:
 		smoke.fail("the Refined Suppressant is not listed at its own bench")
@@ -989,6 +989,30 @@ func smoke_run(smoke: Node) -> void:
 	await smoke.frames(3)
 	if p.count_carried("axe") <= axes:
 		smoke.fail("clicking the Hatchet row crafted nothing")
+
+	# Wear and repair, on the weapon that was just made. A Hatchet is bench-0
+	# work, so the field is the bench that mends it: the row is here, in this
+	# same list, and clicking it costs materials and gives the tool back.
+	p.hotbar.slots[0] = {"id": "axe", "n": 1}
+	p.slot = 0
+	p.hotbar.set_wear_at(0, 1)
+	Wear.use_held(sim, p, 1)
+	if not Wear.is_broken(p.hotbar, 0):
+		smoke.fail("the Hatchet would not break")
+	await smoke.frames(3)
+	await smoke.checkpoint("weapon_broken")
+	var mend_at := inventory.repair_centre("axe")
+	if mend_at == Vector2.ZERO:
+		smoke.fail("a broken Hatchet is not listed for mending at the bench that makes it")
+	var sticks_before := p.count_res("sticks")
+	await smoke_click(mend_at)
+	await smoke.frames(3)
+	if Wear.is_broken(p.hotbar, 0):
+		smoke.fail("clicking MEND did not mend it")
+	if p.count_res("sticks") >= sticks_before:
+		smoke.fail("mending cost nothing")
+	await smoke.checkpoint("weapon_mended")
+
 	await smoke.tap("crafting")
 	await smoke.frames(2)
 

@@ -245,6 +245,9 @@ static func drop_stack(sim: GameSim, p: PlayerSim, cont_kind: String, index: int
 		return false
 	var id: String = s.id
 	var n: int = s.n if all else 1
+	# The condition goes down with it. A weapon dropped and picked back up
+	# has to be the same weapon, or the ground is a free bench.
+	var wear := int(s.get("w", -1))
 	# Out of *this* slot, not out of the first stack that happens to hold the
 	# same thing: `take(id, n)` would empty an unrelated pile across the grid
 	# and leave the cell you clicked still full.
@@ -252,7 +255,7 @@ static func drop_stack(sim: GameSim, p: PlayerSim, cont_kind: String, index: int
 	if s.n <= 0:
 		c.slots[index] = {}
 	var d := Loot.entry_to_pickup(Loot.item_entry_id(id))
-	Loot.spawn_pickup(sim, p.pos, d.kind, d.id, n, p)
+	Loot.spawn_pickup(sim, p.pos, d.kind, d.id, n, p, wear)
 	sim.notify("Dropped %d %s" % [n, Items.name_of(id)], "#8a8f84")
 	return true
 

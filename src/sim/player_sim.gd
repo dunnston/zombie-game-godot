@@ -143,6 +143,8 @@ var equip := {"head": "", "body": "", "hands": "", "legs": "", "feet": "", "offh
 var start_weapon: String = Config.START_KIT.weapon
 var slot := 0
 var mag := {}                    # weapon id -> rounds loaded
+## Condition is deliberately NOT here: it lives on the slot, so it travels
+## with the weapon into a chest or another player's pack. See `Wear`.
 
 # The off-hand light. The charge lives here rather than in the slot, because
 # a slot is only {id, n}; Equipment keeps the two in step.
@@ -177,6 +179,7 @@ var recoil := 0.0
 var recoil_dir := 1.0
 var winded_told_at := -99.0
 var needs_hint_at := -99.0
+var broken_told_at := -99.0
 
 var intent := Intent.new()
 

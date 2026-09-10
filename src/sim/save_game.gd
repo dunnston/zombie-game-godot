@@ -1,6 +1,6 @@
 class_name SaveGame
 extends RefCounted
-## Saving and loading. Payload version 9.
+## Saving and loading. Payload version 10.
 ##
 ## **Containers are identified by tile position, never by ordinal index**
 ## (invariant 7). The prototype keyed them by their position in an array,
@@ -13,7 +13,7 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 9
+const VERSION := 10
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
@@ -78,10 +78,12 @@ static func to_dict(sim: GameSim) -> Dictionary:
 
 	var piles: Array = []
 	for it in sim.pickups:
-		piles.append({"x": it.pos.x, "y": it.pos.y, "kind": it.kind, "id": it.id, "n": it.n})
+		piles.append({"x": it.pos.x, "y": it.pos.y, "kind": it.kind, "id": it.id, "n": it.n,
+			"w": int(it.get("w", -1))})
 	var packs: Array = []
 	for b in sim.backpacks:
-		packs.append({"x": b.pos.x, "y": b.pos.y, "held": b.held.duplicate(), "mag": b.mag.duplicate(), "seat": b.seat})
+		packs.append({"x": b.pos.x, "y": b.pos.y, "held": b.held.duplicate(), "mag": b.mag.duplicate(),
+			"wear": b.wear.duplicate(), "seat": b.seat})
 
 	return {
 		"version": VERSION,
@@ -288,7 +290,8 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 
 	sim.pickups.clear()
 	for rec in data.get("pickups", []):
-		Loot.spawn_pickup(sim, Vector2(float(rec.x), float(rec.y)), String(rec.kind), String(rec.id), int(rec.n))
+		Loot.spawn_pickup(sim, Vector2(float(rec.x), float(rec.y)), String(rec.kind), String(rec.id),
+			int(rec.n), null, int(rec.get("w", -1)))
 	sim.backpacks.clear()
 	for rec in data.get("backpacks", []):
 		var held := {}
@@ -297,7 +300,11 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 		var mag := {}
 		for k in rec.get("mag", {}):
 			mag[k] = int(rec.mag[k])
-		sim.backpacks.append({"pos": Vector2(float(rec.x), float(rec.y)), "held": held, "mag": mag, "t": 0.0, "seat": int(rec.get("seat", 0))})
+		var wear := {}
+		for k in rec.get("wear", {}):
+			wear[k] = int(rec.wear[k])
+		sim.backpacks.append({"pos": Vector2(float(rec.x), float(rec.y)), "held": held, "mag": mag,
+			"wear": wear, "t": 0.0, "seat": int(rec.get("seat", 0))})
 
 	# Last, after the structures: a sniper needs their tower to exist before
 	# they can be pointed at it.

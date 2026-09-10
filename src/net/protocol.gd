@@ -566,6 +566,9 @@ static func pack_inventory(p: PlayerSim) -> Dictionary:
 ## are the snapshot's business; this is the pack, the body slots and the
 ## build, and the recompute that follows any change to them.
 static func apply_inventory(p: PlayerSim, rec: Dictionary) -> void:
+	# Condition rides inside these two records, as the fourth field on a slot:
+	# it is part of what the pack *is*, and the pack diff already goes the
+	# moment anything a guest carries changes.
 	p.bag.from_record(rec.get("bag", []))
 	p.hotbar.from_record(rec.get("hotbar", []))
 	for k in p.equip:
