@@ -84,6 +84,14 @@ func base_centre() -> Dictionary:
 	for s in list:
 		if s.destroyed:
 			continue
+		# A garden is not a base. Counted here, twelve raised beds in a field
+		# outrank a whole compound and drag the point a raid converges on out
+		# into the allotment — and a single bed in open country was enough to
+		# make `has_base` true, so the game announced "they are heading for
+		# your base" at somebody who had planted a potato. Beds are still
+		# destructible; they are just not where you live. (Codex, PR #24.)
+		if s.def.get("plot", false):
+			continue
 		var w: float = 3.0 if s.def.get("protect", false) else 1.0
 		sum += s.pos * w
 		n += w
@@ -114,17 +122,33 @@ func in_base(at: Vector2) -> bool:
 ## the most valuable: that is what makes a horde break on the perimeter,
 ## which is the whole reason to build one. Protected pieces pull a little
 ## harder, so a raider already inside heads for the workbench, not back out.
+##
+## A raised bed is the other end of the same scale — the least attractive
+## thing in a base, so a horde reaching a compound eats the walls and the
+## workbench before the vegetables. It stays eligible on purpose: **this is
+## the only route by which anything ever damages a structure** (an enemy's
+## `pending_struct` comes from its `objective` and nowhere else), so a bed
+## excluded here would be indestructible, and "a brute through the beds takes
+## the crop with it" would be a promise the game could not keep.
 func raid_target(from: Vector2) -> Dictionary:
 	var best := {}
 	var best_score := INF
 	for s in list:
 		if s.destroyed:
 			continue
-		var score: float = from.distance_squared_to(s.pos) * (0.55 if s.def.get("protect", false) else 1.0)
+		var score: float = from.distance_squared_to(s.pos) * _raid_pull(s.def)
 		if score < best_score:
 			best_score = score
 			best = s
 	return best
+
+
+## How attractive a piece is to a raider, as a multiplier on its distance:
+## below one pulls harder, above one pushes to the back of the queue.
+static func _raid_pull(def: Dictionary) -> float:
+	if def.get("plot", false):
+		return B.raid_pull_plot
+	return B.raid_pull_protect if def.get("protect", false) else 1.0
 
 
 ## The armament a manned tower is set to, falling back to the free default.
@@ -236,6 +260,11 @@ func make(sim: GameSim, type: String, tx: int, ty: int, hp_mul := 1.0) -> Dictio
 		"fuel": 0.0, "on": true, "running": false, "powered": false, "starved": false,
 		"noise_t": 0.0, "tier": 1, "destroyed": false, "active": false,
 		"store": store,
+		# A Raised Bed's whole state. The stage is deliberately absent: it is
+		# derived from `grow` by `Farming.progress`, so nothing can save, send
+		# or draw a stale one. `water` here is a 0-100 meter on the soil, not
+		# the Clean Water item of the same id that fills it.
+		"seed": "", "fert": "", "water": 0.0, "grow": 0.0,
 		# Which armament a manned tower is set to. Arrows until told
 		# otherwise, so a tower is never a thing you built that does nothing.
 		"arm": Config.DEFAULT_ARMAMENT if def.get("post", "") == "sniper" else "",
@@ -310,6 +339,9 @@ func destroy(sim: GameSim, s: Dictionary) -> void:
 	# Whatever was in it comes out. Nothing is destroyed for want of
 	# somewhere to put it, not even by a brute.
 	spill_store(sim, s)
+	# A garden is the exception, and on purpose: a brute through the raised
+	# beds takes the crop with it. Salvaging one hands the planting back.
+	Farming.on_removed(sim, s, false)
 	_unlink(s)
 	sim.world_version += 1
 	sim.emit({"t": "struct_down", "x": s.pos.x, "y": s.pos.y, "wall": s.def.get("wall", false)})
@@ -510,6 +542,7 @@ func demolish(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
 	# Whatever was stored in it comes out first: taking your own full chest
 	# apart must not delete what is inside it.
 	spill_store(sim, s)
+	Farming.on_removed(sim, s, true)
 	s.destroyed = true
 	_unlink(s)
 	sim.world_version += 1
@@ -597,6 +630,7 @@ func tick(sim: GameSim, dt: float) -> void:
 			s.powered = has_power(s.pos)
 	_tick_turrets(sim, dt)
 	_tick_traps(sim, dt)
+	Farming.tick(sim, dt)
 
 
 func _tick_generators(sim: GameSim, dt: float) -> void:

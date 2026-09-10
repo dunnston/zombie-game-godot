@@ -98,6 +98,10 @@ func _build_catalogue() -> void:
 		# Seeing an interrupt land needs something mid-swing to interrupt,
 		# which is a fight you have to arrange. This is that fight, on demand.
 		["rock", "Stagger and open up everything near you", "world"],
+		# A potato is nine minutes and corn is eighteen, which is right in
+		# play and useless at a keyboard trying to see what a harvest feels
+		# like — or whether a row of beds reads at a glance.
+		["ripen", "Ripen and fill every raised bed", "world"],
 		["day", "Set the clock to noon", "world"],
 		["night", "Set the clock to midnight", "world"],
 		["clear", "Kill every enemy loaded", "world"],
@@ -195,6 +199,17 @@ func _verb(id: String) -> void:
 			for row in Wear.worn_carried(player):
 				Wear.mend(Wear.container_for(player, String(row.c)), int(row.i))
 			sim.notify("DEV  everything mended", "#b7e08a")
+		"ripen":
+			var beds := 0
+			for s in sim.structs.list:
+				if not Farming.is_bed(s):
+					continue
+				s.water = Config.FARM.water_max
+				if Farming.planted(s):
+					s.grow = Farming.grow_time(s)
+				beds += 1
+			sim.notify("DEV  %d bed%s watered and ripened" % [beds, "" if beds == 1 else "s"],
+				"#b7e08a" if beds > 0 else "#8a8f84")
 		"rock":
 			# Through the same two writers the weapons use, resistance and
 			# immunity included — so what this shows is the real mechanic and

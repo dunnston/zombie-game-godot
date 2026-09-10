@@ -246,3 +246,55 @@ yet when an earlier autoload's `_ready` wants to know.
   it. A card asked for three and one had shipped the day before;
   the audit line predated the merge. Grep for the field name before planning
   to build it — half an hour of reading beat rebuilding a working system.
+
+## 2026-09-10 (raised beds)
+
+- `p.pos = x` in a smoke leg keeps whatever velocity the last leg left, so
+  the player drifts out of reach of the thing they were just teleported to
+  before the key is pressed. Three legs failed on it and none of the messages
+  mentioned movement. `_smoke_stand_at` zeroes velocity, previous position
+  and the intent's axes; use it for every teleport from here.
+- A smoke assertion against `_craft_rows()` is an assertion about the height
+  of the panel. Adding one bench-0 recipe pushed the Refined Suppressant off
+  the visible page and failed a checkpoint about the *station gate*. Assert
+  the rule against `visible_recipes`, then scroll the row into shot for the
+  photograph — two assertions, and each fails for its own reason.
+- A test that says "every food is findable" is worth extending rather than
+  weakening. Crops are found the long way round — the seed is in a loot table
+  and a bed turns it into the crop — so teaching the test that third source
+  kept its teeth: a crop whose seed exists nowhere still fails it.
+- Stock a smoke leg for what it actually spends. A round twenty of everything
+  paid for one of four raised beds; the other three came back as empty
+  dictionaries and the *next* line crashed the coroutine, so the run lost
+  thirty checkpoints to a materials bug.
+- Draw the earliest stage of anything as something. A bed sown this morning
+  drew nothing at all, so it looked exactly like an empty one and the row of
+  beds lied about what was in it.
+- Lay out a new panel mode against the panel it shares, not against the
+  screen. The bed's two gauges started at the pack grid's x and ran to the
+  panel edge, straight through thirty inventory cells. The empty column to
+  the right of that grid was where they belonged.
+- A field that moves every frame cannot go on the world diff at full
+  precision. The diff re-sends any structure whose packed record changed, so
+  a bed's water and growth would have re-sent a garden twice a second for
+  ever. Round them coarsely, and round *down*, so a guest is behind the host
+  rather than ahead of it — a guest that ripens first offers a harvest the
+  host refuses. A running generator's fuel already had this shape and nobody
+  noticed, because a base has one generator and a garden has twelve beds.
+- Absence of a flag is not exclusion. `protect` only *weights* `raid_target`
+  and `base_centre`; not setting it still left a raised bed anchoring a base
+  and drawing raiders. If a piece must be excluded from a rule, exclude it —
+  do not infer the exclusion from a flag that means something else.
+- Before excluding a thing from a list, find out what the list is for. Taking
+  beds out of `raid_target` looked obviously right and would have made them
+  indestructible, because an enemy's `pending_struct` comes from its
+  `objective` and nowhere else. The fix was to exclude them from the *other*
+  function and push them to the back of this one.
+- A number applied in the sim and not in the screen that predicts it is a lie
+  with a delay on it. `loot_mul` was in the harvest and not in the band the
+  bed panel printed. Whenever a screen promises a range, the range and the
+  roll want to be the same expression or the same short list of factors.
+- A review finding can be right about the fact and wrong about the target.
+  The stash has been reachable from anywhere since Phase 3 and every system
+  that spends inherits it; fixing it in farming alone would have made the one
+  new system the odd one out. Correct the claim, raise the real card.

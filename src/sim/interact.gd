@@ -100,6 +100,13 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 			entry = {"kind": "generator", "ref": s,
 				"label": "Switch off  (%d/%d fuel)" % [roundi(s.fuel), roundi(s.def.fuel_max)] if Structures.generator_running(s)
 					else "Refuel and start  (%d/%d)" % [roundi(s.fuel), roundi(s.def.fuel_max)]}
+		elif Farming.is_bed(s):
+			# One key, two jobs, and switching to the useful one takes
+			# priority — the same shape `use_generator` already has. A ripe
+			# bed harvests where you stand; anything else opens the panel,
+			# and `Farming.prompt` is what says which so the two cannot
+			# disagree.
+			entry = {"kind": "bed", "ref": s, "label": Farming.prompt(s)}
 		elif s.type == "bedroll":
 			entry = {"kind": "bedroll", "ref": s,
 				"label": "Respawn point (active)" if p.spawn_tile == Vector2i(s.tx, s.ty) else "Set as respawn point"}
@@ -288,6 +295,12 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 			# opened and the presentation decides what that looks like.
 			var s: Dictionary = target.ref
 			sim.emit({"t": "open_store", "seat": p.seat, "tx": s.tx, "ty": s.ty})
+		"bed":
+			var s: Dictionary = target.ref
+			if Farming.ready(s):
+				Farming.harvest(sim, p, s)
+			else:
+				sim.emit({"t": "open_bed", "seat": p.seat, "tx": s.tx, "ty": s.ty})
 
 
 static func _finish_search(sim: GameSim, p: PlayerSim) -> void:

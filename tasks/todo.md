@@ -1795,6 +1795,59 @@ This is that card.
 
 ---
 
+## Raised beds (2026-09-10)
+
+The owner asked for a garden: build a bed, drop a seed in, optionally feed
+it, keep it watered, harvest something to cook or eat.
+
+**Farming was on §7's "deliberately not building" list.** It comes off it,
+because that list is against *chores* and not against growing things — but
+only on three rules, and if any of them stops being true the amendment
+should be reversed rather than argued with:
+
+1. A dry bed **stalls and never dies**.
+2. Nothing is ever required — crops are buffs, and no hunger meter appears.
+3. It is delegable — the Farmer job below.
+
+- [x] `Config.FARM`, `CROPS` and `FERTILIZER`; the `raisedBed` structure,
+      not solid and deliberately not `protect`
+- [x] `src/sim/farming.gd` — the whole mechanic, static, state on the
+      structure. **The stage is never stored**: derived from `grow`
+- [x] Water is Clean Water from pack then stash — the same bottle that buys
+      Hydrated, so drink-it-or-grow-with-it is the decision
+- [x] Three crops: potatoes (staple), corn (→ Rations, which is what the
+      crew eats), herbs (→ Medical, at a trickle)
+- [x] A seed comes back from every harvest; seeds in five loot tables
+- [x] Compost by hand (+60% yield) and Mutagen Sludge at the Chemistry
+      Station (+150%, 40% faster, paid for in brain matter)
+- [x] `E` is contextual: a ripe bed harvests where you stand, anything else
+      opens a fifth mode of the pack screen with two typed slots
+- [x] Destruction loses the planting; salvage returns it
+- [x] Four `Actions` commands, host-side reach re-checked (invariant 8)
+- [x] Save v11 and the four fields on the structure diff
+- [x] A dev verb, `farming_test.gd` (27 tests), four smoke checkpoints
+
+### Next card — the Farmer
+
+- [ ] A fifth `JOBS` row and `_farmer_step` beside `_scavenger_step`: walk to
+      the driest planted bed in the base, water it **out of the shared
+      stash**, harvest what is ripe, haul it back, replant from the stash.
+      The framework is there; this is a job row and about a hundred lines.
+      Rule 3 above is the reason it is not optional in the long run.
+
+### Left for the owner
+
+- [ ] **Play it and move the numbers.** One in-game day for a potato, two
+      for corn, a day and a half to dry out, 3-5 and 4-7 and 2-3 per bed —
+      all first guesses. The §7 card lists the feel questions; the biggest
+      are whether watering reads as a habit or a chore, and whether a dry bed
+      *stalling* is obviously better than one dying or just reads as broken.
+- [ ] **Herbs → Medical is the balance call most likely to want moving.**
+      Two an in-game day against a pharmacy's eight to sixteen in one search.
+- [ ] **Is Mutagen Sludge a bet anyone takes?** More food for the brain
+      matter that keeps you human is the intended shape; whether the numbers
+      make it tempting is a play question.
+---
 ## Stagger, bleed, and a crit that comes off the weapon (2026-09-10)
 
 Two of the three things this card was opened for turned out to be one: the

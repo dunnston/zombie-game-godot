@@ -158,6 +158,13 @@ func test_every_food_is_findable() -> void:
 	for r in Config.RECIPES:
 		if r.give.has("item"):
 			sources["item:" + String(r.give.item)] = true
+	# A crop is found the long way round: the seed is in a loot table and a
+	# Raised Bed turns it into the crop. That counts as a source — but only
+	# when the seed itself is genuinely findable, so a crop whose seed exists
+	# nowhere in the world still fails this the way it should.
+	for seed_id in Config.CROPS:
+		if sources.has(seed_id):
+			sources["item:" + String(Config.CROPS[seed_id].crop)] = true
 	for id in Config.CONSUMABLES:
 		if Config.CONSUMABLES[id].get("food", false):
 			ok(sources.has("item:" + id), "%s exists and nothing in the world has one" % id)

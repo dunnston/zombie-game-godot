@@ -425,6 +425,9 @@ func _process(dt: float) -> void:
 		elif ev.t == "open_boot":
 			if int(ev.get("seat", me.seat)) == me.seat:
 				inventory.open_boot(int(ev.id))
+		elif ev.t == "open_bed":
+			if int(ev.get("seat", me.seat)) == me.seat:
+				inventory.open_bed(Vector2i(ev.tx, ev.ty))
 		fx.on_event(ev)
 		lights.on_event(ev)
 		hud.on_event(ev)
@@ -603,6 +606,125 @@ func smoke_nearest_prop(at: Vector2, pred: Callable) -> Dictionary:
 	return best
 
 
+## Puts the player exactly here and leaves them there. `p.pos = x` on its own
+## keeps whatever velocity the last leg left, and the player then drifts out
+## of reach of the thing they were teleported to before the key is pressed.
+func _smoke_stand_at(at: Vector2) -> void:
+	var p := sim.players[0]
+	p.pos = at
+	p.prev_pos = at
+	p.vel = Vector2.ZERO
+	p.intent.mx = 0.0
+	p.intent.my = 0.0
+
+
+## Raised beds. Four of them in a row at four different stages, so the picture
+## answers the question a single bed cannot: can you tell from across the base
+## which one is ready? Then the panel, and then a harvest through the real key
+## — the ripe bed must answer E on the spot rather than opening a screen.
+##
+## The growth itself is set rather than waited for: a potato is nine minutes
+## and corn is eighteen, and a smoke run that sat through them would be
+## measuring the clock rather than the garden.
+func smoke_farm(smoke: Node) -> void:
+	var p := sim.players[0]
+	# Four beds' worth and a margin. Stocking a round twenty of everything
+	# paid for exactly one bed and left the other three as empty dictionaries,
+	# which is a confusing way to fail.
+	for entry in [["wood", 90], ["sticks", 45], ["fiber", 35]]:
+		p.bag.add(entry[0], entry[1])
+	for id in ["seedPotato", "seedCorn", "seedHerb", "compost", "water"]:
+		p.bag.add(id, 10)
+
+	# Four tiles in a row, hunted for rather than assumed: wherever the chest
+	# leg left the player is somebody's back garden, and one shed wall turns
+	# "two to the right" into a refusal.
+	var px := int(p.pos.x / 32)
+	var py := int(p.pos.y / 32)
+	var row: Array[Vector2i] = []
+	var why := "no tiles tried"
+	for dy in [2, -2, 3, -3, 1, -1, 0]:
+		var run: Array[Vector2i] = []
+		for dx in range(-4, 5):
+			var t := Vector2i(px + dx, py + dy)
+			var can := sim.structs.can_place(sim, "raisedBed", t.x, t.y, p)
+			if can.ok:
+				run.append(t)
+				if run.size() == 4:
+					break
+			else:
+				why = String(can.reason)
+				run.clear()
+		if run.size() == 4:
+			row = run
+			break
+	if row.size() < 4:
+		smoke.fail("nowhere to put a row of four raised beds (last refusal: %s)" % why)
+		return
+	var beds: Array[Dictionary] = []
+	for t in row:
+		var b := sim.structs.place(sim, "raisedBed", t.x, t.y, p)
+		if b.is_empty():
+			smoke.fail("bed %d of four would not go up at %s" % [beds.size() + 1, str(t)])
+			return
+		beds.append(b)
+
+	# Seeded, sprouting, growing, ready — one of each, so the row is a legend.
+	var seeds := ["seedPotato", "seedCorn", "seedHerb", "seedPotato"]
+	for i in range(4):
+		var b: Dictionary = beds[i]
+		b.water = Config.FARM.water_max
+		b.seed = seeds[i]
+		b.grow = Farming.grow_time(b) * [0.05, 0.45, 0.8, 1.0][i]
+	_smoke_stand_at(beds[0].pos + Vector2(0, -44))
+	camera.position = p.pos
+	await smoke.frames(4)
+	if Farming.stage(beds[0]) != 0 or Farming.stage(beds[3]) != 3:
+		smoke.fail("the row is not at four different stages")
+	await smoke.checkpoint("garden_row")
+
+	# The panel: E at an unripe bed opens the fifth mode of the pack, with the
+	# seed slot, the feed slot and the water meter on it.
+	var mid: Dictionary = beds[1]
+	_smoke_stand_at(mid.pos + Vector2(0, -34))
+	await smoke.frames(3)
+	var offer := Interact.best_target(sim, p)
+	if String(offer.get("kind", "")) != "bed":
+		smoke.fail("standing %.0fpx from the bed, E offers %s not the bed" %
+			[p.pos.distance_to(mid.pos), String(offer.get("kind", "nothing"))])
+	await smoke.tap("interact")
+	await smoke.frames(4)
+	if not inventory.visible or inventory.mode != "bed":
+		smoke.fail("E at a growing bed did not open the bed panel (mode=%s, visible=%s)"
+			% [inventory.mode, inventory.visible])
+	await smoke.checkpoint("bed_panel")
+
+	# Feed it, through the real button-free path a right-click uses.
+	inventory._quick_move(inventory._cell_at(inventory.cell_centre("bag", _smoke_bag_index("compost"))))
+	await smoke.frames(3)
+	if String(mid.fert) != "compost":
+		smoke.fail("right-clicking the compost did not dig it in: fert=%s" % mid.fert)
+	await smoke.checkpoint("bed_fed")
+	await smoke.tap("inventory")
+	await smoke.frames(2)
+
+	# And the ripe one answers the key where you stand, with no screen at all.
+	var ripe: Dictionary = beds[3]
+	_smoke_stand_at(ripe.pos + Vector2(0, -34))
+	await smoke.frames(3)
+	var crop := String(Farming.crop_of(ripe).crop)
+	var before := p.count_carried(crop)
+	await smoke.tap("interact")
+	await smoke.frames(4)
+	if p.count_carried(crop) <= before:
+		smoke.fail("E at a ripe bed harvested nothing")
+	if inventory.visible:
+		smoke.fail("harvesting opened a screen instead of just doing it")
+	if not String(ripe.seed).is_empty():
+		smoke.fail("the harvested bed still has a crop in it")
+	await smoke.checkpoint("harvested")
+
+
 ## Chop a tree down and gather a stick, photographing each before and after.
 ## Asserts on the world *and* on the picture: a prop that is gone from
 ## `world.props` but still on screen is exactly the bug being chased, and only
@@ -763,12 +885,33 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 	await smoke.frames(2)
 	inventory.mode = "craft"
 	await smoke.frames(3)
+	# The rule first: a station recipe is offered at its station and nowhere
+	# else. Asserting it against the *visible* rows instead made this fail the
+	# day a recipe was added anywhere above it in the list, which measures the
+	# height of the panel rather than the gate.
+	var offered := false
+	for r in inventory.recipes():
+		if String(r.id) == "suppressant":
+			offered = true
+	if not offered:
+		smoke.fail("the Refined Suppressant is not offered at its own bench")
+	# Then scroll it onto the page, so the photograph shows the thing the
+	# checkpoint is named after. A row that never appears however far the list
+	# is scrolled is a real screen bug and still fails.
 	var listed := false
-	for row in inventory._craft_rows():
-		if row.has("recipe") and String(row.recipe.id) == "suppressant":
-			listed = true
+	for i in range(40):
+		for row in inventory._craft_rows():
+			if row.has("recipe") and String(row.recipe.id) == "suppressant":
+				listed = true
+		if listed:
+			break
+		var was := inventory.craft_top
+		inventory.craft_top += 1
+		if inventory.craft_top == was:
+			break
 	if not listed:
-		smoke.fail("the Refined Suppressant is not listed at its own bench")
+		smoke.fail("the Refined Suppressant never scrolls onto the craft page")
+	await smoke.frames(2)
 	await smoke.checkpoint("chem_station")
 	await smoke.tap("inventory")
 	await smoke.frames(2)
@@ -1113,6 +1256,11 @@ func smoke_run(smoke: Node) -> void:
 		await smoke.checkpoint("chest_filled")
 		await smoke.tap("inventory")
 		await smoke.frames(2)
+
+	# The garden. A row of four beds at four stages, because "does a garden
+	# read at a glance" is a drawing question and one bed cannot answer it —
+	# then the panel, then a harvest through the real key.
+	await smoke_farm(smoke)
 
 	# Save, break something, load it back.
 	await smoke.tap("quick_save")

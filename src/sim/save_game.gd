@@ -1,6 +1,6 @@
 class_name SaveGame
 extends RefCounted
-## Saving and loading. Payload version 10.
+## Saving and loading. Payload version 11.
 ##
 ## **Containers are identified by tile position, never by ordinal index**
 ## (invariant 7). The prototype keyed them by their position in an array,
@@ -13,12 +13,16 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 10
+const VERSION := 11
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
-## rebuilt from its `Config.STRUCTURES` row on load.
-const STRUCT_FIELDS := ["hp", "max_hp", "open", "tier", "fuel", "ammo", "on", "arm"]
+## rebuilt from its `Config.STRUCTURES` row on load — a Raised Bed's *stage*
+## included, because it is derived from `grow` and a stored one could go
+## stale (v11). The load path guards each field with `has`, so a v10 save
+## comes back with empty beds rather than being refused.
+const STRUCT_FIELDS := ["hp", "max_hp", "open", "tier", "fuel", "ammo", "on", "arm",
+	"seed", "fert", "water", "grow"]
 
 
 static func slot_path(slot: int) -> String:

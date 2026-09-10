@@ -290,6 +290,10 @@ func _upsert_structure(rec: Dictionary) -> void:
 	s.starved = bool(rec.get("st", false))
 	s.aim = float(rec.get("aim", 0.0))
 	s.arm = String(rec.get("arm", ""))
+	s.seed = String(rec.get("sd", ""))
+	s.fert = String(rec.get("ft", ""))
+	s.water = float(rec.get("wt", 0.0))
+	s.grow = float(rec.get("gr", 0.0))
 	if bool(rec.get("fl", false)):
 		s.flash = 0.12
 

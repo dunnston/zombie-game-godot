@@ -16,7 +16,9 @@ extends Control
 ## were carrying. **CHAR** is the same argument again: what a skill point
 ## buys is a decision about what you are carrying and fighting with, so it
 ## belongs beside them. **STORE** swaps the body slots for a container's
-## contents.
+## contents, and **BED** swaps them for a Raised Bed's seed slot, fertilizer
+## slot and water meter — for the same reason again: what you plant is a
+## decision about what you are carrying.
 
 const CELL := 44.0
 const GAP := 4.0
@@ -30,7 +32,7 @@ var drag := {}                   # {from: cell, id, n} while held
 var hover := {}
 var mouse := Vector2.ZERO
 
-## "pack", "craft", "char", "crew" or "store".
+## "pack", "craft", "char", "crew", "store" or "bed".
 var mode := "pack"
 ## The tile of the container being looked into, or (-1, -1). A tile rather
 ## than the container itself, so the reach check happens every frame and
@@ -39,6 +41,10 @@ var store_tile := Vector2i(-1, -1)
 ## The car whose boot is open, or 0. A car is not on a tile, so it needs its
 ## own handle — and the reach check has to follow it, because it moves.
 var store_car := 0
+## The tile of the Raised Bed being worked, or (-1, -1). A tile for the same
+## reason a chest is one: the reach is checked every frame and walking away
+## closes the screen.
+var bed_tile := Vector2i(-1, -1)
 var craft_top := 0               # first visible recipe row
 var char_top := 0                # first visible perk row
 ## Which attribute's tree the character sheet is showing.
@@ -59,10 +65,11 @@ func _init(sim_: GameSim) -> void:
 func toggle() -> void:
 	visible = not visible
 	if visible:
-		if mode == "store":
+		if mode == "store" or mode == "bed":
 			mode = "pack"
 		store_tile = Vector2i(-1, -1)
 		store_car = 0
+		bed_tile = Vector2i(-1, -1)
 	else:
 		_cancel_drag()
 
@@ -82,6 +89,22 @@ func open_boot(car_id: int) -> void:
 	store_tile = Vector2i(-1, -1)
 	mode = "store"
 	visible = true
+
+
+## Walking up to a Raised Bed that is not ready and pressing E opens it here.
+## A ripe one never gets this far: the key harvests it where you stand.
+func open_bed(tile: Vector2i) -> void:
+	bed_tile = tile
+	store_tile = Vector2i(-1, -1)
+	store_car = 0
+	mode = "bed"
+	visible = true
+
+
+## The bed being worked, or empty when there is none in reach — which is also
+## how the screen knows to close itself.
+func bed() -> Dictionary:
+	return {} if bed_tile.x < 0 else Farming.reachable_bed(sim, player, bed_tile.x, bed_tile.y)
 
 
 ## The container being looked into, or null when there is none in reach —
@@ -113,6 +136,9 @@ func tick() -> void:
 	if visible and mode == "store" and store() == null:
 		visible = false
 		_cancel_drag()
+	if visible and mode == "bed" and bed().is_empty():
+		visible = false
+		_cancel_drag()
 
 
 # ------------------------------------------------------------------ layout --
@@ -127,7 +153,9 @@ func _panel() -> Rect2:
 func _tabs() -> Array[Dictionary]:
 	var panel := _panel()
 	var out: Array[Dictionary] = []
-	var names := ["pack", "craft", "char", "crew"] if mode != "store" else ["store"]
+	var names := ["pack", "craft", "char", "crew"]
+	if mode == "store" or mode == "bed":
+		names = [mode]
 	var x := panel.position.x + 24.0
 	for name in names:
 		out.append({"mode": name, "rect": Rect2(x, panel.position.y + 14.0, 84.0, 24.0)})
@@ -151,6 +179,13 @@ func _cells() -> Array[Dictionary]:
 		for i in range(n):
 			out.append({"kind": "store", "slot": "", "index": i,
 				"rect": Rect2(x0 + (i % STORE_COLS) * (CELL + GAP), y0 + (i / STORE_COLS) * (CELL + GAP), CELL, CELL)})
+	elif mode == "bed":
+		# Two cells, typed: the seed slot takes seed and the fertilizer slot
+		# takes fertilizer, and nothing else goes in either. The gauges below
+		# them are drawn, not clicked.
+		gx = x0 + CELL + 96.0
+		out.append({"kind": "seed", "slot": "seed", "index": -1, "rect": Rect2(x0, y0, CELL, CELL)})
+		out.append({"kind": "fert", "slot": "fert", "index": -1, "rect": Rect2(x0, y0 + CELL + GAP, CELL, CELL)})
 	elif mode == "pack":
 		for i in range(Config.GEAR_SLOTS.size()):
 			var slot: String = Config.GEAR_SLOTS[i]
@@ -280,6 +315,12 @@ func _stack_in(cell: Dictionary) -> Dictionary:
 		"equip":
 			var id: String = player.equip.get(cell.slot, "")
 			return {"id": id, "n": 1} if not id.is_empty() else {}
+		"seed", "fert":
+			var s := bed()
+			if s.is_empty():
+				return {}
+			var id := String(s.seed if cell.kind == "seed" else s.fert)
+			return {"id": id, "n": 1} if not id.is_empty() else {}
 	return {}
 
 
@@ -379,6 +420,12 @@ func _buttons() -> Array[Dictionary]:
 		# stopped the car to do, and it needs somewhere to live.
 		if store_car > 0:
 			out.append({"id": "refuel", "label": "REFUEL", "rect": Rect2(panel.position.x + 290.0, y, 90.0, 24.0)})
+	elif mode == "bed":
+		out.append({"id": "water", "label": "WATER", "rect": Rect2(panel.position.x + 24.0, y, 100.0, 24.0)})
+		# HARVEST is only offered when there is something to harvest. A button
+		# that is always there and usually refuses teaches nothing.
+		if Farming.ready(bed()):
+			out.append({"id": "harvest", "label": "HARVEST", "rect": Rect2(panel.position.x + 132.0, y, 110.0, 24.0)})
 	elif mode == "pack":
 		out.append({"id": "equip_best", "label": "EQUIP BEST", "rect": Rect2(panel.position.x + 24.0, y, 120.0, 24.0)})
 	return out
@@ -392,12 +439,22 @@ func _press_button(id: String) -> void:
 			Actions.withdraw_supplies(sim, player, store_tile, store_car)
 		"refuel":
 			Actions.refuel(sim, player, store_car)
+		"water":
+			Actions.water_bed(sim, player, bed_tile)
+		"harvest":
+			Actions.harvest(sim, player, bed_tile)
 		"equip_best":
 			Actions.equip_best(sim, player)
 
 
 func _press(cell: Dictionary, mb: InputEventMouseButton) -> void:
 	if cell.is_empty():
+		return
+	# What is in the ground stays in the ground. Nothing is dragged, dropped
+	# or split out of a bed's two slots: the seed comes back at harvest and
+	# the fertilizer is spent on the crop, and letting either be pulled out
+	# again would make planting free.
+	if cell.kind == "seed" or cell.kind == "fert":
 		return
 	var stack := _stack_in(cell)
 	if stack.is_empty():
@@ -423,6 +480,7 @@ func _release(cell: Dictionary) -> void:
 	if drag.is_empty():
 		return
 	var from: Dictionary = drag.from
+	var drag_id := String(drag.id)
 	drag = {}
 	if cell.is_empty():
 		# Released outside the grids: that is a drop, the same gesture as
@@ -435,6 +493,12 @@ func _release(cell: Dictionary) -> void:
 		return
 	if cell.kind == from.kind and cell.index == from.index and cell.slot == from.slot:
 		return
+	# A bed's slots are typed: dragging a Machete at the seed cell is refused
+	# with a reason rather than silently doing nothing, because a refusal you
+	# cannot see reads as a broken screen.
+	if cell.kind == "seed" or cell.kind == "fert":
+		_put_in_bed(String(cell.kind), drag_id)
+		return
 	if from.kind == "equip" and cell.kind == "equip":
 		return
 	if from.kind == "equip":
@@ -443,6 +507,21 @@ func _release(cell: Dictionary) -> void:
 		Actions.equip_from_slot(sim, player, from.kind, from.index, cell.slot)
 	else:
 		Actions.move_stack(sim, player, from.kind, from.index, cell.kind, cell.index, store_tile, store_car)
+
+
+## One seed or one dose of fertilizer into the bed, or the reason it will not
+## go. Both go through `Actions`, so on a guest this is a command to the host
+## and the range and cost checks are the ones solo uses (invariant 8).
+func _put_in_bed(slot: String, id: String) -> void:
+	if bed().is_empty():
+		return
+	if not Farming.accepts(slot, id):
+		sim.notify("%s is not %s" % [Items.name_of(id), "a seed" if slot == "seed" else "fertilizer"], "#c96a5a")
+		return
+	if slot == "seed":
+		Actions.plant(sim, player, bed_tile, id)
+	else:
+		Actions.fertilize(sim, player, bed_tile, id)
 
 
 ## Right-click: the obvious thing for what is under the cursor. Gear in the
@@ -457,6 +536,18 @@ func _quick_move(cell: Dictionary) -> void:
 	if cell.kind == "equip":
 		Actions.unequip(sim, player, cell.slot)
 		return
+	# Standing at a bed, the obvious thing to do with a seed is plant it —
+	# and with a bag of compost, dig it in. Nothing else about right-click
+	# changes, so eating and equipping still work at the allotment.
+	if mode == "bed":
+		if cell.kind == "seed" or cell.kind == "fert":
+			return
+		if Config.CROPS.has(stack.id):
+			_put_in_bed("seed", String(stack.id))
+			return
+		if Config.FERTILIZER.has(stack.id):
+			_put_in_bed("fert", String(stack.id))
+			return
 	# Right-click means "do the obvious thing with this". For gear that is
 	# wearing it; for a meal, a bandage or a dose it is taking it. Moving one
 	# to the hotbar is still a drag — the same gesture everything else moves
@@ -537,6 +628,8 @@ func _draw() -> void:
 			_draw_char(font, panel)
 		"crew":
 			_draw_crew(font, panel)
+		"bed":
+			_draw_bed(font, panel)
 		"store":
 			var s := store()
 			var label := "%d / %d slots" % [s.used() if s != null else 0, s.size() if s != null else 0]
@@ -563,7 +656,11 @@ func _draw() -> void:
 
 	# The dragging hint is about the grids, and the character sheet has none —
 	# it prints its own line instead, and two of them overlap.
-	if mode != "char" and mode != "crew":
+	if mode == "bed":
+		draw_string(font, Vector2(panel.position.x + 24, panel.position.y + panel.size.y - 8),
+			"drag a seed or a bag of feed into a slot  ·  right-click does the same  ·  a dry bed stalls, it never dies",
+			HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 40, 10, Color(1, 1, 1, 0.4))
+	elif mode != "char" and mode != "crew":
 		draw_string(font, Vector2(panel.position.x + 24, panel.position.y + panel.size.y - 8),
 			"drag to move  ·  right-click to equip, stow or use  ·  ctrl+click to drop  ·  shift+click to split",
 			HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 40, 10, Color(1, 1, 1, 0.4))
@@ -574,6 +671,84 @@ func _draw() -> void:
 		draw_string(font, r.position + Vector2(0, CELL - 6), _short(drag.id), HORIZONTAL_ALIGNMENT_CENTER, CELL, 9, Color.BLACK)
 	elif not hover.is_empty():
 		_draw_tooltip(font, _stack_in(hover))
+
+
+## The Raised Bed's two gauges. The water meter is the thing the owner asked
+## for and it says two numbers on purpose: how full it is, and roughly how
+## long that lasts — a percentage alone tells you nothing about whether to
+## walk back tonight or tomorrow.
+##
+## Nothing here is a warning. A dry bed is drawn amber rather than red because
+## running dry costs you time and never the crop, and colouring it like damage
+## would be the screen telling a lie about the rules (pillar 1).
+func _draw_bed(font: Font, panel: Rect2) -> void:
+	var s := bed()
+	if s.is_empty():
+		return
+	var x := panel.position.x + 24.0
+	var top := panel.position.y + 60.0
+	draw_string(font, Vector2(x, top), "RAISED BED", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
+
+	# The two labels beside the typed cells, in the place PACK puts the body
+	# slot names, so the shape of the screen stays the shape of the screen.
+	var y0 := panel.position.y + 76.0
+	draw_string(font, Vector2(x - 92.0, y0 + 26.0), "Seed", HORIZONTAL_ALIGNMENT_RIGHT, 86, 11, Color(1, 1, 1, 0.55))
+	draw_string(font, Vector2(x - 92.0, y0 + CELL + GAP + 26.0), "Feed", HORIZONTAL_ALIGNMENT_RIGHT, 86, 11,
+		Color(1, 1, 1, 0.55))
+
+	# The gauges live in the empty column to the right of the pack grid.
+	# Running them across the panel from the left put both bars straight
+	# through the pack, which read as a glitch rather than as a meter.
+	var gx := x + CELL + 96.0
+	var rx := gx + BAG_COLS * (CELL + GAP) + 22.0
+	var gw := panel.position.x + panel.size.x - 24.0 - rx
+	var gy := y0 + 12.0
+
+	# Water. Amber when it is low and grey when it is out — never red. Running
+	# dry costs time and never the crop, and colouring it like damage would be
+	# the screen telling a lie about the rules.
+	var wf := Farming.water_frac(s)
+	var hours := wf * float(Config.FARM.dry_days) * 24.0
+	var wcol := Color("#6ad0c4") if wf > 0.25 else (Color("#d9c46a") if wf > 0.0 else Color("#8a7f6a"))
+	draw_string(font, Vector2(rx, gy), "WATER", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
+	draw_string(font, Vector2(rx, gy), "%d%%" % roundi(wf * 100.0), HORIZONTAL_ALIGNMENT_RIGHT, gw, 11, wcol)
+	draw_rect(Rect2(rx, gy + 6.0, gw, 14.0), Color(0, 0, 0, 0.6))
+	draw_rect(Rect2(rx, gy + 6.0, gw * wf, 14.0), wcol)
+	draw_string(font, Vector2(rx, gy + 34.0),
+		"dry in %d hours" % roundi(hours) if wf > 0.0 else "DRY — nothing is growing",
+		HORIZONTAL_ALIGNMENT_LEFT, gw, 10, wcol)
+
+	# Growth. Empty soil says what it is for rather than showing a bar at zero.
+	gy += 56.0
+	if not Farming.planted(s):
+		draw_string(font, Vector2(rx, gy), "NOTHING PLANTED", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
+		draw_multiline_string(font, Vector2(rx, gy + 20.0), "Drag a seed into the slot, or right-click one in your pack.",
+			HORIZONTAL_ALIGNMENT_LEFT, gw, 10, 3, Color(1, 1, 1, 0.45))
+		return
+	var crop := Farming.crop_of(s)
+	var p := Farming.progress(s)
+	var left := maxf(0.0, Farming.grow_time(s) - float(s.grow)) / Config.DAY_LENGTH
+	draw_string(font, Vector2(rx, gy), Farming.stage_name(s).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
+	draw_string(font, Vector2(rx, gy), "%d%%" % roundi(p * 100.0), HORIZONTAL_ALIGNMENT_RIGHT, gw, 11, Color("#9fd07a"))
+	draw_rect(Rect2(rx, gy + 6.0, gw, 14.0), Color(0, 0, 0, 0.6))
+	draw_rect(Rect2(rx, gy + 6.0, gw * p, 14.0), Color("#9fd07a") if p >= 1.0 else Color("#7a9a52"))
+	# The band shown is what this bed will actually give, fertilizer included,
+	# so feeding it visibly moves the number you are about to be paid.
+	var ym: float = float(Farming.fert_of(s).get("yield_mul", 1.0))
+	draw_string(font, Vector2(rx, gy + 34.0), "%d-%d %s" % [
+		maxi(1, floori(int(crop.min) * ym)), maxi(1, floori(int(crop.max) * ym)),
+		Items.name_of(String(crop.crop))], HORIZONTAL_ALIGNMENT_LEFT, gw, 11, Color("#d5d0c4"))
+	draw_string(font, Vector2(rx, gy + 34.0),
+		"ready" if p >= 1.0 else ("%.1f days left" % left if wf > 0.0 else "stalled"),
+		HORIZONTAL_ALIGNMENT_RIGHT, gw, 11, Color("#9fd07a") if p >= 1.0 else (
+			Color("#d5d0c4") if wf > 0.0 else Color("#d9c46a")))
+
+	var f := Farming.fert_of(s)
+	if not f.is_empty():
+		draw_string(font, Vector2(rx, gy + 60.0), Items.name_of(String(s.fert)).to_upper(),
+			HORIZONTAL_ALIGNMENT_LEFT, gw, 11, Color("#b06ad0"))
+		draw_multiline_string(font, Vector2(rx, gy + 78.0), String(f.desc),
+			HORIZONTAL_ALIGNMENT_LEFT, gw, 10, 3, Color(1, 1, 1, 0.45))
 
 
 func _draw_craft(font: Font, panel: Rect2) -> void:
