@@ -210,6 +210,74 @@ func test_a_torch_taken_off_and_put_back_on_strikes_itself_again() -> void:
 	ok(p.light_fuel < 210.0, "with what was left of it, not a fresh one")
 
 
+# ------------------------------- the light is a clock, not an action (PR #29) --
+#
+# `Equipment.update_light` sat at the bottom of `PlayerSim.tick`, below the
+# early returns for downed and driving. Codex caught it on review: the states
+# where the clock keeps running are exactly the states the light stopped
+# hearing about it. A torch carried into a car before dark never struck, and a
+# lit one hung there for free — `LightView` draws a downed player's light and
+# a driver's follows the car — burning no fuel and never doused by the dawn.
+
+func test_the_dark_lights_a_torch_you_carried_into_a_car() -> void:
+	sim.clock.t = NOON
+	_wear_torch()
+	var v := _drive()
+	run(sim, 1.0)
+	ok(not p.lit, "daylight, and driving")
+	sim.clock.t = NIGHT
+	run(sim, 0.2)
+	ok(p.lit, "the dark strikes it through the windscreen too")
+	ok(p.light_fuel < 210.0, "and driving does not burn it for free")
+	sim.cars.exit(sim, p)
+	ok(v.id > 0)
+
+
+func test_a_lit_torch_burns_down_and_goes_out_at_dawn_while_you_are_down() -> void:
+	sim.clock.t = NIGHT
+	_wear_torch()
+	run(sim, 0.1)
+	ok(p.lit)
+	Damage.down_player(sim, p)
+	ok(p.downed and not p.dead, "on the ground, not gone")
+	var left := p.light_fuel
+	run(sim, 1.0)
+	ok(p.lit, "your torch is still lighting the scene of it")
+	ok(p.light_fuel < left - 0.5, "and still burning down")
+	sim.clock.t = NOON
+	run(sim, 0.2)
+	ok(not p.lit, "and the dawn puts it out where you lie")
+
+
+func test_a_torch_burns_away_to_nothing_while_you_are_down() -> void:
+	# The end of the same rule: the clock can take the light off you at the
+	# worst possible moment, which is the whole point of carrying a spare.
+	sim.clock.t = NIGHT
+	_wear_torch()
+	run(sim, 0.1)
+	Damage.down_player(sim, p)
+	p.light_fuel = 0.5
+	run(sim, 1.0)
+	ok(not p.lit)
+	eq(p.equip.offhand, "", "it burned away under you")
+
+
+## In whatever car the generator put in this world, where it stands: entering
+## releases its tiles and leaving re-claims them at the same place, so the
+## shared `blocked` bitmap comes out of this exactly as it went in.
+func _drive() -> Dictionary:
+	ok(not sim.cars.list.is_empty(), "the world has a car in it")
+	var v: Dictionary = sim.cars.list[0]
+	v.locked = false
+	v.hotwired = false
+	v.destroyed = false
+	v.fuel = Config.CAR.fuel_max
+	v.hp = v.max_hp
+	p.pos = v.pos
+	ok(sim.cars.enter(sim, p, v), "behind the wheel")
+	return v
+
+
 func test_pressing_t_in_daylight_is_refused_rather_than_wasted() -> void:
 	# On a flashlight that keystroke used to cost a battery for one frame of
 	# light nobody needed.
@@ -244,3 +312,10 @@ func test_the_flashlight_is_a_cone_and_that_is_what_the_batteries_buy() -> void:
 	gt(float(f.cone_len), float(t.radius), "and it reaches further than a torch")
 	ok(f.radius < t.radius, "while lighting less of what is beside you")
 	gt(float(f.cone_spread), 0.0)
+
+
+func after_each() -> void:
+	# A test that failed part way through must not leave a car's tiles
+	# released in the world every other test shares.
+	if p != null and p.driving_id > 0:
+		sim.cars.exit(sim, p)
