@@ -375,10 +375,50 @@ func test_a_guest_sees_the_same_garden() -> void:
 	copy.grow = float(rec.gr)
 	near(Farming.progress(copy), Farming.progress(s), 0.01, "the same stage on both machines")
 	eq(Farming.stage(copy), Farming.stage(s))
-	near(Farming.water_frac(copy), Farming.water_frac(s), 0.01)
+	# The wire's water is floored to a twentieth of a tank, so a guest is
+	# within one step and always on the drier side. That coarseness is the
+	# whole reason a garden does not re-send itself twice a second.
+	var step: float = float(Config.FARM.wire_water_step) / float(Config.FARM.water_max)
+	near(Farming.water_frac(copy), Farming.water_frac(s), step + 0.001)
+	ok(Farming.water_frac(copy) <= Farming.water_frac(s) + 0.001, "and never wetter than the host's")
 	# The stage itself is never sent: both derive it, so neither can hold a
 	# stale one.
 	ok(not rec.has("stage"))
+
+
+## The world diff re-sends a structure whose packed record has changed, and a
+## bed's water and growth move every frame. Sent at full precision a garden
+## would re-send itself every half second for the rest of the run.
+func test_a_growing_bed_does_not_chatter_on_the_wire() -> void:
+	var s := _bed()
+	Farming.plant(sim, p, s, "seedPotato")
+	Farming.water(sim, p, s)
+	Farming.water(sim, p, s)
+	var seen := {}
+	# Two in-game minutes, sampled at the rate the host actually diffs at.
+	for i in range(240):
+		_grow(Config.NET.sync_interval)
+		seen[var_to_str(NetProtocol.pack_structure(s))] = true
+	# 120 seconds of growth over a four-second step is thirty records, plus a
+	# handful for the water draining. Without the flooring it would be 240.
+	ok(seen.size() < 60, "the bed sent %d different records in two minutes" % seen.size())
+	gt(seen.size(), 1, "and it does still move")
+
+
+func test_a_guest_is_never_ahead_of_the_host() -> void:
+	# Floored, not rounded to nearest. A guest that reached ripe first would
+	# offer a harvest the host then refuses.
+	var s := _bed()
+	Farming.plant(sim, p, s, "seedPotato")
+	Farming.water(sim, p, s)
+	Farming.water(sim, p, s)
+	for i in range(200):
+		_grow(2.7)
+		var rec := NetProtocol.pack_structure(s)
+		ok(float(rec.gr) <= float(s.grow) + 0.001, "the wire is ahead of the bed")
+		ok(float(rec.wt) <= float(s.water) + 0.001, "the wire is wetter than the bed")
+		if Farming.ready(s):
+			break
 
 
 # ------------------------------------------------------------ the economy --

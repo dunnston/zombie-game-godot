@@ -696,6 +696,19 @@ const FARM := {
 	"xp_plant": 3,
 	"xp_water": 1,
 	"xp_harvest": 12,
+	# What a bed's two moving numbers are rounded to **on the wire**, and the
+	# only reason they exist. The world diff re-sends any structure whose
+	# packed record has changed since the last one, and a bed's water and
+	# growth move every single frame — so at full precision a twelve-bed
+	# garden would re-send itself every half second for the rest of the run,
+	# for a difference no guest could see. Four seconds is under 1% of even a
+	# potato's life, and five units of water is a twentieth of a tank.
+	#
+	# Both are rounded **down**, never to nearest, so a guest's bed is always
+	# a little behind the host's and never ahead of it. A guest that reached
+	# "ready" first would offer a harvest the host then refuses.
+	"wire_grow_step": 4.0,
+	"wire_water_step": 5.0,
 }
 
 ## What a seed becomes, how long it takes and what a bed gives back. `days` is

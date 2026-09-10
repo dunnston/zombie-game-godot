@@ -262,3 +262,10 @@ yet when an earlier autoload's `_ready` wants to know.
   screen. The bed's two gauges started at the pack grid's x and ran to the
   panel edge, straight through thirty inventory cells. The empty column to
   the right of that grid was where they belonged.
+- A field that moves every frame cannot go on the world diff at full
+  precision. The diff re-sends any structure whose packed record changed, so
+  a bed's water and growth would have re-sent a garden twice a second for
+  ever. Round them coarsely, and round *down*, so a guest is behind the host
+  rather than ahead of it — a guest that ripens first offers a harvest the
+  host refuses. A running generator's fuel already had this shape and nobody
+  noticed, because a base has one generator and a garden has twelve beds.

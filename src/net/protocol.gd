@@ -542,7 +542,21 @@ static func pack_structure(s: Dictionary) -> Dictionary:
 		# A Raised Bed. The stage is not sent: a guest derives it from `gr` the
 		# same way the host does, so the two cannot disagree about what is in
 		# the ground.
-		"sd": s.seed, "ft": s.fert, "wt": r1(s.water), "gr": r1(s.grow)}
+		#
+		# These two are the only fields on the wire that are deliberately
+		# *coarse*. The world diff re-sends a structure whose record has
+		# changed, and a growing bed's water and growth move every frame — at
+		# full precision a garden would re-send itself twice a second for
+		# ever. Floored rather than rounded, so a guest is always a little
+		# behind the host and never ahead: a guest that reached "ready" first
+		# would offer a harvest the host then refuses. See `Config.FARM`.
+		"sd": s.seed, "ft": s.fert,
+		"wt": _floor_to(s.water, Config.FARM.wire_water_step),
+		"gr": _floor_to(s.grow, Config.FARM.wire_grow_step)}
+
+
+static func _floor_to(v: float, step: float) -> float:
+	return floorf(v / step) * step
 
 
 ## Everything a guest needs that a snapshot does not carry: names and seats.
