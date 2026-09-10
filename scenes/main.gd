@@ -386,8 +386,10 @@ func _load_slot(which: int) -> bool:
 ## Everything a new world invalidates. `_load_slot` does the same work for a
 ## restored one; NEW GAME needs it too, because the world object is replaced
 ## either way and the renderers cache it.
-func _rebuild_views() -> void:
-	var p := sim.players[0]
+## `keep_local` keeps the screen on whoever this machine is — a swap into an
+## instance on a guest must not hand its camera to the host's player.
+func _rebuild_views(keep_local := false) -> void:
+	var p := me if keep_local and me != null else sim.players[0]
 	_set_local(p)
 	inventory.visible = false
 	if build_bar.open:
@@ -447,7 +449,7 @@ func _process(dt: float) -> void:
 		elif ev.t == "instance_enter" or ev.t == "instance_leave":
 			# The map under everybody changed: every view that cached the old
 			# one is rebuilt, the way a load rebuilds them.
-			_rebuild_views()
+			_rebuild_views(true)
 		fx.on_event(ev)
 		lights.on_event(ev)
 		hud.on_event(ev)
@@ -1155,6 +1157,59 @@ func smoke_school(smoke: Node) -> void:
 	_smoke_stand_at(back)
 	camera.position = p.pos
 	await smoke.frames(2)
+
+
+## The loopback guest and the host into the School together (PR D): the door
+## takes both, the guest's mirror builds the same building from the seed, and
+## both come out at the door when the boss is down. The solo leg cleared it
+## earlier today, so the chain is taken off first — a leg stocks what it
+## spends (§8), and the daily chain has a test of its own.
+func _smoke_school_together(smoke: Node, gp: PlayerSim) -> void:
+	var p := sim.players[0]
+	var back := p.pos
+	var door := Instance.door_for(sim, "school")
+	sim.cleared.erase("school")
+	p.god_mode = true
+	_smoke_stand_at(door.stand)
+	gp.pos = door.stand + Vector2(0, 24)
+	gp.prev_pos = gp.pos
+	smoke_guest.me.pos = gp.pos
+	smoke_guest.me.prev_pos = gp.pos
+	await smoke.frames(6)
+	if not Actions.enter_instance(sim, p, "school"):
+		smoke.fail("the door would not take the two of you: %s" % Instance.refusal(sim, p, "school"))
+		p.god_mode = false
+		return
+	for i in range(90):
+		if smoke_guest.sim.instance != null:
+			break
+		await smoke.frames(1)
+	if smoke_guest.sim.instance == null:
+		smoke.fail("the guest's mirror never followed the host inside")
+	elif smoke_guest.sim.world.fingerprint() != sim.world.fingerprint():
+		smoke.fail("the guest is in a different building from the host")
+	await smoke.frames(10)
+	if smoke_guest.me.pos.distance_to(gp.pos) > Config.NET.snap_over:
+		smoke.fail("inside, the guest's picture of themselves is %.0f px from the host's" % smoke_guest.me.pos.distance_to(gp.pos))
+	await smoke.checkpoint("coop_school")
+	Damage.kill_enemy(sim, sim.instance.boss, p)
+	await smoke.frames(3)
+	Instance.leave(sim, "extracted")
+	for i in range(90):
+		if smoke_guest.sim.instance == null:
+			break
+		await smoke.frames(1)
+	if smoke_guest.sim.instance != null:
+		smoke.fail("the guest's mirror stayed inside after the party came out")
+	elif smoke_guest.me.pos.distance_to(door.stand) > 96.0:
+		smoke.fail("the guest came out %.0f px from the door" % smoke_guest.me.pos.distance_to(door.stand))
+	await smoke.checkpoint("coop_school_out")
+	p.god_mode = false
+	_smoke_stand_at(back)
+	gp.pos = sim.world.unstick(back + Vector2(64, 0), gp.r)
+	gp.prev_pos = gp.pos
+	camera.position = p.pos
+	await smoke.frames(6)
 
 
 ## The scripted session: walk, sprint, photograph the districts, then fight.
@@ -1908,6 +1963,7 @@ func smoke_run(smoke: Node) -> void:
 			if smoke_guest.sim.players.size() != sim.players.size():
 				smoke.fail("the mirror's roster does not match the host's")
 			await smoke.checkpoint("coop_walked")
+			await _smoke_school_together(smoke, gp)
 			# The HOST page as the owner reads it. A smoke run opens no real
 			# door — there is no router in CI and no reason to poke one — so a
 			# `NetDoor` is stood up already answered, the way a router with

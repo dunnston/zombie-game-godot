@@ -79,12 +79,83 @@ func test_the_door_says_what_it_would_do() -> void:
 	eq(String(t.get("label", "")), "Enter Pine Hollow High")
 
 
-func test_it_is_solo_until_co_op_runs_land() -> void:
-	sim.join_player("somebody")
+func test_the_party_goes_in_together_or_not_at_all() -> void:
+	var g := sim.join_player("somebody", "Bex")
+	g.god_mode = true
 	_door()
-	ok(Instance.refusal(sim, p, "school").contains("company"))
-	ok(not Instance.enter(sim, p, "school"), "and it stays shut")
+	g.pos = p.pos + Vector2(0, 600)
+	ok(Instance.refusal(sim, p, "school").contains("waiting for Bex"), Instance.refusal(sim, p, "school"))
+	ok(not Instance.enter(sim, p, "school"), "and the door stays shut")
 	eq(sim.instance, null)
+	g.pos = p.pos + Vector2(0, 24)
+	eq(Instance.refusal(sim, p, "school"), "", "both at the door")
+	ok(Instance.enter(sim, p, "school"))
+	ok(g.pos.distance_to(sim.world.entry_spot) < 64.0 and p.pos.distance_to(sim.world.entry_spot) < 64.0,
+		"and both of you are in the foyer")
+	gt(g.pos.distance_to(p.pos), 2.0 * p.r, "side by side, not one on top of the other")
+	ok(not sim.world.circle_hits_solid(g.pos.x, g.pos.y, g.r) and not sim.world.circle_hits_solid(p.pos.x, p.pos.y, p.r),
+		"and neither of you in a wall")
+	eq(sim.instance.party.size(), 2)
+
+
+func test_whoever_went_in_comes_out_the_downed_the_dead_and_the_dropped() -> void:
+	# §10: extraction is a party event. Four go in; one dies, one is down, one
+	# drops off the line, and the host puts the boss down.
+	var mates: Array[PlayerSim] = []
+	for n in ["Ash", "Bex", "Cole"]:
+		var q := sim.join_player("id-" + n, n)
+		q.god_mode = true
+		mates.append(q)
+	_door()
+	for q in mates:
+		q.pos = p.pos + Vector2(0, 20)
+	var inst := _enter()
+	var dead := mates[0]
+	var down := mates[1]
+	var gone := mates[2]
+	Loot.give_entry(sim, dead, {"id": "scrap", "n": 9})
+	dead.god_mode = false
+	Damage.kill_player(sim, dead)
+	Damage.down_player(sim, down)
+	sim.park_player(gone)
+	Damage.kill_enemy(sim, inst.boss, p)
+	run(sim, 0.1)
+	Instance.leave(sim, "extracted")
+	var door: Vector2 = Instance.door_for(sim, "school").stand
+	for q in [p, dead, down, gone]:
+		ok(q.pos.distance_to(door) < 1.0, "%s is outside" % q.display_name)
+	ok(not dead.dead, "the dead wake at the door")
+	eq(dead.count_carried("scrap"), 9, "with what they found — the party brought it out")
+	ok(not down.downed, "the downed are carried out on their feet")
+	ok(gone.away, "and the one who dropped is still dropped, but outside")
+
+
+func test_walking_out_early_needs_everyone_standing_at_the_way_out() -> void:
+	var g := sim.join_player("somebody", "Bex")
+	g.god_mode = true
+	_door()
+	g.pos = p.pos + Vector2(0, 20)
+	_enter()
+	g.pos = sim.world.boss_spot + Vector2(0, 200)
+	ok(not Instance.walk_out(sim, p), "not while Bex is in the gym")
+	ok(Instance.leave_refusal(sim, p).contains("waiting for Bex"))
+	ok(sim.instance != null)
+	Damage.down_player(sim, g)
+	ok(Instance.walk_out(sim, p), "the downed come out with the party")
+	eq(sim.instance, null)
+
+
+func test_a_save_written_inside_brings_a_dropped_friend_out_too() -> void:
+	var g := sim.join_player("somebody", "Bex")
+	g.god_mode = true
+	_door()
+	g.pos = p.pos + Vector2(0, 20)
+	_enter()
+	sim.park_player(g)
+	var d := SaveGame.to_dict(sim)
+	var door: Vector2 = sim.instance.door
+	for rec in d.players:
+		ok(Vector2(float(rec.x), float(rec.y)).distance_to(door) < 1.0, "%s is written down at the door" % rec.name)
 
 
 # ------------------------------------------------------- going in, coming out --
@@ -94,7 +165,7 @@ func test_the_door_opens_onto_the_foyer_and_the_town_is_set_aside() -> void:
 	var inst := _enter()
 	ne(sim.world, town, "a different map")
 	eq(sim.world.layout, "school")
-	eq(p.pos, sim.world.entry_spot)
+	eq(p.pos, sim.world.entry_spot, "alone, on the spot itself")
 	eq(sim.structs.count(), 0, "nothing of your base in here")
 	eq(sim.stash, null)
 	eq(sim.enemies.list.size(), sim.world.enemy_spots.size() + 1, "the placed crowd and the boss")

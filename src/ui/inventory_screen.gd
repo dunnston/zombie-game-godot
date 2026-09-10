@@ -959,6 +959,10 @@ func _draw_leave(font: Font, panel: Rect2) -> void:
 	y += 96.0
 	draw_multiline_string(font, Vector2(x, y), "Put down what is in the gym and all of it comes with you.",
 		HORIZONTAL_ALIGNMENT_LEFT, 290.0, 12, -1, Color("#9fd07a"))
+	# With company, walking out takes everyone: say who it is waiting for.
+	var why := Instance.leave_refusal(sim, player)
+	if not why.is_empty():
+		draw_multiline_string(font, Vector2(x, y + 48.0), why, HORIZONTAL_ALIGNMENT_LEFT, 290.0, 12, -1, Color("#c96a5a"))
 
 
 ## The Raised Bed's two gauges. The water meter is the thing the owner asked

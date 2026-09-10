@@ -2273,3 +2273,38 @@ exact error on the old code. Numbers: 640 / 8665 fast, 676 / 8813 with
 checked by eye: the roof reads as a building you cannot walk into, the panel
 is legible, the inside is dusk-dim with the torch lit. One thing to look at
 in play: inside, the minimap is a small building in a large empty square.
+
+## Instanced dungeons, PR D — into the School together
+
+Stacked on PR B's branch on purpose (it cannot compile without the
+`Instance` it builds on); retarget to `main` the moment PR B merges.
+
+- [x] The door wants every present player on their feet within reach, and
+      names who it is waiting for; any of them can press ENTER
+- [x] `Instance.party`: whoever went in comes out — standing, downed, dead or
+      dropped — and a save written inside writes all of them at the door
+- [x] Walking out early wants everyone still standing at the way out; the
+      leave panel says who it is waiting for
+- [x] `NetHost` announces a map swap from the top of its step (`map`: kind,
+      seed, day, cleared), resets the world baseline and sends each guest the
+      new map in full; it no longer relays the local enter/leave events
+- [x] `Instance.mirror_enter` / `mirror_leave`: the guest builds the same
+      interior from the seed; snapshots carry `mp` and one of the other map
+      is dropped; the haul rides the inventory record; the run rides each
+      guest's world diff (`Instance.record` / `apply_record`) — state, keys,
+      unchained doors, clock, that guest's tally
+- [x] Nobody joins mid-run, and is told why
+- [x] `_rebuild_views` keeps a guest's camera on the guest across a swap
+- [x] Protocol 5 (PR A also takes 5: whichever merges second takes 6)
+- [x] Tests: four more in `instance_test.gd`; `instance_coop_test.gd` over a
+      loopback (seven); a smoke leg taking the loopback guest in and out
+- [ ] **Owner gate:** into the School with a friend
+
+**PR D review.** Three rules checked by breaking them: taking a snapshot of
+the other map, bringing out only the players present at the end (the one who
+dropped stays inside), and never telling guests the map changed (the
+guest's mirror stays in the town, in a different building from the host's)
+each fail their test. One test of mine looked up the School's door while the
+party was inside it, where the town — and the door — is set aside; it reads
+the Instance's own copy now. Numbers: 650 / 8717 fast, 686 / 8865 with
+`--all`, zero failures; smoke 81/81 with nothing in its log.

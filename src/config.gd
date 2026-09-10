@@ -92,6 +92,9 @@ const PLAYER := {
 const INSTANCE := {
 	"haul_cap": 120.0,
 	"haul_slots": 16,
+	# How close everyone has to be for the party to go in, or to walk out
+	# early, together (§10: a dungeon is a party commitment).
+	"party_reach": 160.0,
 }
 
 ## One row per instance. `shell` is the building in the town, `door` the tiles
