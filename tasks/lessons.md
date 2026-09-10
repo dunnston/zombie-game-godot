@@ -353,6 +353,28 @@ yet when an earlier autoload's `_ready` wants to know.
 - A review finding can be right about the fact and wrong about the target.
   (See the entry below for the owner's first playtest.)
 
+## 2026-09-10 (the dash)
+
+- A smoke leg that moves the player has to choose where it starts. The dash
+  leg dashed from wherever the sprint before it ended, and the sprint is
+  counted in process frames, so the end point moved with the frame rate: one
+  run carried 130px, the next stopped at a tree after 56. `_smoke_clear_lane`
+  finds open ground for the whole run and `_smoke_stand_at` puts the player
+  there. Same rule as "stock a leg for what it spends", applied to space.
+- Hold a smoke key until the game says it saw it, not for a number of
+  frames. The owner's monitor runs at 144Hz and the sim at 60, so three
+  process frames can hold no physics step at all, and "the dash key was never
+  heard" fired on a dash that was fine — the check asked before the game had.
+  Press, poll the sim for the consequence (`dash_cd > 0`) with a cap, then
+  release; an edge-read key cannot fire twice however long it is held.
+- Split "did it happen" from "did it do enough" in a smoke assertion. "The
+  dash did not carry" could not tell a press the physics step never saw from
+  a burst that hit a wall; `dash_cd > 0` answers the first on its own line.
+- Seven failures in one smoke run, all in legs that wait on a clock, and none
+  of them came back on the next run with nothing changed: the focus lesson in
+  §8 again, most likely the chat window taking focus mid-run. Re-run before
+  bisecting, and never read a flake as a pass for the leg you just wrote.
+
 ## 2026-09-10 (the owner's first playtest)
 
 - Look at the photograph before reading the renderer. "The torch gave no

@@ -441,6 +441,10 @@ func _apply_player(pr: Dictionary) -> void:
 	p.equip["offhand"] = strs[1]
 	p.sneaking = bool(f & NetProtocol.PF_SNEAK)
 	p.sprinting = bool(f & NetProtocol.PF_SPRINT)
+	# Mid-dash, for the after-images. The direction is not on the wire; the
+	# view reads it off the step they just took.
+	p.dash_t = 0.1 if f & NetProtocol.PF_DASH else 0.0
+	p.dash_dir = Vector2.ZERO
 	if f & NetProtocol.PF_SWING:
 		if p.swing.is_empty():
 			var w := p.weapon()
