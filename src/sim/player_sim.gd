@@ -474,6 +474,13 @@ func tick(sim: GameSim, dt: float) -> void:
 	var world := sim.world
 	# Where the view should draw from until the next step lands.
 	prev_pos = pos
+	# A burst belongs to the legs that started it (Codex, PR #30). `move` is
+	# the only thing that spends one, and parked, dead, downed and driving all
+	# return before it — so a dash interrupted by any of them froze, and came
+	# back on its own the moment you were on your feet again. Above every one
+	# of those returns, so there is no branch that forgets.
+	if dash_t > 0.0 and (away or dead or downed or driving_id > 0):
+		dash_t = 0.0
 	if away:
 		return
 	last_hurt += dt

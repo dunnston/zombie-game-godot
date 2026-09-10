@@ -183,6 +183,49 @@ func test_nobody_dashes_off_the_floor() -> void:
 	ok(p.pos.distance_to(at) < 0.01)
 
 
+## How far the player gets in `secs` with nothing pressed.
+func _drift(secs: float) -> float:
+	p.intent.dash = false
+	p.intent.mx = 0.0
+	p.intent.my = 0.0
+	var from := p.pos
+	run(sim, secs)
+	return p.pos.distance_to(from)
+
+
+func test_a_burst_ends_when_you_climb_into_a_car() -> void:
+	# Codex on PR #30: the car returns before `move`, so a burst begun and then
+	# interrupted by the driver's seat froze — and resumed, unasked, the moment
+	# you stepped out.
+	gt(sim.cars.list.size(), 0, "a car to climb into")
+	var home := p.pos
+	_press(1.0, 0.0)
+	gt(p.dash_t, 0.0, "the burst began")
+	p.intent.dash = false
+	p.driving_id = int(sim.cars.list[0].id)
+	sim.tick(DT)
+	eq(p.dash_t, 0.0, "the seat ends it")
+	# Out, and back on open ground: a driver sits where the car is, and being
+	# pushed off its tiles is not a dash.
+	p.driving_id = 0
+	p.pos = home
+	p.prev_pos = home
+	p.vel = Vector2.ZERO
+	ok(_drift(0.25) < 1.0,"and stepping out does not finish it")
+
+
+func test_a_burst_ends_when_you_go_down() -> void:
+	_press(1.0, 0.0)
+	gt(p.dash_t, 0.0, "the burst began")
+	Damage.down_player(sim, p)
+	sim.tick(DT)
+	eq(p.dash_t, 0.0, "the floor ends it")
+	p.downed = false
+	p.hp = p.max_hp
+	p.vel = Vector2.ZERO
+	ok(_drift(0.25) < 1.0,"and getting up does not finish it")
+
+
 # --------------------------------------------------------- guest and ears --
 
 func test_a_guest_predicts_its_own_dash_with_the_same_code() -> void:
