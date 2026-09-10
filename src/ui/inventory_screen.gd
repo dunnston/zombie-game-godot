@@ -696,46 +696,59 @@ func _draw_bed(font: Font, panel: Rect2) -> void:
 	draw_string(font, Vector2(x - 92.0, y0 + CELL + GAP + 26.0), "Feed", HORIZONTAL_ALIGNMENT_RIGHT, 86, 11,
 		Color(1, 1, 1, 0.55))
 
+	# The gauges live in the empty column to the right of the pack grid.
+	# Running them across the panel from the left put both bars straight
+	# through the pack, which read as a glitch rather than as a meter.
 	var gx := x + CELL + 96.0
-	var gw := panel.position.x + panel.size.x - 24.0 - gx
-	var by := y0 + (CELL + GAP) * 2.0 + 26.0
+	var rx := gx + BAG_COLS * (CELL + GAP) + 22.0
+	var gw := panel.position.x + panel.size.x - 24.0 - rx
+	var gy := y0 + 12.0
 
-	# Water.
+	# Water. Amber when it is low and grey when it is out — never red. Running
+	# dry costs time and never the crop, and colouring it like damage would be
+	# the screen telling a lie about the rules.
 	var wf := Farming.water_frac(s)
 	var hours := wf * float(Config.FARM.dry_days) * 24.0
 	var wcol := Color("#6ad0c4") if wf > 0.25 else (Color("#d9c46a") if wf > 0.0 else Color("#8a7f6a"))
-	draw_string(font, Vector2(x, by - 6.0), "WATER", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
-	draw_rect(Rect2(gx, by - 18.0, gw, 14.0), Color(0, 0, 0, 0.6))
-	draw_rect(Rect2(gx, by - 18.0, gw * wf, 14.0), wcol)
-	draw_string(font, Vector2(gx, by - 22.0),
-		"%d%%  ·  dry in %dh" % [roundi(wf * 100.0), roundi(hours)] if wf > 0.0 else "DRY — nothing is growing",
-		HORIZONTAL_ALIGNMENT_RIGHT, gw, 11, wcol)
+	draw_string(font, Vector2(rx, gy), "WATER", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
+	draw_string(font, Vector2(rx, gy), "%d%%" % roundi(wf * 100.0), HORIZONTAL_ALIGNMENT_RIGHT, gw, 11, wcol)
+	draw_rect(Rect2(rx, gy + 6.0, gw, 14.0), Color(0, 0, 0, 0.6))
+	draw_rect(Rect2(rx, gy + 6.0, gw * wf, 14.0), wcol)
+	draw_string(font, Vector2(rx, gy + 34.0),
+		"dry in %d hours" % roundi(hours) if wf > 0.0 else "DRY — nothing is growing",
+		HORIZONTAL_ALIGNMENT_LEFT, gw, 10, wcol)
 
 	# Growth. Empty soil says what it is for rather than showing a bar at zero.
-	var gy := by + 22.0
+	gy += 56.0
 	if not Farming.planted(s):
-		draw_string(font, Vector2(x, gy), "Nothing planted — drag a seed into the slot",
-			HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 48.0, 11, Color("#8a8f84"))
+		draw_string(font, Vector2(rx, gy), "NOTHING PLANTED", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
+		draw_multiline_string(font, Vector2(rx, gy + 20.0), "Drag a seed into the slot, or right-click one in your pack.",
+			HORIZONTAL_ALIGNMENT_LEFT, gw, 10, 3, Color(1, 1, 1, 0.45))
 		return
 	var crop := Farming.crop_of(s)
 	var p := Farming.progress(s)
 	var left := maxf(0.0, Farming.grow_time(s) - float(s.grow)) / Config.DAY_LENGTH
-	draw_string(font, Vector2(x, gy), Farming.stage_name(s).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
-	draw_rect(Rect2(gx, gy - 12.0, gw, 14.0), Color(0, 0, 0, 0.6))
-	draw_rect(Rect2(gx, gy - 12.0, gw * p, 14.0), Color("#9fd07a") if p >= 1.0 else Color("#7a9a52"))
-	var tail := "ready" if p >= 1.0 else ("%.1f days left" % left if wf > 0.0 else "stalled — needs water")
+	draw_string(font, Vector2(rx, gy), Farming.stage_name(s).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
+	draw_string(font, Vector2(rx, gy), "%d%%" % roundi(p * 100.0), HORIZONTAL_ALIGNMENT_RIGHT, gw, 11, Color("#9fd07a"))
+	draw_rect(Rect2(rx, gy + 6.0, gw, 14.0), Color(0, 0, 0, 0.6))
+	draw_rect(Rect2(rx, gy + 6.0, gw * p, 14.0), Color("#9fd07a") if p >= 1.0 else Color("#7a9a52"))
 	# The band shown is what this bed will actually give, fertilizer included,
 	# so feeding it visibly moves the number you are about to be paid.
 	var ym: float = float(Farming.fert_of(s).get("yield_mul", 1.0))
-	draw_string(font, Vector2(gx, gy - 16.0), "%d-%d %s  ·  %s" % [
+	draw_string(font, Vector2(rx, gy + 34.0), "%d-%d %s" % [
 		maxi(1, floori(int(crop.min) * ym)), maxi(1, floori(int(crop.max) * ym)),
-		Items.name_of(String(crop.crop)), tail],
-		HORIZONTAL_ALIGNMENT_RIGHT, gw, 11, Color("#d5d0c4"))
+		Items.name_of(String(crop.crop))], HORIZONTAL_ALIGNMENT_LEFT, gw, 11, Color("#d5d0c4"))
+	draw_string(font, Vector2(rx, gy + 34.0),
+		"ready" if p >= 1.0 else ("%.1f days left" % left if wf > 0.0 else "stalled"),
+		HORIZONTAL_ALIGNMENT_RIGHT, gw, 11, Color("#9fd07a") if p >= 1.0 else (
+			Color("#d5d0c4") if wf > 0.0 else Color("#d9c46a")))
 
 	var f := Farming.fert_of(s)
 	if not f.is_empty():
-		draw_string(font, Vector2(x, gy + 20.0), "%s  ·  %s" % [Items.name_of(String(s.fert)), String(f.desc)],
-			HORIZONTAL_ALIGNMENT_LEFT, panel.size.x - 48.0, 10, Color("#b06ad0"))
+		draw_string(font, Vector2(rx, gy + 60.0), Items.name_of(String(s.fert)).to_upper(),
+			HORIZONTAL_ALIGNMENT_LEFT, gw, 11, Color("#b06ad0"))
+		draw_multiline_string(font, Vector2(rx, gy + 78.0), String(f.desc),
+			HORIZONTAL_ALIGNMENT_LEFT, gw, 10, 3, Color(1, 1, 1, 0.45))
 
 
 func _draw_craft(font: Font, panel: Rect2) -> void:

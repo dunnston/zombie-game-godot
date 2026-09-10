@@ -90,8 +90,10 @@ func _draw() -> void:
 						var sx: float = pos.x - 7.0 + i * 7.0
 						draw_line(Vector2(sx, pos.y + 8.0), Vector2(sx, pos.y + 8.0 - h),
 							tint.darkened(0.35 - st * 0.1), 2.0)
-						if st >= 2:
-							draw_circle(Vector2(sx, pos.y + 8.0 - h), 1.4 + st * 0.7, tint)
+						# A tip at every stage, not only the last two: a bed
+						# sown this morning has to look different from one
+						# standing empty, or the row lies about what is in it.
+						draw_circle(Vector2(sx, pos.y + 8.0 - h), 1.2 + st * 0.8, tint)
 					if Farming.ready(s):
 						draw_arc(pos, 15.0, 0.0, TAU, 20, Color(tint, 0.75), 1.5)
 			"floodlight":

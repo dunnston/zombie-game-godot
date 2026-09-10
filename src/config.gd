@@ -720,7 +720,7 @@ const FERTILIZER := {
 	"compost": {"id": "compost", "yield_mul": 1.6, "speed_mul": 1.0,
 		"desc": "Rotted plant matter. Half again as much comes up."},
 	"sludge": {"id": "sludge", "yield_mul": 2.5, "speed_mul": 0.6,
-		"desc": "Whatever is in a zombie's head, it makes things grow. Faster, and far more of it."},
+		"desc": "It makes things grow. Faster, and far more of it."},
 }
 
 # --------------------------------------------------------------------- gear --

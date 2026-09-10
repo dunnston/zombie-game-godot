@@ -232,8 +232,10 @@ static func harvest(sim: GameSim, p: PlayerSim, s: Dictionary) -> int:
 	Loot.give_res_or_drop(sim, p, seed_id, seeds, s.pos)
 	sim.emit({"t": "harvest", "x": s.pos.x, "y": s.pos.y, "res": crop_id, "n": n,
 		"label": Items.name_of(crop_id).to_upper()})
-	sim.notify("Harvested %d %s  ·  %d %s back" % [
-		n, Items.name_of(crop_id), seeds, Items.name_of(seed_id)], "#b7e08a", true)
+	# "1 Potato Eyes back" reads as a bug. The seed's own name is already
+	# plural, so the count goes on the word "seed" instead.
+	sim.notify("Harvested %d %s  ·  %d seed%s back" % [
+		n, Items.name_of(crop_id), seeds, "" if seeds == 1 else "s"], "#b7e08a", true)
 	Progression.add_xp(sim, p, int(F.xp_harvest), "HARVEST")
 	return n
 
