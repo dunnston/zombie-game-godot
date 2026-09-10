@@ -2033,3 +2033,24 @@ The test that measures it off the real swing caught that before it shipped.
 - [ ] **Notion's Player Menu row** still describes the hammer lifting bench
       work, and its *What it is for* lists a bow and arrows. Not edited: the
       go-ahead was for the seven items' *Crafted at*.
+
+## The broker leg starts npm on Windows
+
+- [x] **`webrtc_slow_test` could not launch npm on Windows.** It called
+      `OS.execute("npm", …)`, and npm there is `npm.cmd`, a batch file
+      CreateProcess will not start by bare name — so every fresh worktree
+      failed `--all` with "Could not create child process" before the broker
+      ever ran. On Windows it now goes through `cmd.exe /c npm …`; elsewhere
+      it is unchanged. Node is a real `node.exe` and stays a direct
+      `create_process`, so `OS.kill` still reaches it and not a shell.
+- [x] `PROJECT.md` §3 no longer says the test fails until you install by
+      hand: it installs itself, and needs the network that once.
+
+Numbers: 561 / 7177 fast, 597 / 7325 with `--all`, zero failures — the
+broker leg passed both with a fresh `npm install` and with `node_modules`
+already there. Smoke 71/71, but not every time: two runs of four failed
+"holding REPAIR left the wall at 136 of 340", on this branch and never on a
+clean `main` (one run there). The third run on this branch passed with
+nothing changed, and the change touches only a test the game never loads,
+so it is the same family of timing flake as the build-mode click above —
+recorded, not fixed here.
