@@ -156,16 +156,32 @@ func store() -> Slots:
 
 
 ## The bench this screen crafts at: by hand on the C tab wherever you are
-## standing, and the bench you are standing beside in BENCH mode. The host
+## standing, and in BENCH mode the tier of the bench that was *opened* — not
+## of whatever else stands in reach, or a Chemistry Station beside a
+## workbench would list the workbench's recipes under its own title (Codex,
+## PR #25). A station is not a rung of the ladder, so it is 0. The host
 ## re-derives it from where the player is either way.
 func bench() -> int:
-	return Crafting.bench_tier_at(sim, player) if mode == "bench" else 0
+	if mode != "bench":
+		return 0
+	var s := bench_struct()
+	return int(s.tier) if s.get("type", "") == "workbench" else 0
+
+
+## The station the opened structure is, or "" for a workbench or none.
+func bench_station() -> String:
+	return String(bench_struct().get("def", {}).get("station", "")) if mode == "bench" else ""
 
 
 func recipes() -> Array:
 	if mode != "bench":
 		return Crafting.visible_recipes(player, 0)
-	return Crafting.visible_recipes(player, bench(), Crafting.stations_at(sim, player))
+	var st := bench_station()
+	if st.is_empty():
+		return Crafting.visible_recipes(player, bench())
+	# A station lists its own work and nothing else: the hand basics are on C.
+	return Crafting.visible_recipes(player, 0, {st: true}).filter(
+		func(r: Dictionary) -> bool: return String(r.get("station", "")) == st)
 
 
 ## Called every frame by the scene: a store screen closes when you walk away
@@ -267,8 +283,10 @@ func _craft_rows() -> Array[Dictionary]:
 		return out
 	var panel := _panel()
 	var list: Array = []
-	for row in Wear.worn_carried(player):
-		list.append({"repair": row})
+	# Mending is a workbench's job (or your hands'); a station mends nothing.
+	if bench_station().is_empty():
+		for row in Wear.worn_carried(player):
+			list.append({"repair": row})
 	for r in recipes():
 		list.append({"recipe": r})
 	var top := panel.position.y + 76.0
@@ -888,9 +906,9 @@ func _draw_craft(font: Font, panel: Rect2) -> void:
 	var b := bench()
 	var where := "By hand  ·  everything else is made at a workbench"
 	if mode == "bench":
-		where = "At Workbench II" if b >= 2 else ("At a Workbench" if b == 1 else "")
-		for st in Crafting.stations_at(sim, player):
-			where += ("  ·  " if not where.is_empty() else "At the ") + Crafting.station_name(String(st))
+		var st := bench_station()
+		where = ("At the " + Crafting.station_name(st)) if not st.is_empty() \
+			else ("At Workbench II" if b >= 2 else "At a Workbench")
 	draw_string(font, panel.position + Vector2(24, 60), where, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#8a8f84"))
 
 	for row in _craft_rows():

@@ -2009,6 +2009,20 @@ what you meet before "Pick up the sticks first".
 My estimate of the Hatchet was wrong by half (four chops a tree; it is six).
 The test that measures it off the real swing caught that before it shipped.
 
+### Addressing the Codex review on PR #25
+
+- [x] **Scope a bench screen to the bench that was opened.** BENCH mode took
+      its tier and stations from everything in reach, so a Chemistry Station
+      beside a workbench listed the workbench's recipes under its own title
+      (and the reverse), and two differently upgraded benches side by side
+      could change the list without changing the title. `bench()` and
+      `recipes()` now read `bench_struct()`: a workbench lists its own tier, a
+      station lists only its own work, and mend rows stay off a station.
+      `test_a_bench_screen_lists_the_bench_you_opened_and_no_other` puts both
+      side by side. 561 fast, smoke 71/71 (one earlier run missed the
+      build-mode click as the camera led the cursor — §8's timing flake,
+      not this change; the re-run passed).
+
 ### Left for the owner
 
 - [ ] **Play it.** Mutation at 67 minutes and the bite halved are both

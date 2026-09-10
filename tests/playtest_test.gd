@@ -151,6 +151,42 @@ func test_e_at_a_chemistry_station_opens_it_too() -> void:
 	eq(events_of(sim, "open_bench").size(), 1)
 
 
+func test_a_bench_screen_lists_the_bench_you_opened_and_no_other() -> void:
+	# Codex, PR #25: with a workbench and a Chemistry Station both in reach,
+	# each screen listed the other's recipes, because the list was built from
+	# everything nearby rather than from the structure that was opened.
+	sim.structs.bench_tier = 2
+	var wt := _free_beside()
+	var bench := sim.structs.place(sim, "workbench", wt.x, wt.y, p)
+	var ct := Vector2i(-1, -1)
+	for d in [Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, 1)]:
+		var t: Vector2i = plot + d
+		if t != wt and sim.world.prop_at_tile(t.x, t.y).is_empty() \
+				and not sim.structs.place(sim, "chemStation", t.x, t.y, p).is_empty():
+			ct = t
+			break
+	ok(not bench.is_empty() and ct.x >= 0, "both went up")
+	var screen := InventoryScreen.new(sim)
+	screen.player = p
+
+	screen.open_bench(ct)
+	var at_chem: Array = screen.recipes()
+	gt(at_chem.size(), 0, "the station lists its work")
+	for r in at_chem:
+		eq(String(r.get("station", "")), "chem", "%s at the Chemistry Station" % r.id)
+	eq(screen.bench(), 0, "a station is not a rung of the ladder")
+
+	screen.open_bench(wt)
+	var ids: Array = []
+	for r in screen.recipes():
+		ok(String(r.get("station", "")).is_empty(), "%s at the workbench" % r.id)
+		ids.append(String(r.id))
+	has(ids, "pistol", "the workbench lists its own tier")
+	ok(not ids.has("rifle"), "and only its own: this one is not upgraded")
+	eq(screen.bench(), 1)
+	screen.free()
+
+
 # ----------------------------------------------------- 7. click food to eat --
 
 func test_the_click_menu_says_what_using_it_is() -> void:
