@@ -1027,9 +1027,25 @@ const SPAWN := {
 	"sneak_sense_mul": 0.55,
 }
 
-## How loud things are, as a radius. Guns carry their own in WEAPONS.
+## How loud things are, as a radius. Weapons carry their own in WEAPONS —
+## guns and melee both — and reach it through `Sound.weapon_radius`. Melee
+## runs 10 (fists) to 170 (sledge), and every one of them is quieter than
+## every firearm (the softest is the SMG at 400). That gap IS the stealth
+## option, and it is the whole reason to close the distance.
+##
+## Two things cross the line on purpose. The chainsaw is 520 — louder than
+## most guns, because it is a motor, and the price of its chop_mul of 8.
+## Bows run 45-110, i.e. down among the melee, because a bow is the quiet
+## way to kill at range and would be pointless anywhere else.
+##
+## `melee` is only the fallback for a row with no noise of its own, and sits
+## low deliberately: a new weapon should arrive quiet and be made loud on
+## purpose. `chop_mul` is why work carries further than a fight — you swing
+## at a tree over and over — and is the one knob for all harvesting.
 const NOISE := {
-	"chop": 140.0,
+	"melee": 50.0,
+	"whiff_mul": 0.35,
+	"chop_mul": 1.5,
 	"build": 190.0,
 	"turret": 520.0,
 	"generator": 300.0,

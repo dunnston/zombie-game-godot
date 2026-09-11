@@ -27,6 +27,7 @@ const KEYS := {
 	"build": [KEY_B],
 	"map": [KEY_M],
 	"dev_menu": [KEY_F1],
+	"noise_debug": [KEY_F2],
 	"quick_save": [KEY_F5],
 	"quick_load": [KEY_F9],
 	"pause": [KEY_ESCAPE],

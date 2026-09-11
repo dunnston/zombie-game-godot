@@ -204,6 +204,13 @@ func _physics_process(dt: float) -> void:
 	if dev != null:
 		if Input.is_action_just_pressed("dev_menu"):
 			dev.toggle()
+		# The noise lens, on the same gate as the dev menu: a release build
+		# never reaches this line, so there is nothing to switch off before
+		# shipping. The sim emits nothing at all while it is false.
+		if Input.is_action_just_pressed("noise_debug"):
+			Sound.debug = not Sound.debug
+			sim.notify("Noise overlay %s" % ("on" if Sound.debug else "off"),
+				"#9ad0e8")
 		if dev.open:
 			# The world keeps running underneath, so you can watch what you
 			# just did. It only stops answering this keyboard.
