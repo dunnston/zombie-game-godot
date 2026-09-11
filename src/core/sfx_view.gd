@@ -35,6 +35,7 @@ const DIRECT := {
 	"boss_charge": "swing",
 	"boss_throw": "swing",
 	"boss_stunned": "stagger",
+	"dash": "dash",
 	"bullet_wall": "hit_wall",
 	"stagger": "stagger",
 	"kill": "zombie_die",
