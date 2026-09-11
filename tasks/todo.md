@@ -2209,3 +2209,178 @@ recorded, not fixed here.
 
 Numbers: 562 / 7181 fast, 598 / 7329 with `--all`, zero failures. Smoke
 71/71, and no SCRIPT ERROR in its log.
+
+## Instanced dungeons — the School (plan, 2026-09-10, awaiting the owner's go)
+
+The design is `tasks/instanced-dungeons.md` (recovered from the prototype;
+its §0 holds today's decisions, which win where they differ from the note).
+Five PRs, each cut from `main`, in this order. Nothing in B–E starts before
+A has been felt, because the dash sets how long every boss telegraph is.
+
+**Decided on 2026-09-10:** the instance building is a new, sealed, roofed kind
+of building whose door loads a separate map · the first is the **School**
+(the note's teaching dungeon, tier 2) · dying inside wakes you outside the
+door carrying what you brought in · every entry re-rolls, one clear a day ·
+the party enters together and the town is frozen meanwhile · walking out
+early forfeits the haul · **a dash with i-frames**.
+
+### PR A — the dash (small code, large tuning; changes every fight)
+
+- [x] `Intent.dash` edge, bound to **Space** (free today), rebindable and
+      shown in CONTROLS
+- [x] `PlayerSim`: a committed burst — first guesses in `Config.DASH`:
+      ~130px over 0.18s, i-frames for the burst plus 0.06s grace through the
+      existing `invuln`, 30 stamina, 0.9s cooldown. Direction is the
+      movement keys, else the aim. Refused when winded, downed, driving or
+      out of stamina, with the reason. Walls stop it (`move_circle` substeps,
+      both collision maps)
+- [x] Co-op: the edge goes reliably like every other edge; the guest predicts
+      its own dash with the host's code
+- [x] A whoosh cue and a short trail, so a dash reads in a crowd (pillar 4)
+- [x] Tests on outcomes: distance travelled, a bite during the burst deals
+      nothing, a wall stops it, cost and cooldown, each refusal. Smoke: one
+      photographed dash
+- [ ] **Owner gate:** does it feel good kiting a runner and breaking from a
+      brute, in town, before any boss exists
+
+**PR A review.** Built as planned; the numbers are `Config.DASH` first
+guesses. `dash_test.gd` is 16 tests on outcomes (distance and time, aim from
+a standstill, diagonals, walls, i-frames and when they end, cost, the silent
+cooldown, each refusal by its words, downed, the guest's own prediction, the
+snapshot flag, and the cue chosen for a real dash). Three were checked by
+breaking the code they guard: no intent bit fails `net_test` four ways, no
+cue fails the sound test, no `invuln` fails the bite test. Protocol 5.
+Numbers: 632 / 8400 fast, 668 / 8548 with `--all`, zero failures. Smoke
+74/74 twice in a row — but not first time: the leg dashed from wherever the
+sprint ended (a tree, one run) and then checked the key three frames after
+pressing it, which at 144Hz can be before any physics step. Both fixed in
+the leg, not the dash (`tasks/lessons.md`, *the dash*). A separate run lost
+seven clock-driven legs to window focus and got them all back unchanged on
+the next.
+
+### PR B — the instance machinery and the School, solo, with a stand-in boss
+
+The largest piece. Playable end to end when it lands, with a Behemoth
+stand-in in the gym until PR C replaces it.
+
+*The building in town*
+- [ ] New district **school** (tier 2) at about (112, 62), north of Pine
+      Hollow Suburbs on the west street — the plot finder's best real site
+      (the higher-scoring one was the orchard)
+- [ ] A sealed shell with a roof (new `ROOF` tile: solid, blocks sight and
+      bullets like a wall, drawn as a roof) and one door. Stamped **after**
+      generation so no RNG draw moves and the rest of the town is
+      bit-identical; the trees and litter under it are removed
+- [ ] The world fingerprint changes. Saves made before this keep loading:
+      the loader also accepts the pre-School fingerprint, because the stamp
+      only removes props under its footprint. A test loads a pre-School save
+
+*The instance*
+- [ ] `Instance` (RefCounted, `src/sim/instance.gd`): kind, seed, entrance,
+      state, the §6.3 ledger (`gained`), the boss, and the town set aside
+      (world, enemies, corpses, pickups, backpacks, bullets, fire)
+- [ ] `GameSim.enter_instance` / `leave_instance(outcome)`. While inside, the
+      town does not tick: clock, Threat, raids, crew, cars, structures and
+      the ambient spawner. Mutation still climbs — it is yours, not the town's
+- [ ] The School interior: `World` grows a layout argument, so the whole
+      collision, sight, nav, loot and render stack works unchanged. A fixed
+      skeleton — foyer, a main hall, a classroom wing, the cafeteria, the
+      principal's office, an antechamber with a supply cache (§6.4), the gym
+      as the arena — with room count, contents and populations rolled from
+      the entry seed. Budget **8–12 minutes** (§6.1), timed on every run and
+      shown on the way out so the owner can judge it
+- [ ] One pacing door (§9): the gym is chained, and the key is in the
+      principal's office
+- [ ] A finite placed population per room. No ambient spawner inside
+- [ ] School loot tables and container kinds, added through the editor's API
+      (`tools/editor/edit_api.gd`), never by hand
+
+*The rules*
+- [ ] **Haul pouch** (§6.2): a separate `Slots` on the player with its own
+      capacity (first guess 120 units, `Config`), not counted against carry.
+      What you find inside lands in it; drag something into the pack to use
+      it. The pack screen shows it as a strip labelled with what it costs you
+- [ ] **Ledger** (§6.3): everything gained inside is tallied. A failed run
+      clears the pouch and takes `min(gained, held)` per id off the pack,
+      hotbar and body, so found consumables are usable but never extractable
+- [ ] **Boss kill:** the gym's exit opens, and walking through it moves the
+      pouch into your pack (overflow on the ground outside) and clears the
+      ledger. The door then stays chained until the next in-game day
+- [ ] **Walking out early:** hold E at the entrance — "Leave, and lose the
+      haul"
+- [ ] **Death inside:** no pack dropped. You wake outside the door with what
+      you brought, less the ledger
+- [ ] **Building is off inside**, and the refusal says so. The stash is out
+      of reach inside, so nothing is paid out of it. Hand crafting still works
+- [ ] **Saving inside:** no autosave. SAVE and SAVE AND QUIT write the game
+      as if you had walked out (at the door, haul forfeited); a run is never
+      saved. Payload v12 adds `cleared` (kind → the day it was last cleared)
+- [ ] Before the door: a confirm panel — what you are carrying, "no stash,
+      no building in there", ENTER / NOT YET (the §6.6 loadout moment)
+
+*The screen*
+- [ ] `_rebuild_views` on the way in and out; the map and minimap draw the
+      instance; a fixed interior darkness so the torch and flashlight matter;
+      a run banner; the pouch on the HUD
+- [ ] Tests: enter/leave round trip leaves the town exactly as it was; each
+      outcome's ledger arithmetic, stacked and partly spent; the daily lock;
+      building refused inside; the spawner silent inside; save-inside
+      writes the forfeit. Smoke: the roofed school, the confirm panel, the
+      foyer, a classroom searched, the key, the gym, the stand-in killed,
+      extraction, the chained door
+
+### PR C — the boss script layer and the School's boss
+
+- [ ] `Boss` (`src/sim/boss.gd`) driven by `data/bosses.json`: phases at
+      health thresholds; each phase has moves and cooldowns. Pick a move off
+      cooldown, telegraph, execute, recover
+- [ ] Moves: **slam** (growing ring), **charge** (wind-up, straight line),
+      **summon** (adds at arena points), **spray** (the hostile bullets Phase
+      6b already has)
+- [ ] The phase beat (§8.4): roar, shake, a colour shift, half a second
+      invulnerable and doing nothing
+- [ ] One arena mechanic (§8.3): phase 2 kills the gym lights, and a breaker
+      on the wall puts them back
+- [ ] The camera zooms out on entering the arena so a slam ring's edge is on
+      screen; telegraph windows sized against the dash's i-frames
+- [ ] The boss is not a damage check (§6.4): the fight is about surviving
+      the patterns
+- [ ] The dev menu spawns the boss in town, so it can be felt without
+      clearing the school (the note's cheap de-risk)
+- [ ] Tests assert the phase changes at the threshold and each move lands
+      through `damage_player`. Smoke photographs each telegraph
+
+### PR D — co-op: the party goes in together
+
+- [ ] The door needs every present, living player within reach, and names
+      who is missing
+- [ ] The host sends `enter_instance {kind, seed}` reliably; the guest
+      builds the same interior from the seed and swaps its mirror.
+      Snapshots are unchanged
+- [ ] Extraction is a party event: everyone who went in extracts, the downed
+      and the dead included. A full wipe ejects everyone. Downed-and-revive
+      works inside unchanged
+- [ ] A guest who drops inside is parked outside at the door; somebody
+      joining mid-run waits, and is told the party is inside
+- [ ] Loopback tests for all of the above; the smoke runs its loopback guest
+      through the door
+
+### PR E — the reward: the material and the tier it unlocks
+
+- [ ] The bench-3 material (**the owner names it**) found in the School's
+      containers, more in the gym (§11's refinement: the whole run holds
+      value, and the boss stays the lock on the door)
+- [ ] A third workbench tier whose upgrade cost includes it, and the recipes
+      it unlocks — **what goes in tier 3 is the owner's content call**,
+      through `tools\edit`
+- [ ] `PROJECT.md`: pillar 7's written exception (§5), the decision log, §3,
+      §4, §7
+
+### For the owner to confirm before PR B starts
+
+1. The site: north of Pine Hollow Suburbs (the picture sent in chat).
+2. Old saves keep loading. That is a small loader change; say if you would
+   rather start fresh.
+3. The haul pouch at 120 units, which is about half of what you carry.
+4. The School's name, the boss's name and idea, and the material's name —
+   PR C and PR E, so they do not block the start.

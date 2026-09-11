@@ -14,6 +14,10 @@ static func gather(intent: Intent, node: Node2D, ui_capture := false) -> void:
 	intent.my = v.y
 	intent.sprint = Input.is_action_pressed("sprint")
 	intent.sneak = Input.is_action_pressed("sneak")
+	# Movement, so it answers with a panel open like the keys above: getting
+	# out of the way is not something a pack screen should stop.
+	if Input.is_action_just_pressed("dash"):
+		intent.dash = true
 	if ui_capture:
 		intent.fire = false
 		intent.interact_held = false

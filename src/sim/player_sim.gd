@@ -78,6 +78,18 @@ var stam_lock := 0.0
 var winded := false
 var sprinting := false
 var sneaking := false
+## The dash (`Config.DASH`). Seconds left in the burst, seconds until the next
+## press is heard, and which way it is going. Lives in `move` with the rest of
+## movement, because a guest runs `move` to predict itself and a 130px burst
+## it had not predicted would snap back on its own screen.
+var dash_t := 0.0
+var dash_cd := 0.0
+var dash_dir := Vector2.ZERO
+## Why the last press was turned down, for `tick` to say out loud: `move` has
+## no sim to say it with. "" when it was not.
+var dash_refused := ""
+## True for the one step a dash began on, so `tick` announces it once.
+var dash_began := false
 var speed_mul := 1.0
 var melee_mul := 1.09
 var gun_mul := 1.0
@@ -462,6 +474,13 @@ func tick(sim: GameSim, dt: float) -> void:
 	var world := sim.world
 	# Where the view should draw from until the next step lands.
 	prev_pos = pos
+	# A burst belongs to the legs that started it (Codex, PR #30). `move` is
+	# the only thing that spends one, and parked, dead, downed and driving all
+	# return before it — so a dash interrupted by any of them froze, and came
+	# back on its own the moment you were on your feet again. Above every one
+	# of those returns, so there is no branch that forgets.
+	if dash_t > 0.0 and (away or dead or downed or driving_id > 0):
+		dash_t = 0.0
 	if away:
 		return
 	last_hurt += dt
@@ -553,6 +572,11 @@ func tick(sim: GameSim, dt: float) -> void:
 	# Healing roots you in place, and so does getting somebody up.
 	var rooted := not using.is_empty() or not reviving.is_empty()
 	move(world, dt, rooted, sim.structs)
+	if dash_began:
+		sim.emit({"t": "dash", "seat": seat, "x": pos.x, "y": pos.y, "dx": dash_dir.x, "dy": dash_dir.y})
+	if not dash_refused.is_empty():
+		sim.notify(dash_refused, "#8a8f84")
+		dash_refused = ""
 
 	if not using.is_empty():
 		using.t += dt
@@ -634,6 +658,20 @@ func move(world: World, dt: float, rooted := false, structs: Structures = null) 
 	var P := Config.PLAYER
 	var moving := it.mx != 0.0 or it.my != 0.0
 
+	# The dash first, because a burst owns the step: nothing below it — sprint,
+	# regen, steering — applies while it runs.
+	dash_began = false
+	dash_cd = maxf(0.0, dash_cd - dt)
+	if it.dash and dash_t <= 0.0 and dash_cd <= 0.0:
+		# A press inside the cooldown is dropped silently: mashing the key
+		# should not fill the screen with refusals.
+		dash_refused = _dash_refusal(rooted)
+		if dash_refused.is_empty():
+			_start_dash(it)
+	if dash_t > 0.0:
+		_dash_step(world, dt, structs)
+		return
+
 	sneaking = it.sneak
 	sprinting = not sneaking and it.sprint and moving and stam > 1.0
 
@@ -672,3 +710,50 @@ func move(world: World, dt: float, rooted := false, structs: Structures = null) 
 	if not moving:
 		vel *= exp(-11.0 * dt)
 	pos = world.move_circle(pos, vel * dt, r, structs)
+
+
+## Why a dash cannot happen now, or "" when it can. Downed, dead and driving
+## never reach `move`, so they need no line here.
+func _dash_refusal(rooted: bool) -> String:
+	if lurch_t > 0.0:
+		return "Your legs are not yours"
+	if rooted:
+		return "Not in the middle of that"
+	if winded:
+		return "Too winded to dash"
+	if stam < float(Config.DASH.stam):
+		return "Not enough stamina to dash"
+	return ""
+
+
+## Commits to a burst: the way you are moving, or the way you are aiming if
+## you are standing still, so a dodge from a standstill goes somewhere you
+## chose. Paid for up front, and the i-frames start now.
+func _start_dash(it: Intent) -> void:
+	var D := Config.DASH
+	var d := Vector2(it.mx, it.my)
+	if d == Vector2.ZERO:
+		d = it.aim - pos
+	dash_dir = d.normalized() if d.length_squared() > 0.0001 else Vector2.from_angle(angle)
+	dash_t = float(D.time)
+	dash_cd = float(D.cd)
+	stam = maxf(0.0, stam - float(D.stam))
+	stam_lock = Config.PLAYER.stam_regen_delay
+	invuln = maxf(invuln, float(D.time) + float(D.grace))
+	sprinting = false
+	dash_began = true
+
+
+## One step of the burst. The last step is cut to what is left of it, so a dash
+## covers exactly `dist` whatever the frame rate. Walls stop it the way they
+## stop walking — `move_circle`, both collision maps — and it leaves you moving
+## at a walk in the same direction rather than stopping dead.
+func _dash_step(world: World, dt: float, structs: Structures) -> void:
+	var D := Config.DASH
+	var step := minf(dt, dash_t)
+	dash_t -= step
+	vel = dash_dir * (float(D.dist) / float(D.time))
+	pos = world.move_circle(pos, vel * step, r, structs)
+	if dash_t <= 0.0:
+		dash_t = 0.0
+		vel = dash_dir * Config.PLAYER.speed * speed_mul

@@ -28,6 +28,7 @@ const DIRECT := {
 	"reload": "reload",
 	"reload_done": "reload_done",
 	"swing": "swing",
+	"dash": "dash",
 	"bullet_wall": "hit_wall",
 	"stagger": "stagger",
 	"kill": "zombie_die",
