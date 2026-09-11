@@ -1453,7 +1453,7 @@ const SFX_THROTTLE := {
 ## coming for you is not a secret — and Sixth Sense (radar_mul 2.4) is what
 ## turns it into a radar worth having.
 const MAP := {
-	"corner": 168.0,          # the always-on map, bottom right
+	"corner": 260.0,          # the always-on map, bottom right, at 1080p
 	"aware": 900.0,           # an enemy that has noticed you
 	"unaware": 380.0,         # one that has not
 	"discover_xp": 25,        # per danger tier of the district

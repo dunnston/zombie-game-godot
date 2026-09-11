@@ -133,14 +133,20 @@ func _draw() -> void:
 ## The tile under the cursor in build mode: green where the piece can go, red
 ## where it cannot, and the reason is on the bar.
 func _draw_ghost() -> void:
-	if build_bar == null or not build_bar.open:
+	if build_bar == null or not build_bar.placing():
 		return
 	var t := build_bar.hover_tile
+	# A faint grid round the cursor, so where a piece lands reads as a tile
+	# rather than as wherever the mouse happens to be.
+	var tile := Vector2(Config.TILE, Config.TILE)
+	for dy in range(-2, 3):
+		for dx in range(-3, 4):
+			draw_rect(Rect2(Vector2((t.x + dx) * Config.TILE, (t.y + dy) * Config.TILE), tile), Color("#d8e8c0", 0.18), false, 1.0)
 	var at := Vector2(t.x * Config.TILE, t.y * Config.TILE)
 	var ok: bool = build_bar.check.ok
-	var col := Color("#9fd07a", 0.35) if ok else Color("#c96a5a", 0.3)
-	draw_rect(Rect2(at, Vector2(Config.TILE, Config.TILE)), col)
-	draw_rect(Rect2(at, Vector2(Config.TILE, Config.TILE)), Color(col.r, col.g, col.b, 0.9), false, 2.0)
+	var edge := Color("#9fd07a") if ok else Color("#c8423a")
+	draw_rect(Rect2(at, tile), Color(edge, 0.28))
+	draw_rect(Rect2(at + Vector2.ONE, tile - Vector2(2, 2)), edge, false, 2.0)
 	# The reach a piece may be placed within, so "Too far" is visible before
 	# it is a refusal.
 	var p: PlayerSim = player if player != null else sim.players[0]

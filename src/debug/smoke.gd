@@ -82,6 +82,12 @@ func checkpoint(name: String) -> void:
 	await RenderingServer.frame_post_draw
 	var idx := "%02d_%s" % [_checkpoints, name]
 	_checkpoints += 1
+	# Nothing on screen may reach past the edge of the window, at any size —
+	# the owner's rule, asked of every picture the run takes.
+	var scene_ := get_tree().current_scene
+	if scene_ != null and scene_.has_method("smoke_offscreen"):
+		for what in scene_.smoke_offscreen():
+			fail("%s: off screen: %s" % [name, what])
 	var img := get_viewport().get_texture().get_image()
 	var err := img.save_png(out_dir.path_join(idx + ".png"))
 	var state := {}

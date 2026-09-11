@@ -1,11 +1,14 @@
 class_name Hud
 extends Control
 ## The in-game overlay: where you are and how dangerous it is, health and
-## stamina, what you are holding and how much is left, the Threat meter,
-## the raid banner and the notices. Drawn in CSS-style pixels on a
-## CanvasLayer. Reads the sim; changes nothing.
-
-const TIER_COLORS := [Color.WHITE, Color("#9fd07a"), Color("#e0c24a"), Color("#e07a3a"), Color("#d4403a")]
+## stamina, what you are holding and how much is left, the Threat meter, the
+## raid banner and the notices. Reads the sim; changes nothing.
+##
+## Control nodes anchored to the window's edges, so it stays in its corners at
+## any size: location and raid top-centre, Threat and the clock top-right,
+## notices mid-left, the bars bottom-left, the hotbar bottom-centre and the
+## minimap bottom-right (drawn by `MapScreen`, which this leaves room for).
+## `refresh()` is called once a frame by the scene and only sets what changed.
 
 var sim: GameSim
 ## Whose bars these are: the local player, whatever seat they hold.
@@ -16,12 +19,70 @@ var notices: Array[Dictionary] = []
 var hurt := 0.0
 ## What the death screen calls it. Turning is a death with its own word.
 var death_cause := "died"
+## Set by the scene while build placement owns the bottom of the screen: the
+## slim bar sits where the interact prompt does.
+var placing := false
+
+var _hurt: ColorRect
+var _tint: ColorRect
+var _down_tint: ColorRect
+var _lurch: Label
+var _loc: Label
+var _danger: UiPips
+var _inst: Label
+var _boss_box: VBoxContainer
+var _boss_name: Label
+var _boss_bar: UiMeter
+var _raid_box: VBoxContainer
+var _raid_title: Label
+var _raid_wave: Label
+var _raid_left: Label
+var _raid_bar: UiMeter
+var _raid_panel: PanelContainer
+var _threat_label: Label
+var _threat: UiMeter
+var _day: Label
+var _clock: Label
+var _daybar: UiMeter
+var _light_card: PanelContainer
+var _light_name: Label
+var _light_left: Label
+var _light_bar: UiMeter
+var _dark_hint: Label
+var _notice_box: VBoxContainer
+var _notice_sig := ""
+var _mates: VBoxContainer
+var _mates_sig := ""
+var _effects: Label
+var _hp: UiMeter
+var _stam: UiMeter
+var _mut: UiMeter
+var _xp: UiMeter
+var _prompt: PanelContainer
+var _prompt_key: Label
+var _prompt_text: Label
+var _progress: UiMeter
+var _reloading: Label
+var _carry: Label
+var _carry_bar: UiMeter
+var _slots: Array[HotSlot] = []
+var _heal: Label
+var _heal_key: Label
+var _dose: Label
+var _dose_key: Label
+var _debug: Label
+var _net: Label
+var _dead_box: VBoxContainer
+var _dead_title: Label
+var _dead_line: Label
 
 
 func _init(sim_: GameSim) -> void:
 	sim = sim_
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	theme = Ui.theme()
+	_build()
 
 
 func on_event(ev: Dictionary) -> void:
@@ -56,343 +117,557 @@ func _boss_near(p: PlayerSim) -> EnemySim:
 	return null
 
 
-func _draw() -> void:
-	var font := ThemeDB.fallback_font
+# ------------------------------------------------------------------ build --
+
+## Anchors a box to a corner of the window at a margin, growing away from it.
+func _corner(c: Control, preset: int, margin := Vector2(24, 24)) -> Control:
+	add_child(c)
+	c.set_anchors_and_offsets_preset(preset, Control.PRESET_MODE_MINSIZE)
+	var right := preset in [Control.PRESET_TOP_RIGHT, Control.PRESET_BOTTOM_RIGHT, Control.PRESET_CENTER_RIGHT]
+	var bottom := preset in [Control.PRESET_BOTTOM_LEFT, Control.PRESET_BOTTOM_RIGHT, Control.PRESET_CENTER_BOTTOM]
+	c.grow_horizontal = Control.GROW_DIRECTION_BEGIN if right else Control.GROW_DIRECTION_END
+	c.grow_vertical = Control.GROW_DIRECTION_BEGIN if bottom else Control.GROW_DIRECTION_END
+	if preset in [Control.PRESET_CENTER_TOP, Control.PRESET_CENTER_BOTTOM]:
+		c.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	var dx := -margin.x if right else margin.x
+	var dy := -margin.y if bottom else margin.y
+	if preset in [Control.PRESET_CENTER_TOP, Control.PRESET_CENTER_BOTTOM]:
+		dx = 0.0
+	c.offset_left += dx
+	c.offset_right += dx
+	c.offset_top += dy
+	c.offset_bottom += dy
+	return c
+
+
+func _full(color: Color) -> ColorRect:
+	var r := ColorRect.new()
+	r.color = color
+	r.set_anchors_preset(Control.PRESET_FULL_RECT)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	r.visible = false
+	add_child(r)
+	return r
+
+
+func _shadowed(l: Label) -> Label:
+	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.75))
+	l.add_theme_constant_override("shadow_offset_x", 0)
+	l.add_theme_constant_override("shadow_offset_y", 2)
+	return l
+
+
+func _build() -> void:
+	_hurt = _full(Color("#8c1a1a", 0.0))
+	_tint = _full(Color("#b07ad0", 0.0))
+	_down_tint = _full(Color("#3a0a0a", 0.35))
+
+	# Top centre: where you are, how bad it is, and what is coming.
+	_loc = _shadowed(Ui.label("", "Location"))
+	_loc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_danger = UiPips.new(4, Vector2(9, 9), Ui.ACCENT_HI, Color(1, 1, 1, 0.2), 5)
+	_danger.diamond = true
+	_danger._resize()
+	var drow := Ui.hbox(8, [Ui.label("Danger", "Caps"), _danger])
+	drow.alignment = BoxContainer.ALIGNMENT_CENTER
+	_danger.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_inst = _shadowed(Ui.label("", "Mono14", Color("#d8c98a")))
+	_inst.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_boss_name = _shadowed(Ui.label("", "Caps14", Color("#e8c0b0")))
+	_boss_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_boss_bar = UiMeter.new(10, Ui.DANGER)
+	_boss_bar.custom_minimum_size.x = 420
+	_boss_bar.tick_color = Ui.TEXT_HIGH
+	_boss_box = Ui.vbox(5, [_boss_name, _boss_bar])
+	_raid_title = Ui.label("", "Name18")
+	_raid_wave = Ui.label("", "Caps14")
+	_raid_left = Ui.label("", "Mono14", Ui.TEXT_HIGH)
+	_raid_panel = Ui.panel("HudLine", Ui.hbox(12, [_raid_title, Ui.rule(true, 18.0, Ui.LINE), _raid_wave, _raid_left]))
+	for c in _raid_panel.get_child(0).get_children():
+		(c as Control).size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_raid_bar = UiMeter.new(6, Ui.DANGER)
+	_raid_bar.custom_minimum_size.x = 520
+	_raid_box = Ui.vbox(8, [_raid_panel, _raid_bar])
+	_raid_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_raid_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_raid_bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_boss_bar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var top := Ui.vbox(4, [_loc, drow, _inst, Ui.fixed(0, 12), _boss_box, _raid_box])
+	top.custom_minimum_size.x = 640
+	_corner(top, Control.PRESET_CENTER_TOP, Vector2(0, 26))
+
+	# Top right: Threat and the clock, then the light you are carrying.
+	_threat_label = Ui.label("", "Caps")
+	_threat = UiMeter.new(12, Ui.LIGHT)
+	for w: float in Config.THREAT.warn_at:
+		_threat.ticks.append(w / float(Config.THREAT.max))
+	_threat.tick_color = Color(1, 1, 1, 0.4)
+	_day = Ui.label("", "Caps")
+	_clock = Ui.label("", "Mono")
+	_daybar = UiMeter.new(4, Ui.NIGHT)
+	var threat_card := Ui.panel("HudCard", Ui.vbox(6, [
+		Ui.hbox(8, [Ui.expand(Ui.label("Threat", "Caps")), _threat_label]), _threat,
+		Ui.fixed(0, 4), Ui.hbox(8, [Ui.expand(_day), _clock]), _daybar]))
+	_light_name = Ui.label("", "Row14", Ui.LIGHT)
+	_light_left = Ui.label("", "Mono", Ui.LIGHT)
+	_light_bar = UiMeter.new(4, Ui.LIGHT)
+	_light_card = Ui.panel("HudCard", Ui.vbox(6, [Ui.hbox(8, [Ui.expand(_light_name), _light_left]), _light_bar]))
+	_light_card.add_theme_stylebox_override("panel", Ui.box(Ui.HUD_FILL, Ui.LINE, 1, 3, 14, 10))
+	_dark_hint = _shadowed(Ui.para("", "Row14", Color(0.95, 0.75, 0.4)))
+	var right := Ui.vbox(12, [threat_card, _light_card, _dark_hint])
+	right.custom_minimum_size.x = 300
+	_corner(right, Control.PRESET_TOP_RIGHT)
+
+	# Notices, left of centre, newest at the bottom.
+	_notice_box = Ui.vbox(8)
+	_notice_box.custom_minimum_size.x = 420
+	add_child(_notice_box)
+	_notice_box.anchor_top = 0.4
+	_notice_box.anchor_bottom = 0.4
+	_notice_box.offset_left = 24
+	_notice_box.offset_right = 444
+
+	# Bottom left: the others at the table, what is working through you, and
+	# the four bars.
+	_mates = Ui.vbox(4)
+	_effects = Ui.label("", "Mono12", Ui.TEXT_BODY)
+	_hp = UiMeter.new(20, Ui.DANGER)
+	_stam = UiMeter.new(20, Ui.ACCENT_HI)
+	_mut = UiMeter.new(20, Ui.MUTATION)
+	for b in Config.MUTATION.bands:
+		var f := float(b.at) / float(Config.MUTATION.max)
+		if f > 0.0:
+			_mut.ticks.append(f)
+	_xp = UiMeter.new(12, Ui.XP)
+	_xp.right_color = Ui.WAIT
+	var bars := Ui.vbox(8, [_mates, _effects, _hp, _stam, _mut, _xp])
+	bars.custom_minimum_size.x = 300
+	_corner(bars, Control.PRESET_BOTTOM_LEFT)
+
+	# Bottom centre: the prompt above, the hotbar with carry weight on its left
+	# and the healing and dose keys on its right.
+	_prompt_key = Ui.label("", "Mono12", Ui.ACCENT)
+	_prompt_text = Ui.label("", "Row", Color("#d8e8c0"))
+	_progress = UiMeter.new(6, Ui.ACCENT)
+	_progress.custom_minimum_size.x = 120
+	_prompt = Ui.panel("HudLine", Ui.vbox(6, [Ui.hbox(10, [_prompt_key, _prompt_text]), _progress]))
+	_progress.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_reloading = _shadowed(Ui.label("Reloading", "Caps14", Color("#ffe6a8")))
+	_reloading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var prompt_col := Ui.vbox(8, [_prompt, _reloading])
+	prompt_col.alignment = BoxContainer.ALIGNMENT_END
+	_prompt.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_corner(prompt_col, Control.PRESET_CENTER_BOTTOM, Vector2(0, 112))
+
+	_carry = Ui.label("", "Mono12")
+	_carry_bar = UiMeter.new(10)
+	var carry := Ui.vbox(5, [Ui.hbox(8, [Ui.expand(Ui.label("Carry", "Caps")), _carry]), _carry_bar])
+	carry.custom_minimum_size.x = 150
+	var slots := Ui.hbox(4)
+	for i in range(sim.players[0].hotbar.size()):
+		var s := HotSlot.new(i)
+		_slots.append(s)
+		slots.add_child(s)
+	_heal_key = Ui.label("", "Mono12", Ui.TEXT_OFF)
+	_heal = Ui.label("", "Small", Color(1, 1, 1, 0.7))
+	_dose_key = Ui.label("", "Mono12", Ui.TEXT_OFF)
+	_dose = Ui.label("", "Small", Color("#c07f9a"))
+	var meds := Ui.vbox(5, [Ui.hbox(8, [_heal_key, _heal]), Ui.hbox(8, [_dose_key, _dose])])
+	meds.custom_minimum_size.x = 180
+	var shelf := Ui.hbox(16, [Ui.pad(carry, 0, 0, 0, 6), slots, Ui.pad(meds, 0, 0, 0, 6)])
+	for c in shelf.get_children():
+		(c as Control).size_flags_vertical = Control.SIZE_SHRINK_END
+	_corner(shelf, Control.PRESET_CENTER_BOTTOM)
+
+	# Bottom right: the debug line and the connection above the minimap.
+	_debug = Ui.label("", "Mono12", Color(1, 1, 1, 0.5))
+	_net = Ui.label("", "Mono12", Color(Ui.XP, 0.7))
+	var lines := Ui.vbox(6, [_debug, _net])
+	for l in [_debug, _net]:
+		(l as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	lines.custom_minimum_size.x = 520
+	_corner(lines, Control.PRESET_BOTTOM_RIGHT, Vector2(24, 24 + float(Config.MAP.corner) + 8))
+
+	_lurch = _shadowed(Ui.label("Something else is driving", "PanelTitle", Color("#e0c0ff")))
+	_lurch.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_lurch.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_lurch.anchor_top = 0.3
+	_lurch.anchor_bottom = 0.3
+	add_child(_lurch)
+
+	_dead_title = _shadowed(Ui.label("", "ScreenTitle"))
+	_dead_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_dead_line = _shadowed(Ui.label("", "Body", Ui.TEXT_HIGH))
+	_dead_line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_dead_box = Ui.vbox(8, [_dead_title, _dead_line])
+	add_child(_dead_box)
+	_dead_box.set_anchors_preset(Control.PRESET_CENTER)
+	_dead_box.custom_minimum_size.x = 900
+	_dead_box.offset_left = -450
+	_dead_box.offset_right = 450
+	_dead_box.offset_top = -40
+
+
+# ---------------------------------------------------------------- refresh --
+
+func refresh() -> void:
 	var p: PlayerSim = player if player != null else sim.players[0]
-	var vp := get_viewport_rect().size
+	var alive := not p.dead
 
-	# Hurt vignette.
-	if hurt > 0.0:
-		draw_rect(Rect2(Vector2.ZERO, vp), Color("#8c1a1a", hurt * 0.45))
-
+	_hurt.visible = hurt > 0.0
+	_hurt.color.a = hurt * 0.45
 	# The change, on the screen itself. It starts at the top band and grows
-	# with how far into it you are, and it *breathes* — a still tint reads as
-	# a bug, a slow pulse reads as something inside you. A Lurch is the same
-	# colour turned all the way up, so the moment your legs stop being yours
-	# looks like the thing that took them.
+	# with how far into it you are, and it breathes — a still tint reads as a
+	# bug, a slow pulse reads as something inside you.
 	var feral_at := float(Config.MUTATION.bands[Config.MUTATION.bands.size() - 1].at)
 	var over := clampf((p.mutation - feral_at) / maxf(1.0, float(Config.MUTATION.max) - feral_at), 0.0, 1.0)
-	if over > 0.0 or p.lurch_t > 0.0:
+	_tint.visible = over > 0.0 or p.lurch_t > 0.0
+	if _tint.visible:
 		var pulse := 0.62 + 0.38 * sin(sim.time * 2.4)
-		var a := 0.06 + 0.14 * over * pulse
-		if p.lurch_t > 0.0:
-			a = 0.34
-		draw_rect(Rect2(Vector2.ZERO, vp), Color("#b07ad0", a))
-		if p.lurch_t > 0.0:
-			draw_string(font, Vector2(0, vp.y * 0.34), "SOMETHING ELSE IS DRIVING",
-				HORIZONTAL_ALIGNMENT_CENTER, vp.x, 26, Color("#e0c0ff"))
+		_tint.color.a = 0.34 if p.lurch_t > 0.0 else 0.06 + 0.14 * over * pulse
+	_lurch.visible = p.lurch_t > 0.0
 
-	# Where you are.
 	var loc := sim.world.location_at_px(p.pos.x, p.pos.y)
-	var label: String = loc.name if not loc.is_empty() else "THE OUTSKIRTS"
+	Ui.set_text(_loc, String(loc.name) if not loc.is_empty() else "The Outskirts")
 	var tier := sim.world.danger_at_px(p.pos.x, p.pos.y)
-	draw_string(font, Vector2(1, 33), label, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 20, Color(0, 0, 0, 0.7))
-	draw_string(font, Vector2(0, 32), label, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 20, Color("#ebe6d6"))
-	draw_string(font, Vector2(0, 52), "danger " + "◆".repeat(tier), HORIZONTAL_ALIGNMENT_CENTER, vp.x, 13, TIER_COLORS[tier])
+	_danger.set_filled(tier, Ui.TIER_COLORS[clampi(tier, 0, 4)] if tier > 1 else Ui.TIER_COLORS[1])
 
-	# A run: what you are carrying out, how long it has taken against the
-	# eight-to-twelve-minute budget, and what is open. On the raid banner's
-	# line, because a raid cannot happen in here.
+	# A run: what you are carrying out, how long it has taken, and what is open.
 	var inst := sim.instance
+	_inst.visible = inst != null
 	if inst != null:
 		var line := "HAUL %d / %d  ·  %d:%02d" % [roundi(Instance.haul_load(sim, p)), roundi(float(Config.INSTANCE.haul_cap)),
 			int(inst.t) / 60, int(inst.t) % 60]
 		var icol := Color("#d8c98a")
 		if inst.state == "cleared":
 			line += "  ·  THE WAY OUT IS OPEN"
-			icol = Color("#ffe08a")
+			icol = Ui.WAIT
 		elif not inst.keys.is_empty():
 			line += "  ·  YOU HAVE THE %s KEY" % String(inst.keys.keys()[0]).to_upper()
-		draw_string(font, Vector2(0, 72), line, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 14, icol)
+		Ui.set_text(_inst, line)
+		Ui.set_color(_inst, icol)
 
-	# The boss, once it is awake and near: its name, what is left of it, and
-	# the marks where the fight changes, so the phase beat is expected rather
-	# than a surprise.
+	# The boss: its name, what is left of it, and where the fight changes.
 	var boss := _boss_near(p)
+	_boss_box.visible = boss != null
 	if boss != null:
-		var bw := 420.0
-		var bx := (vp.x - bw) / 2.0
-		var by := 100.0
-		draw_string(font, Vector2(0, by - 5.0), String(boss.def.name).to_upper(), HORIZONTAL_ALIGNMENT_CENTER, vp.x, 14, Color("#e8c0b0"))
-		draw_rect(Rect2(bx, by, bw, 9), Color(0, 0, 0, 0.65))
-		draw_rect(Rect2(bx, by, bw * clampf(boss.hp / boss.max_hp, 0.0, 1.0), 9), Color("#c8423a"))
+		Ui.set_text(_boss_name, String(boss.def.name))
+		_boss_bar.ticks.clear()
 		for ph in Config.BOSSES.get(boss.type, {}).get("phases", []).slice(1):
-			var mx: float = bx + bw * float(ph.at)
-			draw_line(Vector2(mx, by - 2.0), Vector2(mx, by + 11.0), Color("#ebe6d6"), 2.0)
+			_boss_bar.ticks.append(float(ph.at))
+		_boss_bar.set_value(boss.hp / boss.max_hp)
 
-	# The raid banner.
+	# The raid banner. The living get their own colour: a horde and a raiding
+	# party want completely different answers.
 	var raid := sim.raid
+	_raid_box.visible = raid != null
 	if raid != null:
-		var y := 70.0
-		# The living get their own colour. A horde and a raiding party want
-		# completely different answers, and the banner is where you find out
-		# which one is coming.
-		var rcol := Color("#d0a06a") if raid.human else Color("#e05a4a")
+		var rcol := Color("#d0a06a") if raid.human else Ui.DOWN
+		Ui.set_color(_raid_title, rcol)
+		_raid_panel.add_theme_stylebox_override("panel", Ui.box(Ui.HUD_FILL, Color(rcol, 0.55), 1, 0, 18, 8))
 		if raid.phase == "warning":
-			var text := "%s INCOMING — %ds" % [raid.spec.name, ceili(raid.timer)]
-			draw_string(font, Vector2(0, y), text, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 18, rcol)
+			Ui.set_text(_raid_title, "%s incoming" % raid.spec.name)
+			Ui.set_text(_raid_wave, "Arrives in")
+			Ui.set_text(_raid_left, "%dS" % ceili(raid.timer))
+			_raid_bar.set_value(0.0, rcol)
 		else:
-			var text := "%s — WAVE %d/%d — %d left" % [raid.spec.name, raid.wave, raid.spec.waves, raid.total - raid.killed]
-			draw_string(font, Vector2(0, y), text, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 18, rcol)
+			Ui.set_text(_raid_title, String(raid.spec.name))
+			Ui.set_text(_raid_wave, "Wave %d / %d" % [raid.wave, raid.spec.waves])
+			Ui.set_text(_raid_left, "%d LEFT" % (raid.total - raid.killed))
+			_raid_bar.set_value(float(raid.killed) / maxf(1.0, float(raid.total)), rcol)
 
-	# Bars, bottom left. The block grows upward from the hotbar row, so adding
-	# one does not push the others into it.
-	var x := 20.0
-	var y := vp.y - 92.0
-	var w := 220.0
-	draw_rect(Rect2(x, y, w, 14), Color(0, 0, 0, 0.55))
-	draw_rect(Rect2(x, y, w * clampf(p.hp / p.max_hp, 0, 1), 14), Color("#c8423a"))
-	draw_string(font, Vector2(x + 6, y + 11), "HP %d" % roundi(p.hp), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color.WHITE)
-	y += 20
-	draw_rect(Rect2(x, y, w, 14), Color(0, 0, 0, 0.55))
-	var stam_col := Color("#8a8a7a") if p.winded else Color("#e0c24a")
-	draw_rect(Rect2(x, y, w * clampf(p.stam / p.max_stam, 0, 1), 14), stam_col)
-	draw_string(font, Vector2(x + 6, y + 11), "STAMINA" + ("  —  WINDED" if p.winded else ""), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color.WHITE)
-
-	# Mutation. The main status: how far along the change is, and which band
-	# you are in — which is what is actually moving your numbers. Human at the
-	# left end, gone at the right, and the fill takes the band's colour so a
-	# glance is enough.
-	y += 20
-	var band := Mutation.band_of(p)
-	var mcol := Color(String(band.color))
-	draw_rect(Rect2(x, y, w, 14), Color(0, 0, 0, 0.55))
-	draw_rect(Rect2(x, y, w * Mutation.fraction(p), 14), mcol)
-	for b in Config.MUTATION.bands:
-		var bx := x + w * float(b.at) / float(Config.MUTATION.max)
-		if bx > x:
-			draw_line(Vector2(bx, y), Vector2(bx, y + 14), Color(1, 1, 1, 0.35), 1.0)
-	draw_string(font, Vector2(x + 6, y + 11), "MUTATION  %s" % String(band.name), HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color.WHITE)
-	draw_string(font, Vector2(x, y + 11), "%d%%" % roundi(p.mutation), HORIZONTAL_ALIGNMENT_RIGHT, w - 6, 11, Color.WHITE)
-	# What is working through you, if anything: a meal, a Surge, or a raw
-	# brain still being regretted. Above the block rather than beside it —
-	# to the right is the weight bar, and two readouts sharing a line is how
-	# you get "Fed 300s" written through "221 / 225".
-	if not p.effects.is_empty():
-		var chips := PackedStringArray()
-		for id in p.effects:
-			chips.append("%s %ds" % [String(Config.EFFECTS[id].name), ceili(float(p.effects[id]))])
-		draw_string(font, Vector2(x, vp.y - 96.0), "  ·  ".join(chips), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.7))
-
-	# Level and progress to the next one, under the other two bars. A point
-	# waiting to be spent says so here, because the character sheet is behind
-	# a key you have to remember to press.
-	y += 20
-	draw_rect(Rect2(x, y, w, 8), Color(0, 0, 0, 0.55))
-	draw_rect(Rect2(x, y, w * clampf(p.xp / maxf(1.0, float(p.xp_next)), 0, 1), 8), Color("#9fd0ff"))
-	draw_string(font, Vector2(x + 6, y + 7), "LV %d" % p.level, HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color.WHITE)
-	if p.skill_points > 0:
-		draw_string(font, Vector2(x, y + 7), "%d POINT%s  ·  %s" % [p.skill_points, "" if p.skill_points == 1 else "S", KeyBinds.primary_label("character")],
-			HORIZONTAL_ALIGNMENT_RIGHT, w - 6, 9, Color("#ffe08a"))
-
-	# Threat meter, top right.
-	var tx := vp.x - 240.0
-	var ty := 24.0
-	draw_string(font, Vector2(tx, ty), "THREAT", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#ebe6d6"))
-	draw_rect(Rect2(tx + 52, ty - 10, 168, 12), Color(0, 0, 0, 0.55))
+	# Threat and the clock.
 	var tcol := Color(sim.threat.color())
-	draw_rect(Rect2(tx + 52, ty - 10, 168 * clampf(sim.threat.value / Config.THREAT.max, 0, 1), 12), tcol)
-	for warn: float in Config.THREAT.warn_at:
-		var wx := tx + 52 + 168 * warn / Config.THREAT.max
-		draw_line(Vector2(wx, ty - 10), Vector2(wx, ty + 2), Color(1, 1, 1, 0.4), 1.0)
-	draw_string(font, Vector2(tx + 52, ty + 14), sim.threat.label(), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, tcol)
-
-	# The clock, under the Threat meter. Night is the other thing driving how
-	# dangerous the next few minutes are, so the two belong together.
-	var dark: float = float(sim.clock.darkness().alpha)
+	Ui.set_text(_threat_label, sim.threat.label())
+	Ui.set_color(_threat_label, tcol)
+	_threat.set_value(sim.threat.value / Config.THREAT.max, tcol)
 	var pcol := Color("#d0c46a")
 	if sim.clock.phase == "dusk":
 		pcol = Color("#d98a4a")
 	elif sim.clock.phase == "night":
-		pcol = Color("#8f9ad0")
-	draw_string(font, Vector2(tx, ty + 34), "DAY %d" % sim.clock.day, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#ebe6d6"))
-	draw_string(font, Vector2(tx + 52, ty + 34), "%s  %s" % [sim.clock.clock_string(), sim.clock.phase_name()],
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, pcol)
-	# A thin bar of the day, so you can see how long is left of the light.
-	var cb := Rect2(tx + 52, ty + 40, 168, 4)
-	draw_rect(cb, Color(0, 0, 0, 0.55))
-	draw_rect(Rect2(cb.position, Vector2(cb.size.x * sim.clock.t, cb.size.y)), pcol)
-	# Readable, and specific about the next step: the first playtest found a
-	# faint "T for a light" easy to miss, and a torch in the pack is not a
-	# torch in the off-hand. A light in the off-hand now strikes itself, so
-	# there are only three ways to be in the dark unlit, and the hint names
-	# whichever one it is.
+		pcol = Ui.NIGHT
+	Ui.set_text(_day, "Day %d" % sim.clock.day)
+	Ui.set_text(_clock, "%s %s" % [sim.clock.clock_string(), sim.clock.phase_name().to_upper()])
+	Ui.set_color(_clock, pcol)
+	_daybar.set_value(sim.clock.t, pcol)
+
+	# The light: what is left of it, or — in the dark with nothing lit — which
+	# of the three ways to be unlit this is, and the key that fixes it.
 	var lamp: Dictionary = Equipment.equipped_light(p)
-	if sim.clock.is_dark() and not p.lit:
-		var key := KeyBinds.primary_label("light")
-		# Short: this column is 220px wide and the first cut ran off the screen.
-		# Nothing worn; worn but put out on purpose; or worn and flat, which
-		# only a flashlight can be — a spent torch is gone. Which of the last
-		# two is read off the fuel rather than `light_doused`, because fuel is
-		# in the per-frame snapshot and a guest's copy of the flag is not.
-		var hint := "dark — wear a Torch in your off-hand"
-		if not lamp.is_empty():
-			hint = "dark — %s to light it again" % key if p.light_fuel > 0.0 \
-				else "%s is flat — %s loads a battery" % [String(lamp.name), key]
-		draw_string(font, Vector2(tx, ty + 58), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 12,
-			Color(0.95, 0.75, 0.4, 0.6 + 0.4 * dark))
-	elif p.lit and not lamp.is_empty():
-		# What is left of it. A torch that burns out in the middle of a field is
-		# the difference between a bad night and an unfair one, so the burn-down
-		# is on the screen rather than a surprise.
+	var dark: float = float(sim.clock.darkness().alpha)
+	_light_card.visible = p.lit and not lamp.is_empty()
+	_dark_hint.visible = sim.clock.is_dark() and not p.lit
+	if _light_card.visible:
 		var burn: float = maxf(1.0, float(lamp.get("burn", 1.0)))
 		var left: float = clampf(p.light_fuel / burn, 0.0, 1.0)
-		draw_string(font, Vector2(tx, ty + 58), "%s  %ds" % [String(lamp.name), roundi(p.light_fuel)],
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#e0913a"))
-		var lb := Rect2(tx + 96, ty + 50, 124, 4)
-		draw_rect(lb, Color(0, 0, 0, 0.55))
-		draw_rect(Rect2(lb.position, Vector2(lb.size.x * left, lb.size.y)),
-			Color("#e0913a") if left > 0.25 else Color("#c96a5a"))
+		Ui.set_text(_light_name, String(lamp.name))
+		Ui.set_text(_light_left, "%ds" % roundi(p.light_fuel))
+		_light_bar.set_value(left, Ui.LIGHT if left > 0.25 else Ui.SHORT)
+	if _dark_hint.visible:
+		var key := KeyBinds.primary_label("light")
+		var hint := "Dark — wear a Torch in your off-hand"
+		if not lamp.is_empty():
+			hint = "Dark — %s to light it again" % key if p.light_fuel > 0.0 \
+				else "%s is flat — %s loads a battery" % [String(lamp.name), key]
+		Ui.set_text(_dark_hint, hint)
+		_dark_hint.modulate.a = 0.6 + 0.4 * dark
 
-	# The hotbar: six slots, and the selected one is what you are holding.
-	var slot_w := 74.0
-	var n_slots := p.hotbar.size()
-	var sx := vp.x / 2.0 - slot_w * n_slots / 2.0
-	var sy := vp.y - 58.0
-	for i in range(n_slots):
-		var stack := p.hotbar.at(i)
-		var id: String = stack.get("id", "")
-		var r := Rect2(sx + i * slot_w, sy, slot_w - 4, 44)
-		draw_rect(r, Color(0, 0, 0, 0.6 if i == p.slot else 0.4))
-		var edge := Color(Items.color_of(id)) if not id.is_empty() else Color("#888888")
-		draw_rect(r, edge if i == p.slot else Color(1, 1, 1, 0.15), false, 2.0 if i == p.slot else 1.0)
-		draw_string(font, Vector2(r.position.x + 4, r.position.y + 12), str(i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1, 1, 1, 0.5))
-		# A weapon's level, top right, so an upgraded one reads as upgraded
-		# from the bar without opening anything.
-		var slot_lv := Upgrade.level_in(stack)
-		if slot_lv > 1:
-			draw_string(font, Vector2(r.position.x, r.position.y + 12), "L%d" % slot_lv, HORIZONTAL_ALIGNMENT_RIGHT,
-				r.size.x - 4, 9, Color("#ffe08a"))
-		if id.is_empty():
-			continue
-		draw_string(font, Vector2(r.position.x, r.position.y + 25), Items.name_of(id), HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 10, Color.WHITE)
-		# Real art sits in the corner when the item has some; without it the
-		# slot is exactly what it always was.
-		var tex := Items.icon_of(id)
-		if tex != null:
-			draw_texture_rect(tex, Items.art_rect(tex, Rect2(r.position.x + r.size.x - 21, r.position.y + 2, 18, 18)), false)
-		# A sliver of condition along the bottom of the slot, and only once
-		# there is something to say. A weapon must never break as a surprise:
-		# this is the warning the notifications punctuate, not replace.
-		if Wear.is_worn(p.hotbar, i):
-			var frac := Wear.frac(p.hotbar, i)
-			var wb := Rect2(r.position.x + 4, r.position.y + r.size.y - 4, r.size.x - 8, 3)
-			draw_rect(wb, Color(0, 0, 0, 0.55))
-			var wcol := Color("#9fd07a")
-			if frac <= Config.WEAR.spent_at:
-				wcol = Color("#c96a5a")
-			elif frac <= Config.WEAR.worn_at:
-				wcol = Color("#d9c46a")
-			draw_rect(Rect2(wb.position, Vector2(wb.size.x * frac, wb.size.y)), wcol)
-		var wpn: Dictionary = Config.WEAPONS.get(id, {})
-		if Wear.is_broken(p.hotbar, i):
-			draw_string(font, Vector2(r.position.x, r.position.y + 39), "BROKEN", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 10, Color("#c96a5a"))
-		elif wpn.get("kind", "") == "gun":
-			var ammo := "%d / %d" % [p.mag.get(id, 0), p.count_res(wpn.ammo)]
-			draw_string(font, Vector2(r.position.x, r.position.y + 39), ammo, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 10, Color("#ffe6a8"))
-		elif wpn.get("tool", false):
-			draw_string(font, Vector2(r.position.x, r.position.y + 39), "tool", HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 9, Color(1, 1, 1, 0.5))
-		elif stack.n > 1:
-			draw_string(font, Vector2(r.position.x, r.position.y + 39), "x%d" % stack.n, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 10, Color(1, 1, 1, 0.7))
-	# Reload and healing.
-	if not p.reloading.is_empty():
-		draw_string(font, Vector2(0, sy - 8), "RELOADING", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 11, Color("#ffe6a8"))
-	var meds := "%s  bandage x%d  medkit x%d" % [KeyBinds.primary_label("use_heal"), p.count_carried("bandage"), p.count_carried("medkit")]
-	draw_string(font, Vector2(sx + slot_w * n_slots + 8, sy + 30), meds, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(1, 1, 1, 0.6))
-	# What you have to hold the change back with, on the same shelf as the
-	# medical supplies: it is the other thing you go looking for.
+	_refresh_notices()
+	_refresh_mates(p)
+
+	# What is working through you: a meal, a Surge, or a raw brain.
+	var chips := PackedStringArray()
+	for id in p.effects:
+		chips.append("%s %ds" % [String(Config.EFFECTS[id].name).to_upper(), ceili(float(p.effects[id]))])
+	Ui.set_text(_effects, "  ·  ".join(chips))
+	_effects.visible = not chips.is_empty()
+
+	_hp.set_value(p.hp / maxf(1.0, p.max_hp), null, "HP %d" % roundi(p.hp))
+	_stam.set_value(p.stam / maxf(1.0, p.max_stam), Color("#8a8a7a") if p.winded else Ui.ACCENT_HI,
+		"Stamina" + ("  —  winded" if p.winded else ""))
+	var band := Mutation.band_of(p)
+	_mut.set_value(Mutation.fraction(p), Color(String(band.color)), "Mutation  ·  %s" % String(band.name),
+		"%d%%" % roundi(p.mutation))
+	var pts := ""
+	if p.skill_points > 0:
+		pts = "%d POINT%s  ·  %s" % [p.skill_points, "" if p.skill_points == 1 else "S", KeyBinds.primary_label("character")]
+	_xp.set_value(p.xp / maxf(1.0, float(p.xp_next)), null, "LV %d" % p.level, pts)
+
+	_refresh_prompt(p)
+	_reloading.visible = not p.reloading.is_empty() and alive
+
+	for i in range(_slots.size()):
+		_slots[i].show_slot(p, i)
+	var carried := p.carried_weight()
+	var frac := clampf(carried / maxf(1.0, p.carry_cap), 0.0, 1.0)
+	var wcol := Ui.TEXT_DIM
+	if p.overloaded():
+		wcol = Ui.SHORT
+	elif frac > 0.85:
+		wcol = Ui.ACCENT_HI
+	_carry_bar.set_value(frac, wcol)
+	Ui.set_text(_carry, "%d / %d" % [roundi(carried), roundi(p.carry_cap)])
+	Ui.set_color(_carry, wcol if wcol != Ui.TEXT_DIM else Ui.TEXT_BODY)
+
+	# The healing and the dose, named by their keys so rebinding changes what
+	# the screen tells you to press.
+	Ui.set_text(_heal_key, KeyBinds.primary_label("use_heal"))
+	Ui.set_text(_heal, "bandage x%d  ·  medkit x%d" % [p.count_carried("bandage"), p.count_carried("medkit")])
 	var doses := 0
 	for id in Config.CONSUMABLES:
 		if Mutation.is_suppressant(id):
 			doses += p.count_carried(id)
-	draw_string(font, Vector2(sx + slot_w * n_slots + 8, sy + 42),
-		"%s  brain matter x%d" % [KeyBinds.primary_label("use_suppress"), doses],
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("#c07f9a", 0.75))
+	Ui.set_text(_dose_key, KeyBinds.primary_label("use_suppress"))
+	Ui.set_text(_dose, "brain matter x%d" % doses)
 
-	# Carry weight, beside the hotbar. Grey is fine, amber is nearly full,
-	# red means you are over and it is costing you.
-	var carried := p.carried_weight()
-	var frac := clampf(carried / p.carry_cap, 0.0, 1.0)
-	var wx := sx - 132.0
-	draw_rect(Rect2(wx, sy + 18, 120, 10), Color(0, 0, 0, 0.55))
-	var wcol := Color("#8a8f84")
-	if p.overloaded():
-		wcol = Color("#c96a5a")
-	elif frac > 0.85:
-		wcol = Color("#d9c46a")
-	draw_rect(Rect2(wx, sy + 18, 120 * frac, 10), wcol)
-	draw_string(font, Vector2(wx, sy + 14), "%d / %d" % [roundi(carried), roundi(p.carry_cap)], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, wcol)
+	Ui.set_text(_net, net_line.to_upper())
+	_net.visible = not net_line.is_empty()
+	Ui.set_text(_debug, "%d fps  ·  tile %d,%d  ·  enemies %d  ·  kills %d" % [Engine.get_frames_per_second(),
+		int(p.pos.x / 32), int(p.pos.y / 32), sim.enemies.alive_count(), sim.stats.kills])
 
-	# What the interact key is offering, and the search channel. Every key
-	# named here comes from `KeyBinds`, so rebinding changes what the game
-	# tells you to press.
-	var target := Interact.best_target(sim, p)
-	if p.driving_id > 0:
-		# At the wheel, driving is all there is — so the prompt is the controls
-		# rather than whatever happens to be within reach of the car.
-		draw_string(font, Vector2(0, sy - 70), "%s / %s  drive  ·  %s / %s  steer  ·  %s  get out" % [
-			KeyBinds.primary_label("move_up"), KeyBinds.primary_label("move_down"),
-			KeyBinds.primary_label("move_left"), KeyBinds.primary_label("move_right"),
-			KeyBinds.primary_label("interact")],
-			HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#d8e8c0"))
-	elif not p.searching.is_empty():
-		var c: Dictionary = p.searching.container
-		var k := clampf(p.searching.t / p.searching.dur, 0.0, 1.0)
-		draw_string(font, Vector2(0, sy - 70), "Searching %s" % c.label, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#ebe6d6"))
-		draw_rect(Rect2(vp.x / 2.0 - 60, sy - 62, 120, 6), Color(0, 0, 0, 0.6))
-		draw_rect(Rect2(vp.x / 2.0 - 60, sy - 62, 120 * k, 6), Color("#c9a227"))
-	elif not p.reviving.is_empty():
-		var k := clampf(p.reviving.t / p.reviving.dur, 0.0, 1.0)
-		var who := sim.player_by_seat(int(p.reviving.seat))
-		draw_string(font, Vector2(0, sy - 70), "Getting %s up" % (who.display_name if who != null else "them"),
-			HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#ebe6d6"))
-		draw_rect(Rect2(vp.x / 2.0 - 60, sy - 62, 120, 6), Color(0, 0, 0, 0.6))
-		draw_rect(Rect2(vp.x / 2.0 - 60, sy - 62, 120 * k, 6), Color("#9fd0ff"))
-	elif not target.is_empty():
-		draw_string(font, Vector2(0, sy - 70), "%s  %s" % [KeyBinds.primary_label("interact"), target.label], HORIZONTAL_ALIGNMENT_CENTER, vp.x, 12, Color("#d8e8c0"))
-
-	# Notices, left of centre, newest at the bottom.
-	var ny := vp.y * 0.42
-	for n in notices:
-		var k: float = clampf(n.life / minf(1.0, n.max), 0.0, 1.0)
-		var col: Color = n.color
-		col.a = k
-		var size := 15 if n.big else 12
-		draw_string(font, Vector2(21, ny + 1), n.text, HORIZONTAL_ALIGNMENT_LEFT, vp.x - 40, size, Color(0, 0, 0, k * 0.8))
-		draw_string(font, Vector2(20, ny), n.text, HORIZONTAL_ALIGNMENT_LEFT, vp.x - 40, size, col)
-		ny += size + 6
-
+	_dead_box.visible = p.dead or p.downed
+	_down_tint.visible = p.downed and not p.dead
 	if p.dead:
 		var turned := death_cause == "turned"
-		draw_string(font, Vector2(0, vp.y / 2.0 - 10), "YOU TURNED" if turned else "YOU DIED",
-			HORIZONTAL_ALIGNMENT_CENTER, vp.x, 34, Color("#b07ad0") if turned else Color("#e05a4a"))
-		draw_string(font, Vector2(0, vp.y / 2.0 + 16), "respawning in %.1f" % maxf(0.0, p.respawn_t), HORIZONTAL_ALIGNMENT_CENTER, vp.x, 13, Color("#ebe6d6"))
+		Ui.set_text(_dead_title, "You turned" if turned else "You died")
+		Ui.set_color(_dead_title, Ui.MUTATION if turned else Ui.DOWN)
+		Ui.set_text(_dead_line, "Respawning in %.1f" % maxf(0.0, p.respawn_t))
 	elif p.downed:
-		draw_rect(Rect2(Vector2.ZERO, vp), Color("#3a0a0a", 0.35))
-		draw_string(font, Vector2(0, vp.y / 2.0 - 10), "YOU ARE DOWN", HORIZONTAL_ALIGNMENT_CENTER, vp.x, 34, Color("#e05a4a"))
-		draw_string(font, Vector2(0, vp.y / 2.0 + 16), "a teammate can get you up  ·  %.0fs" % maxf(0.0, p.down_t),
-			HORIZONTAL_ALIGNMENT_CENTER, vp.x, 13, Color("#ebe6d6"))
+		Ui.set_text(_dead_title, "You are down")
+		Ui.set_color(_dead_title, Ui.DOWN)
+		Ui.set_text(_dead_line, "A teammate can get you up  ·  %.0fs" % maxf(0.0, p.down_t))
 
-	# The others at the table, under your own bars: name and a sliver of
-	# health, so you know who needs you before they say so.
-	var ry := vp.y - 92.0 - 18.0
+
+## What the interact key is offering, or the channel in progress.
+func _refresh_prompt(p: PlayerSim) -> void:
+	var key := ""
+	var text := ""
+	var k := -1.0
+	var kc := Ui.ACCENT
+	if p.driving_id > 0:
+		# At the wheel, driving is all there is — so the prompt is the controls.
+		key = "%s %s %s %s" % [KeyBinds.primary_label("move_up"), KeyBinds.primary_label("move_left"),
+			KeyBinds.primary_label("move_down"), KeyBinds.primary_label("move_right")]
+		text = "Drive  ·  %s get out" % KeyBinds.primary_label("interact")
+	elif not p.searching.is_empty():
+		var c: Dictionary = p.searching.container
+		text = "Searching %s" % c.label
+		k = clampf(p.searching.t / p.searching.dur, 0.0, 1.0)
+	elif not p.reviving.is_empty():
+		var who := sim.player_by_seat(int(p.reviving.seat))
+		text = "Getting %s up" % (who.display_name if who != null else "them")
+		k = clampf(p.reviving.t / p.reviving.dur, 0.0, 1.0)
+		kc = Ui.XP
+	else:
+		var target := Interact.best_target(sim, p)
+		if not target.is_empty():
+			key = KeyBinds.primary_label("interact")
+			text = String(target.label)
+	_prompt.visible = not text.is_empty() and not placing and not p.dead
+	Ui.set_text(_prompt_key, key)
+	_prompt_key.visible = not key.is_empty()
+	Ui.set_text(_prompt_text, text)
+	_progress.visible = k >= 0.0
+	if k >= 0.0:
+		_progress.set_value(k, kc)
+
+
+func _refresh_notices() -> void:
+	var sig := ""
+	for n in notices:
+		sig += String(n.text) + "\n"
+	if sig != _notice_sig:
+		_notice_sig = sig
+		Ui.clear(_notice_box)
+		for n in notices:
+			var bar := Ui.rect(n.color, 4, 16)
+			bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			# Wrapped, not trimmed: a notice cut off at its first clause has
+			# not been delivered.
+			var l := _shadowed(Ui.para(String(n.text), "Row", Ui.TEXT_HIGH))
+			_notice_box.add_child(Ui.hbox(10, [bar, Ui.expand(l)]))
+	for i in range(mini(notices.size(), _notice_box.get_child_count())):
+		var n: Dictionary = notices[i]
+		(_notice_box.get_child(i) as Control).modulate.a = clampf(n.life / minf(1.0, n.max), 0.0, 1.0)
+
+
+## The others at the table: a sliver of health each and their name, so you
+## know who needs you before they say so.
+func _refresh_mates(p: PlayerSim) -> void:
+	var others: Array = []
 	for q in sim.players:
-		if q == p or q.away:
-			continue
+		if q != p and not q.away:
+			others.append(q)
+	var sig := ""
+	for q in others:
+		sig += "%d," % q.seat
+	if sig != _mates_sig:
+		_mates_sig = sig
+		Ui.clear(_mates)
+		for q in others:
+			var m := UiMeter.new(4, Ui.DANGER)
+			var name_l := Ui.label("", "Mono12")
+			_mates.add_child(Ui.hbox(10, [Ui.expand(m), name_l]))
+			m.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	for i in range(mini(others.size(), _mates.get_child_count())):
+		var q: PlayerSim = others[i]
+		var row := _mates.get_child(i)
 		var col := Color(Config.PLAYER.colors[q.seat % Config.PLAYER.colors.size()])
-		var state := "DOWN" if q.downed else ("DEAD" if q.dead else "")
-		draw_rect(Rect2(20.0, ry - 9.0, 120.0, 4.0), Color(0, 0, 0, 0.55))
-		draw_rect(Rect2(20.0, ry - 9.0, 120.0 * clampf(q.hp / maxf(1.0, q.max_hp), 0.0, 1.0), 4.0),
-			Color("#e05a4a") if q.downed else Color("#c8423a"))
-		draw_string(font, Vector2(20.0, ry - 12.0), "%s  %s" % [q.display_name, state], HORIZONTAL_ALIGNMENT_LEFT, 220.0, 10,
-			Color("#e05a4a") if q.downed else col)
-		ry -= 20.0
-	if not net_line.is_empty():
-		draw_string(font, Vector2(vp.x - 350, vp.y - Config.MAP.corner - 52.0), net_line,
-			HORIZONTAL_ALIGNMENT_RIGHT, 334, 10, Color("#9fd0ff", 0.7))
+		var state := "  ·  DOWN" if q.downed else ("  ·  DEAD" if q.dead else "")
+		(row.get_child(0) as UiMeter).set_value(q.hp / maxf(1.0, q.max_hp), Ui.DOWN if q.downed else Ui.DANGER)
+		var l := row.get_child(1) as Label
+		Ui.set_text(l, (q.display_name + state).to_upper())
+		Ui.set_color(l, Ui.DOWN if q.downed else col)
 
-	# Debug readout. Above the minimap rather than in the corner: the corner is
-	# a real piece of UI now, and a developer line does not outrank it.
-	var dbg := "%d fps   tile %d,%d   enemies %d   kills %d" % [Engine.get_frames_per_second(), int(p.pos.x / 32), int(p.pos.y / 32), sim.enemies.alive_count(), sim.stats.kills]
-	draw_string(font, Vector2(vp.x - 350, vp.y - Config.MAP.corner - 38.0), dbg,
-		HORIZONTAL_ALIGNMENT_RIGHT, 334, 11, Color(1, 1, 1, 0.5))
+
+## One hotbar slot on the HUD: 74x66, the number, the item, and the one line
+## under it that matters for that kind of thing — rounds for a gun, uses for
+## a tool, BROKEN when it is, how many for a stack.
+class HotSlot extends Control:
+	var index := 0
+	var _key := ""
+	var _p: PlayerSim = null
+
+	func _init(i: int) -> void:
+		index = i
+		custom_minimum_size = Vector2(74, 66)
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func show_slot(p: PlayerSim, i: int) -> void:
+		var stack := p.hotbar.at(i)
+		var id := String(stack.get("id", ""))
+		var worn := Wear.is_worn(p.hotbar, i) if not id.is_empty() else false
+		var key := "%s|%d|%s|%s|%s|%d|%.2f" % [id, int(stack.get("n", 0)), str(i == p.slot), str(Wear.is_broken(p.hotbar, i) if not id.is_empty() else false),
+			str(p.mag.get(id, 0)), p.count_res(String(Config.WEAPONS.get(id, {}).get("ammo", ""))) if not id.is_empty() else 0,
+			Wear.frac(p.hotbar, i) if worn else -1.0]
+		key += "|%d" % Upgrade.level_in(stack)
+		if key == _key:
+			return
+		_key = key
+		_p = p
+		queue_redraw()
+
+	func _draw() -> void:
+		var p := _p
+		if p == null:
+			return
+		var i := index
+		var stack := p.hotbar.at(i)
+		var id := String(stack.get("id", ""))
+		var held := i == p.slot
+		var r := Rect2(Vector2.ZERO, size)
+		var sb := Ui.box(Color(Ui.VOID, 0.82 if held else 0.7), Ui.ACCENT_HI if held else Color(1, 1, 1, 0.16), 2 if held else 1, 0)
+		sb.draw(get_canvas_item(), r)
+		var mono := Ui.font("mono", 500)
+		draw_string(mono, Vector2(5, 14), str(i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1, 0.55 if held else 0.45))
+		var lv := Upgrade.level_in(stack)
+		if lv > 1:
+			draw_string(mono, Vector2(0, 14), "L%d" % lv, HORIZONTAL_ALIGNMENT_RIGHT, size.x - 5, 12, Ui.WAIT)
+		if id.is_empty():
+			return
+		var broken := Wear.is_broken(p.hotbar, i)
+		var sw := Rect2(9, 18, size.x - 18, 22)
+		var tex := Items.icon_of(id)
+		if tex != null:
+			draw_texture_rect(tex, Items.art_rect(tex, sw), false, Color(1, 1, 1, 0.5 if broken else 1.0))
+		else:
+			draw_rect(sw, Color(Color(Items.color_of(id)), 0.5 if broken else 1.0))
+		var wpn: Dictionary = Config.WEAPONS.get(id, {})
+		var sub := ""
+		var sub_col := Color(1, 1, 1, 0.7)
+		var sub_font := mono
+		if broken:
+			sub = "BROKEN"
+			sub_col = Ui.SHORT
+			sub_font = Ui.font("ui", 600, 1)
+		elif wpn.get("kind", "") == "gun":
+			sub = "%d / %d" % [p.mag.get(id, 0), p.count_res(wpn.ammo)]
+			sub_col = Color("#ffe6a8")
+		elif wpn.get("tool", false):
+			sub = "TOOL"
+			sub_col = Color(1, 1, 1, 0.5)
+			sub_font = Ui.font("ui", 600, 1)
+		elif int(stack.get("n", 1)) > 1:
+			sub = "x%d" % int(stack.n)
+		var ui := Ui.font("ui", 500)
+		# The sliver takes the bottom 5px when there is one, and the lines
+		# above it move up to make room rather than drawing over it.
+		var bar := shows_sliver(p, i)
+		var lift := 4.0 if bar else 0.0
+		var name_y := size.y - (20.0 if not sub.is_empty() else 12.0) - lift
+		var name_ := Items.name_of(id)
+		var fs := 12
+		draw_string(ui, Vector2(2, name_y), name_, HORIZONTAL_ALIGNMENT_CENTER, size.x - 4, fs,
+			Ui.TEXT_BODY if broken else Color.WHITE, TextServer.JUSTIFICATION_NONE)
+		if not sub.is_empty():
+			draw_string(sub_font, Vector2(0, size.y - 6 - lift), sub, HORIZONTAL_ALIGNMENT_CENTER, size.x, 12, sub_col)
+		# A sliver of condition along the bottom, only once there is something
+		# to say. A weapon must never break as a surprise.
+		if bar:
+			var frac := Wear.frac(p.hotbar, i)
+			var wb := Rect2(6, size.y - 5, size.x - 12, 3)
+			draw_rect(wb, Ui.VOID)
+			draw_rect(Rect2(wb.position, Vector2(wb.size.x * frac, 3)), Ui.wear_color(frac))
+
+	## The one line under the name: rounds for a gun, TOOL, BROKEN, a count.
+	static func sub_text(p: PlayerSim, i: int) -> String:
+		var stack := p.hotbar.at(i)
+		var id := String(stack.get("id", ""))
+		if id.is_empty():
+			return ""
+		if Wear.is_broken(p.hotbar, i):
+			return "BROKEN"
+		var wpn: Dictionary = Config.WEAPONS.get(id, {})
+		if wpn.get("kind", "") == "gun":
+			return "%d / %d" % [p.mag.get(id, 0), p.count_res(wpn.ammo)]
+		if wpn.get("tool", false):
+			return "TOOL"
+		if int(stack.get("n", 1)) > 1:
+			return "x%d" % int(stack.n)
+		return ""
+
+	## Whether the slot draws its condition sliver: whenever it is worn and not
+	## yet broken — under a gun's rounds and a tool's TOOL line too. Hiding it
+	## behind the line of text took the warning off every Hatchet (Codex, PR #37).
+	static func shows_sliver(p: PlayerSim, i: int) -> bool:
+		return Wear.is_worn(p.hotbar, i) and not Wear.is_broken(p.hotbar, i)

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"><style>body{margin:0;background:#07080a}a{color:#c9a227}a:hover{color:#e0c24a}</style></helmet>
+<div style="width:1920px;height:1080px;position:relative;background:#0b0d10;font-family:Barlow,sans-serif;color:#ebe6d6;overflow:hidden">
+
+<div style="position:absolute;inset:0;background:#1a1f18"></div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:46%;background:#20261c"></div>
+<div style="position:absolute;left:0;right:0;bottom:40%;height:120px;background:#2a2f26"></div>
+<div style="position:absolute;left:120px;bottom:40%;width:300px;height:280px;background:#141a14"></div>
+<div style="position:absolute;left:520px;bottom:40%;width:220px;height:380px;background:#101510"></div>
+<div style="position:absolute;right:180px;bottom:40%;width:420px;height:320px;background:#141a14"></div>
+<div style="position:absolute;inset:0;background:linear-gradient(rgba(6,8,10,.72),rgba(6,8,10,.45) 45%,rgba(6,8,10,.88))"></div>
+<div style="position:absolute;right:24px;top:24px;padding:6px 10px;background:rgba(11,13,16,.8);border:1px solid #3a4048;font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84">TITLE ART — PLACEHOLDER</div>
+
+<div style="position:absolute;left:96px;top:120px;display:flex;flex-direction:column;gap:14px">
+<div style="font:600 96px/1 Oswald,sans-serif;letter-spacing:.2em;text-transform:uppercase">Deadline</div>
+<div style="display:flex;align-items:center;gap:16px">
+<div style="width:120px;height:2px;background:#c9a227"></div>
+<div style="font:400 18px Barlow,sans-serif;color:#c7c2b4">A town, a pipe, and whatever you can carry</div>
+</div>
+</div>
+
+<div style="position:absolute;left:96px;top:380px;width:560px;display:flex;flex-direction:column;gap:10px">
+
+<div style="background:#242a32;border:2px solid #c9a227;border-radius:2px;padding:16px 20px">
+<div style="display:flex;align-items:baseline;gap:14px"><span style="font:600 26px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase">Continue</span><div style="flex:1"></div><span style="font:500 13px 'IBM Plex Mono',monospace;color:#e0c24a">SLOT 1</span></div>
+<div style="font:400 14px Barlow;color:#c7c2b4;margin-top:6px">Maple Street · day 6 · level 7 · 3 crew · 14 structures</div>
+</div>
+
+<div style="background:#181b20;border:1px solid #3a4048;border-radius:2px;padding:16px 20px">
+<div style="font:600 26px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#c7c2b4">New game</div>
+<div style="font:400 14px Barlow;color:rgba(255,255,255,.35);margin-top:6px">A fresh town, a steel pipe, and nothing else · into slot 3</div>
+</div>
+
+<div style="background:#181b20;border:1px solid #3a4048;border-radius:2px;padding:16px 20px">
+<div style="display:flex;align-items:baseline;gap:14px"><span style="font:600 26px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#c7c2b4">Load game</span><div style="flex:1"></div><span style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">2 SAVED</span></div>
+</div>
+
+<div style="background:#181b20;border:1px solid #3a4048;border-radius:2px;padding:16px 20px">
+<div style="font:600 26px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#c7c2b4">Multiplayer</div>
+<div style="font:400 14px Barlow;color:rgba(255,255,255,.35);margin-top:6px">Host a game for friends, or join one · up to four in one town</div>
+</div>
+
+<div style="display:flex;gap:10px">
+<div style="flex:1;background:#181b20;border:1px solid #3a4048;border-radius:2px;padding:14px 20px;font:600 20px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#c7c2b4">Controls</div>
+<div style="flex:1;background:#181b20;border:1px solid #3a4048;border-radius:2px;padding:14px 20px;display:flex;align-items:center;justify-content:space-between"><span style="font:600 20px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#c7c2b4">Sound</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#9fd07a">ON</span></div>
+<div style="width:150px;background:#14161a;border:1px solid #2a3038;border-radius:2px;padding:14px 20px;font:600 20px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#8a8f84">Quit</div>
+</div>
+
+</div>
+
+<div style="position:absolute;right:96px;top:380px;width:720px;background:rgba(16,19,24,.92);border:1px solid #3a4048;border-radius:3px">
+<div style="padding:14px 20px;background:#1b1f26;border-bottom:1px solid #3a4048;display:flex;justify-content:space-between;align-items:baseline"><span style="font:600 12px Barlow;letter-spacing:.14em;text-transform:uppercase;color:#8a8f84">Save slots</span><span style="font:400 13px Barlow;color:#8a8f84">Three slots · the newest is what CONTINUE opens</span></div>
+<div style="padding:14px;display:flex;flex-direction:column;gap:10px">
+
+<div style="background:#242a32;border:1px solid #c9a227;border-radius:2px;padding:16px 18px;display:flex;gap:18px;align-items:center">
+<div style="width:64px;height:64px;flex:none;background:#0b0d10;border:1px solid #5a6470;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#8a8f84">SLOT</span><span style="font:500 22px 'IBM Plex Mono',monospace;color:#e0c24a">1</span></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:5px">
+<div style="font:500 20px/1 Oswald,sans-serif;letter-spacing:.05em;text-transform:uppercase">Maple Street</div>
+<div style="font:400 14px Barlow;color:#c7c2b4">Day 6 · level 7 · 3 crew · 14 structures · mutation 38%</div>
+<div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84">SAVED 4 MINUTES AGO · HOSTED</div>
+</div>
+<div style="padding:8px 16px;background:#1b1f26;border:1px solid #3a4048;font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#c96a5a">Delete</div>
+</div>
+
+<div style="background:#181b20;border:1px solid #3a4048;border-radius:2px;padding:16px 18px;display:flex;gap:18px;align-items:center">
+<div style="width:64px;height:64px;flex:none;background:#0b0d10;border:1px solid #3a4048;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#8a8f84">SLOT</span><span style="font:500 22px 'IBM Plex Mono',monospace;color:#c7c2b4">2</span></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:5px">
+<div style="font:500 20px/1 Oswald,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#c7c2b4">Millyard run</div>
+<div style="font:400 14px Barlow;color:#8a8f84">Day 2 · level 3 · no crew · 2 structures · mutation 6%</div>
+<div style="font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">SAVED YESTERDAY</div>
+</div>
+<div style="padding:8px 16px;background:#181b20;border:1px solid #2a3038;font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a6a5a">Delete</div>
+</div>
+
+<div style="background:#101318;border:1px dashed #2a3038;border-radius:2px;padding:16px 18px;display:flex;gap:18px;align-items:center">
+<div style="width:64px;height:64px;flex:none;background:#0b0d10;border:1px dashed #3a4048;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px"><span style="font:500 11px 'IBM Plex Mono',monospace;color:#6a6f68">SLOT</span><span style="font:500 22px 'IBM Plex Mono',monospace;color:#6a6f68">3</span></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:5px">
+<div style="font:500 20px/1 Oswald,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#8a8f84">Empty</div>
+<div style="font:400 14px Barlow;color:#6a6f68">NEW GAME will write here</div>
+</div>
+</div>
+
+</div>
+</div>
+
+<div style="position:absolute;left:96px;bottom:40px;display:flex;align-items:center;gap:24px">
+<span style="font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">GODOT 4.7.2 · v0.7</span>
+<span style="font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">SAVES IN user://</span>
+<span style="font:400 13px Barlow;color:#6a6f68">Esc does nothing here — nothing quits by accident</span>
+</div>
+
+<div style="position:absolute;right:96px;bottom:40px;display:flex;gap:22px">
+<span style="display:flex;align-items:center;gap:8px"><span style="font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">↑↓</span><span style="font:400 13px Barlow;color:#8a8f84">Move</span></span>
+<span style="display:flex;align-items:center;gap:8px"><span style="font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">ENTER</span><span style="font:400 13px Barlow;color:#8a8f84">Choose</span></span>
+</div>
+
+</div>
+</x-dc>
+</body>
+</html>

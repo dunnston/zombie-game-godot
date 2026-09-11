@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"><style>body{margin:0;background:#07080a}a{color:#c9a227}a:hover{color:#e0c24a}</style></helmet>
+<div style="width:1920px;height:1080px;position:relative;background:#0b0d10;font-family:Barlow,sans-serif;color:#ebe6d6;overflow:hidden;display:flex;flex-direction:column">
+
+<div style="height:64px;flex:none;display:flex;align-items:center;gap:20px;padding:0 24px;background:#14161a;border-bottom:1px solid #3a4048">
+<div style="font:600 22px/1 Oswald,sans-serif;letter-spacing:.16em;text-transform:uppercase">Deadline</div>
+<div style="width:1px;height:32px;background:#2a3038"></div>
+<div style="font:600 20px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase">Workbench</div>
+<div style="display:flex;align-items:center;gap:8px;padding:4px 10px;background:#1a2028;border:1px solid #3a4048"><span style="display:flex;gap:3px"><i style="width:7px;height:7px;background:#c9a227"></i><i style="width:7px;height:7px;background:#c9a227"></i><i style="width:7px;height:7px;background:#2a3038"></i></span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#c7c2b4">TIER 1</span></div>
+<div style="flex:1"></div>
+<div style="display:flex;align-items:center;gap:14px;padding:8px 16px;background:#1b1f26;border:1px solid #c9a227;border-radius:2px">
+<span style="font:600 13px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#e0c24a">Upgrade to Workbench II</span>
+<span style="width:1px;height:18px;background:#3a4048"></span>
+<span style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">COST FROM CONFIG.BENCH_UPGRADE_COST</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:#1b1f26;border:1px solid #3a4048;border-radius:2px"><span style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84">ESC</span><span style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#c7c2b4">Close</span></div>
+</div>
+
+<div style="height:60px;flex:none;display:flex;align-items:center;gap:20px;padding:0 24px;background:#101318;border-bottom:1px solid #2a3038">
+<div style="font:600 26px/1 Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Bench work</div>
+<div style="font:400 15px Barlow;color:#8a8f84">Mending and levelling happen at the bench that made it. Standing here also unlocks 31 recipes.</div>
+<div style="flex:1"></div>
+<div style="display:flex;align-items:center;gap:10px;width:320px;padding:0 12px;height:36px;background:#0b0d10;border:1px solid #3a4048;border-radius:2px"><span style="font:500 13px 'IBM Plex Mono',monospace;color:#6a6f68">/</span><span style="font:400 15px Barlow;color:#6a6f68">search</span></div>
+</div>
+
+<div style="flex:1;display:flex;gap:20px;padding:24px;min-height:0">
+
+<div style="width:272px;flex:none;display:flex;flex-direction:column;gap:16px">
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="padding:12px 14px;background:#1b1f26;border-bottom:1px solid #3a4048;font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84">At this bench</div>
+<div style="display:flex;flex-direction:column;padding:6px;gap:2px">
+<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px;background:#2b3340;border:1px solid #c9a227;border-radius:2px"><span style="font:500 15px Barlow">Mend</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#e0c24a">2</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px"><span style="font:500 15px Barlow;color:#c7c2b4">Upgrade</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">3</span></div>
+<div style="height:1px;background:#2a3038;margin:6px 10px"></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px"><span style="font:500 15px Barlow;color:#c7c2b4">Weapons</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">11</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px"><span style="font:500 15px Barlow;color:#c7c2b4">Clothing / Armor</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">6</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px"><span style="font:500 15px Barlow;color:#c7c2b4">Ammo</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">3</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px"><span style="font:500 15px Barlow;color:#c7c2b4">Medical</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">3</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px"><span style="font:500 15px Barlow;color:#c7c2b4">Food</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">5</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px"><span style="font:500 15px Barlow;color:#c7c2b4">Materials</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">3</span></div>
+</div>
+</div>
+
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="padding:12px 14px;background:#1b1f26;border-bottom:1px solid #3a4048;font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84">Other benches</div>
+<div style="display:flex;flex-direction:column;padding:6px;gap:2px">
+<div style="display:flex;align-items:center;justify-content:space-between;height:38px;padding:0 12px"><span style="display:flex;align-items:center;gap:9px"><i style="width:8px;height:8px;background:#9fd07a"></i><span style="font:500 14px Barlow;color:#c7c2b4">By hand · anywhere</span></span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">6</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:38px;padding:0 12px"><span style="display:flex;align-items:center;gap:9px"><i style="width:8px;height:8px;background:#b06ad0"></i><span style="font:500 14px Barlow;color:#8a8f84">Chemistry Station</span></span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#8a949e">NOT HERE</span></div>
+</div>
+</div>
+
+<div style="margin-top:auto;padding:14px;background:#101318;border:1px solid #2a3038;border-radius:3px">
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;margin-bottom:10px">On hand</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 14px">
+<div style="display:flex;align-items:center;gap:8px"><i style="width:10px;height:10px;background:#9aa2ab"></i><span style="font:400 13px Barlow;color:#c7c2b4">Scrap</span><span style="margin-left:auto;font:500 13px 'IBM Plex Mono',monospace">41</span></div>
+<div style="display:flex;align-items:center;gap:8px"><i style="width:10px;height:10px;background:#c9a227"></i><span style="font:400 13px Barlow;color:#c7c2b4">Parts</span><span style="margin-left:auto;font:500 13px 'IBM Plex Mono',monospace">2</span></div>
+<div style="display:flex;align-items:center;gap:8px"><i style="width:10px;height:10px;background:#a3763f"></i><span style="font:400 13px Barlow;color:#c7c2b4">Wood</span><span style="margin-left:auto;font:500 13px 'IBM Plex Mono',monospace">12</span></div>
+<div style="display:flex;align-items:center;gap:8px"><i style="width:10px;height:10px;background:#9fd0ff"></i><span style="font:400 13px Barlow;color:#c7c2b4">Precision</span><span style="margin-left:auto;font:500 13px 'IBM Plex Mono',monospace;color:#c96a5a">0</span></div>
+</div>
+</div>
+</div>
+
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:baseline;gap:12px">
+<div style="font:500 20px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase">Mend</div>
+<div style="font:400 14px Barlow;color:#8a8f84">Two things you are carrying are worn. A broken weapon does nothing until it is mended.</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:16px;height:72px;padding:0 16px;background:#2b3340;border:1px solid #c9a227;border-radius:3px">
+<div style="width:52px;height:52px;flex:none;background:#0b0d10;border:1px solid #5a6470;display:flex;align-items:center;justify-content:center"><div style="width:32px;height:32px;background:#8a8078"></div></div>
+<div style="width:230px"><div style="font:500 17px/1.1 Oswald,sans-serif;letter-spacing:.03em;text-transform:uppercase">Stone Hammer</div><div style="font:400 13px Barlow;color:#c96a5a;margin-top:4px">Broken · 6%</div></div>
+<div style="width:180px;height:10px;background:#0b0d10;border:1px solid #2a3038"><div style="width:6%;height:100%;background:#c96a5a"></div></div>
+<div style="flex:1"></div>
+<div style="display:flex;gap:10px"><span style="display:flex;align-items:center;gap:6px;font:500 14px 'IBM Plex Mono',monospace;color:#9fd07a"><i style="width:10px;height:10px;background:#8f8a80"></i>6</span><span style="display:flex;align-items:center;gap:6px;font:500 14px 'IBM Plex Mono',monospace;color:#9fd07a"><i style="width:10px;height:10px;background:#8a6a3c"></i>3</span></div>
+<div style="width:120px;height:40px;background:#c9a227;border:1px solid #e0c24a;display:flex;align-items:center;justify-content:center;font:600 15px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#14161a">Mend</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:16px;height:72px;padding:0 16px;background:#1b1f26;border:1px solid #3a4048;border-radius:3px">
+<div style="width:52px;height:52px;flex:none;background:#0b0d10;border:1px solid #3a4048;display:flex;align-items:center;justify-content:center"><div style="width:32px;height:32px;background:#9a7a48"></div></div>
+<div style="width:230px"><div style="font:500 17px/1.1 Oswald,sans-serif;letter-spacing:.03em;text-transform:uppercase">Hunting Bow</div><div style="font:400 13px Barlow;color:#d9c46a;margin-top:4px">Worn · 44%</div></div>
+<div style="width:180px;height:10px;background:#0b0d10;border:1px solid #2a3038"><div style="width:44%;height:100%;background:#d9c46a"></div></div>
+<div style="flex:1"></div>
+<div style="display:flex;gap:10px"><span style="display:flex;align-items:center;gap:6px;font:500 14px 'IBM Plex Mono',monospace;color:#9fd07a"><i style="width:10px;height:10px;background:#9aae5a"></i>6</span><span style="display:flex;align-items:center;gap:6px;font:500 14px 'IBM Plex Mono',monospace;color:#9fd07a"><i style="width:10px;height:10px;background:#8a6a3c"></i>4</span></div>
+<div style="width:120px;height:40px;background:#1b1f26;border:1px solid #3a4048;display:flex;align-items:center;justify-content:center;font:600 15px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#c7c2b4">Mend</div>
+</div>
+</div>
+
+<div style="display:flex;align-items:baseline;gap:12px;margin-top:6px">
+<div style="font:500 20px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase">Upgrade</div>
+<div style="font:400 14px Barlow;color:#8a8f84">Levels 4 and up are gated on Precision Parts, which only come out of an instance.</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:16px;height:64px;padding:0 16px;background:#1b1f26;border:1px solid #3a4048;border-radius:3px">
+<div style="width:44px;height:44px;flex:none;background:#0b0d10;border:1px solid #3a4048;display:flex;align-items:center;justify-content:center"><div style="width:26px;height:26px;background:#cfd6dd"></div></div>
+<div style="width:230px"><div style="font:500 16px/1.1 Oswald,sans-serif;letter-spacing:.03em;text-transform:uppercase">Machete</div><div style="font:400 13px Barlow;color:#8a8f84;margin-top:4px">Level 2 → 3</div></div>
+<div style="display:flex;gap:4px">
+<i style="width:14px;height:6px;background:#e0c24a"></i><i style="width:14px;height:6px;background:#e0c24a"></i><i style="width:14px;height:6px;background:#3a4048"></i><i style="width:14px;height:6px;background:#3a4048"></i><i style="width:14px;height:6px;background:#3a4048"></i><i style="width:14px;height:6px;background:#3a4048"></i>
+</div>
+<div style="flex:1"></div>
+<div style="display:flex;gap:10px"><span style="display:flex;align-items:center;gap:6px;font:500 14px 'IBM Plex Mono',monospace;color:#9fd07a"><i style="width:10px;height:10px;background:#9aa2ab"></i>18</span><span style="display:flex;align-items:center;gap:6px;font:500 14px 'IBM Plex Mono',monospace;color:#9fd07a"><i style="width:10px;height:10px;background:#c9a227"></i>2</span></div>
+<div style="width:120px;height:36px;background:#1b1f26;border:1px solid #3a4048;display:flex;align-items:center;justify-content:center;font:600 14px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#c7c2b4">Upgrade</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:16px;height:64px;padding:0 16px;background:#16191e;border:1px solid #2a3038;border-radius:3px">
+<div style="width:44px;height:44px;flex:none;background:#101318;border:1px solid #2a3038;display:flex;align-items:center;justify-content:center"><div style="width:26px;height:26px;background:#71787f;opacity:.5"></div></div>
+<div style="width:230px"><div style="font:500 16px/1.1 Oswald,sans-serif;letter-spacing:.03em;text-transform:uppercase;color:#8a8f84">M9 Pistol</div><div style="font:400 13px Barlow;color:#6a6f68;margin-top:4px">Level 3 → 4</div></div>
+<div style="display:flex;gap:4px">
+<i style="width:14px;height:6px;background:#8a6a20"></i><i style="width:14px;height:6px;background:#8a6a20"></i><i style="width:14px;height:6px;background:#8a6a20"></i><i style="width:14px;height:6px;background:#2a3038"></i><i style="width:14px;height:6px;background:#2a3038"></i><i style="width:14px;height:6px;background:#2a3038"></i>
+</div>
+<div style="flex:1"></div>
+<div style="display:flex;gap:10px"><span style="display:flex;align-items:center;gap:6px;font:500 14px 'IBM Plex Mono',monospace;color:#c96a5a"><i style="width:10px;height:10px;background:#9fd0ff;opacity:.6"></i>0 / 2</span></div>
+<div style="width:200px;height:36px;background:#241a1a;border:1px solid #3a2a2c;display:flex;align-items:center;justify-content:center;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#c96a5a">Needs Precision Parts</div>
+</div>
+
+<div style="display:flex;align-items:center;gap:16px;height:64px;padding:0 16px;background:#16191e;border:1px solid #2a3038;border-radius:3px">
+<div style="width:44px;height:44px;flex:none;background:#101318;border:1px solid #2a3038;display:flex;align-items:center;justify-content:center"><div style="width:26px;height:26px;background:#b08a5a;opacity:.5"></div></div>
+<div style="width:230px"><div style="font:500 16px/1.1 Oswald,sans-serif;letter-spacing:.03em;text-transform:uppercase;color:#8a8f84">Hatchet</div><div style="font:400 13px Barlow;color:#6a6f68;margin-top:4px">Level 1 → 2</div></div>
+<div style="display:flex;gap:4px">
+<i style="width:14px;height:6px;background:#8a6a20"></i><i style="width:14px;height:6px;background:#2a3038"></i><i style="width:14px;height:6px;background:#2a3038"></i><i style="width:14px;height:6px;background:#2a3038"></i><i style="width:14px;height:6px;background:#2a3038"></i><i style="width:14px;height:6px;background:#2a3038"></i>
+</div>
+<div style="flex:1"></div>
+<div style="display:flex;gap:10px"><span style="display:flex;align-items:center;gap:6px;font:500 14px 'IBM Plex Mono',monospace;color:#c96a5a"><i style="width:10px;height:10px;background:#9aa2ab;opacity:.6"></i>41 / 60</span></div>
+<div style="width:200px;height:36px;background:#241a1a;border:1px solid #3a2a2c;display:flex;align-items:center;justify-content:center;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#c96a5a">Missing materials</div>
+</div>
+</div>
+</div>
+
+<div style="width:460px;flex:none;display:flex;flex-direction:column;background:#14161a;border:1px solid #3a4048;border-radius:3px;overflow:hidden">
+<div style="display:flex;gap:16px;padding:20px;background:#1b1f26;border-bottom:1px solid #3a4048">
+<div style="width:96px;height:96px;flex:none;background:#0b0d10;border:1px solid #5a6470;display:flex;align-items:center;justify-content:center"><div style="width:60px;height:60px;background:#8a8078"></div></div>
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="font:600 26px/1 Oswald,sans-serif;letter-spacing:.05em;text-transform:uppercase">Stone Hammer</div>
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84">Melee · Blunt · tool</div>
+<div style="display:flex;gap:6px"><span style="padding:3px 8px;background:#241a1a;border:1px solid #7a3f36;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#c96a5a">Broken</span><span style="padding:3px 8px;background:#1a2028;border:1px solid #3a4048;font:500 12px 'IBM Plex Mono',monospace;color:#c7c2b4">L1</span></div>
+</div>
+</div>
+
+<div style="padding:18px 20px;border-bottom:1px solid #2a3038"><p style="margin:0;font:400 15px/1.5 Barlow;color:#c7c2b4;text-wrap:pretty">A broken tool does nothing at all — it will not harvest, it will not cut cordage, and it will not fight. Mending returns it to full condition for a fraction of what it cost to make.</p></div>
+
+<div style="padding:16px 20px;border-bottom:1px solid #2a3038">
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;margin-bottom:12px">Condition</div>
+<div style="height:14px;background:#0b0d10;border:1px solid #2a3038"><div style="width:6%;height:100%;background:#c96a5a"></div></div>
+<div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font:400 13px Barlow;color:#8a8f84">Now</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#c96a5a">6% · broken</span></div>
+<div style="display:flex;justify-content:space-between;margin-top:4px"><span style="font:400 13px Barlow;color:#8a8f84">After mending</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#9fd07a">100%</span></div>
+</div>
+
+<div style="padding:16px 20px;border-bottom:1px solid #2a3038">
+<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px"><div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84">Materials</div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#6e9a52">ALL PRESENT</div></div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;background:#1b1f26;border:1px solid #2a3038"><i style="width:18px;height:18px;background:#8f8a80;flex:none"></i><span style="font:500 15px Barlow">Stone</span><div style="flex:1"></div><span style="font:500 15px 'IBM Plex Mono',monospace;color:#9fd07a">30 / 6</span><span style="width:16px;text-align:center;font:600 14px Barlow;color:#9fd07a">✓</span></div>
+<div style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;background:#1b1f26;border:1px solid #2a3038"><i style="width:18px;height:18px;background:#8a6a3c;flex:none"></i><span style="font:500 15px Barlow">Sticks</span><div style="flex:1"></div><span style="font:500 15px 'IBM Plex Mono',monospace;color:#9fd07a">17 / 3</span><span style="width:16px;text-align:center;font:600 14px Barlow;color:#9fd07a">✓</span></div>
+</div>
+<div style="display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;background:#101318;border:1px solid #2a3038"><span style="width:18px;text-align:center;font:600 13px Barlow;color:#9fd07a">✓</span><span style="font:500 14px Barlow;color:#c7c2b4">Mended at</span><span style="font:500 14px Barlow">the bench that made it</span><div style="flex:1"></div><span style="font:500 12px 'IBM Plex Mono',monospace;color:#6e9a52">TIER 1 IS ENOUGH</span></div>
+</div>
+
+<div style="margin-top:auto;padding:20px;background:#101318;border-top:1px solid #3a4048;display:flex;flex-direction:column;gap:12px">
+<div style="height:56px;background:#c9a227;border:1px solid #e0c24a;display:flex;align-items:center;justify-content:center;gap:12px"><span style="font:600 22px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#14161a">Mend</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#14161a;opacity:.7">ENTER</span></div>
+<div style="display:flex;justify-content:space-between;font:400 13px Barlow;color:#8a8f84"><span>Instant · condition is the whole cost</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#c7c2b4">MEND ALL · SHIFT+ENTER</span></div>
+</div>
+</div>
+
+</div>
+
+<div style="height:44px;flex:none;display:flex;align-items:center;gap:28px;padding:0 24px;background:#101318;border-top:1px solid #2a3038">
+<span style="display:flex;gap:8px"><span style="font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">↑↓</span><span style="font:400 13px Barlow;color:#8a8f84">Move</span></span>
+<span style="display:flex;gap:8px"><span style="font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">TAB</span><span style="font:400 13px Barlow;color:#8a8f84">Next group</span></span>
+<span style="display:flex;gap:8px"><span style="font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">ENTER</span><span style="font:400 13px Barlow;color:#8a8f84">Do it</span></span>
+<div style="flex:1"></div>
+<span style="font:400 13px Barlow;color:#6a6f68">Walk away and this screen closes itself</span>
+</div>
+
+</div>
+</x-dc>
+</body>
+</html>

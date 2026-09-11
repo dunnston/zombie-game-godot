@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-10, **weapon levels and the boss's drops** — weapons go from level 1 to 6 at the bench that makes them, more damage and more uses each level, and levels 4 to 6 cost Precision Parts, which only come out of the School past its boss; the boss drops a list of chances, two boss-only weapons among them (PR E). Before that, **the Coach, the School's phase boss** — a slam, a charge that stuns itself on a wall, a fan of dodgeballs and a whistle for the team, a second half that kills the gym lights and an overtime that speeds it up, every move telegraphed for at least 0.7s and drawn from events so a guest sees what the host does (PR C). Before that, **into the School together** — the whole party goes in at the door and comes out together, a guest's game follows the host's into the same building from its seed, and a friend who fell in there is brought out with everything (PR D). Before that, **Pine Hollow High, the first instanced dungeon** — a sealed, roofed building north of the suburbs whose door loads a map of its own, where the boss is the only way out with what you find (PR B of five; the design is `tasks/instanced-dungeons.md`). Before that, **a dash on Space** — a committed burst with i-frames, the first piece of the instanced dungeons (`tasks/instanced-dungeons.md`, recovered from the prototype, with the owner's decisions of the day in its §0 and the five-PR plan in `tasks/todo.md`). Before that, the owner's second playtest: night is genuinely black past your torch, and a torch in your off-hand lights itself when the dark comes and goes out at dawn. Before that, content out of `config.gd` into `data/*.json` with a local editor (`tools\edit`: views by bench and weapon class, item art, loot odds both ways), and the roadmap moved from Notion to Linear. Before that, the owner's first playtest: Mutation three times slower, near-black nights and a torch you can see, E opens a workbench (the upgrade is a button in it), C is the six basics, a Hatchet lasts about a hundred trees, click food to eat, and nothing is built on litter. Before that, on 2026-09-09, the Notion catalogue restructured to eleven categories with a tab each, and weapons split into six melee and eight ranged classes. Before that, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1. The HOST page also names your public address when UPnP will not
+- **Last updated:** 2026-09-11, **the UI redesign** — every screen rebuilt to the design handoff (`DEADLINE UI redesign/`) as Control nodes on one theme built from `src/ui/ui.gd`, at a 1920x1080 design resolution that fits any window without anything going off screen: the HUD, the pack, crafting and the bench as one three-column screen, the build menu and its slim placement bar, the character sheet, the crew, the town map, the title with its save slots, the pause menu and the settings. Before that, 2026-09-10, **weapon levels and the boss's drops** — weapons go from level 1 to 6 at the bench that makes them, more damage and more uses each level, and levels 4 to 6 cost Precision Parts, which only come out of the School past its boss; the boss drops a list of chances, two boss-only weapons among them (PR E). Before that, **the Coach, the School's phase boss** — a slam, a charge that stuns itself on a wall, a fan of dodgeballs and a whistle for the team, a second half that kills the gym lights and an overtime that speeds it up, every move telegraphed for at least 0.7s and drawn from events so a guest sees what the host does (PR C). Before that, **into the School together** — the whole party goes in at the door and comes out together, a guest's game follows the host's into the same building from its seed, and a friend who fell in there is brought out with everything (PR D). Before that, **Pine Hollow High, the first instanced dungeon** — a sealed, roofed building north of the suburbs whose door loads a map of its own, where the boss is the only way out with what you find (PR B of five; the design is `tasks/instanced-dungeons.md`). Before that, **a dash on Space** — a committed burst with i-frames, the first piece of the instanced dungeons (`tasks/instanced-dungeons.md`, recovered from the prototype, with the owner's decisions of the day in its §0 and the five-PR plan in `tasks/todo.md`). Before that, the owner's second playtest: night is genuinely black past your torch, and a torch in your off-hand lights itself when the dark comes and goes out at dawn. Before that, content out of `config.gd` into `data/*.json` with a local editor (`tools\edit`: views by bench and weapon class, item art, loot odds both ways), and the roadmap moved from Notion to Linear. Before that, the owner's first playtest: Mutation three times slower, near-black nights and a torch you can see, E opens a workbench (the upgrade is a button in it), C is the six basics, a Hatchet lasts about a hundred trees, click food to eat, and nothing is built on litter. Before that, on 2026-09-09, the Notion catalogue restructured to eleven categories with a tab each, and weapons split into six melee and eight ranged classes. Before that, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1. The HOST page also names your public address when UPnP will not
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -209,8 +209,8 @@ that will not fit is ever destroyed: it lands on the ground.
 | --- | --- |
 | Phase | **5 of 5 built.** 4a progression, 4b day and fire, 4c survivors and vehicles, 4d the front door, the map and the audio, 5 co-op. None of it has been played by the owner yet |
 | Playable | The whole loop, it levels you, it gets dark, you can hold it with other people, and a friend can join you in it. **E** searches, uses and gets a teammate up, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** goes dark on purpose (the torch lights itself), **Space** dashes, **F5** / **F9** save and load, MULTIPLAYER on the title and HOST THIS GAME on the pause menu. |
-| Unit tests | 677 tests, 13392 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials, the survivor combat tests, the UPnP door and the real broker under Node: 713 tests, 13540 assertions. The broker leg needs `node` and `npm` on PATH; `server/node_modules/` is gitignored, so in a fresh worktree the test runs `npm install` itself (through `cmd.exe` on Windows, where npm is a batch file) and needs the network that once. Wall-clock varies with the machine — see §9 |
-| Smoke | 87 checkpoints: **a weapon taken to level 2 with the UPGRADE row at the workbench**, **the Coach's slam ring, charge lane and dodgeball fan each photographed mid-telegraph, the second half killing the lights, and the breaker putting them back on the key**, **the loopback guest into the School with the host and back out, its mirror in the same building from the seed**, and before that **the School end to end — its door, the panel, the foyer, the gym unchained with the key from the principal's desk, the stand-in boss, and out through the exit to a door chained for the day** — a loopback guest joined, walked and parked, and before that walk, sprint, **a dash photographed mid-burst**, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted from the six-recipe C tab, broken and mended at the bench that made it, a workbench opened with E and upgraded with its button, the character sheet opened and a point spent, a chest filled, **four raised beds at four stages, the bed panel, compost dug in and a ripe bed harvested on the key**, a save reloaded, a walker shot, a raid, dusk and night, **a worn torch that the dark lit by itself, put out with T and struck again, and the flashlight's cone on a battery**, a treeline set alight, a swing interrupted mid-wind-up and something left bleeding, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked, the town map with its districts, Sixth Sense widening the reveal, a Chemistry Station and the dose it unlocks, the Lurch, a Raider holding its standoff, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it, and every cue reaching a voice |
+| Unit tests | 711 tests, 17097 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials, the survivor combat tests, the UPnP door and the real broker under Node: 713 tests, 13540 assertions. The broker leg needs `node` and `npm` on PATH; `server/node_modules/` is gitignored, so in a fresh worktree the test runs `npm install` itself (through `cmd.exe` on Windows, where npm is a batch file) and needs the network that once. Wall-clock varies with the machine — see §9 |
+| Smoke | 89 checkpoints, **every one of them failing if any piece of the redesigned UI reaches past the edge of the window**, and the new screens reached through real clicks — **the build menu, a card and PLACE**, a recipe card and CRAFT, MEND, the CREW tab, DEPOSIT ALL — and before that: **a weapon taken to level 2 with the UPGRADE row at the workbench**, **the Coach's slam ring, charge lane and dodgeball fan each photographed mid-telegraph, the second half killing the lights, and the breaker putting them back on the key**, **the loopback guest into the School with the host and back out, its mirror in the same building from the seed**, and before that **the School end to end — its door, the panel, the foyer, the gym unchained with the key from the principal's desk, the stand-in boss, and out through the exit to a door chained for the day** — a loopback guest joined, walked and parked, and before that walk, sprint, **a dash photographed mid-burst**, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted from the six-recipe C tab, broken and mended at the bench that made it, a workbench opened with E and upgraded with its button, the character sheet opened and a point spent, a chest filled, **four raised beds at four stages, the bed panel, compost dug in and a ripe bed harvested on the key**, a save reloaded, a walker shot, a raid, dusk and night, **a worn torch that the dark lit by itself, put out with T and struck again, and the flashlight's cone on a battery**, a treeline set alight, a swing interrupted mid-wind-up and something left bleeding, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked, the town map with its districts, Sixth Sense widening the reveal, a Chemistry Station and the dose it unlocks, the Lurch, a Raider holding its standoff, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it, and every cue reaching a voice |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
 | Save format | **v11** — what is in every raised bed: the seed, the feed, the water and the growing banked so far. **Not the stage**, which is derived from the last of those on load exactly as it is in play, so a save can no more carry a stale stage than it can a stale stat. On top of v10's weapon condition (on the slot, so it travels with the weapon), v9's and v8's the Mutation meter and the effect clocks (the band derived on load), and v7's every player by identity, with whether they are here, so a guest's character comes back to them next week (a guest's seat loads parked; the host's never does), on top of v6's the districts you have found (ids only: the rects are `Config`, so a save cannot carry a stale map), on top of v5's what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
 
@@ -257,6 +257,82 @@ The spec for each row is in `tasks/port-inventory.md`.
 ---
 
 ## 4. What is built
+
+### The UI redesign (2026-09-11)
+
+The owner's handoff is `DEADLINE UI redesign/design_handoff_deadline_ui/`: a
+README that is the spec, a style sheet, and eleven 1920x1080 mockups. It is
+high fidelity — colours, type, spacing, borders and states are exact — and
+it covers every screen the game has. All of it is in, in one PR.
+
+- **One look, in one file.** `src/ui/ui.gd` holds every colour token, the
+  three OFL faces (Oswald, Barlow, IBM Plex Mono, in `art/fonts/` with their
+  licences), the type scale as named styles, and the four-state boxes every
+  component uses; the `Theme` is built from it at boot. Borders grow inward
+  and every state has the same margins, so nothing moves on hover. Nothing
+  is set below 12px. It is the one file to edit for how the game looks, the
+  way `config.gd` is for how it plays — kept in code rather than a `.tres`
+  beside it because two copies of a colour is how one screen ends up a shade
+  off.
+- **Control nodes, not drawing by hand** (the owner's call). Real
+  containers, buttons and line edits. A screen is a `UiScreen`: sections that
+  rebuild when their signature — a string of what they show — changes, and
+  refreshers for the numbers that move every frame. A rebuild happens in
+  `refresh()`, never in a button's own callback, and a refresher belongs to
+  the section that registered it. The lookups the smoke run clicks
+  (`cell_centre`, `recipe_centre`, `button_centre`, `card_centre`) read the
+  nodes' own rects, so the smoke clicks real controls through real input.
+- **The frame** (`Chrome`): a 64px top bar with the wordmark and the tabs —
+  Pack, Craft, Character, Crew, Map — an optional sub-bar with the title,
+  search and filters, the body, and a footer of key hints. The tabs switch
+  screens through `main._goto`, so the pack, the map and the build menu are
+  one place to the player.
+- **Crafting and the bench are one screen**: a rail of the owner's
+  categories (derived from what a recipe makes, so a new recipe needs no
+  second field), the bench group and what is on hand; a grid of cards with
+  CAN CRAFT, SHORT n of something, or the bench it needs; and the selected
+  thing's detail — stats from `weapons.json`, the bill as have/need lines, the
+  bench and tool requirement, a quantity stepper and CRAFT. **A card selects
+  and CRAFT makes** — clicking a row used to craft it. MEND and UPGRADE are
+  rail entries of the same screen. Every refusal is the sim's own string.
+- **Building** uses the same layout; PLACE collapses it to a slim bar above
+  the hotbar with the piece's place in its category, the bill, and
+  `Structures.can_place`'s reason when it cannot go where you point. The
+  wheel cycles within the category, Tab brings the menu back, B leaves; the
+  ghost sits on a faint tile grid.
+- **The rest**: the pack (worn column, the grid, the hotbar, an item detail
+  panel, the click menu, the tooltip), the container screen with the pantry,
+  the bed, the School's door and the walk-out; the character sheet with its
+  perk trees; the crew with **both caps shown separately**, job cards with
+  their preconditions, and select-then-ASSIGN; the town map as a full page
+  with a legend, where you are and the districts found, and a 260px minimap;
+  the HUD laid out to its mockup; the title with a save-slot panel; a 720px
+  pause menu; and the settings — Controls grouped as `KeyBinds.ACTIONS`
+  orders them, Sound, and a real Fullscreen/Windowed toggle remembered per
+  machine (`DisplayPrefs`, `user://display.json`), which is the one setting
+  the owner asked to add.
+- **Nothing goes off screen, at any window size** (the owner, mid-build).
+  The design resolution is the mockups' 1920x1080, the window opens at
+  1280x720, and `canvas_items` + `expand` means the logical viewport is never
+  smaller than 1920x1080 in either axis — a 4:3 window is 1920x1440 inside,
+  an ultrawide 2560x1080. So a layout that fits 1920x1080 fits everywhere.
+  Every column that can grow is a scroll area, and a label told to expand
+  trims rather than widening its column. The smoke run asserts it at every
+  checkpoint, in its 1280x720 window; §9 has the line that runs it at any
+  other size.
+- **Keys.** With a full screen up, WASD still walks — a chest screen still
+  closes when you walk off — and the arrow keys move the selection; Tab steps
+  the rail, Enter commits, Shift+Enter is ×5, `/` searches and F filters.
+  Typing in a search field walks nowhere and fires no screen key
+  (`LocalInput`'s `screen_nav` and `typing`).
+- **Behaviour that changed on purpose**, for the play gate: a card selects
+  rather than crafts; a job is chosen and then ASSIGNed; B opens the build
+  menu before the street; and full screens are opaque, as the mockups draw
+  them — the pack used to be a panel over the world at 45%.
+- **The handoff's open questions**, answered from the repo: the bench
+  upgrade button shows `BENCH_UPGRADE_COST`; job names and colours are
+  `Config.JOBS`; structure repair pricing stays off the build detail, as the
+  design has it; perk lines are the `desc` strings.
 
 ### Pine Hollow High (the first instanced dungeon)
 
@@ -1357,7 +1433,10 @@ src/
   sim/               RefCounted simulation classes. No nodes, no Input.
                      Everything here runs headless and is unit-tested.
   world/             nodes that draw the sim: tile layers, entities, camera
-  ui/                HUD, inventory, menus (Control nodes)
+  ui/                every screen, as Control nodes: ui.gd (the look: tokens,
+                     fonts, the Theme, builders), chrome.gd (the frame),
+                     ui_screen.gd (sections + refreshers), kit/ (slot, meter,
+                     pips, swatch), and one script per screen
   debug/smoke.gd     the smoke-test autoload
 tests/
   run.gd             the runner (SceneTree script, headless)
@@ -1529,6 +1608,11 @@ Phases 1–4 respecting it.
 | 2026-09-10 | The player gets a dash with i-frames, built before any dungeon | The owner's call, on the design note's argument (`tasks/instanced-dungeons.md` §8.3): every game the owner named for boss fights gives the player a committed move with invulnerability in it, and a phase boss without one collapses into kiting in a circle. It is built first and felt in town because it sets the telegraph budget — authoring boss patterns before it would mean re-tuning every one of them after. It changes every existing fight too, which is exactly why it gets its own gate. | Yes — `Config.DASH`, and the key |
 | 2026-09-10 | The dash lives in `PlayerSim.move`, and refusals are recorded there and spoken by `tick` | `move` is what a guest runs to predict itself. Starting the dash in `tick` would have kept the refusal messages simple and made every guest's dash snap back 130px a round trip later. `move` has no sim, so it sets `dash_refused` / `dash_began` and `tick` notifies and emits — the guest ignores both, because the host's notice and event arrive anyway. | Yes |
 | 2026-09-10 | A dash costs its stamina up front and is refused without it; a press inside the cooldown is silent | Refusing keeps stamina the budget a dodge spends — a dash that fired on an empty bar and went half as far would be a dodge you could not predict, which is the one thing a dodge must not be. Every refusal but the cooldown names its reason; the cooldown says nothing, because a player mashing the key in a panic does not need a notice per press. | Yes |
+| 2026-09-11 | Every screen is Control nodes on one Theme built from `src/ui/ui.gd` | The owner's call over keeping the hand-drawn rect lists. Screens are built by their scripts rather than as `.tscn` files: every one is data-driven, and the tests construct them with `.new(sim)`. The Theme is built in code rather than kept as a `.tres` so there is one copy of every colour. | Yes, but it is the whole UI |
+| 2026-09-11 | Design resolution 1920x1080, `canvas_items` + `expand`, window opens at 1280x720 | The owner: nothing may go off screen at any size. `expand` keeps the logical viewport at least the design size in both axes, so fitting 1920x1080 is fitting every window; the smoke run checks it at every checkpoint. The camera zoom already came from `vp.y / view_height`, so the world frames the same. | Yes — `project.godot` |
+| 2026-09-11 | A card selects; the panel's one primary button acts | The design's, and the old rows crafted on click — which is how you spend on the wrong thing while browsing. Enter and Shift+Enter (×5) act on the selection. | Yes |
+| 2026-09-11 | The arrow keys belong to a full screen while it is up; WASD still walks | The owner's call: backing away from a horde with the pack open stays possible, and a bench or chest screen still closes when you walk off. A rebinding that leaves a move only on an arrow key cannot walk with a screen up, and that is the price. | Yes |
+| 2026-09-11 | Full screens are opaque; the pause menu is a scrim | The mockups draw the pack, crafting and the rest over an opaque ground; the component note's 72% scrim is the pause menu's. The world still runs behind them. | Yes — `Chrome.root` |
 
 ---
 
@@ -1741,6 +1825,16 @@ growing food is not the same promise as needing it.
 Distilled. The raw log is `tasks/lessons.md`; the prototype's full §8 is
 summarised in `tasks/port-inventory.md`.
 
+### A label that may trim has no width
+
+The first build of the redesign set every label to clip with an ellipsis, so
+that no long name could ever push a column past the edge of the window. Every
+label that was not told to expand then collapsed to nothing — a trimming
+label's minimum width is one ellipsis — and the screenshots came back with no
+wordmark, no counts and no badges, while every test and every smoke assertion
+passed. Trim only what expands; that is the one place trimming is what keeps
+it inside. And look at the pictures: the numbers said the screens were there.
+
 ### A bug report describes an experience, not a cause
 
 DL-46 said felled trees stay on screen and drop nothing; DL-55 said gathered
@@ -1944,9 +2038,18 @@ root cause; the temptation to revert was strongest at exactly the wrong moment.
 All must report **zero failures**. Current expected output:
 
 ```
-tests: 368  asserts: 5041  failures: 0
-tests: 401  asserts: 5174  failures: 0   (--all)
-SMOKE done checkpoints=48 failures=0 exit=0
+tests: 711  asserts: 17097  failures: 0
+SMOKE done checkpoints=89 failures=0 exit=0
+```
+
+The smoke run fails any checkpoint at which a piece of UI reaches past the
+edge of the window. It runs in a 1280x720 window; to check another size —
+the owner's rule is *any* size — run the game directly with a different
+`--resolution` and its own output folder (anything named `.smoke*` is
+ignored by git):
+
+```
+& "C:\Users\ryans\OneDrive\Desktop\Godot_v4.7.2-stable_win64.exe" --path . --resolution 1024x768 -- --smoke "--smoke-out=$PWD\.smoke-4x3"
 ```
 
 On Linux (the remote session that built Phase 5 ran on one): set `GODOT`
@@ -2151,6 +2254,8 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-11 | **Codex pass on the UI redesign (PR #37).** Four findings, all real, each with a test in `ui_review_test.gd` that failed against the old behaviour first. **Build menu:** a search or *Can build now* that hid the selected piece left PLACE and Enter acting on it — the selection now moves to the first piece shown, and nothing is placeable while nothing is. **Crew:** the detail's signature left out the survivor's health and the top bar's left out the ration count, so both froze while the world went on behind the screen. **HUD:** a worn tool's condition sliver was hidden behind its TOOL line, so no Hatchet ever warned it was wearing out; it shows under the text again, as it did before the redesign. 708 tests |
+| 2026-09-11 | **The UI redesign**, to the owner's handoff in `DEADLINE UI redesign/`, in one PR. `src/ui/ui.gd` (tokens, the three OFL faces in `art/fonts/`, named text styles, the four-state boxes, the Theme, the builders), `chrome.gd` (the frame and its rail, search, filter, weight and bench pieces), `ui_screen.gd` (sections and section-owned refreshers), `kit/` (`UiSlot`, `UiMeter`, `UiPips`, `UiSwatch`); the HUD, the pack in all nine modes, crafting and the bench as one screen (`craft_page.gd`), the character sheet (`char_page.gd`), the crew (`crew_page.gd`), the build menu and placement bar, the town map and minimap, and the title, pause, settings and multiplayer pages — all rebuilt as Control nodes. Design resolution 1920x1080 (window 1280x720) with `canvas_items` + `expand`; `Config.MAP.corner` 260. `LocalInput` takes `screen_nav` (the arrows are the screen's) and `typing` (a search field walks nowhere); `main._goto` routes the tabs; Tab steps a rail, Escape backs out one step at a time; the HUD hides under a full screen. `DisplayPrefs` for the Fullscreen toggle. The smoke run clicks the new controls — a build card and PLACE, a recipe card and CRAFT, MEND, the CREW tab, DEPOSIT ALL — through window coordinates (`get_screen_transform`, since logical is no longer window), fails any checkpoint where something reaches off screen, and has a build-menu checkpoint (89). Behaviour that moved on purpose: a card selects and CRAFT makes; a job is chosen then ASSIGNed; B opens the menu first; full screens are opaque |
 | 2026-09-11 | **The whole weapons table (PR #36).** Sixty-four weapons, up from seventeen: the seventeen in game synced from Notion, eleven new craftables with recipes, and the rest found-only, placed in 36 containers where the table's *Found in* says. **Every weapon can be found and every weapon can be repaired** (owner): a weapon with no recipe mends off its new `salvage` field at the bench its `tier` names (`Wear.repair_basis`, `Wear.mend_bench`), and still takes no levels. The boss drops carry `tier: 3`, so they mend at Workbench II rather than for three scrap at the first bench. Stone is Slingshot ammunition (`AMMO_IDS`); sixteen new gun cues in `SFX`. Still out: the Flamethrower and Grenade Launcher (no field holds fire or a blast), and three recipes that want a weapon as an ingredient. |
 | 2026-09-10 | **Codex pass on the five instanced-dungeon PRs (#30–#34).** Ten findings, each fixed on its own branch with a test and a break-check, then merged up the stack. **Dash:** a burst ends when the legs that started it stop (car, floor, death), rather than resuming unasked. **School:** the haul cap counts every find you still hold, wherever it is (`Instance.haul_load`), so emptying a full haul into the pack no longer doubles what comes out; nothing is crafted inside an instance, because crafting made things the ledger never wrote down; an extraction pending when the whole party dies is a wipe; a save from before the School moves whatever it left on the footprint to the door (structures down with a full refund, cars to the lot). **Co-op:** nobody goes in from behind a wheel. **Boss:** damage stops at the next uncrossed threshold, so no burst skips a phase; no wound or stagger through the phase shield; a phase change clears its cut-off telegraph on screen. **Upgrades:** protocol 6 |
 | 2026-09-10 | **Weapon levels and the boss's drops (PR E).** Weapons go from level 1 to 6 at the bench that makes them — an UPGRADE row beside MEND, asking the recipe's own bench gate — and each level is +8% damage and +10% uses; a new level comes back whole. Levels 2 and 3 cost half and three-quarters of the recipe; 4 to 6 cost more than the recipe **plus Precision Parts**, a new resource found only inside the School, so the ceiling is 3 until the Coach has been beaten, with no flag anywhere. The level rides on the `Slots` stack beside condition, on every path condition takes, and a death pack keeps the lower of two. A boss's drop table is per-entry percentages (`coachDrops`: the parts always, the **Varsity Bat** 25%, the **Six-Shooter** 15%, medkits, military supplies); both weapons are placeholders with no recipe, so nothing mends or upgrades them and they last for it — the wear test's rule now allows exactly that. Content through `EditApi`; the Six-Shooter got a sound. `upgrade_test.gd` (12), five rules checked by breaking them (677 fast, 713 with `--all`); one smoke checkpoint (87) |

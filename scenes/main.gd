@@ -137,6 +137,11 @@ func _ready() -> void:
 	build_bar = BuildBar.new(sim)
 	layer.add_child(build_bar)
 	structure_view.build_bar = build_bar
+	# The tabs along the top of every full screen switch between them here,
+	# so the pack, the map and the build menu are one screen to the player.
+	map.navigate.connect(_goto)
+	inventory.navigate.connect(_goto)
+	build_bar.navigate.connect(_goto)
 	# The dev menu exists only where a developer is: a debug build, or an
 	# export run with --dev. A release build never constructs it, so there is
 	# nothing to remember to switch off before shipping.
@@ -150,6 +155,9 @@ func _ready() -> void:
 	# `user://` path a headless run can write is redirected).
 	if Smoke.enabled:
 		NetPrefs.STORE = "user://smoke/net.json"
+		DisplayPrefs.STORE = "user://smoke/display.json"
+	else:
+		DisplayPrefs.apply()
 	prefs = NetPrefs.load()
 	menu.fields.address = String(prefs.address)
 	menu.fields.name = String(prefs.name)
@@ -216,37 +224,46 @@ func _physics_process(dt: float) -> void:
 				_host_step(dt)
 			return
 
-	if Input.is_action_just_pressed("inventory"):
-		inventory.mode = "pack"
-		inventory.toggle()
-		if inventory.visible and build_bar.open:
-			build_bar.toggle()
+	# Typing into a search field: every letter is the field's, so no screen key
+	# fires — looking for "cloth" must not close the craft tab on the C. Escape
+	# still means "out", one step: the caret leaves the field first.
+	var typing := inventory.typing() or build_bar.typing()
+	if typing:
+		if Input.is_action_just_pressed("pause"):
+			if not inventory.back():
+				build_bar.back()
+	elif Input.is_action_just_pressed("inventory") and inventory.takes_tab():
+		# On a screen with a rail, Tab steps the rail rather than closing it:
+		# C, K and Escape close those.
+		inventory.next_category(Input.is_key_pressed(KEY_SHIFT))
+	elif Input.is_action_just_pressed("inventory") and build_bar.takes_tab() and not inventory.visible:
+		# In the build menu, the next category; while placing, the menu back.
+		build_bar.tab(Input.is_key_pressed(KEY_SHIFT))
+	elif Input.is_action_just_pressed("inventory"):
+		if inventory.visible:
+			inventory.toggle()
+		else:
+			_goto("pack")
 	elif Input.is_action_just_pressed("crafting"):
 		# C is crafting, but crafting is a tab of the pack rather than a
 		# screen of its own — so C opens the pack on that tab.
 		if inventory.visible and inventory.mode == "craft":
 			inventory.toggle()
 		else:
-			inventory.mode = "craft"
-			inventory.visible = true
-			if build_bar.open:
-				build_bar.toggle()
+			_goto("craft")
 	elif Input.is_action_just_pressed("character"):
-		# K is the character sheet, on the same argument as C: it is a tab of
-		# the pack, not a screen of its own.
+		# K is the character sheet, on the same argument as C.
 		if inventory.visible and inventory.mode == "char":
 			inventory.toggle()
 		else:
-			inventory.mode = "char"
-			inventory.visible = true
-			if build_bar.open:
-				build_bar.toggle()
+			_goto("char")
 	elif Input.is_action_just_pressed("map"):
-		# The town map is a panel over a running world, like the pack: reading it
-		# is not a time-out, and the markers on it are live for that reason.
-		map.toggle()
-		if map.open and build_bar.open:
-			build_bar.toggle()
+		# The town map is a screen over a running world, like the pack: reading
+		# it is not a time-out, and the markers on it are live for that reason.
+		if map.open:
+			map.toggle()
+		else:
+			_goto("map")
 	elif Input.is_action_just_pressed("build") and not inventory.visible and not map.open:
 		# Same rule as the pack: an open screen closes build mode, and build mode
 		# does not open behind one. Without the map here, B put the ghost and the
@@ -257,7 +274,8 @@ func _physics_process(dt: float) -> void:
 		# Escape closes what is open, innermost first, and only opens the pause
 		# menu once there is nothing left to close.
 		if inventory.visible:
-			inventory.toggle()
+			if not inventory.back():
+				inventory.toggle()
 		elif map.open:
 			map.toggle()
 		elif build_bar.open:
@@ -274,8 +292,9 @@ func _physics_process(dt: float) -> void:
 	var intent := me.intent
 	# An open panel owns the mouse: you can still walk, but a click belongs to
 	# the screen you are looking at rather than to the gun in your hand.
-	LocalInput.gather(intent, self, inventory.visible or build_bar.open or map.open)
-	if build_bar.open:
+	var screen_up := inventory.visible or map.open or (build_bar.open and build_bar.menu)
+	LocalInput.gather(intent, self, inventory.visible or build_bar.open or map.open, screen_up, typing)
+	if build_bar.placing():
 		build_bar.update_hover(get_global_mouse_position())
 		# One click, one action — except REPAIR, which is meant to be swept
 		# along a wall. It only fires on a piece that is actually damaged, so
@@ -478,16 +497,51 @@ func _process(dt: float) -> void:
 	pickup_view.queue_redraw()
 	structure_view.queue_redraw()
 	instance_view.queue_redraw()
-	if build_bar.open:
-		build_bar.queue_redraw()
+	build_bar.refresh()
 	inventory.tick()
-	if inventory.visible:
-		inventory.queue_redraw()
+	inventory.refresh()
 	enemy_view.queue_redraw()
 	boss_view.queue_redraw()
 	player_view.queue_redraw()
 	fx.queue_redraw()
-	hud.queue_redraw()
+	# A full screen covers the HUD rather than showing it through its scrim:
+	# the pack is not a place to read your health bar from, and two layers of
+	# text at 28% is how a screen becomes unreadable.
+	var covered := inventory.visible or (build_bar.open and build_bar.menu) or menu.visible
+	hud.visible = not covered and not map.open
+	map.visible = map.open or not covered
+	hud.placing = build_bar.placing()
+	if hud.visible:
+		hud.refresh()
+
+
+## Switches to one of the full screens, closing whichever is up — what the tabs
+## along the top of each one ask for, and what C, K, M and Tab do.
+func _goto(to: String) -> void:
+	match to:
+		"pack", "craft", "char", "crew":
+			if map.open:
+				map.toggle()
+			if build_bar.open:
+				build_bar.toggle()
+			if not inventory.visible or inventory.mode in InventoryScreen.SINGLE:
+				inventory.visible = false
+				inventory.toggle()
+			inventory.set_mode(to)
+		"map":
+			inventory.visible = false
+			if build_bar.open:
+				build_bar.toggle()
+			if not map.open:
+				map.toggle()
+		"build":
+			inventory.visible = false
+			if map.open:
+				map.toggle()
+			if not build_bar.open:
+				build_bar.toggle()
+			else:
+				build_bar.show_menu()
 
 
 ## Leads toward the cursor so you can see what you are aiming at.
@@ -547,9 +601,13 @@ func smoke_teleport(tx: int, ty: int) -> void:
 
 
 ## Points the mouse at a world position, so aim goes through the real path.
+##
+## The design resolution is 1920x1080 and the window is whatever it is, so a
+## point on the canvas goes through the stretch to become a point in the
+## window — which is where `warp_mouse` and a parsed event both live.
 func smoke_aim(world_pos: Vector2) -> void:
 	var screen := get_viewport().get_canvas_transform() * world_pos
-	Input.warp_mouse(screen)
+	Input.warp_mouse(get_viewport().get_screen_transform() * screen)
 
 
 ## A click at a screen position, fed through the real input pipeline so it
@@ -562,13 +620,14 @@ func smoke_aim(world_pos: Vector2) -> void:
 ## see the press — process and physics both run at 60Hz, and a one-frame tap
 ## lands between them about half the time.
 func smoke_click(at: Vector2, ctrl := false) -> void:
-	Input.warp_mouse(at)
+	var win := get_viewport().get_screen_transform() * at
+	Input.warp_mouse(win)
 	await get_tree().process_frame
 	for pressed in [true, false]:
 		var ev := InputEventMouseButton.new()
 		ev.button_index = MOUSE_BUTTON_LEFT
-		ev.position = at
-		ev.global_position = at
+		ev.position = win
+		ev.global_position = win
 		ev.ctrl_pressed = ctrl
 		ev.pressed = pressed
 		Input.parse_input_event(ev)
@@ -952,6 +1011,8 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 		# in the hotbar taken to level 2 from its row beside MEND. The pack is
 		# full by now, so this upgrades what is carried rather than handing
 		# over something new — the first cut tried and got NO ROOM.
+		inventory.craft_cat = "upgrade"
+		await smoke.frames(3)
 		var ur := inventory.upgrade_centre("pipe")
 		if ur == Vector2.ZERO:
 			var offered: Array = []
@@ -1013,22 +1074,13 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 			offered = true
 	if not offered:
 		smoke.fail("the Refined Suppressant is not offered at its own bench")
-	# Then scroll it onto the page, so the photograph shows the thing the
-	# checkpoint is named after. A row that never appears however far the list
-	# is scrolled is a real screen bug and still fails.
-	var listed := false
-	for i in range(40):
-		for row in inventory._craft_rows():
-			if row.has("recipe") and String(row.recipe.id) == "suppressant":
-				listed = true
-		if listed:
-			break
-		var was := inventory.craft_top
-		inventory.craft_top += 1
-		if inventory.craft_top == was:
-			break
-	if not listed:
-		smoke.fail("the Refined Suppressant never scrolls onto the craft page")
+	# Then bring it onto the page — its category, no search — so the photograph
+	# shows the thing the checkpoint is named after. A card that never appears
+	# is a real screen bug and still fails.
+	inventory.reveal("suppressant")
+	await smoke.frames(3)
+	if inventory.recipe_centre("suppressant") == Vector2.ZERO:
+		smoke.fail("the Refined Suppressant never appears on the bench's page")
 	await smoke.frames(2)
 	await smoke.checkpoint("chem_station")
 	await smoke.tap("inventory")
@@ -1434,7 +1486,21 @@ func smoke_run(smoke: Node) -> void:
 	await smoke.frames(3)
 	if not build_bar.open:
 		smoke.fail("B did not open the build bar")
-	build_bar.selected = build_bar.cards().find("woodWall")
+	# B opens the menu; the card is chosen and taken into the street through
+	# the real clicks, the way a player does it.
+	await smoke.frames(2)
+	await smoke.checkpoint("build_menu")
+	var card_at := build_bar.card_centre("woodWall")
+	if card_at == Vector2.ZERO:
+		smoke.fail("the build menu shows no Wood Wall card")
+	else:
+		await smoke_click(card_at)
+		await smoke.frames(3)
+		await smoke_click(build_bar.button_centre("place"))
+		await smoke.frames(3)
+	if not build_bar.placing() or build_bar.selected_card() != "woodWall":
+		smoke.fail("choosing the Wood Wall and PLACE did not go to placement (card %s, placing %s)"
+			% [build_bar.selected_card(), str(build_bar.placing())])
 	# A tile the wall can actually go on, due east so that walking into it
 	# below means something: beside the camp shack, "two to the right" is as
 	# likely to be the shack wall as open ground.
@@ -1486,7 +1552,7 @@ func smoke_run(smoke: Node) -> void:
 		if not p.can_afford(sim, Structures.repair_cost(wall, p.build_cost_mul)):
 			smoke.fail("could not stock the repair bill: %s" %
 				Structures.cost_label(Structures.repair_cost(wall, p.build_cost_mul)))
-		build_bar.selected = build_bar.cards().find("repair")
+		build_bar.select_card("repair")
 		# REPAIR is the tool you may hold: press and keep holding, and the
 		# sweep fixes what is under the cursor.
 		# Settle the cursor the same way the placement step does. The camera
@@ -1513,7 +1579,7 @@ func smoke_run(smoke: Node) -> void:
 		if p.count_res("wood") != wood_after:
 			smoke.fail("the sweep kept billing an intact wall")
 		await smoke.checkpoint("repaired_the_wall")
-		build_bar.selected = build_bar.cards().find("demolish")
+		build_bar.select_card("demolish")
 		smoke_aim(wall.pos)
 		await smoke.frames(3)
 		await smoke_click(get_viewport().get_canvas_transform() * wall.pos)
@@ -1543,11 +1609,22 @@ func smoke_run(smoke: Node) -> void:
 	if inventory.recipes().size() != 6:
 		smoke.fail("C lists %d recipes, not the six basics" % inventory.recipes().size())
 	await smoke.checkpoint("craft_tab")
+	# The card selects, CRAFT makes: one click never spends by itself.
 	var axes := p.count_carried("axe")
-	await smoke_click(inventory.recipe_centre("axe"))
+	inventory.reveal("axe")
 	await smoke.frames(3)
+	var axe_at := inventory.recipe_centre("axe")
+	if axe_at == Vector2.ZERO:
+		smoke.fail("the craft tab shows no Hatchet card")
+	else:
+		await smoke_click(axe_at)
+		await smoke.frames(3)
+		if p.count_carried("axe") != axes:
+			smoke.fail("clicking the Hatchet card crafted it — a card should only select")
+		await smoke_click(inventory.button_centre("craft"))
+		await smoke.frames(3)
 	if p.count_carried("axe") <= axes:
-		smoke.fail("clicking the Hatchet row crafted nothing")
+		smoke.fail("CRAFT on the Hatchet crafted nothing")
 
 	# Wear and repair, on the weapon that was just made. A Hatchet is bench-0
 	# work, so the field is the bench that mends it: the row is here, in this
@@ -1558,6 +1635,8 @@ func smoke_run(smoke: Node) -> void:
 	Wear.use_held(sim, p, 1)
 	if not Wear.is_broken(p.hotbar, 0):
 		smoke.fail("the Hatchet would not break")
+	await smoke.frames(3)
+	inventory.craft_cat = "mend"
 	await smoke.frames(3)
 	await smoke.checkpoint("weapon_broken")
 	var mend_at := inventory.repair_centre("axe")
@@ -1630,7 +1709,9 @@ func smoke_run(smoke: Node) -> void:
 		await smoke_click(inventory.cell_centre("bag", _smoke_bag_index("stone")), false)
 		await smoke.frames(2)
 		# DEPOSIT ALL is the button the haul is actually for.
-		await smoke_click(Vector2(inventory._panel().position.x + 84, inventory._panel().position.y + inventory._panel().size.y - 84))
+		if inventory.button_centre("deposit") == Vector2.ZERO:
+			smoke.fail("the chest screen has no DEPOSIT ALL button")
+		await smoke_click(inventory.button_centre("deposit"))
 		await smoke.frames(3)
 		var s := sim.structs.at_tile(chest_tile.x, chest_tile.y)
 		if s.store.used() == 0:
@@ -1823,7 +1904,13 @@ func smoke_run(smoke: Node) -> void:
 	# The roster, and reassigning what they do all day.
 	await smoke.tap("inventory")
 	await smoke.frames(2)
-	inventory.mode = "crew"
+	# Through the tab along the top, the way a player gets there.
+	var crew_tab := _smoke_tab_centre("crew")
+	if crew_tab == Vector2.ZERO:
+		smoke.fail("the pack has no CREW tab")
+		inventory.set_mode("crew")
+	else:
+		await smoke_click(crew_tab)
 	await smoke.frames(3)
 	if not inventory.visible or inventory.mode != "crew":
 		smoke.fail("the roster did not open")
@@ -2432,6 +2519,14 @@ func _refresh_net_lines() -> void:
 	else:
 		menu.net.guests = []
 		hud.net_line = ""
+	menu.slot = slot
+	if menu.visible and menu.page == MenuScreen.Page.PAUSE and sim != null and me != null:
+		var loc := sim.world.location_at_px(me.pos.x, me.pos.y)
+		var line := "%s  ·  day %d  ·  %s" % [String(loc.name) if not loc.is_empty() else "The Outskirts", sim.clock.day,
+			sim.clock.clock_string()]
+		if role == "host" and net_host != null and net_host.connected_count() > 0:
+			line += "  ·  the world keeps running for the other %d" % net_host.connected_count()
+		menu.status_line = line
 
 
 func _enter_title() -> void:
@@ -2515,24 +2610,51 @@ func _tick_autosave(dt: float) -> void:
 ## map binding is twenty rows down a list of twenty-three. `_rows()` clamps
 ## `scroll` itself, so the bottom of the list is where the clamp stops moving.
 func smoke_click_menu(id: String, arg := -1, action := "") -> bool:
-	var last := -1
-	while true:
-		var rows := menu._rows()
-		if menu.scroll == last:
-			break
-		last = menu.scroll
-		for r in rows:
-			if String(r.id) != id:
-				continue
-			if arg >= 0 and int(r.arg) != arg:
-				continue
-			if not action.is_empty() and String(r.get("action", "")) != action:
-				continue
-			menu._press(r)
-			return true
-		menu.scroll += 1
-	menu.scroll = 0
+	for r in menu._rows():
+		if String(r.id) != id:
+			continue
+		if arg >= 0 and int(r.arg) != arg:
+			continue
+		if not action.is_empty() and String(r.get("action", "")) != action:
+			continue
+		menu._press(r)
+		return true
 	return false
+
+
+## The middle of a tab along the top of whichever full screen is up.
+func _smoke_tab_centre(id: String) -> Vector2:
+	for b in get_tree().get_nodes_in_group("screen_tabs"):
+		if (b as Control).is_visible_in_tree() and String(b.get_meta("tab", "")) == id:
+			return (b as Control).get_global_rect().get_center()
+	return Vector2.ZERO
+
+
+## Every visible piece of UI that reaches past the edge of the window: the
+## owner's rule is that nothing ever does, at any window size. The smoke run
+## asks at every checkpoint. A scroll area is checked as itself — what it
+## holds is meant to run past its edge — and nothing that has no size counts.
+func smoke_offscreen() -> Array[String]:
+	var out: Array[String] = []
+	var vp := get_viewport().get_visible_rect().grow(1.0)
+	for layer in get_children():
+		if layer is CanvasLayer:
+			_offscreen_walk(layer, vp, out)
+	return out
+
+
+func _offscreen_walk(n: Node, vp: Rect2, out: Array[String]) -> void:
+	if n is Control:
+		var c := n as Control
+		if not c.is_visible_in_tree():
+			return
+		var r := c.get_global_rect()
+		if r.size.x > 0.5 and r.size.y > 0.5 and not vp.encloses(r):
+			out.append("%s %s (window %s)" % [c.get_path(), str(r), str(vp.size)])
+		if c is ScrollContainer:
+			return
+	for k in n.get_children():
+		_offscreen_walk(k, vp, out)
 ## A real key-down event, for pushing through the viewport the way a keyboard
 ## does.
 func rebound_pressed(code: int) -> InputEventKey:
