@@ -436,10 +436,10 @@ boss drops, with a percentage on each rare weapon.
   is a percentage rolled on its own (`coachDrops`): Precision Parts 3–5
   always, the **Varsity Bat 25%**, the **Six-Shooter 15%**, medkits 50%,
   military supplies 60%. Both weapons are placeholders for the owner to rename
-  and tune: nothing makes them, so nothing mends or upgrades them, and they
-  last for it (1400 and 1500 uses). The wear test's rule became "every weapon
-  that wears can be mended, **or** is found somewhere and outlasts everything
-  of its kind that can be made."
+  and tune: nothing makes them, so nothing upgrades them, and they last for
+  it (1400 and 1500 uses). They were unmendable too until 2026-09-11 (PR #36,
+  below): now they mend off their salvage, and carry `tier: 3` so it takes
+  Workbench II.
 - **What you see:** the tooltip gives the level's damage and uses and says
   when a weapon is found, not made; the hotbar marks a levelled weapon `L4`.
 
@@ -637,11 +637,13 @@ nothing, and critted identically.
   Workbench, automatically and forever. The rows sit at the top of the CRAFT
   tab, above the recipes, with the verb **MEND** — REPAIR is the build bar's
   word for a wall, and one verb for two jobs teaches the wrong thing.
-- **A weapon nothing makes is mended nowhere.** That falls out of the recipe
-  lookup rather than needing a flag, and it is what a unique, found-only
-  weapon would lean on: no recipe, so no bench, and a bigger `dur` to pay for
-  it. **No such weapon exists yet** — every weapon in the game but Fists is
-  craftable — so the mechanic is ready and the content is not.
+- **A weapon nothing makes is mended off its salvage.** Until 2026-09-11 it
+  was mended nowhere, and a found-only weapon paid for that by lasting. The
+  owner changed the rule (PR #36): every weapon can be found and every weapon
+  can be repaired. `Wear.repair_basis` is the recipe's cost, or the row's
+  `salvage` when nothing makes it; `Wear.mend_bench` is the recipe's bench,
+  or with no recipe the tier's — the Workbench for tiers 1 and 2, Workbench II
+  for 3. A found weapon still takes no levels (`Upgrade`).
 - **Condition belongs to the weapon, not the carrier.** It lives in the slot,
   as the optional `w` on a `Slots` stack, so it travels wherever the weapon
   does: into a chest, into a car boot, onto the ground, into somebody else's
@@ -2149,6 +2151,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-11 | **The whole weapons table (PR #36).** Sixty-four weapons, up from seventeen: the seventeen in game synced from Notion, eleven new craftables with recipes, and the rest found-only, placed in 36 containers where the table's *Found in* says. **Every weapon can be found and every weapon can be repaired** (owner): a weapon with no recipe mends off its new `salvage` field at the bench its `tier` names (`Wear.repair_basis`, `Wear.mend_bench`), and still takes no levels. The boss drops carry `tier: 3`, so they mend at Workbench II rather than for three scrap at the first bench. Stone is Slingshot ammunition (`AMMO_IDS`); sixteen new gun cues in `SFX`. Still out: the Flamethrower and Grenade Launcher (no field holds fire or a blast), and three recipes that want a weapon as an ingredient. |
 | 2026-09-10 | **Codex pass on the five instanced-dungeon PRs (#30–#34).** Ten findings, each fixed on its own branch with a test and a break-check, then merged up the stack. **Dash:** a burst ends when the legs that started it stop (car, floor, death), rather than resuming unasked. **School:** the haul cap counts every find you still hold, wherever it is (`Instance.haul_load`), so emptying a full haul into the pack no longer doubles what comes out; nothing is crafted inside an instance, because crafting made things the ledger never wrote down; an extraction pending when the whole party dies is a wipe; a save from before the School moves whatever it left on the footprint to the door (structures down with a full refund, cars to the lot). **Co-op:** nobody goes in from behind a wheel. **Boss:** damage stops at the next uncrossed threshold, so no burst skips a phase; no wound or stagger through the phase shield; a phase change clears its cut-off telegraph on screen. **Upgrades:** protocol 6 |
 | 2026-09-10 | **Weapon levels and the boss's drops (PR E).** Weapons go from level 1 to 6 at the bench that makes them — an UPGRADE row beside MEND, asking the recipe's own bench gate — and each level is +8% damage and +10% uses; a new level comes back whole. Levels 2 and 3 cost half and three-quarters of the recipe; 4 to 6 cost more than the recipe **plus Precision Parts**, a new resource found only inside the School, so the ceiling is 3 until the Coach has been beaten, with no flag anywhere. The level rides on the `Slots` stack beside condition, on every path condition takes, and a death pack keeps the lower of two. A boss's drop table is per-entry percentages (`coachDrops`: the parts always, the **Varsity Bat** 25%, the **Six-Shooter** 15%, medkits, military supplies); both weapons are placeholders with no recipe, so nothing mends or upgrades them and they last for it — the wear test's rule now allows exactly that. Content through `EditApi`; the Six-Shooter got a sound. `upgrade_test.gd` (12), five rules checked by breaking them (677 fast, 713 with `--all`); one smoke checkpoint (87) |
 | 2026-09-10 | **The Coach — the School's phase boss (PR C).** `Boss` is a script on top of the ordinary AI: asleep until somebody walks into the gym or hurts it, then moves off cooldown — telegraph, act, recover — and a new pattern at each threshold, owning the enemy's step only while it is doing something scripted (one hook in `Enemies.tick_ai`; everything else is `Config.BOSSES.coach`). Four moves: a **slam** that shows its whole ring and fills it, a **charge** down a telegraphed lane that hits each person once and **stuns itself for 1.6s on a wall**, **dodgeball** (a fan of five slow hostile balls, drawn as balls), and a **whistle** for three adds from the gym's corners, six at most. **SECOND HALF** at 66% adds the throw and the whistle and **kills the gym lights** — the inside's clock pushed to the small hours — until somebody throws **the breaker** on the west wall; **OVERTIME** at 33% is 30% faster. Every change is a roar, a shake, an aura and 1.2s untouchable; every telegraph is at least 0.7s and a test holds them to it. It will not leave its gym; the camera pulls out in the arena and leans toward the boss, because the first photograph had the top of its ring under the HUD; the HUD grows a bar with the phase marks. `BossView` draws every telegraph from events, so a guest sees what the host sees, and shot events now carry speed, life and colour so a guest's tracer is the round the host fired. The Coach went into ENEMIES through `EditApi`; three new sounds. `boss_test.gd` (15), four rules checked by breaking them (665 fast, 701 with `--all`); five smoke checkpoints (86). Built before the dash was felt, at the owner's word: re-tuning after it is a table edit |

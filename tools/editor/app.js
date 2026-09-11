@@ -1397,7 +1397,7 @@ function weaponCard(w) {
   const box = el("div", {});
   const recipes = recipesMaking(w.id);
   add(box, el("h3", {}, "Made at"), recipes.length ? recipes.map(recipeCard)
-    : el("p", { class: "hint" }, "No recipe: found, never made — and so mended nowhere (Wear.recipe_for)."));
+    : el("p", { class: "hint" }, "No recipe: found, never made. Mended off its salvage at the Workbench (tier 3: Workbench II), never upgraded (Wear.mend_bench)."));
   add(box, el("h3", {}, "Found in"), lootCards(`weapon:${w.id}`, "No loot table rolls it."));
   if (w.ammo) {
     const res = rowById("RES", w.ammo);
