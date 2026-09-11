@@ -72,6 +72,103 @@ func test_a_save_from_before_the_school_still_loads() -> void:
 	ok(not SaveGame.apply(GameSim.new(), d, world()).ok, "but not a different town's")
 
 
+func test_last_weeks_save_moves_what_it_left_where_the_school_now_stands() -> void:
+	# Codex on PR #31: it loads, and whatever it left on ground the School now
+	# covers loaded inside the roof — a player too deep for `unstick`, a chest
+	# and a car overlapping the building.
+	var shell: Rect2i = Config.INSTANCES.school.shell
+	var t := shell.get_center()
+	var mid := (Vector2(t) + Vector2(0.5, 0.5)) * float(Config.TILE)
+	var chest := sim.structs.make(sim, "chest", t.x, t.y)
+	chest.store.add("scrap", 7)
+	var d := SaveGame.to_dict(sim)
+	d.fingerprint = sim.world.base_fingerprint
+	d.players[0].x = mid.x
+	d.players[0].y = mid.y
+	d.cars[0].x = mid.x
+	d.cars[0].y = mid.y
+	d.cars[0].tiles = []
+	var again := GameSim.new()
+	ok(SaveGame.apply(again, d, World.new(sim.world.world_seed)).ok, "it loads")
+	var on := func(at: Vector2) -> bool:
+		return shell.has_point(Vector2i(floori(at.x / Config.TILE), floori(at.y / Config.TILE)))
+	var q: PlayerSim = again.players[0]
+	ok(not on.call(q.pos), "the player is not inside the roof")
+	ok(not again.world.is_blocked_px(q.pos.x, q.pos.y, again.structs), "and is standing somewhere")
+	ok(again.structs.at_tile(t.x, t.y).is_empty(), "the chest is not standing in the building")
+	# What was in the chest, and the whole of what it cost, at the door.
+	var want := {"scrap": 7}
+	for id in Config.STRUCTURES.chest.cost:
+		want[id] = int(want.get(id, 0)) + int(Config.STRUCTURES.chest.cost[id])
+	var got := {}
+	for it in again.pickups:
+		ok(not on.call(it.pos), "a pile inside the roof")
+		got[String(it.id)] = int(got.get(String(it.id), 0)) + int(it.n)
+	for id in want:
+		ok(int(got.get(id, 0)) >= int(want[id]), "%d %s at the door, got %d" % [want[id], id, got.get(id, 0)])
+	for v in again.cars.list:
+		ok(not on.call(v.pos), "car %d is inside the building" % v.id)
+
+
+func test_finds_moved_into_the_pack_still_count_against_the_haul() -> void:
+	# Codex on PR #31: the cap measured only the pouch, so a full haul could be
+	# emptied into spare pack space and filled again, and both came out.
+	_enter()
+	p.carry_cap = 100000.0
+	var cap: float = Config.INSTANCE.haul_cap
+	# Something that fills the haul by weight long before it runs out of slots.
+	var id := ""
+	for cand in Config.RES:
+		var wt := Items.weight_of(cand)
+		if wt > 0.0 and ceili(cap / wt / float(Items.stack_limit(cand))) <= 8:
+			id = cand
+			break
+	ok(not id.is_empty(), "something heavy enough to fill the haul by weight")
+	_find(id, int(cap / Items.weight_of(id)) + 10)
+	var first := p.haul.count(id)
+	gt(first, 0)
+	var guard := 0
+	while p.haul.count(id) > 0 and guard < 20:
+		_haul_to_bag(id)
+		guard += 1
+	eq(p.bag.count(id), first, "all of it into the pack")
+	_find(id, 10)
+	eq(p.haul.count(id), 0, "and the haul is still full: what left it is still a find")
+	ok(Instance.haul_load(sim, p) <= cap + 1e-6, "the load never passed the cap")
+	# Back into the haul costs nothing: it was on the bill all along.
+	var i := -1
+	for j in range(p.bag.size()):
+		if p.bag.id_at(j) == id:
+			i = j
+			break
+	ok(Equipment.move_stack(sim, p, "bag", i, "haul", p.haul.first_empty()), "a find back into the haul")
+
+
+func test_nothing_can_be_made_in_here() -> void:
+	# Codex on PR #31: crafting turned found cloth into bandages the ledger
+	# never wrote down, and they survived a walk-out.
+	var r: Dictionary = Crafting.visible_recipes(p, 0)[0]
+	_enter()
+	eq(String(Crafting.status(sim, p, r, 0).reason), "Nothing can be made in here")
+
+
+func test_dying_after_reaching_the_way_out_in_the_same_step_is_still_dying() -> void:
+	# Codex on PR #31: E at the open exit sets the extraction for the end of
+	# the step; lethal damage later in that step still walked you out with
+	# everything.
+	_enter()
+	var before := Instance.held_count(p, "medkit")
+	_find("item:medkit")
+	eq(Instance.held_count(p, "medkit"), before + 1, "found")
+	sim.instance.state = "cleared"
+	sim.instance.leaving = "extracted"
+	p.god_mode = false
+	Damage.kill_player(sim, p)
+	sim.tick(1.0 / 60.0)
+	ok(sim.instance == null, "the run ended")
+	eq(Instance.held_count(p, "medkit"), before, "the way dying ends it: the find stays inside")
+
+
 func test_the_door_says_what_it_would_do() -> void:
 	_door()
 	var t := Interact.best_target(sim, p)
@@ -96,6 +193,22 @@ func test_the_party_goes_in_together_or_not_at_all() -> void:
 	ok(not sim.world.circle_hits_solid(g.pos.x, g.pos.y, g.r) and not sim.world.circle_hits_solid(p.pos.x, p.pos.y, p.r),
 		"and neither of you in a wall")
 	eq(sim.instance.party.size(), 2)
+
+
+func test_nobody_goes_in_from_behind_a_wheel() -> void:
+	# Codex on PR #32: only the player who pressed E was checked, so a friend
+	# parked at the door in a running car was swapped inside without getting
+	# out, and the car was left running with nothing colliding with it.
+	var g := sim.join_player("somebody", "Bex")
+	g.god_mode = true
+	_door()
+	g.pos = p.pos + Vector2(0, 24)
+	g.driving_id = int(sim.cars.list[0].id)
+	ok(Instance.refusal(sim, p, "school").contains("Bex"), Instance.refusal(sim, p, "school"))
+	ok(not Instance.enter(sim, p, "school"), "the door stays shut")
+	ok(sim.instance == null)
+	g.driving_id = 0
+	eq(Instance.refusal(sim, p, "school"), "", "out of the car, in you go")
 
 
 func test_whoever_went_in_comes_out_the_downed_the_dead_and_the_dropped() -> void:

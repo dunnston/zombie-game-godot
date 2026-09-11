@@ -51,9 +51,25 @@ static func phase_for(def_: Dictionary, frac: float) -> int:
 	var phases: Array = def_.phases
 	var want := 0
 	for i in range(1, phases.size()):
-		if frac <= float(phases[i].at):
+		# A hair of slack: `cap` stops damage exactly on a threshold, and a
+		# boss one rounding error above it would be a boss nothing can hurt.
+		if frac <= float(phases[i].at) + 1e-6:
 			want = i
 	return want
+
+
+## How much of a hit lands: as far as the next threshold it has not crossed,
+## and no further (Codex, PR #33). Without it the rest of a volley went
+## straight through a phase — past its change, past its untouchable beat — to
+## the floor: a shotgun or a party's burst killed the Coach from above a third
+## without OVERTIME ever starting. The change runs on the next step, shield
+## and all, and the fight goes on from there.
+func cap(e: EnemySim, dmg: float) -> float:
+	var phases: Array = def.phases
+	if phase + 1 >= phases.size():
+		return dmg
+	var floor_hp := float(phases[phase + 1].at) * e.max_hp
+	return minf(dmg, maxf(0.0, e.hp - floor_hp))
 
 
 ## True while this owns the boss's step; false hands it to the ordinary AI.

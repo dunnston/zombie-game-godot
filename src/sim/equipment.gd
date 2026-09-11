@@ -215,11 +215,14 @@ static func move_stack(sim: GameSim, p: PlayerSim, from_cont: String, from_index
 			return false
 		var s := from.at(from_index)
 		if not s.is_empty():
-			var room: float = Config.INSTANCE.haul_cap - p.haul.weight()
+			# What the haul would count with this in it, the way the cap counts
+			# (`Instance.haul_load`): a find coming back from the pack was never
+			# off the bill, and your own things going in are new to it.
+			var delta := {String(s.id): int(s.n)}
 			var dest := to.at(to_index)
 			if not dest.is_empty() and dest.id != s.id:
-				room += Items.weight_of(dest.id) * dest.n
-			if Items.weight_of(s.id) * s.n > room + 1e-9:
+				delta[String(dest.id)] = -int(dest.n)
+			if Instance.haul_load(sim, p, delta) > float(Config.INSTANCE.haul_cap) + 1e-9:
 				sim.notify("The haul cannot take that much", "#c96a5a")
 				return false
 	# Weight is the capacity rule, and taking out of a chest — or out of the

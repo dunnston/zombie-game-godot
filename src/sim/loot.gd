@@ -243,12 +243,16 @@ static func _to_haul(sim: GameSim, p: PlayerSim, entry: Dictionary) -> Dictionar
 	var w := int(entry.get("w", -1))
 	var lv := int(entry.get("lv", 0))
 	var cap: float = Config.INSTANCE.haul_cap
+	# Counted the way the cap counts (`Instance.haul_load`): finds already
+	# moved into the pack are still on the bill, and a new one adds its own
+	# weight wherever it lands.
+	var outside := Instance.haul_load(sim, p) - p.haul.weight()
 	var got := 0
 	if Items.stack_limit(id) <= 1:
-		while got < n and p.haul.weight() + Items.weight_of(id) <= cap + 1e-9 and p.haul.add(id, 1, w, lv) > 0:
+		while got < n and p.haul.weight() + outside + Items.weight_of(id) <= cap + 1e-9 and p.haul.add(id, 1, w, lv) > 0:
 			got += 1
 	else:
-		got = p.haul.add_capped(id, n, cap)
+		got = p.haul.add_capped(id, n, cap - outside)
 	if got > 0:
 		sim.instance.note_gain(p, id, got)
 		if Items.is_weapon(id) and not p.mag.has(id):

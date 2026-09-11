@@ -33,7 +33,18 @@ func on_event(ev: Dictionary) -> String:
 			stuns.append({"id": int(ev.id), "t": float(ev.dur), "max": float(ev.dur)})
 			return "stunned"
 		"boss_phase":
-			phase_of[int(ev.id)] = int(ev.phase)
+			var id := int(ev.id)
+			phase_of[id] = int(ev.phase)
+			# A change of phase takes over whatever it was doing (Codex, PR #33):
+			# `Boss._shift` replaces a telegraph mid-fill, so that move never
+			# lands, and its ring must not go on filling as though it would.
+			# A stun ends the same way.
+			for i in range(tells.size() - 1, -1, -1):
+				if int(tells[i].id) == id:
+					tells.remove_at(i)
+			for i in range(stuns.size() - 1, -1, -1):
+				if int(stuns[i].id) == id:
+					stuns.remove_at(i)
 			return "phase"
 	return ""
 
