@@ -72,36 +72,51 @@ func test_stops_at_a_wall() -> void:
 	ok(p.pos.x > face - p.r - 2.0, "stopped short of the wall: x=%.1f face=%d" % [p.pos.x, face])
 
 
-func test_sprint_hovers_above_empty() -> void:
-	# The prototype gates sprinting at "stamina above 1", so a held sprint
-	# key never runs the bar to zero: it hovers just above empty and the
-	# player jogs. Only work (a refused harvest swing) winds you.
+func test_sprinting_to_zero_winds_you() -> void:
+	# The old floor gated sprinting at "stamina above 1" so the bar hovered
+	# just above empty and running could never wind you. It runs flat now.
 	var p := _player_at_tile(6, 133)
 	p.intent.mx = 1.0
 	p.intent.sprint = true
 	_run(p, 5.0)
-	ok(p.stam < 2.0, "stamina after five seconds of sprinting: %.2f" % p.stam)
-	ok(not p.winded, "sprinting alone must not wind you")
+	near(p.stam, 0.0, 0.001, "five seconds of sprinting empties the bar")
+	ok(p.winded, "sprinting to zero winds you")
+	ok(p.swing_rate_mul > 1.0, "and a winded swing is slower: %.2f" % p.swing_rate_mul)
 
 
-func test_winded_latch_clears_at_half() -> void:
-	# Work drains to zero; the latch then holds until stamina is back to
-	# half of 110, not one swing of recovery.
+func test_the_winded_clock_runs_out_while_the_bar_refills() -> void:
+	# The debuff is a clock, not a lock: recovery runs at the normal rate
+	# throughout, so three seconds of standing still hands back a usable bar
+	# and the swing is quick again.
 	var p := _player_at_tile(6, 133)
 	p.stam = 0.0
-	p.stam_lock = Config.PLAYER.stam_chop_delay
 	_run(p, DT)
 	ok(p.winded, "empty stamina should latch winded")
+	near(p.winded_t, Config.WINDED.dur, 0.05, "the clock starts at dur")
 	_run(p, 1.0)
-	near(p.stam, 0.0, 0.001, "the chop delay holds recovery for 1.1s")
-	_run(p, 0.5)
-	ok(p.stam > 5.0 and p.stam < 10.0, "stamina once recovery starts: %.1f" % p.stam)
+	ok(p.stam > 5.0, "recovery runs during the debuff: %.1f" % p.stam)
 	ok(p.winded, "still winded at %.1f" % p.stam)
+	_run(p, 2.2)
+	ok(not p.winded, "three seconds of standing still clears it")
+	near(p.swing_rate_mul, 1.0, 0.001, "and the swing is quick again")
+	ok(p.stam > 40.0, "with a usable bar: %.1f" % p.stam)
+
+
+func test_sprinting_while_winded_restarts_the_clock() -> void:
+	# Pushing through is what keeps you slow. Stopping is the way out.
+	var p := _player_at_tile(6, 133)
+	p.stam = 0.0
+	_run(p, DT)
+	ok(p.winded, "winded")
 	_run(p, 2.0)
-	ok(p.winded, "still winded below half at %.1f" % p.stam)
-	_run(p, 1.2)
-	ok(not p.winded, "recovered at %.1f" % p.stam)
-	ok(p.stam >= 55.0, "stamina %.1f" % p.stam)
+	p.intent.mx = 1.0
+	p.intent.sprint = true
+	_run(p, 0.2)
+	ok(p.winded_t > 2.5, "sprinting restarted the clock: %.2f" % p.winded_t)
+	p.intent.mx = 0.0
+	p.intent.sprint = false
+	_run(p, 1.5)
+	ok(p.winded, "still winded 1.5s later, because the clock restarted")
 
 
 func test_sneak_halves_speed() -> void:

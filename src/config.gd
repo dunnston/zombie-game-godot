@@ -52,15 +52,15 @@ const PLAYER := {
 	"stam_drain": 26.0,
 	"stam_regen": 20.0,
 	"stam_regen_delay": 0.65,
-	# Work costs stamina; fighting barely does. A harvest swing is the
-	# expensive one and also stops recovery for stam_chop_delay afterwards.
-	# A combat swing costs stam_swing and is never refused.
-	"stam_chop": 6.0,
+	# Every swing costs, and a swing that hits nothing costs too: nothing is
+	# ever refused for want of puff. `stam_swing` is the fallback a weapon
+	# without its own cost falls back to — see `Stamina.swing_cost` and the
+	# Stamina Cost rating in §10 — and `stam_chop_mul` is what the same swing
+	# costs when it is work. 2.0 x 3.0 is the 6.0 a harvest has always cost.
+	# A harvest also rests for stam_chop_delay rather than the usual beat.
 	"stam_swing": 2.0,
+	"stam_chop_mul": 3.0,
 	"stam_chop_delay": 1.1,
-	# Exhaustion has hysteresis: once the bar bottoms out you are winded, and
-	# you have to get back to half before you can work again.
-	"stam_winded_recovery": 0.5,
 	"carry_cap": 200.0,
 	"inv_slots": 30,
 	"hotbar_slots": 6,
@@ -165,6 +165,21 @@ const BOSSES := {
 ## front and a dash is refused rather than half-done without it, so stamina is
 ## still the budget that dodging spends. `cd` is from the start of one burst to
 ## the next press that will be heard.
+## Running yourself flat does not stop you working — it makes you slow at it.
+## `swing_rate_mul` stretches a melee or tool swing and the animation with it;
+## damage, yield, walk speed and every gun are untouched. Read by
+## `recompute_stats` like a mutation band (invariant 4), so retuning the
+## penalty is an edit to this dictionary and nothing else.
+##
+## `dur` is a clock, not a lock: recovery runs at the normal rate throughout,
+## and swinging or sprinting restarts it. Standing still is the way out, and
+## the only one.
+const WINDED := {
+	"dur": 3.0,
+	"mul": {"swing_rate_mul": 1.6},
+}
+
+
 const DASH := {
 	"dist": 130.0,
 	"time": 0.18,
@@ -359,6 +374,9 @@ const STAT_BASE := {
 	"carry_cap": 200.0, "pickup_range": 46.0,
 
 	"melee_mul": 1.0, "gun_mul": 1.0, "reload_mul": 1.0, "fire_rate_mul": 1.0,
+	# Guns use fire_rate_mul; melee and tools use swing_rate_mul. Above 1.0 is
+	# slower, because the only thing that moves it is being winded.
+	"swing_rate_mul": 1.0,
 	"spread_mul": 1.0, "range_mul": 1.0, "chop_mul": 1.0, "chop_stam_mul": 1.0,
 	# How often a hit lands as a critical, and how much harder it lands than
 	# the weapon's own `crit_mul` says. Both are the *player's* half of the

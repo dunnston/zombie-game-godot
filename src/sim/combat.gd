@@ -138,19 +138,6 @@ static func crit_mul(p: PlayerSim, w: Dictionary) -> float:
 
 # -------------------------------------------------------------------- melee --
 
-## What one harvest swing costs. One function so the HUD, the tests and a
-## guest's own prediction all ask the same question.
-static func chop_stam_cost(p: PlayerSim) -> float:
-	return P.stam_chop * p.chop_stam_mul
-
-
-## Enough left to swing at scenery? Fighting never asks this. `winded` is
-## the hysteresis: it latches when the bar empties, however it emptied, and
-## clears once you are back to half (PlayerSim.move owns both edges).
-static func can_chop(p: PlayerSim) -> bool:
-	return not p.winded and p.stam >= chop_stam_cost(p)
-
-
 ## Everything a swing of `w` would connect with, nearest first.
 static func melee_targets(sim: GameSim, p: PlayerSim, w: Dictionary) -> Array[EnemySim]:
 	var reach: float = w.range + p.r
@@ -181,20 +168,15 @@ static func melee_targets(sim: GameSim, p: PlayerSim, w: Dictionary) -> Array[En
 	return out
 
 
-## Would this swing be turned down for want of puff? Only work is refused,
-## so an enemy in the arc always answers no.
-static func swing_refused(sim: GameSim, p: PlayerSim, w: Dictionary, fighting: bool) -> bool:
-	if fighting:
-		return false
-	return not can_chop(p) and not prop_in_front(sim, p, w).is_empty()
-
-
 ## One melee swing. Returns true if it happened. This is the only place that
 ## knows whether a swing was a fight or a job: the arc is searched for
-## enemies first, and only an empty arc falls through to the scenery. A
-## fight costs stam_swing and is never refused; a harvest costs
-## chop_stam_cost, stops recovery for stam_chop_delay, and IS refused when
-## the bar is short, which is what makes three trees a decision.
+## enemies first, and only an empty arc falls through to the scenery.
+##
+## Every swing costs, and nothing is ever refused for want of puff — a swing
+## at nothing costs a fight's worth, a harvest costs `Stamina.chop_cost` and
+## rests longer afterwards. Running the bar flat does not stop you working: it
+## makes the swing slow (`swing_rate_mul`), which is what makes three trees a
+## decision now that refusing them no longer does.
 static func melee_attack(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 	if refuse_broken(sim, p, w):
 		return false
@@ -202,23 +184,15 @@ static func melee_attack(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 	var dmg: float = w.dmg * p.melee_mul * Upgrade.held_mul(p) * (Config.ADRENALINE_MELEE if p.adrenaline_active else 1.0)
 	var hits := melee_targets(sim, p, w)
 
-	if swing_refused(sim, p, w, not hits.is_empty()):
-		# Being turned down for work IS what makes you winded. 110 stamina is
-		# 18 swings of 6, so the bar stops at 2 and never reaches zero; without
-		# this latch the player regenerated one swing's worth and took it,
-		# forever (measured in the prototype).
-		p.winded = true
-		if sim.time - p.winded_told_at > 3.0:
-			p.winded_told_at = sim.time
-			sim.notify("Winded — get your breath back before working again", "#d9c46a")
-		sim.emit({"t": "deny", "x": p.pos.x, "y": p.pos.y})
-		return false
-
-	p.swing = {"t": 0.0, "dur": minf(0.26, w.cd * 0.75), "angle": p.angle, "arc": w.arc, "range": reach}
+	# The animation stretches with the cooldown, or a winded swing would snap
+	# at full speed and only the gap after it would grow, which reads as lag
+	# rather than as fatigue.
+	p.swing = {"t": 0.0, "dur": minf(0.26, w.cd * 0.75) * p.swing_rate_mul,
+		"angle": p.angle, "arc": w.arc, "range": reach}
 	sim.emit({"t": "swing", "seat": p.seat, "x": p.pos.x, "y": p.pos.y, "a": p.angle})
 
 	if not hits.is_empty():
-		p.stam = maxf(0.0, p.stam - P.stam_swing)
+		Stamina.spend(p, Stamina.swing_cost(p, w))
 		sim.emit({"t": "shake", "amount": w.get("shake", 1.6)})
 		var chance := crit_chance(p, w)
 		var mul := crit_mul(p, w)
@@ -235,13 +209,14 @@ static func melee_attack(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 			Damage.bleed_enemy(e, bleed, p)
 		Wear.use_held(sim, p, 1)
 	elif chop_prop(sim, p, w, dmg):
-		p.stam = maxf(0.0, p.stam - chop_stam_cost(p))
-		p.stam_lock = P.stam_chop_delay
+		Stamina.spend(p, Stamina.chop_cost(p, w), P.stam_chop_delay)
 		# Work is what actually blunts a tool, so it costs more than a fight.
 		Wear.use_held(sim, p, int(Config.WEAR.chop_mul))
-	# A swing that connects with nothing costs nothing: flailing at the
-	# scenery is already its own punishment — and it is what stops a broken
-	# weapon being announced once per frame while the trigger is held.
+	else:
+		# A swing at nothing, or one that bounced off a tree for want of an
+		# axe, still cost you the swing. It moved no material, so it is
+		# charged at the fighting rate rather than the working one.
+		Stamina.spend(p, Stamina.swing_cost(p, w))
 	return true
 
 
