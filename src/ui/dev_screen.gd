@@ -185,9 +185,7 @@ func _verb(id: String) -> void:
 			player.downed = false
 			sim.notify("DEV  healed", "#b7e08a")
 		"stamina":
-			player.stam = player.max_stam
-			player.stam_lock = 0.0
-			player.winded = false
+			Stamina.refill(player)
 			sim.notify("DEV  stamina", "#b7e08a")
 		"xp":
 			Progression.add_xp(sim, player, 1000, "DEV")

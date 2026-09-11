@@ -64,6 +64,12 @@ static func recompute_stats(p: PlayerSim) -> void:
 	for id in p.effects:
 		if Config.EFFECTS.has(id):
 			_apply_mods(p, Config.EFFECTS[id])
+	# And last of all, because being winded is a condition of the body rather
+	# than of the build: it applies to whatever the rest of this made of you.
+	# `Stamina` is the only thing that flips the flag, and it recomputes on
+	# the edge — nothing else needs to know.
+	if p.winded:
+		_apply_mods(p, Config.WINDED)
 
 	# Last of all, because gear, the band and the effect clock have all had
 	# their say by now and a cap applied before any of them would not be a

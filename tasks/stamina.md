@@ -128,16 +128,16 @@ Each needs a `PROJECT.md` decision-log entry, not just a code change.
 
 ## Build order
 
-- [ ] 1. `src/sim/stamina.gd` — the single writer: `spend`, `regen`, the
+- [x] 1. `src/sim/stamina.gd` — the single writer: `spend`, `regen`, the
       debuff clock and its edges, `recompute_stats` on each flip. Route the
       eight existing writers through it.
-- [ ] 2. `Config.WINDED` + `swing_rate_mul` in `STAT_BASE`; apply in
+- [x] 2. `Config.WINDED` + `swing_rate_mul` in `STAT_BASE`; apply in
       `Perks.recompute_stats` beside the band and effect mods.
-- [ ] 3. Swing rate: `player_sim.gd:601` and the animation at `combat.gd:217`.
-- [ ] 4. Sprint drains to zero; drop the floor.
-- [ ] 5. Every swing costs; delete the refusal path entirely.
-- [ ] 6. HUD: the red bar, the label, the countdown.
-- [ ] 7. Tests, then `PROJECT.md` (the four overturns above) and this file's
+- [x] 3. Swing rate: `player_sim.gd:601` and the animation at `combat.gd:217`.
+- [x] 4. Sprint drains to zero; drop the floor.
+- [x] 5. Every swing costs; delete the refusal path entirely.
+- [x] 6. HUD: the red bar, the label, the countdown.
+- [x] 7. Tests, then `PROJECT.md` (the four overturns above) and this file's
       review section.
 
 ## Tests
@@ -252,3 +252,37 @@ it touches 40+ content rows. This PR ships the mechanic with the flat consts
 so the feel can be walked, and the per-weapon pass follows. What this PR must
 not do is bake the flat cost in anywhere a weapon field cannot later replace:
 `Stamina.swing_cost(p, w)` from day one, reading `w.get("stam", …)`.
+
+## Review (built 2026-09-11)
+
+`tools/test --all`: **753 tests, 17262 asserts, 0 failures.** Smoke: 89
+checkpoints, **1 failure — pre-existing.** The failing checkpoint is the
+co-op one ("the guest's intent did not move their player on the host"); it
+fails identically on a clean `origin/main` worktree (dx=10.6 there, 37.9
+here), so it is not this branch's and was left alone.
+
+### Deviations from the plan
+
+- **`stam_chop` is gone as a const**, replaced by `stam_chop_mul` (3.0) on
+  top of `stam_swing` (2.0). 2.0 x 3.0 is the 6.0 a harvest has always cost,
+  so the balance is untouched — but the cost now scales with the weapon the
+  moment `stam` lands on the rows, instead of being a second flat number that
+  would have had to be migrated separately.
+- **The bar latches winded wherever it reaches zero, not only where it was
+  spent to zero.** `Stamina.tick` checks it as well as `spend`, because a
+  ceiling that drops out from under the bar (Fever multiplies `max_stam` by
+  0.85) can empty it without anybody spending anything. Only spending
+  restarts the clock, so sitting at zero still counts down.
+- **No countdown was shipped over the wire.** The winded clock ticks inside
+  `move`, which a guest already runs to predict itself, so a guest counts its
+  own down and the HUD is right without a protocol change.
+
+### What is still open
+
+- **Per-weapon `stam` on the 40+ weapon rows** is a Notion sync (§10) and its
+  own card. `Stamina.swing_cost` already reads `w.stam` and falls back, so
+  that pass is content only.
+- **The numbers have not been walked.** Everything above ships at today's
+  costs deliberately. The balance review in this file says where they should
+  go once the feel is confirmed — and `WINDED.dur` is the difficulty knob,
+  not the bar.
