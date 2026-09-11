@@ -100,6 +100,9 @@
     "threat": {
       "type": "float"
     },
+    "tier": {
+      "type": "int"
+    },
     "tool": {
       "type": "bool"
     },
@@ -107,7 +110,7 @@
       "type": "float"
     }
   },
-  "notes": "Melee: dmg / cd / range / arc / knock. Tools are deliberately poor weapons; `axe`, `pick`, `knife`, `scythe`, `hammer` are what the harvest gates ask for, `chop_mul` is how much better than a fist they are at scenery. The stone tools come before the metal ones so a fresh game finds them first. Guns: real magazines, reload time, spread (radians), bullet speed and life, pellets, pierce, threat per shot and a noise radius. The bow is a gun with a magazine of one and no muzzle flash; it keeps drawing while held.\n\n**Blunt things stagger, edged things bleed, and fists do neither.** That is the whole of the content design for the two, and it is meant to be readable off this table without a tooltip: `stagger` is seconds of interrupted enemy, `bleed` is damage per second left in the wound, and no weapon has both. A missing field means never, the same way a missing `dur` does. The Improvised pipe staggers because it is a length of steel; the Polearm scythe bleeds because it is a blade. `Wear` and `Bleed`/`Stagger` explain the mechanics; this is where the intent lives.\n\n`crit` is the chance this weapon adds to the player's own, and `crit_mul` is how hard its criticals land. They pull in opposite directions on purpose: a rifle or a knife finds the soft parts often and a sledgehammer almost never, but when the sledge does, it is 2.8x. Both are per-weapon because a stone knife and a sledgehammer critting identically was the thing this replaced.",
+  "notes": "Melee: dmg / cd / range / arc / knock. Tools are deliberately poor weapons; `axe`, `pick`, `knife`, `scythe`, `hammer` are what the harvest gates ask for, `chop_mul` is how much better than a fist they are at scenery. The stone tools come before the metal ones so a fresh game finds them first. Guns: real magazines, reload time, spread (radians), bullet speed and life, pellets, pierce, threat per shot and a noise radius. The bow is a gun with a magazine of one and no muzzle flash; it keeps drawing while held.\n\n**Blunt things stagger, edged things bleed, and fists do neither.** That is the whole of the content design for the two, and it is meant to be readable off this table without a tooltip: `stagger` is seconds of interrupted enemy, `bleed` is damage per second left in the wound, and no weapon has both. A missing field means never, the same way a missing `dur` does. The Improvised pipe staggers because it is a length of steel; the Polearm scythe bleeds because it is a blade. `Wear` and `Bleed`/`Stagger` explain the mechanics; this is where the intent lives.\n\n`crit` is the chance this weapon adds to the player's own, and `crit_mul` is how hard its criticals land. They pull in opposite directions on purpose: a rifle or a knife finds the soft parts often and a sledgehammer almost never, but when the sledge does, it is 2.8x. Both are per-weapon because a stone knife and a sledgehammer critting identically was the thing this replaced.\n\n`tier` is the progression band, 1 to 3, and it is a label rather than a gate: tier 1 is the first hour, tier 2 is the workbench, tier 3 is the upgraded bench and what the military left. Mostly it tracks the bench a recipe needs, and the Steel Pipe is the deliberate exception - a bench-1 craft that is tier 1 because it is the starting weapon. The rule the table is held to is that every weapon class has something craftable in every tier it occupies, so no line dead-ends in a weapon you can only find.\n\n**An upgrade is a level on the item, not a row in this table.** A weapon instance carries a level of 0 to 3 in the slot that holds it, beside its durability - the same per-slot shape `Wear` already uses - so the table stays one row per weapon and a save carries one more integer rather than four times the ids. A level is +8% `dmg` and +15% `dur` and touches nothing else on purpose: `cd`, `range`, `arc`, `stagger` and `bleed` are what make a weapon itself, and letting a level move them would turn every weapon into four weapons and blur the shapes this table exists to keep apart. A level makes a weapon more of itself, never something different. The three are named Reinforced, Honed and Masterwork, which is why the bat that carries nails is the Spiked Bat and not the Reinforced one. **Only a weapon with a recipe takes levels.** A found-only weapon is a fixed point: excellent when you find it, and eventually passed by the crafted line, which is what keeps the bench worth returning to and makes \"a fully upgraded craftable beats a base found special\" true by construction rather than by careful tuning. Loot does not dead-end on it - a found Baseball Bat is what a Spiked Bat is made from, so the way to upgrade what you find is to build with it.",
   "rows": [
     {
       "arc": 1.0,
@@ -120,7 +123,8 @@
       "kind": "melee",
       "knock": 70.0,
       "name": "Fists",
-      "range": 34.0
+      "range": 34.0,
+      "tier": 1
     },
     {
       "arc": 1.15,
@@ -135,7 +139,8 @@
       "knock": 150.0,
       "name": "Steel Pipe",
       "range": 48.0,
-      "stagger": 0.35
+      "stagger": 0.35,
+      "tier": 1
     },
     {
       "arc": 1.0,
@@ -151,7 +156,8 @@
       "kind": "melee",
       "knock": 110.0,
       "name": "Machete",
-      "range": 54.0
+      "range": 54.0,
+      "tier": 2
     },
     {
       "arc": 0.9,
@@ -169,6 +175,7 @@
       "name": "Hatchet",
       "range": 48.0,
       "stagger": 0.3,
+      "tier": 1,
       "tool": true
     },
     {
@@ -187,6 +194,7 @@
       "pick": true,
       "range": 50.0,
       "stagger": 0.35,
+      "tier": 1,
       "tool": true,
       "tool_mul": 2.4
     },
@@ -206,6 +214,7 @@
       "knock": 60.0,
       "name": "Stone Knife",
       "range": 40.0,
+      "tier": 1,
       "tool": true
     },
     {
@@ -224,6 +233,7 @@
       "name": "Scythe",
       "range": 62.0,
       "scythe": true,
+      "tier": 2,
       "tool": true,
       "tool_mul": 2.2
     },
@@ -244,6 +254,7 @@
       "range": 46.0,
       "stagger": 0.55,
       "structure_mul": 0.8,
+      "tier": 1,
       "tool": true
     },
     {
@@ -262,6 +273,7 @@
       "name": "Fire Axe",
       "range": 52.0,
       "stagger": 0.4,
+      "tier": 2,
       "tool": true
     },
     {
@@ -280,6 +292,7 @@
       "pick": true,
       "range": 54.0,
       "stagger": 0.45,
+      "tier": 2,
       "tool": true,
       "tool_mul": 2.4
     },
@@ -299,7 +312,8 @@
       "range": 60.0,
       "shake": 5.0,
       "stagger": 0.9,
-      "structure_mul": 1.0
+      "structure_mul": 1.0,
+      "tier": 3
     },
     {
       "ammo": "arrow",
@@ -323,7 +337,8 @@
       "shake": 0.4,
       "speed": 780.0,
       "spread": 0.03,
-      "threat": 0.15
+      "threat": 0.15,
+      "tier": 2
     },
     {
       "ammo": "ammoP",
@@ -346,7 +361,8 @@
       "shake": 1.6,
       "speed": 1150.0,
       "spread": 0.035,
-      "threat": 1.0
+      "threat": 1.0,
+      "tier": 2
     },
     {
       "ammo": "ammoP",
@@ -369,7 +385,8 @@
       "shake": 1.2,
       "speed": 1100.0,
       "spread": 0.075,
-      "threat": 0.6
+      "threat": 0.6,
+      "tier": 3
     },
     {
       "ammo": "ammoS",
@@ -394,7 +411,8 @@
       "speed": 980.0,
       "spread": 0.2,
       "stagger": 0.5,
-      "threat": 2.4
+      "threat": 2.4,
+      "tier": 3
     },
     {
       "ammo": "ammoR",
@@ -418,7 +436,8 @@
       "speed": 1700.0,
       "spread": 0.012,
       "stagger": 0.25,
-      "threat": 2.0
+      "threat": 2.0,
+      "tier": 3
     },
     {
       "ammo": "ammoR",
@@ -441,7 +460,8 @@
       "shake": 2.0,
       "speed": 1500.0,
       "spread": 0.045,
-      "threat": 1.1
+      "threat": 1.1,
+      "tier": 3
     }
   ]
 }
