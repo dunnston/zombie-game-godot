@@ -284,6 +284,18 @@ Split from vehicles: two systems in one PR is one review of neither.
       a guest over real WebRTC on localhost)
 - [ ] Owner plays with a friend (the Phase 5 gate)
 
+## The UI redesign (`ui-redesign`, 2026-09-11)
+
+One PR, to the owner's handoff in `DEADLINE UI redesign/`. The plan, the
+owner's four decisions and the review are in **`tasks/ui-redesign.md`**.
+
+- [x] Every screen rebuilt as Control nodes on one theme (`src/ui/ui.gd`)
+- [x] Nothing off screen at any window size: 1920x1080 design resolution,
+      `canvas_items` + `expand`, checked at every smoke checkpoint
+- [ ] **Playtest gate:** owner plays through the new screens (feel outranks
+      the mockups: a card that selects rather than crafts, B opening the
+      menu first, opaque full screens)
+
 ## Open decisions (owner)
 
 1. Renderer: project was created with Forward Plus + D3D12. Fine on this PC; **Compatibility**

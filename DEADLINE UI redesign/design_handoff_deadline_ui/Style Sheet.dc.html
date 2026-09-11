@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"><style>body{margin:0;background:#0b0d10}a{color:#c9a227}a:hover{color:#e0c24a}</style></helmet>
+<div style="max-width:1440px;margin:0 auto;padding:48px 40px 72px;background:#0b0d10;font-family:Barlow,sans-serif;color:#ebe6d6">
+
+<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;padding-bottom:20px;border-bottom:1px solid #3a4048">
+<div>
+<div style="font:600 34px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase">Deadline · UI Style Sheet</div>
+<div style="font:400 15px/1.5 Barlow,sans-serif;color:#8a8f84;margin-top:8px;max-width:720px;text-wrap:pretty">Everything here is a flat colour, a 1–2px border, a 2–3px corner or a simple vertical gradient, so each component maps to one Godot <span style="font:500 14px 'IBM Plex Mono',monospace;color:#c7c2b4">StyleBoxFlat</span> (or a 9-slice when you want texture). Values are authored at 1920×1080, scale 1.0.</div>
+</div>
+<div style="font:500 13px/1.7 'IBM Plex Mono',monospace;color:#6a6f68;text-align:right">TARGET 1920×1080<br>MIN TEXT 12px<br>MOUSE + KEYBOARD</div>
+</div>
+
+<div style="font:500 20px/1 Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#c9a227;margin:40px 0 16px">01 · Colour tokens</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px">
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#0b0d10"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">ink/void</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#0B0D10</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Screen dim, bar tracks</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#101318"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">ink/base</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#101318</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Sub-bars, footers</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#14161a;border-bottom:1px solid #2a3038"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">panel</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#14161A</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Panel body (from the build)</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#1b1f26"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">panel/raised</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#1B1F26</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Headers, cards, inputs</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#242a32"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">panel/hover</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#242A32</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Hover, active tab</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#2b3340"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">panel/selected</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#2B3340</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Selected row or card</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#2a3038"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">line/soft</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#2A3038</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Dividers, disabled borders</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#3a4048"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">line/default</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#3A4048</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Every normal border</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#5a6470"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">line/strong</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#5A6470</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Hover border, tooltip edge</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#ebe6d6"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">text/high</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#EBE6D6</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Titles, primary values</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#c7c2b4"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">text/body</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#C7C2B4</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Body copy, list rows</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#8a8f84"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">text/dim</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#8A8F84</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Labels, secondary</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#6a6f68"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">text/off</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#6A6F68</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Disabled, locked</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#c9a227"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">accent</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#C9A227</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Primary action, selection</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#e0c24a"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">accent/hi</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#E0C24A</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Hover, focus ring</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#a8861c"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">accent/press</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#A8861C</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Pressed state</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#9fd07a"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">state/ok</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#9FD07A</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Can craft, requirement met</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#c96a5a"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">state/short</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#C96A5A</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Missing materials, refusal</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#c8423a"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">state/danger</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#C8423A</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Health, damage, destroy</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#8a949e"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">state/locked</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#8A949E</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Needs a bench or tool</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#9fd0ff"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">xp</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#9FD0FF</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Level and XP only</div></div></div>
+<div style="border:1px solid #2a3038;background:#14161a"><div style="height:64px;background:#b06ad0"></div><div style="padding:10px 12px"><div style="font:600 13px Barlow;letter-spacing:.08em;text-transform:uppercase">mutation</div><div style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">#B06AD0</div><div style="font:400 12px Barlow;color:#6a6f68;margin-top:3px">Mutation meter, chemistry</div></div></div>
+</div>
+<div style="margin-top:12px;font:400 14px/1.6 Barlow,sans-serif;color:#8a8f84;max-width:900px;text-wrap:pretty">Semantic colour is the only colour with meaning: amber = the action you can take, green = a condition met, coral = a condition unmet, steel = gated elsewhere. Material swatches keep their existing ids from <span style="font:500 13px 'IBM Plex Mono',monospace;color:#c7c2b4">data/res.json</span> (Scrap #9AA2AB, Wood #A3763F, Parts #C9A227, Cloth #C2A98A, Fiber #9AAE5A, Electronics #59B8C4, Medical #D9575F, Military #7FA14A) so an item reads the same everywhere.</div>
+
+<div style="font:500 20px/1 Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#c9a227;margin:44px 0 16px">02 · Type</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div style="background:#14161a;border:1px solid #3a4048;padding:20px">
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;margin-bottom:14px">Families — all OFL, from Google Fonts</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div><div style="font:600 30px/1.05 Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Oswald</div><div style="font:400 13px Barlow;color:#8a8f84;margin-top:4px">Display: screen titles, item names, button labels. Weights 500 / 600, uppercase, tracking +0.05em.</div></div>
+<div><div style="font:500 26px/1.1 Barlow,sans-serif">Barlow</div><div style="font:400 13px Barlow;color:#8a8f84;margin-top:4px">UI: body copy, list rows, labels. Weights 400 / 500 / 600.</div></div>
+<div><div style="font:500 24px/1.1 'IBM Plex Mono',monospace">IBM Plex Mono</div><div style="font:400 13px Barlow;color:#8a8f84;margin-top:4px">Numeric: counts, have/need, timers, keycaps. Weights 400 / 500 — tabular figures keep 3/5 and 41/24 aligned.</div></div>
+</div>
+</div>
+<div style="background:#14161a;border:1px solid #3a4048;padding:20px">
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;margin-bottom:14px">Scale</div>
+<div style="display:flex;flex-direction:column;gap:11px">
+<div style="display:flex;align-items:baseline;gap:16px"><span style="width:132px;flex:none;font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">34 / Oswald 600</span><span style="font:600 34px/1 Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Screen title</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="width:132px;flex:none;font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">26 / Oswald 600</span><span style="font:600 26px/1 Oswald,sans-serif;letter-spacing:.05em;text-transform:uppercase">Panel title</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="width:132px;flex:none;font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">20 / Oswald 500</span><span style="font:500 20px/1 Oswald,sans-serif;letter-spacing:.08em;text-transform:uppercase">Section head</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="width:132px;flex:none;font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">17 / Oswald 500</span><span style="font:500 17px/1 Oswald,sans-serif;letter-spacing:.03em;text-transform:uppercase">Item name</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="width:132px;flex:none;font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">15 / Barlow 400</span><span style="font:400 15px/1.45 Barlow,sans-serif;color:#c7c2b4">Body copy — descriptions and rows</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="width:132px;flex:none;font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">13 / Barlow 400</span><span style="font:400 13px Barlow,sans-serif;color:#c7c2b4">Small copy, hint lines</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="width:132px;flex:none;font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">12 / Barlow 600</span><span style="font:600 12px Barlow,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84">Label — caps, tracked</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="width:132px;flex:none;font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">20 / Mono 500</span><span style="font:500 20px 'IBM Plex Mono',monospace">40 · 0.34s</span></div>
+<div style="display:flex;align-items:baseline;gap:16px"><span style="width:132px;flex:none;font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">13 / Mono 500</span><span style="font:500 13px 'IBM Plex Mono',monospace">41 / 24 · +25 XP</span></div>
+</div>
+<div style="font:400 13px/1.5 Barlow;color:#8a8f84;margin-top:14px">Nothing below 12px. Uppercase is for labels, names and buttons only — never for a sentence.</div>
+</div>
+</div>
+
+<div style="font:500 20px/1 Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#c9a227;margin:44px 0 16px">03 · Spacing, corners, borders</div>
+<div style="display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:16px">
+<div style="background:#14161a;border:1px solid #3a4048;padding:20px">
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;margin-bottom:14px">Spacing — base 4</div>
+<div style="display:flex;align-items:flex-end;gap:12px">
+<div style="text-align:center"><div style="width:4px;height:4px;background:#c9a227"></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">4</div></div>
+<div style="text-align:center"><div style="width:8px;height:8px;background:#c9a227"></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">8</div></div>
+<div style="text-align:center"><div style="width:12px;height:12px;background:#c9a227"></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">12</div></div>
+<div style="text-align:center"><div style="width:16px;height:16px;background:#c9a227"></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">16</div></div>
+<div style="text-align:center"><div style="width:20px;height:20px;background:#c9a227"></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">20</div></div>
+<div style="text-align:center"><div style="width:24px;height:24px;background:#c9a227"></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">24</div></div>
+<div style="text-align:center"><div style="width:32px;height:32px;background:#c9a227"></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">32</div></div>
+<div style="text-align:center"><div style="width:48px;height:48px;background:#c9a227"></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">48</div></div>
+</div>
+<div style="font:400 13px/1.6 Barlow;color:#8a8f84;margin-top:16px">Panel padding 20–24. Grid gaps 20. Row gaps 8. Inner card padding 13–14. Screen margins 24.</div>
+</div>
+<div style="background:#14161a;border:1px solid #3a4048;padding:20px">
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;margin-bottom:14px">Corners</div>
+<div style="display:flex;gap:14px;align-items:center">
+<div style="text-align:center"><div style="width:56px;height:44px;background:#1b1f26;border:1px solid #3a4048;border-radius:0"></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">0 bars</div></div>
+<div style="text-align:center"><div style="width:56px;height:44px;background:#1b1f26;border:1px solid #3a4048;border-radius:2px"></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">2 slots</div></div>
+<div style="text-align:center"><div style="width:56px;height:44px;background:#1b1f26;border:1px solid #3a4048;border-radius:3px"></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">3 panels</div></div>
+</div>
+<div style="font:400 13px/1.6 Barlow;color:#8a8f84;margin-top:16px">Three values only: 0 for meters and tracks, 2 for slots, buttons, chips and tabs, 3 for panels and cards. <span style="font:500 13px 'IBM Plex Mono',monospace;color:#c7c2b4">corner_radius_*</span> on the StyleBoxFlat.</div>
+</div>
+<div style="background:#14161a;border:1px solid #3a4048;padding:20px">
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;margin-bottom:14px">Borders</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:12px"><div style="width:72px;height:32px;background:#1b1f26;border:1px solid #2a3038;border-radius:2px"></div><span style="font:400 13px Barlow;color:#8a8f84">1px #2A3038 — disabled, dividers</span></div>
+<div style="display:flex;align-items:center;gap:12px"><div style="width:72px;height:32px;background:#1b1f26;border:1px solid #3a4048;border-radius:2px"></div><span style="font:400 13px Barlow;color:#8a8f84">1px #3A4048 — normal</span></div>
+<div style="display:flex;align-items:center;gap:12px"><div style="width:72px;height:32px;background:#242a32;border:1px solid #5a6470;border-radius:2px"></div><span style="font:400 13px Barlow;color:#8a8f84">1px #5A6470 — hover</span></div>
+<div style="display:flex;align-items:center;gap:12px"><div style="width:72px;height:32px;background:#2b3340;border:2px solid #e0c24a;border-radius:2px"></div><span style="font:400 13px Barlow;color:#8a8f84">2px #E0C24A — selected / focus</span></div>
+</div>
+<div style="font:400 13px/1.6 Barlow;color:#8a8f84;margin-top:14px">Selection grows the border inward — keep the box size identical across states so nothing shifts.</div>
+</div>
+</div>
+
+<div style="font:500 20px/1 Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#c9a227;margin:44px 0 16px">04 · Components — normal / hover / selected / disabled</div>
+
+<div style="display:flex;flex-direction:column;gap:16px">
+
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="display:flex;align-items:baseline;gap:14px;padding:14px 20px;background:#1b1f26;border-bottom:1px solid #3a4048"><span style="font:500 17px Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Panel</span><span style="font:400 13px Barlow;color:#8a8f84">Body #14161A · header #1B1F26 · border 1px #3A4048 · radius 3 · screen scrim #0B0D10 at 72%</span></div>
+<div style="display:flex;gap:20px;padding:20px;flex-wrap:wrap">
+<div style="width:240px;background:#14161a;border:1px solid #3a4048;border-radius:3px"><div style="padding:10px 14px;background:#1b1f26;border-bottom:1px solid #3a4048;font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84">Normal</div><div style="padding:14px;font:400 14px Barlow;color:#c7c2b4">Content sits on the body colour.</div></div>
+<div style="width:240px;background:#14161a;border:1px solid #5a6470;border-radius:3px"><div style="padding:10px 14px;background:#1f242b;border-bottom:1px solid #5a6470;font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#c7c2b4">Hover / focused</div><div style="padding:14px;font:400 14px Barlow;color:#c7c2b4">Border lifts to #5A6470.</div></div>
+<div style="width:240px;background:#14161a;border:2px solid #c9a227;border-radius:3px"><div style="padding:9px 13px;background:#241f14;border-bottom:1px solid #7a6420;font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#e0c24a">Active pane</div><div style="padding:14px;font:400 14px Barlow;color:#c7c2b4">Keyboard focus lives here.</div></div>
+<div style="width:240px;background:#111318;border:1px solid #2a3038;border-radius:3px;opacity:.6"><div style="padding:10px 14px;background:#171a1f;border-bottom:1px solid #2a3038;font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#6a6f68">Disabled</div><div style="padding:14px;font:400 14px Barlow;color:#6a6f68">Unavailable panel.</div></div>
+</div>
+</div>
+
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="display:flex;align-items:baseline;gap:14px;padding:14px 20px;background:#1b1f26;border-bottom:1px solid #3a4048"><span style="font:500 17px Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Tab</span><span style="font:400 13px Barlow;color:#8a8f84">Height 40 (top bar 64) · label Barlow 600 / 13 / +0.12em caps · selected marker 2px accent on the inner edge</span></div>
+<div style="display:flex;padding:20px;gap:0;align-items:stretch">
+<div style="display:flex;align-items:center;padding:0 24px;height:40px;background:#181b20;border:1px solid #3a4048;font:600 13px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84">Normal</div>
+<div style="display:flex;align-items:center;padding:0 24px;height:40px;background:#1f242b;border:1px solid #5a6470;border-left:none;font:600 13px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#c7c2b4">Hover</div>
+<div style="display:flex;align-items:center;padding:0 24px;height:40px;background:#242a32;border:1px solid #3a4048;border-left:none;box-shadow:inset 0 -2px 0 #c9a227;font:600 13px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#ebe6d6">Selected</div>
+<div style="display:flex;align-items:center;padding:0 24px;height:40px;background:#14161a;border:1px solid #2a3038;border-left:none;font:600 13px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#565b56">Disabled</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="padding:14px 20px;background:#1b1f26;border-bottom:1px solid #3a4048"><span style="font:500 17px Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Primary button</span><div style="font:400 13px Barlow;color:#8a8f84;margin-top:4px">56 tall, label Oswald 600 / 22 caps on #14161A ink. One per panel.</div></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:20px">
+<div style="height:56px;background:#c9a227;border:1px solid #e0c24a;border-radius:2px;display:flex;align-items:center;justify-content:center;gap:12px"><span style="font:600 22px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#14161a">Craft</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#14161a;opacity:.7">ENTER</span></div>
+<div style="height:56px;background:#e0c24a;border:1px solid #f0d878;border-radius:2px;display:flex;align-items:center;justify-content:center"><span style="font:600 22px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#14161a">Hover</span></div>
+<div style="height:56px;background:#a8861c;border:1px solid #c9a227;border-radius:2px;display:flex;align-items:center;justify-content:center"><span style="font:600 22px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#14161a">Pressed</span></div>
+<div style="height:56px;background:#2a3038;border:1px solid #2a3038;border-radius:2px;display:flex;align-items:center;justify-content:center;gap:12px"><span style="font:600 22px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#6a6f68">Craft</span><span style="font:500 13px Barlow;letter-spacing:.08em;text-transform:uppercase;color:#c96a5a">Missing materials</span></div>
+</div>
+</div>
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="padding:14px 20px;background:#1b1f26;border-bottom:1px solid #3a4048"><span style="font:500 17px Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Secondary button</span><div style="font:400 13px Barlow;color:#8a8f84;margin-top:4px">40 tall, label Barlow 600 / 13 / +0.1em caps. Also the filter chip.</div></div>
+<div style="display:flex;flex-direction:column;gap:12px;padding:20px">
+<div style="height:40px;background:#1b1f26;border:1px solid #3a4048;border-radius:2px;display:flex;align-items:center;justify-content:center;font:600 13px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#c7c2b4">Normal</div>
+<div style="height:40px;background:#242a32;border:1px solid #5a6470;border-radius:2px;display:flex;align-items:center;justify-content:center;font:600 13px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#ebe6d6">Hover</div>
+<div style="height:40px;background:#242a32;border:1px solid #c9a227;border-radius:2px;display:flex;align-items:center;justify-content:center;gap:10px"><span style="width:14px;height:14px;background:#c9a227;display:flex;align-items:center;justify-content:center;font:600 11px Barlow;color:#14161a">✓</span><span style="font:600 13px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#ebe6d6">Selected</span></div>
+<div style="height:40px;background:#14161a;border:1px solid #2a3038;border-radius:2px;display:flex;align-items:center;justify-content:center;font:600 13px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#565b56">Disabled</div>
+</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="padding:14px 20px;background:#1b1f26;border-bottom:1px solid #3a4048"><span style="font:500 17px Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Item slot</span><div style="font:400 13px Barlow;color:#8a8f84;margin-top:4px">56×56 (grid gap 4) · swatch inset 6 · count bottom-right in mono 12 · condition sliver 3px along the bottom</div></div>
+<div style="display:flex;gap:14px;padding:20px;flex-wrap:wrap">
+<div style="text-align:center"><div style="width:56px;height:56px;background:#1e222a;border:1px solid #3a4048;border-radius:2px;position:relative"><div style="position:absolute;inset:6px;background:#9aa2ab"></div><span style="position:absolute;right:3px;bottom:2px;font:500 12px 'IBM Plex Mono',monospace;color:#14161a">24</span></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">Normal</div></div>
+<div style="text-align:center"><div style="width:56px;height:56px;background:#242a32;border:1px solid #8a949e;border-radius:2px;position:relative"><div style="position:absolute;inset:6px;background:#9aa2ab"></div></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">Hover</div></div>
+<div style="text-align:center"><div style="width:56px;height:56px;background:#2b3340;border:2px solid #e0c24a;border-radius:2px;position:relative"><div style="position:absolute;inset:5px;background:#cfd6dd"></div></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">Selected</div></div>
+<div style="text-align:center"><div style="width:56px;height:56px;background:#171a1f;border:1px solid #2a3038;border-radius:2px"></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">Empty</div></div>
+<div style="text-align:center"><div style="width:56px;height:56px;background:#171a1f;border:1px solid #2a3038;border-radius:2px;position:relative"><div style="position:absolute;inset:6px;background:#9aa2ab;opacity:.35"></div><div style="position:absolute;left:5px;right:5px;bottom:4px;height:3px;background:#0b0d10"><div style="width:22%;height:100%;background:#c96a5a"></div></div></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:8px">Worn / disabled</div></div>
+</div>
+</div>
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="padding:14px 20px;background:#1b1f26;border-bottom:1px solid #3a4048"><span style="font:500 17px Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">List row</span><div style="font:400 13px Barlow;color:#8a8f84;margin-top:4px">40 tall (44 where it is a mouse target) · text Barlow 500 / 15 · number mono 13, right</div></div>
+<div style="display:flex;flex-direction:column;gap:6px;padding:20px">
+<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px;border:1px solid transparent"><span style="font:500 15px Barlow;color:#c7c2b4">Normal</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#8a8f84">16</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px;background:#242a32;border:1px solid #3a4048;border-radius:2px"><span style="font:500 15px Barlow;color:#ebe6d6">Hover</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#c7c2b4">8</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px;background:#2b3340;border:1px solid #c9a227;border-radius:2px"><span style="font:500 15px Barlow;color:#ebe6d6">Selected</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#e0c24a">4</span></div>
+<div style="display:flex;align-items:center;justify-content:space-between;height:40px;padding:0 12px;opacity:.45"><span style="font:500 15px Barlow;color:#8a8f84">Disabled</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#6a6f68">0</span></div>
+</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="padding:14px 20px;background:#1b1f26;border-bottom:1px solid #3a4048"><span style="font:500 17px Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Tooltip</span><div style="font:400 13px Barlow;color:#8a8f84;margin-top:4px">Max width 320 · bg #101318 · border 1px #5A6470 · radius 3 · padding 12/14 · never covers the cursor's own slot</div></div>
+<div style="padding:20px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+<div style="width:300px;background:#101318;border:1px solid #5a6470;border-radius:3px;padding:12px 14px">
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:500 17px Oswald,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:#ebe6d6">Machete</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84">1.0 kg</span></div>
+<div style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84;margin-top:5px">Melee · Bladed</div>
+<div style="height:1px;background:#2a3038;margin:10px 0"></div>
+<div style="display:flex;flex-direction:column;gap:4px">
+<div style="display:flex;justify-content:space-between"><span style="font:400 13px Barlow;color:#c7c2b4">Damage</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#ebe6d6">40</span></div>
+<div style="display:flex;justify-content:space-between"><span style="font:400 13px Barlow;color:#c7c2b4">Bleed</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#c8423a">6 / s</span></div>
+<div style="display:flex;justify-content:space-between"><span style="font:400 13px Barlow;color:#c7c2b4">Condition</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#9fd07a">82%</span></div>
+</div>
+<div style="font:400 13px/1.45 Barlow;color:#8a8f84;margin-top:10px;text-wrap:pretty">Quiet work. The wound bleeds after you have moved on.</div>
+</div>
+<div style="width:220px;background:#101318;border:1px solid #3a2a2c;border-radius:3px;padding:12px 14px">
+<div style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#c96a5a">Cannot craft</div>
+<div style="font:400 14px/1.45 Barlow;color:#c7c2b4;margin-top:6px">Needs Workbench II.</div>
+</div>
+</div>
+</div>
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="padding:14px 20px;background:#1b1f26;border-bottom:1px solid #3a4048"><span style="font:500 17px Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Progress bar</span><div style="font:400 13px Barlow;color:#8a8f84;margin-top:4px">Track #0B0D10 + 1px #2A3038 · radius 0 · heights 14 (status), 8 (secondary), 4 (sliver) · band ticks 1px #FFFFFF 35%</div></div>
+<div style="display:flex;flex-direction:column;gap:14px;padding:20px">
+<div><div style="display:flex;justify-content:space-between;font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84;margin-bottom:5px"><span>Health</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#c7c2b4">72 / 100</span></div><div style="height:14px;background:#0b0d10;border:1px solid #2a3038"><div style="width:72%;height:100%;background:#c8423a"></div></div></div>
+<div><div style="display:flex;justify-content:space-between;font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84;margin-bottom:5px"><span>Stamina</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#c7c2b4">44 / 100</span></div><div style="height:14px;background:#0b0d10;border:1px solid #2a3038"><div style="width:44%;height:100%;background:#e0c24a"></div></div></div>
+<div><div style="display:flex;justify-content:space-between;font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84;margin-bottom:5px"><span>Mutation · Marked</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#c7c2b4">38%</span></div><div style="height:14px;background:#0b0d10;border:1px solid #2a3038;position:relative"><div style="width:38%;height:100%;background:#b06ad0"></div><div style="position:absolute;top:0;bottom:0;left:25%;width:1px;background:rgba(255,255,255,.35)"></div><div style="position:absolute;top:0;bottom:0;left:50%;width:1px;background:rgba(255,255,255,.35)"></div><div style="position:absolute;top:0;bottom:0;left:75%;width:1px;background:rgba(255,255,255,.35)"></div></div></div>
+<div><div style="display:flex;justify-content:space-between;font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84;margin-bottom:5px"><span>XP · level 7</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#c7c2b4">640 / 900</span></div><div style="height:8px;background:#0b0d10;border:1px solid #2a3038"><div style="width:71%;height:100%;background:#9fd0ff"></div></div></div>
+<div><div style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#6a6f68;margin-bottom:5px">Empty / disabled</div><div style="height:14px;background:#0b0d10;border:1px solid #2a3038"></div></div>
+</div>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1.2fr;gap:16px">
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="padding:14px 20px;background:#1b1f26;border-bottom:1px solid #3a4048"><span style="font:500 17px Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Badge</span><div style="font:400 13px Barlow;color:#8a8f84;margin-top:4px">Barlow 600 / 12 / +0.09em caps · padding 3×8 · radius 2 · fill = state at 14%, border = state at 55%</div></div>
+<div style="display:flex;flex-wrap:wrap;gap:10px;padding:20px">
+<span style="padding:3px 8px;background:#1d2a1a;border:1px solid #6e9a52;border-radius:2px;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#9fd07a">Can craft</span>
+<span style="padding:3px 8px;background:#241a1a;border:1px solid #7a3f36;border-radius:2px;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#c96a5a">Short 2 parts</span>
+<span style="padding:3px 8px;background:#191c22;border:1px solid #4a535c;border-radius:2px;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#8a949e">Workbench II</span>
+<span style="padding:3px 8px;background:#241f14;border:1px solid #7a6420;border-radius:2px;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#e0c24a">Bench 1</span>
+<span style="padding:3px 8px;background:#1a1522;border:1px solid #6a4780;border-radius:2px;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#b06ad0">Chemistry</span>
+<span style="padding:3px 8px;background:#101318;border:1px solid #2a3038;border-radius:2px;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#6a6f68">Disabled</span>
+<span style="padding:3px 8px;background:#1a2028;border:1px solid #3a4048;border-radius:2px;font:500 12px 'IBM Plex Mono',monospace;color:#c7c2b4">L4</span>
+</div>
+</div>
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="padding:14px 20px;background:#1b1f26;border-bottom:1px solid #3a4048"><span style="font:500 17px Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Requirement line (have / need)</span><div style="font:400 13px Barlow;color:#8a8f84;margin-top:4px">40 tall · 18px material swatch · name Barlow 500 / 15 · count mono 15, always <span style="font:500 13px 'IBM Plex Mono',monospace">have / need</span> · met = green + ✓, short = coral + ✕ and a coral-tinted row</div></div>
+<div style="display:flex;flex-direction:column;gap:8px;padding:20px">
+<div style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;background:#1b1f26;border:1px solid #2a3038;border-radius:2px"><i style="width:18px;height:18px;background:#9aa2ab;flex:none"></i><span style="font:500 15px Barlow;color:#ebe6d6">Scrap</span><div style="flex:1"></div><span style="font:500 15px 'IBM Plex Mono',monospace;color:#9fd07a">41 / 24</span><span style="width:16px;text-align:center;font:600 14px Barlow;color:#9fd07a">✓</span></div>
+<div style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;background:#1a1518;border:1px solid #3a2a2c;border-radius:2px"><i style="width:18px;height:18px;background:#c9a227;flex:none;opacity:.7"></i><span style="font:500 15px Barlow;color:#c7c2b4">Weapon Parts</span><div style="flex:1"></div><span style="font:500 15px 'IBM Plex Mono',monospace;color:#c96a5a">2 / 4</span><span style="width:16px;text-align:center;font:600 14px Barlow;color:#c96a5a">✕</span></div>
+<div style="display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;background:#242a32;border:1px solid #5a6470;border-radius:2px"><i style="width:18px;height:18px;background:#59b8c4;flex:none"></i><span style="font:500 15px Barlow;color:#ebe6d6">Electronics</span><div style="flex:1"></div><span style="font:500 15px 'IBM Plex Mono',monospace;color:#9fd07a">12 / 4</span><span style="width:16px;text-align:center;font:600 14px Barlow;color:#9fd07a">✓</span></div>
+<div style="display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;background:#101318;border:1px solid #2a3038;border-radius:2px"><span style="width:18px;text-align:center;font:600 13px Barlow;color:#9fd07a">✓</span><span style="font:500 14px Barlow;color:#c7c2b4">Requires</span><span style="font:500 14px Barlow;color:#ebe6d6">Workbench</span><div style="flex:1"></div><span style="font:500 12px 'IBM Plex Mono',monospace;color:#6e9a52">STANDING AT ONE</span></div>
+<div style="display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;background:#101318;border:1px solid #2a3038;border-radius:2px;opacity:.75"><span style="width:18px;text-align:center;font:600 13px Barlow;color:#8a949e">✕</span><span style="font:500 14px Barlow;color:#c7c2b4">Requires</span><span style="font:500 14px Barlow;color:#8a949e">Stone Knife in your pack</span><div style="flex:1"></div><span style="font:500 12px 'IBM Plex Mono',monospace;color:#8a949e">NOT CARRIED</span></div>
+</div>
+</div>
+</div>
+
+</div>
+
+<div style="font:500 20px/1 Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#c9a227;margin:44px 0 16px">05 · Building it as a Godot theme</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px;padding:20px">
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;margin-bottom:12px">One StyleBoxFlat per state</div>
+<div style="font:400 14px/1.7 Barlow;color:#c7c2b4;text-wrap:pretty">Each component above is four StyleBoxFlat resources — <span style="font:500 13px 'IBM Plex Mono',monospace">normal / hover / pressed / disabled</span> — differing only in <span style="font:500 13px 'IBM Plex Mono',monospace">bg_color</span>, <span style="font:500 13px 'IBM Plex Mono',monospace">border_color</span> and <span style="font:500 13px 'IBM Plex Mono',monospace">border_width_*</span>. Set <span style="font:500 13px 'IBM Plex Mono',monospace">anti_aliasing = false</span> so 1px borders stay 1px, and keep <span style="font:500 13px 'IBM Plex Mono',monospace">content_margin_*</span> equal across the four so text never shifts on hover.</div>
+</div>
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px;padding:20px">
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;margin-bottom:12px">Texture, when you want it</div>
+<div style="font:400 14px/1.7 Barlow;color:#c7c2b4;text-wrap:pretty">Where a panel should read as metal or card, swap the flat box for a <span style="font:500 13px 'IBM Plex Mono',monospace">StyleBoxTexture</span> 9-slice with 6px margins and the same border colour painted into the edge. No blur, no drop shadows, no per-pixel effects: depth comes from the three panel greys and the border ladder.</div>
+</div>
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px;padding:20px">
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;margin-bottom:12px">Fonts</div>
+<div style="font:400 14px/1.7 Barlow;color:#c7c2b4;text-wrap:pretty">Three <span style="font:500 13px 'IBM Plex Mono',monospace">FontFile</span> resources: Oswald SemiBold, Barlow Regular + SemiBold, IBM Plex Mono Medium. All OFL, so they ship with the game. Turn on <span style="font:500 13px 'IBM Plex Mono',monospace">Text &gt; Use Oversampling</span>, and set tracking on the Theme's label variations rather than per-node.</div>
+</div>
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px;padding:20px">
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;margin-bottom:12px">Focus and keyboard</div>
+<div style="font:400 14px/1.7 Barlow;color:#c7c2b4;text-wrap:pretty">Selection and keyboard focus share one look: 2px #E0C24A. Give every grid a <span style="font:500 13px 'IBM Plex Mono',monospace">focus</span> stylebox identical to <span style="font:500 13px 'IBM Plex Mono',monospace">selected</span>, so arrow-key browsing and mouse selection are the same state and never stack two highlights on one element.</div>
+</div>
+</div>
+
+</div>
+</x-dc>
+</body>
+</html>

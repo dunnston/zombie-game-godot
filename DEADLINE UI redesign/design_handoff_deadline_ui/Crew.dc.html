@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet><link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"><style>body{margin:0;background:#07080a}a{color:#c9a227}a:hover{color:#e0c24a}</style></helmet>
+<div style="width:1920px;height:1080px;position:relative;background:#0b0d10;font-family:Barlow,sans-serif;color:#ebe6d6;overflow:hidden;display:flex;flex-direction:column">
+
+<div style="height:64px;flex:none;display:flex;align-items:stretch;background:#14161a;border-bottom:1px solid #3a4048">
+<div style="display:flex;align-items:center;padding:0 24px;border-right:1px solid #2a3038;font:600 22px/1 Oswald,sans-serif;letter-spacing:.16em;text-transform:uppercase">Deadline</div>
+<div style="display:flex;align-items:stretch">
+<div style="display:flex;align-items:center;padding:0 26px;font:600 13px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;background:#181b20;border-right:1px solid #2a3038">Pack</div>
+<div style="display:flex;align-items:center;padding:0 26px;font:600 13px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;background:#181b20;border-right:1px solid #2a3038">Craft</div>
+<div style="display:flex;align-items:center;padding:0 26px;font:600 13px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;background:#181b20;border-right:1px solid #2a3038">Character</div>
+<div style="display:flex;align-items:center;padding:0 26px;font:600 13px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#ebe6d6;background:#242a32;border-right:1px solid #2a3038;box-shadow:inset 0 -2px 0 #c9a227">Crew</div>
+<div style="display:flex;align-items:center;padding:0 26px;font:600 13px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84;background:#181b20;border-right:1px solid #2a3038">Map</div>
+</div>
+<div style="flex:1"></div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 24px">
+<div style="display:flex;align-items:center;gap:10px;padding:7px 14px;background:#241a1a;border:1px solid #7a3f36"><span style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#c96a5a">Rations short</span><span style="font:500 13px 'IBM Plex Mono',monospace;color:#c96a5a">5 IN STASH · OWED 2</span></div>
+<div style="display:flex;align-items:center;gap:8px;padding:7px 12px;background:#1b1f26;border:1px solid #3a4048;border-radius:2px"><span style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84">ESC</span><span style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#c7c2b4">Close</span></div>
+</div>
+</div>
+
+<div style="height:76px;flex:none;display:flex;align-items:center;gap:28px;padding:0 24px;background:#101318;border-bottom:1px solid #2a3038">
+<div style="font:600 34px/1 Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase">Crew</div>
+<div style="display:flex;gap:28px">
+<div><div style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84">Roster</div><div style="font:500 18px 'IBM Plex Mono',monospace;margin-top:3px">3 / 3</div></div>
+<div><div style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84">Will follow you</div><div style="font:500 18px 'IBM Plex Mono',monospace;margin-top:3px;color:#c48fd0">4 · CHA</div></div>
+<div><div style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84">Bunks built</div><div style="font:500 18px 'IBM Plex Mono',monospace;margin-top:3px;color:#e0c24a">3</div></div>
+<div><div style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84">Upkeep</div><div style="font:500 18px 'IBM Plex Mono',monospace;margin-top:3px">3 rations / min</div></div>
+<div><div style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84">Free watchtowers</div><div style="font:500 18px 'IBM Plex Mono',monospace;margin-top:3px">1</div></div>
+</div>
+<div style="flex:1"></div>
+<div style="font:400 14px Barlow;color:#8a8f84">Every bunk is taken — build another to recruit the survivor on Oak Row.</div>
+</div>
+
+<div style="flex:1;display:flex;gap:20px;padding:24px;min-height:0">
+
+<div style="width:640px;flex:none;display:flex;flex-direction:column;background:#14161a;border:1px solid #3a4048;border-radius:3px">
+<div style="padding:12px 16px;background:#1b1f26;border-bottom:1px solid #3a4048;display:flex;justify-content:space-between;align-items:baseline"><span style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84">Survivors</span><span style="font:400 13px Barlow;color:#8a8f84">Click to select · then pick a job</span></div>
+<div style="padding:12px;display:flex;flex-direction:column;gap:8px">
+
+<div style="background:#2b3340;border:1px solid #c9a227;border-radius:2px;padding:12px 14px">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="width:40px;height:40px;background:#0b0d10;border:1px solid #5a6470;display:flex;align-items:center;justify-content:center;font:500 15px 'IBM Plex Mono',monospace;color:#9fd0ff">MK</div>
+<div style="display:flex;flex-direction:column;gap:3px;width:190px"><span style="font:500 17px/1 Oswald,sans-serif;letter-spacing:.04em;text-transform:uppercase">Marla Keene</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84">LEVEL 4 · 240 / 400 XP</span></div>
+<div style="width:150px"><div style="height:10px;background:#0b0d10;border:1px solid #2a3038"><div style="width:86%;height:100%;background:#c8423a"></div></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84;margin-top:4px">HP 103 / 120</div></div>
+<div style="flex:1"></div>
+<span style="padding:3px 8px;background:#1d2a1a;border:1px solid #6e9a52;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#9fd07a">Scavenger</span>
+</div>
+</div>
+
+<div style="background:#181b20;border:1px solid #3a4048;border-radius:2px;padding:12px 14px">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="width:40px;height:40px;background:#0b0d10;border:1px solid #3a4048;display:flex;align-items:center;justify-content:center;font:500 15px 'IBM Plex Mono',monospace;color:#c48fd0">DV</div>
+<div style="display:flex;flex-direction:column;gap:3px;width:190px"><span style="font:500 17px/1 Oswald,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:#c7c2b4">Dez Vargas</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84">LEVEL 3 · 90 / 300 XP</span></div>
+<div style="width:150px"><div style="height:10px;background:#0b0d10;border:1px solid #2a3038"><div style="width:62%;height:100%;background:#c8423a"></div></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#d9c46a;margin-top:4px">HP 68 / 110 · HUNGRY</div></div>
+<div style="flex:1"></div>
+<span style="padding:3px 8px;background:#1a2028;border:1px solid #4a535c;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#8a949e">Sniper · tower</span>
+</div>
+</div>
+
+<div style="background:#181b20;border:1px solid #3a4048;border-radius:2px;padding:12px 14px">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="width:40px;height:40px;background:#0b0d10;border:1px solid #3a4048;display:flex;align-items:center;justify-content:center;font:500 15px 'IBM Plex Mono',monospace;color:#9fd07a">TO</div>
+<div style="display:flex;flex-direction:column;gap:3px;width:190px"><span style="font:500 17px/1 Oswald,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:#c7c2b4">Theo Okafor</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#8a8f84">LEVEL 2 · 60 / 200 XP</span></div>
+<div style="width:150px"><div style="height:10px;background:#0b0d10;border:1px solid #2a3038"><div style="width:24%;height:100%;background:#e05a4a"></div></div><div style="font:500 12px 'IBM Plex Mono',monospace;color:#e05a4a;margin-top:4px">DOWN · 42s TO REACH THEM</div></div>
+<div style="flex:1"></div>
+<span style="padding:3px 8px;background:#241a1a;border:1px solid #7a3f36;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#c96a5a">Needs a medkit</span>
+</div>
+</div>
+
+<div style="background:#101318;border:1px dashed #2a3038;border-radius:2px;padding:12px 14px">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="width:40px;height:40px;background:#0b0d10;border:1px dashed #3a4048;display:flex;align-items:center;justify-content:center;font:500 15px 'IBM Plex Mono',monospace;color:#6a6f68">?</div>
+<div style="display:flex;flex-direction:column;gap:3px;width:190px"><span style="font:500 17px/1 Oswald,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:#8a8f84">Survivor · Oak Row</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68">FOUND · NOT RECRUITED</span></div>
+<div style="flex:1"></div>
+<span style="padding:3px 8px;background:#191c22;border:1px solid #4a535c;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#8a949e">Every bunk is taken</span>
+</div>
+</div>
+
+</div>
+
+<div style="margin-top:auto;padding:16px;border-top:1px solid #2a3038;display:flex;flex-direction:column;gap:10px">
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84">The pantry</div>
+<div style="display:flex;align-items:center;gap:12px"><span style="font:400 14px Barlow;color:#c7c2b4;width:170px">Rations in the stash</span><div style="flex:1;height:10px;background:#0b0d10;border:1px solid #2a3038"><div style="width:14%;height:100%;background:#c96a5a"></div></div><span style="font:500 13px 'IBM Plex Mono',monospace;color:#c96a5a;width:80px;text-align:right">5 / 36</span></div>
+<div style="display:flex;align-items:center;gap:12px"><span style="font:400 14px Barlow;color:#c7c2b4;width:170px">9mm in the stash</span><div style="flex:1;height:10px;background:#0b0d10;border:1px solid #2a3038"><div style="width:70%;height:100%;background:#9fd07a"></div></div><span style="font:500 13px 'IBM Plex Mono',monospace;color:#9fd07a;width:80px;text-align:right">96</span></div>
+<div style="font:400 13px Barlow;color:rgba(255,255,255,.4)">They eat and shoot out of the shared stash, never out of your pack. Hungry survivors are slower and shoot less.</div>
+</div>
+</div>
+
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:16px">
+
+<div style="background:#14161a;border:1px solid #3a4048;border-radius:3px;overflow:hidden">
+<div style="display:flex;gap:16px;padding:20px;background:#1b1f26;border-bottom:1px solid #3a4048">
+<div style="width:96px;height:96px;flex:none;background:#0b0d10;border:1px solid #5a6470;display:flex;align-items:center;justify-content:center;font:500 28px 'IBM Plex Mono',monospace;color:#9fd0ff">MK</div>
+<div style="display:flex;flex-direction:column;gap:7px">
+<div style="font:600 26px/1 Oswald,sans-serif;letter-spacing:.05em;text-transform:uppercase">Marla Keene</div>
+<div style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84">Level 4 · on scavenger duty · 210m out</div>
+<div style="display:flex;gap:6px"><span style="padding:3px 8px;background:#1d2a1a;border:1px solid #6e9a52;font:600 12px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#9fd07a">Carrying a haul</span><span style="padding:3px 8px;background:#1a2028;border:1px solid #3a4048;font:500 12px 'IBM Plex Mono',monospace;color:#c7c2b4">HP 103 / 120</span></div>
+</div>
+<div style="flex:1"></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;align-content:center">
+<div><div style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84">Damage</div><div style="font:500 18px 'IBM Plex Mono',monospace;margin-top:2px">14</div></div>
+<div><div style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84">Range</div><div style="font:500 18px 'IBM Plex Mono',monospace;margin-top:2px">320</div></div>
+<div><div style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84">Containers worked</div><div style="font:500 18px 'IBM Plex Mono',monospace;margin-top:2px">37</div></div>
+<div><div style="font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84">Ammo spent</div><div style="font:500 18px 'IBM Plex Mono',monospace;margin-top:2px">214</div></div>
+</div>
+</div>
+<div style="padding:16px 20px;display:flex;gap:24px;align-items:center">
+<div style="display:flex;flex-direction:column;gap:6px;flex:1"><div style="display:flex;justify-content:space-between;font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84"><span>Experience</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#9fd0ff">240 / 400</span></div><div style="height:8px;background:#0b0d10;border:1px solid #2a3038"><div style="width:60%;height:100%;background:#9fd0ff"></div></div></div>
+<div style="display:flex;flex-direction:column;gap:6px;flex:1"><div style="display:flex;justify-content:space-between;font:600 12px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#8a8f84"><span>Haul carried</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#c4a86a">SCRP 12 · CLTH 4</span></div><div style="height:8px;background:#0b0d10;border:1px solid #2a3038"><div style="width:40%;height:100%;background:#c4a86a"></div></div></div>
+</div>
+</div>
+
+<div style="flex:1;background:#14161a;border:1px solid #3a4048;border-radius:3px;display:flex;flex-direction:column">
+<div style="padding:12px 16px;background:#1b1f26;border-bottom:1px solid #3a4048;display:flex;justify-content:space-between;align-items:baseline"><span style="font:600 12px Barlow;letter-spacing:.12em;text-transform:uppercase;color:#8a8f84">Job</span><span style="font:400 13px Barlow;color:#8a8f84">One job at a time · changing it hands in whatever they carry</span></div>
+<div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+<div style="background:#2b3340;border:1px solid #c9a227;border-radius:2px;padding:16px">
+<div style="display:flex;align-items:baseline;gap:10px"><span style="font:500 18px Oswald,sans-serif;letter-spacing:.05em;text-transform:uppercase">Scavenger</span><span style="padding:2px 7px;background:#c9a227;font:600 11px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#14161a">Current</span></div>
+<p style="margin:8px 0 0;font:400 14px/1.45 Barlow;color:#c7c2b4;text-wrap:pretty">Works nearby containers and carries the haul to the Supply Stash. Slower and less thorough than you are.</p>
+<div style="font:500 12px 'IBM Plex Mono',monospace;color:#6e9a52;margin-top:10px">NEEDS A SUPPLY STASH ✓</div>
+</div>
+
+<div style="background:#1b1f26;border:1px solid #3a4048;border-radius:2px;padding:16px">
+<div style="font:500 18px Oswald,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#c7c2b4">Guard</div>
+<p style="margin:8px 0 0;font:400 14px/1.45 Barlow;color:#8a8f84;text-wrap:pretty">Holds the base and shoots whatever comes into range. The default, and the fallback when a job cannot be done.</p>
+<div style="font:500 12px 'IBM Plex Mono',monospace;color:#6a6f68;margin-top:10px">ALWAYS AVAILABLE</div>
+</div>
+
+<div style="background:#1b1f26;border:1px solid #3a4048;border-radius:2px;padding:16px">
+<div style="font:500 18px Oswald,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#c7c2b4">Builder</div>
+<p style="margin:8px 0 0;font:400 14px/1.45 Barlow;color:#8a8f84;text-wrap:pretty">Patches the most damaged structure in range, paying for it out of the stash. During a raid this is a wall that holds.</p>
+<div style="font:500 12px 'IBM Plex Mono',monospace;color:#e0c24a;margin-top:10px">4 PIECES DAMAGED</div>
+</div>
+
+<div style="background:#16191e;border:1px solid #2a3038;border-radius:2px;padding:16px">
+<div style="display:flex;align-items:baseline;gap:10px"><span style="font:500 18px Oswald,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:#8a8f84">Sniper</span><span style="padding:2px 7px;background:#191c22;border:1px solid #4a535c;font:600 11px Barlow;letter-spacing:.09em;text-transform:uppercase;color:#8a949e">1 tower free</span></div>
+<p style="margin:8px 0 0;font:400 14px/1.45 Barlow;color:#8a8f84;text-wrap:pretty">Posted on a Watchtower: 520 reach and 1.9× damage, and they never leave it. Lose the tower and they go back to guarding.</p>
+<div style="font:500 12px 'IBM Plex Mono',monospace;color:#8a949e;margin-top:10px">POSTS TO THE NEAREST FREE TOWER</div>
+</div>
+
+</div>
+<div style="margin-top:auto;padding:16px;border-top:1px solid #2a3038;display:flex;gap:12px;align-items:center">
+<div style="height:48px;padding:0 24px;background:#c9a227;border:1px solid #e0c24a;display:flex;align-items:center;gap:12px"><span style="font:600 18px Oswald,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:#14161a">Assign</span><span style="font:500 12px 'IBM Plex Mono',monospace;color:#14161a;opacity:.7">ENTER</span></div>
+<div style="height:48px;padding:0 20px;background:#1b1f26;border:1px solid #3a4048;display:flex;align-items:center;font:600 13px Barlow;letter-spacing:.1em;text-transform:uppercase;color:#c7c2b4">Recall to base</div>
+<div style="flex:1"></div>
+<span style="font:400 13px Barlow;color:#6a6f68">There is no pathfinding: a job they cannot reach is given up rather than leaned on</span>
+</div>
+</div>
+
+</div>
+</div>
+</div>
+</x-dc>
+</body>
+</html>

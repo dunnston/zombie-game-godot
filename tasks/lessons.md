@@ -454,3 +454,40 @@ still blocked: branch protection requires each review conversation resolved.
 **Rule:** the last step of a Codex pass is a reply on each thread naming the
 fixing commit and its test, then `resolveReviewThread`, then a check that no
 thread is open and `mergeStateStatus` is CLEAN.
+
+## 2026-09-11 (the UI redesign)
+
+- A Label with `clip_text` and an ellipsis overrun has a minimum width of
+  one ellipsis. Set on every label "so nothing can push a column off
+  screen", it made every label that was not told to expand collapse to
+  nothing: the wordmark, every count, every badge. Trim only a label that
+  expands; that is the one case where trimming is what keeps it inside.
+- A Button does not size itself to its children. A face built from
+  containers has to push its minimum size onto the button, and that push
+  must only ever grow it, or the face's early, unthemed minimum overwrites
+  the 40px the caller asked for.
+- A per-frame refresher registered inside a section that gets rebuilt goes
+  on refreshing freed nodes. Refreshers belong to the section that made them
+  and go when it is rebuilt.
+- `canvas_items` stretch means a logical point is not a window point.
+  `Input.warp_mouse` and a parsed mouse event both want the window's, so
+  the smoke run converts through `get_viewport().get_screen_transform()`.
+  With the design resolution raised to 1920x1080 and the window at
+  1280x720, every click would otherwise land two-thirds of the way there.
+- With `expand`, the logical viewport is never smaller than the design
+  resolution in either axis: a square window gave 1920x1920. A layout that
+  fits 1920x1080 therefore fits every window, and "nothing off screen" is a
+  property to check at every smoke checkpoint rather than a hope.
+- The Write tool wrote a one-space string literal as a NUL byte once. The
+  script failed to parse with an error pointing somewhere else. When a
+  replace cannot find text you can see, look at the bytes (`cat -A`).
+- A headless `-s` script cannot lay out containers in `_init`: nothing is
+  sized before the first frame. A probe that steps `process_frame` and then
+  walks the tree is the quick check; the smoke run is the real one.
+- `"Panel"` cannot be a theme type variation: it is a built-in class name.
+- A script `_get_minimum_size` on a Button is never called: Button computes
+  its minimum natively. The override compiled, the probe passed, and every
+  face button quietly fell back to its bare stylebox — the attribute rows
+  collapsed and a click landed on the wrong one. The smoke caught it by
+  clicking, not by looking. Size a composed button through
+  `custom_minimum_size`, recomputed from the caller's floor on every change.

@@ -13,19 +13,22 @@ extends Control
 ## `OS.is_debug_build()` or `--dev` says so, so there is nothing to switch off
 ## before shipping.
 
-const ROW := 22.0
-const PANEL_W := 620.0
-const SHOWN := 16
+## Sized for the 1920x1080 design resolution and coloured from `Ui`, so a
+## developer tool still reads as part of the same game. It stays drawn by
+## hand: it is a debug list, not a screen a player ever sees.
+const ROW := 32.0
+const PANEL_W := 860.0
+const SHOWN := 18
 
-const BG := Color("#12140f")
-const EDGE := Color("#3d4a33")
-const TEXT := Color("#cfd6c4")
-const DIM := Color("#7d8a72")
-const HOT := Color("#1f2a18")
-const ACCENT := Color("#b7e08a")
+const BG := Ui.PANEL
+const EDGE := Ui.LINE
+const TEXT := Ui.TEXT_BODY
+const DIM := Ui.TEXT_DIM
+const HOT := Ui.HOVER
+const ACCENT := Ui.ACCENT_HI
 const KIND_COLOR := {
-	"give": Color("#b7e08a"), "enemy": Color("#e05a4a"),
-	"goto": Color("#7fb0d8"), "verb": Color("#d9c46a"),
+	"give": Color("#9fd07a"), "enemy": Color("#e05a4a"),
+	"goto": Color("#9fd0ff"), "verb": Color("#e0c24a"),
 }
 
 var sim: GameSim
@@ -366,24 +369,25 @@ func _list_rect() -> Rect2:
 func _draw() -> void:
 	if not open:
 		return
-	var font := ThemeDB.fallback_font
+	var body := Ui.font("ui", 500)
+	var caps := Ui.font("ui", 600, 1)
+	var mono := Ui.font("mono", 500)
 	var vp := get_viewport_rect().size
-	draw_rect(Rect2(Vector2.ZERO, vp), Color(0, 0, 0, 0.55))
+	draw_rect(Rect2(Vector2.ZERO, vp), Ui.SCRIM)
 
 	var p := _panel_rect()
-	draw_rect(p, BG)
-	draw_rect(p, EDGE, false, 2.0)
+	Ui.box(BG, EDGE, 1, 3).draw(get_canvas_item(), p)
 
-	draw_string(font, p.position + Vector2(14, 18), "DEV MENU", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, ACCENT)
-	draw_string(font, p.position + Vector2(PANEL_W - 14, 18), "%d of %d" % [_shown.size(), _all.size()],
-		HORIZONTAL_ALIGNMENT_RIGHT, -1, 11, DIM)
+	draw_string(Ui.font("display", 600, 1), p.position + Vector2(16, 26), "DEV MENU", HORIZONTAL_ALIGNMENT_LEFT, -1, 20, ACCENT)
+	draw_string(mono, p.position + Vector2(PANEL_W - 16, 24), "%d of %d" % [_shown.size(), _all.size()],
+		HORIZONTAL_ALIGNMENT_RIGHT, -1, 13, DIM)
 
 	# The filter line, with a caret so an empty one still looks like a field.
 	var fy := p.position.y + ROW * 1.6
-	draw_line(Vector2(p.position.x + 12, fy + 4), Vector2(p.position.x + PANEL_W - 12, fy + 4), EDGE, 1.0)
+	Ui.box(Ui.VOID, Ui.LINE, 1, 2).draw(get_canvas_item(), Rect2(p.position.x + 12, fy - 20, PANEL_W - 24, 30))
 	var typed := filter if not filter.is_empty() else "type to filter"
-	draw_string(font, Vector2(p.position.x + 14, fy), typed + ("_" if not filter.is_empty() else ""),
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, TEXT if not filter.is_empty() else DIM)
+	draw_string(body, Vector2(p.position.x + 24, fy), typed + ("_" if not filter.is_empty() else ""),
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 15, TEXT if not filter.is_empty() else DIM)
 
 	var list := _list_rect()
 	for i in range(top, mini(top + SHOWN, _shown.size())):
@@ -391,17 +395,17 @@ func _draw() -> void:
 		var y := list.position.y + (i - top) * ROW
 		var rect := Rect2(list.position.x, y, list.size.x, ROW)
 		if i == sel or rect.has_point(mouse):
-			draw_rect(rect, HOT)
+			Ui.box(HOT, Ui.ACCENT if i == sel else Ui.LINE, 1, 2).draw(get_canvas_item(), rect)
 		var color: Color = KIND_COLOR.get(String(row.kind), TEXT)
-		draw_rect(Rect2(rect.position.x + 2, y + 6, 4, ROW - 12), color)
-		draw_string(font, Vector2(rect.position.x + 14, y + ROW - 7), String(row.label),
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 12, TEXT)
-		draw_string(font, Vector2(rect.position.x + rect.size.x - 8, y + ROW - 7), String(row.note),
-			HORIZONTAL_ALIGNMENT_RIGHT, -1, 10, DIM)
+		draw_rect(Rect2(rect.position.x + 4, y + 8, 4, ROW - 16), color)
+		draw_string(body, Vector2(rect.position.x + 18, y + ROW - 10), String(row.label),
+			HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Ui.TEXT_HIGH if i == sel else TEXT)
+		draw_string(mono, Vector2(rect.position.x + rect.size.x - 10, y + ROW - 10), String(row.note).to_upper(),
+			HORIZONTAL_ALIGNMENT_RIGHT, -1, 12, DIM)
 
 	if _shown.is_empty():
-		draw_string(font, list.position + Vector2(14, 18), "nothing matches", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, DIM)
+		draw_string(body, list.position + Vector2(18, 22), "Nothing matches", HORIZONTAL_ALIGNMENT_LEFT, -1, 15, DIM)
 
-	draw_string(font, Vector2(p.position.x + 14, p.end.y - 10),
-		"↑↓ choose   ENTER give   SHIFT+ENTER ten   ESC close",
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 10, DIM)
+	draw_string(caps, Vector2(p.position.x + 16, p.end.y - 14),
+		"↑↓ CHOOSE   ENTER GIVE   SHIFT+ENTER TEN   ESC CLOSE",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 12, DIM)
