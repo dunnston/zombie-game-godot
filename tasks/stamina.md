@@ -18,6 +18,7 @@ have stood still long enough to get your breath back.
   go through `interact`/`Loot`, not a swing. Wood and stone are swung at, so
   they slow down on their own.
 - At zero you are **winded**. Binary — a condition, not a slope.
+- Movement is untouched beyond losing sprint: no walk-speed penalty.
 - Winded's penalty is **sluggishness, not weakness**: melee and tool swings
   take longer, and look like they take longer. Damage per hit, yield per
   tree, and every drop table are untouched. **No yield modifier exists
@@ -157,11 +158,97 @@ damage; a winded harvest drops exactly what an unwinded one drops; a swing
 while winded restarts the clock; regen runs during the debuff; firing a gun
 costs nothing and is not slowed; a guest mirrors the penalty from `PF_WINDED`.
 
-## Balance notes (not for this PR)
+## Balance review (2026-09-11)
 
-At 110 max and `stam_swing` 2.0, that is 55 swings before winded — almost
-certainly too many once every swing costs. Sprint drain 26/s gives ~4.2s of
-running from full, which is about right. Three seconds of rest returns ~47
-stamina, so the debuff is currently generous at both ends. Expect to raise
-swing cost and lower the bar rather than touch regen. All of it is
-`config.gd:51-63`.
+Measured against the live tables, not estimated. Start player: 110 max,
+21.2 regen, 26/s sprint drain, `stam_swing` 2.0, `stam_chop` 6.0.
+
+**Sprint is the best-tuned number in the system: 4.2s from full.** Leave it.
+
+**Combat already participates — an earlier note in this file was wrong.**
+Ten walkers (58hp) costs 60 stamina with a pipe, 55% of the bar. The "55
+swings before winded" figure ignored that a kill takes several swings and a
+fight has several enemies.
+
+### What a flat per-swing cost actually does
+
+| | 10 walkers | % of bar | | tree (470hp) | stam | trees/bar |
+|---|---|---|---|---|---|---|
+| pipe | 60 | 55% | | axe | 36 | 3.1 |
+| machete | 40 | 36% | | fireaxe | 24 | 4.6 |
+| sledge | 20 | **18%** | | doubleBitAxe | 12 | **9.2** |
+
+**A flat cost makes the heaviest weapon the most stamina-efficient one.** A
+sledge clears that fight for a third of what a pipe costs, because cost is
+per swing and it swings once per kill. Tools do the same: a doubleBitAxe fells
+a tree for a third of an axe's stamina. The player's reward for upgrading is
+paid twice — faster *and* cheaper — which is what erases the system.
+
+Stone does not participate at all: one pick swing, 6 stamina, 18 rocks a bar.
+
+### Fix: cost belongs to the weapon, not to `PLAYER`
+
+Replace the flat `stam_swing` / `stam_chop` consts with a per-weapon `stam`
+field in `data/weapons.json`; a harvest swing costs `stam x 1.5`. This is
+also the fix for the last open item in §10 (`tasks/todo.md:1944`,
+`PROJECT.md:2202`): **Stamina Cost is a 1-5 design-intent column that already
+exists in Notion and has never had a per-weapon field behind it.** Per
+CLAUDE.md, Notion owns what a thing costs — so the values come from that
+column, mapped 1-5 onto a number. The formula below is only a seed for rows
+Notion has not rated, and a sanity check on the mapping.
+
+Seed: `stam = 1.0 + dmg x 0.09`.
+
+| weapon | dmg | stam/swing | 10 walkers | % of bar |
+|---|---|---|---|---|
+| knife | 19 | 2.7 | 81 | 74% |
+| pipe | 24 | 3.2 | 96 | 87% |
+| machete | 40 | 4.6 | 92 | 84% |
+| sledge | 92 | 9.3 | 93 | 85% |
+
+A fight now costs roughly the same whatever you swing; the flat 1.0 is what a
+light weapon pays for swinging more often, so it stays slightly the endurance
+choice. Tool progression narrows from 3.0x to 2.2x (axe 33 stam/tree,
+doubleBitAxe 17).
+
+### Base stamina: leave it at 100 (110 at start)
+
+With costs roughly doubled, a ten-walker fight is 85% of an early bar. That
+is tight, and tight is the point — a new player should feel it. Raising the
+base would undo the change we just made.
+
+### The progression plan
+
+Ceiling today: CON 2->10 (+80), Marathon x3 (+135), Fed (+10) = **325 max,
+53.5 regen — 3.0x the bar and 2.5x the recovery.** The plan is that this is
+allowed to happen, because of what it does and does not erase:
+
+| | early (110) | late (325) |
+|---|---|---|
+| tree | 3.3 per bar | 19 per bar |
+| walker | 9% of bar | 2.9% |
+| behemoth (1100hp) | — | 31% |
+| coach (1400hp) | — | 40% |
+
+**Work graduates out of stamina; fighting never does.** Enemy HP scales 58 ->
+1400 (24x) while the bar scales 3x, so a late-game player stops thinking
+about stamina to chop wood — pillar 1, survival without survival chores — and
+starts thinking about it again the moment something big turns up. That is
+pillar 6 as well: getting stronger makes the world more dangerous, and the
+bar is one of the places you feel it.
+
+Two dials if the walk disagrees:
+
+- **Marathon is the whole ceiling.** +45 max per rank x3 is more than CON
+  gives across eight ranks. Dropping it to +25 puts the ceiling at 265
+  (2.4x) without touching anything else.
+- **`WINDED.dur`** is the real difficulty knob, not the bar. Three seconds is
+  generous; the sluggishness only bites if the clock outlasts the fight.
+
+### Not in this PR
+
+Per-weapon `stam` is a Notion sync (PROJECT.md §10) and its own card, because
+it touches 40+ content rows. This PR ships the mechanic with the flat consts
+so the feel can be walked, and the per-weapon pass follows. What this PR must
+not do is bake the flat cost in anywhere a weapon field cannot later replace:
+`Stamina.swing_cost(p, w)` from day one, reading `w.get("stam", …)`.
