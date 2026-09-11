@@ -49,6 +49,8 @@ var party: Array[int] = []
 ## A guest's copy: built from the seed the host sent, never ticked, and never
 ## deciding anything. Snapshots bring the crowd; the world diff the rest.
 var mirror := false
+## The boss has killed the lights, and the breaker has not put them back.
+var dark := false
 
 
 ## Exchanges every map field with `held`. Entering, leaving, and the two sides
@@ -198,6 +200,8 @@ func _populate(sim: GameSim) -> void:
 	for at in sim.world.enemy_spots:
 		sim.enemies.spawn(sim.enemies.pick_type(tier), at)
 	boss = sim.enemies.spawn(String(def.boss), sim.world.boss_spot, false, false, float(def.boss_hp_mul))
+	if boss != null and Config.BOSSES.has(boss.type):
+		boss.brain = Boss.new(boss, Config.BOSSES[boss.type], sim.world.arena, sim.world.add_spots)
 
 
 ## Where the `i`th of `n` arrivals stands: side by side across the foyer, a
@@ -273,6 +277,34 @@ func found_key(sim: GameSim, key: String) -> void:
 	keys[key] = true
 	sim.notify("The %s key. Now the chained door." % key, "#d0c46a", true)
 	sim.emit({"t": "key_found", "key": key})
+
+
+## The lights, killed by the boss as its second phase opens and put back by the
+## breaker on the gym's west wall (§8.3: use the arena, so the fight is more
+## than kiting in a circle). The dark is the inside's own clock pushed to the
+## small hours, so the light, the torch and every multiplier that reads the
+## dark already follow it — and a guest's clock comes from the snapshot.
+func lights_out(sim: GameSim) -> void:
+	if dark:
+		return
+	dark = true
+	_set_light(sim)
+	sim.notify("The lights go out. There is a breaker on the gym's west wall", "#e0a070", true)
+	sim.emit({"t": "lights", "on": false})
+
+
+func lights_on(sim: GameSim) -> void:
+	if not dark:
+		return
+	dark = false
+	_set_light(sim)
+	sim.notify("Lights back on", "#d8c98a")
+	sim.emit({"t": "lights", "on": true})
+
+
+func _set_light(sim: GameSim) -> void:
+	sim.clock.t = float(def.get("dark_t", 0.82)) if dark else float(def.clock_t)
+	sim.clock.phase = String(DayNight.phase_at(sim.clock.t).id)
 
 
 ## The chained door, opened with the key the party found. Its tiles become
@@ -513,11 +545,13 @@ func record(sim: GameSim, seat: int) -> Dictionary:
 			var t0: Vector2i = f.tiles[0]
 			opened.append([t0.x, t0.y])
 	return {"st": state, "keys": keys.keys(), "open": opened, "t": snappedf(t, 0.1),
-		"g": gained.get(seat, {}).duplicate()}
+		"g": gained.get(seat, {}).duplicate(), "dark": dark}
 
 
 func apply_record(sim: GameSim, rec: Dictionary, seat: int) -> void:
 	state = String(rec.get("st", state))
+	# For the breaker's prompt; the light itself follows the host's clock.
+	dark = bool(rec.get("dark", dark))
 	keys.clear()
 	for k in rec.get("keys", []):
 		keys[String(k)] = true

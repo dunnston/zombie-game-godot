@@ -53,6 +53,10 @@ var features: Array[Dictionary] = []
 var entry_spot := Vector2.ZERO
 var enemy_spots: Array[Vector2] = []
 var boss_spot := Vector2.ZERO
+## The boss's room, in tiles: the floor it will not leave and the space its
+## fight is framed for. And where its whistle's team comes in.
+var arena := Rect2i()
+var add_spots: Array[Vector2] = []
 ## The town's fingerprint before the instance buildings were stamped on it. A
 ## save written before the School existed carries this one (`accepts_fingerprint`).
 var base_fingerprint := 0
@@ -865,6 +869,18 @@ func _gen_school(d: Dictionary) -> void:
 	entry_spot = Vector2(142 * TILE, 144 * TILE + TILE / 2.0)
 	leave["stand"] = entry_spot
 	boss_spot = _centre_px(gym)
+	arena = Rect2i(gym.position + Vector2i.ONE, gym.size - Vector2i(2, 2))
+	for c: Vector2i in [gym.position + Vector2i(2, 2), Vector2i(gym.end.x - 3, gym.position.y + 2),
+			Vector2i(gym.position.x + 2, gym.end.y - 4), Vector2i(gym.end.x - 3, gym.end.y - 4)]:
+		add_spots.append(Vector2(c.x * TILE + TILE / 2.0, c.y * TILE + TILE / 2.0))
+	# The breaker, on the gym's west wall: what the lights come back on with
+	# when the boss kills them. A switch on a wall, not a door — it takes no
+	# tile of its own and blocks nothing.
+	var bt := Vector2i(gym.position.x, gym.position.y + gym.size.y / 2)
+	var bt_tiles: Array[Vector2i] = [bt]
+	features.append({"kind": "breaker", "id": "", "tiles": bt_tiles, "x": bt.x * TILE + TILE / 2.0,
+		"y": bt.y * TILE + TILE / 2.0, "stand": Vector2((bt.x + 1) * TILE + TILE / 2.0, bt.y * TILE + TILE / 2.0),
+		"key": "", "open": false})
 
 	# What is in it.
 	for r in north + south:

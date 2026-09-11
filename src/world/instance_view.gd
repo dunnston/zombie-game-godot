@@ -33,6 +33,15 @@ func _draw() -> void:
 				if not f.open:
 					_doors(r, Color("#4a3a2a"))
 					_chains(r)
+			"breaker":
+				# A box on the wall with its lever: down and red while the
+				# lights are out, which is what makes it findable in the dark.
+				var dark := inst != null and inst.dark
+				var box := Rect2(Vector2(float(f.x) - 10.0, float(f.y) - 14.0), Vector2(20.0, 28.0))
+				draw_rect(box, Color("#3a3f44"))
+				draw_rect(box, Color("#1c1f22"), false, 2.0)
+				draw_line(box.get_center(), box.get_center() + Vector2(0.0, 9.0 if dark else -9.0), Color("#c9b27a"), 3.0)
+				draw_circle(box.position + Vector2(10.0, 4.0), 2.5, Color("#e05a4a") if dark else Color("#7ce08a"))
 			"exit":
 				var open := inst != null and inst.state == "cleared"
 				_doors(r, Color("#2f6a3a") if open else Color("#26262a"))
