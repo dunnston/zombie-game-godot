@@ -1175,6 +1175,24 @@ const SFX := {
 		{"kind": "noise", "dur": 0.13, "gain": 0.38, "filter": "hp", "freq": 700.0, "q": 0.6},
 		{"kind": "tone", "freq": 240.0, "to": 45.0, "wave": "square", "dur": 0.12, "gain": 0.26},
 	],
+	# A pipe gun is a crude tube: more boom than crack, and it rattles.
+	"pipeShotgun": [
+		{"kind": "noise", "dur": 0.24, "gain": 0.48, "filter": "lp", "freq": 2100.0, "to": 140.0},
+		{"kind": "tone", "freq": 170.0, "to": 38.0, "wave": "square", "dur": 0.17, "gain": 0.28},
+	],
+	"machinePistol": [
+		{"kind": "noise", "dur": 0.07, "gain": 0.26, "filter": "hp", "freq": 1150.0, "q": 0.7},
+		{"kind": "tone", "freq": 330.0, "to": 70.0, "wave": "square", "dur": 0.06, "gain": 0.16},
+	],
+	# Both bows are a release, not a report: a short thump and a string.
+	"compoundBow": [
+		{"kind": "noise", "dur": 0.1, "gain": 0.17, "filter": "bp", "freq": 820.0, "to": 260.0, "q": 1.3},
+		{"kind": "tone", "freq": 190.0, "to": 58.0, "wave": "sine", "dur": 0.09, "gain": 0.15},
+	],
+	"crossbow": [
+		{"kind": "noise", "dur": 0.08, "gain": 0.21, "filter": "bp", "freq": 1400.0, "to": 400.0, "q": 1.6},
+		{"kind": "tone", "freq": 265.0, "to": 80.0, "wave": "square", "dur": 0.07, "gain": 0.16},
+	],
 	"pistol": [
 		{"kind": "noise", "dur": 0.09, "gain": 0.34, "filter": "hp", "freq": 900.0, "q": 0.6},
 		{"kind": "tone", "freq": 320.0, "to": 60.0, "wave": "square", "dur": 0.08, "gain": 0.22},
