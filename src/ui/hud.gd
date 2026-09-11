@@ -257,6 +257,12 @@ func _draw() -> void:
 		var edge := Color(Items.color_of(id)) if not id.is_empty() else Color("#888888")
 		draw_rect(r, edge if i == p.slot else Color(1, 1, 1, 0.15), false, 2.0 if i == p.slot else 1.0)
 		draw_string(font, Vector2(r.position.x + 4, r.position.y + 12), str(i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1, 1, 1, 0.5))
+		# A weapon's level, top right, so an upgraded one reads as upgraded
+		# from the bar without opening anything.
+		var slot_lv := Upgrade.level_in(stack)
+		if slot_lv > 1:
+			draw_string(font, Vector2(r.position.x, r.position.y + 12), "L%d" % slot_lv, HORIZONTAL_ALIGNMENT_RIGHT,
+				r.size.x - 4, 9, Color("#ffe08a"))
 		if id.is_empty():
 			continue
 		draw_string(font, Vector2(r.position.x, r.position.y + 25), Items.name_of(id), HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 10, Color.WHITE)

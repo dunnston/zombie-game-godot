@@ -194,6 +194,15 @@
       "short": "RIFL",
       "stack": 90,
       "wt": 0.25
+    },
+    {
+      "color": "#9fd0ff",
+      "id": "precision",
+      "name": "Precision Parts",
+      "notes": "What a weapon past level 3 is made of (PR E). Found only inside an instance — the School's desks and its boss — so it only leaves past the boss: the gate on levels 4 to 6 is this material, not a flag.",
+      "short": "PREC",
+      "stack": 20,
+      "wt": 0.5
     }
   ],
   "shape": "by_id_bare"

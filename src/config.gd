@@ -877,6 +877,22 @@ const WEAR := {
 	"spent_at": 0.1,
 }
 
+## Weapon levels (PR E; `Upgrade`). 1 to 6, at the bench that makes the
+## weapon; every level adds damage and uses. Levels 4 to 6 cost Precision
+## Parts, which only come out of an instance past its boss — the gate is that
+## material, so there is no flag here to forget. Feel numbers, unplayed.
+const UPGRADE := {
+	"max": 6,
+	# Per level above 1: level 6 hits 40% harder and lasts 50% longer.
+	"dmg_per_level": 0.08,
+	"dur_per_level": 0.10,
+	# The level being bought -> the share of the weapon's recipe it costs.
+	"cost_share": {2: 0.5, 3: 0.75, 4: 1.0, 5: 1.25, 6: 1.5},
+	# The level being bought -> Precision Parts on top.
+	"precision": {4: 2, 5: 4, 6: 6},
+	"xp": 8,
+}
+
 ## Stagger: the blow that interrupts a committed swing.
 ##
 ## A weapon's `stagger` above is in seconds, and what actually lands is
@@ -1153,6 +1169,12 @@ const SFX_RANGE := 1500.0
 
 const SFX := {
 	# ------------------------------------------------------------- gunfire --
+	# The Coach's revolver (PR E): a pistol's crack with a deeper, longer
+	# body, so a boss's weapon sounds like one. A placeholder, like the gun.
+	"sixShooter": [
+		{"kind": "noise", "dur": 0.13, "gain": 0.38, "filter": "hp", "freq": 700.0, "q": 0.6},
+		{"kind": "tone", "freq": 240.0, "to": 45.0, "wave": "square", "dur": 0.12, "gain": 0.26},
+	],
 	"pistol": [
 		{"kind": "noise", "dur": 0.09, "gain": 0.34, "filter": "hp", "freq": 900.0, "q": 0.6},
 		{"kind": "tone", "freq": 320.0, "to": 60.0, "wave": "square", "dur": 0.08, "gain": 0.22},

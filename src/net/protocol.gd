@@ -19,7 +19,11 @@ extends RefCounted
 ## 6: PR D and PR C — the `map` message, the snapshot's `mp` tag, the per-guest
 ## `inst` record in the world diff, the haul on the inventory record, and shots
 ## that carry their speed, life and colour. 5 was the dash.
-const PROTOCOL := 6
+## 7: PR E (Codex, PR #34) — the `upgrade_weapon` command, a weapon's level
+## on the inventory record, and new ids in the sorted pickup index table. A
+## build before it would take the command and do nothing, and read the new
+## ids as other items.
+const PROTOCOL := 7
 
 const RELIABLE := 1
 const STATE := 2

@@ -40,10 +40,26 @@ func _recipe(id: String) -> Dictionary:
 
 # ------------------------------------------------------------------ tables --
 
-func test_every_weapon_that_wears_can_be_mended_somewhere() -> void:
+func test_every_weapon_that_wears_can_be_mended_somewhere_or_lasts() -> void:
 	# The one rule that has to hold across the two tables: if a weapon wears
 	# out, something has to be able to fix it, or it is a trap. Fists are the
 	# deliberate exception and they carry no `dur` at all.
+	#
+	# A boss's weapons (PR E) are the other way out, and the one this test
+	# always said was coming: nothing makes them, so nothing mends them, and
+	# they pay for it by lasting — longer than anything of their kind that
+	# can be made — and by being somewhere to be found. A found-only weapon
+	# that exists nowhere, or that does not last, still fails here.
+	var made_max := {}
+	for id in Config.WEAPONS:
+		if not Wear.recipe_for(id).is_empty():
+			var k := String(Config.WEAPONS[id].kind)
+			made_max[k] = maxi(int(made_max.get(k, 0)), Wear.max_of(id))
+	var found := {}
+	for table in Config.LOOT:
+		for e in Config.LOOT[table]:
+			if String(e.id).begins_with("weapon:"):
+				found[String(e.id).substr(7)] = true
 	for id in Config.WEAPONS:
 		var w: Dictionary = Config.WEAPONS[id]
 		if id == "fists":
@@ -51,8 +67,10 @@ func test_every_weapon_that_wears_can_be_mended_somewhere() -> void:
 			continue
 		ok(Wear.wears(id), "%s has no durability" % id)
 		gt(Wear.max_of(id), 0, id)
-		ok(not Wear.recipe_for(id).is_empty(),
-			"%s wears out and nothing in RECIPES makes it" % id)
+		if Wear.recipe_for(id).is_empty():
+			ok(found.has(id), "%s is made by nothing and found nowhere" % id)
+			gt(Wear.max_of(id), int(made_max.get(String(w.kind), 0)),
+				"%s cannot be mended, so it has to outlast every %s that can" % [id, w.kind])
 		# A gun gets far more uses than a club because it spends one per
 		# round, and an SMG empties a magazine in two seconds.
 		if w.kind == "gun":
