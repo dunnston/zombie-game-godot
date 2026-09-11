@@ -45,16 +45,12 @@ func test_every_weapon_that_wears_can_be_mended_somewhere_or_lasts() -> void:
 	# out, something has to be able to fix it, or it is a trap. Fists are the
 	# deliberate exception and they carry no `dur` at all.
 	#
-	# A boss's weapons (PR E) are the other way out, and the one this test
-	# always said was coming: nothing makes them, so nothing mends them, and
-	# they pay for it by lasting — longer than anything of their kind that
-	# can be made — and by being somewhere to be found. A found-only weapon
-	# that exists nowhere, or that does not last, still fails here.
-	var made_max := {}
-	for id in Config.WEAPONS:
-		if not Wear.recipe_for(id).is_empty():
-			var k := String(Config.WEAPONS[id].kind)
-			made_max[k] = maxi(int(made_max.get(k, 0)), Wear.max_of(id))
+	# The owner settled it on 2026-09-11: every weapon can be found and every
+	# weapon can be repaired. So the old escape hatch — a found-only weapon
+	# pays for being unmendable by outlasting everything craftable — is gone,
+	# and what replaces it is stricter: a weapon has to be findable AND
+	# mendable, with no exceptions but Fists. A weapon nothing makes is mended
+	# off its `salvage`, so the durability ladder is free to say what it likes.
 	var found := {}
 	for table in Config.LOOT:
 		for e in Config.LOOT[table]:
@@ -67,27 +63,61 @@ func test_every_weapon_that_wears_can_be_mended_somewhere_or_lasts() -> void:
 			continue
 		ok(Wear.wears(id), "%s has no durability" % id)
 		gt(Wear.max_of(id), 0, id)
+		ok(found.has(id), "%s is found nowhere" % id)
+		ok(not Wear.repair_basis(id).is_empty(),
+			"%s can be mended by nothing: no recipe and no salvage" % id)
+		# A found weapon's tier is what picks its bench. Without one it would
+		# fall to the plain Workbench, which is how the boss drops slipped.
 		if Wear.recipe_for(id).is_empty():
-			ok(found.has(id), "%s is made by nothing and found nowhere" % id)
-			gt(Wear.max_of(id), int(made_max.get(String(w.kind), 0)),
-				"%s cannot be mended, so it has to outlast every %s that can" % [id, w.kind])
+			ok(w.has("tier"), "%s is found-only with no tier to say where it mends" % id)
 		# A gun gets far more uses than a club because it spends one per
 		# round, and an SMG empties a magazine in two seconds.
 		if w.kind == "gun":
 			gt(Wear.max_of(id), 200, id)
 
 
-func test_a_weapon_nobody_makes_is_mended_nowhere() -> void:
-	# What a unique, found-only weapon would lean on: no recipe, so no bench,
-	# and a bigger `dur` to pay for it. There is no such weapon in the game
-	# today — every weapon but Fists is craftable, and the table test above
-	# holds that line — so this proves the rule from the pieces it is built
-	# out of rather than from content that does not exist yet.
+func test_fists_are_mended_nowhere() -> void:
 	ok(Wear.recipe_for("fists").is_empty(), "nothing makes fists")
 	_hold("fists")
 	ok(Wear.repair_cost(p.hotbar, 0).is_empty(), "so there is no bill to pay")
 	ok(not Wear.repair_status(sim, p, "hotbar", 0, 2).ok,
 		"and no bench tier is the one that mends it")
+
+
+func test_a_found_weapon_is_mended_off_its_salvage_at_a_workbench() -> void:
+	# Nothing makes a Kitchen Knife, so there is no recipe to ask. Its
+	# salvage is the bill and its tier is the bench (owner, 2026-09-11).
+	_stock()
+	ok(Wear.recipe_for("kitchenKnife").is_empty(), "the knife is found, not made")
+	_hold("kitchenKnife", 10)
+	var st := Wear.repair_status(sim, p, "hotbar", 0, 0)
+	ok(not st.ok, "a tier-1 find is still Workbench work")
+	eq(st.reason, "Needs a Workbench")
+	# 150 of 160 uses gone, at half the 2 scrap it salvages for.
+	eq(Wear.repair_cost(p.hotbar, 0), {"scrap": 1}, "the bill is a share of its salvage")
+
+	sim.structs.place(sim, "workbench", plot.x + 2, plot.y, p)
+	var scrap := p.total_res(sim, "scrap")
+	ok(Actions.repair_weapon(sim, p, "hotbar", 0, Crafting.bench_tier_at(sim, p)), "beside a Workbench, yes")
+	eq(Wear.left(p.hotbar, 0), Wear.max_of("kitchenKnife"), "and it comes back whole")
+	eq(p.total_res(sim, "scrap"), scrap - 1, "for exactly the bill")
+
+
+func test_a_tier_three_find_needs_workbench_two() -> void:
+	_stock()
+	_hold("katana", 10)
+	var st := Wear.repair_status(sim, p, "hotbar", 0, 1)
+	ok(not st.ok, "a katana is third-band work")
+	eq(st.reason, "Needs Workbench II")
+	ok(Wear.repair_status(sim, p, "hotbar", 0, 2).ok, "and the upgraded bench mends it")
+
+
+func test_the_boss_drops_mend_only_at_workbench_two() -> void:
+	# They outlast everything (1400 and 1500 uses) because they were once
+	# unmendable. Mending them is allowed now, but not at the first bench.
+	for id in ["varsityBat", "sixShooter"]:
+		ok(Wear.recipe_for(id).is_empty(), "%s is a drop, not a craft" % id)
+		eq(Wear.mend_bench(id), 2, "%s mends at Workbench II" % id)
 
 
 # ------------------------------------------------------------------ wearing --

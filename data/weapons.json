@@ -76,6 +76,10 @@
     "reload": {
       "type": "float"
     },
+    "salvage": {
+      "key_ref": "RES",
+      "type": "map<int>"
+    },
     "scythe": {
       "type": "bool"
     },
@@ -100,6 +104,9 @@
     "threat": {
       "type": "float"
     },
+    "tier": {
+      "type": "int"
+    },
     "tool": {
       "type": "bool"
     },
@@ -107,7 +114,7 @@
       "type": "float"
     }
   },
-  "notes": "Melee: dmg / cd / range / arc / knock. Tools are deliberately poor weapons; `axe`, `pick`, `knife`, `scythe`, `hammer` are what the harvest gates ask for, `chop_mul` is how much better than a fist they are at scenery. The stone tools come before the metal ones so a fresh game finds them first. Guns: real magazines, reload time, spread (radians), bullet speed and life, pellets, pierce, threat per shot and a noise radius. The bow is a gun with a magazine of one and no muzzle flash; it keeps drawing while held.\n\n**Blunt things stagger, edged things bleed, and fists do neither.** That is the whole of the content design for the two, and it is meant to be readable off this table without a tooltip: `stagger` is seconds of interrupted enemy, `bleed` is damage per second left in the wound, and no weapon has both. A missing field means never, the same way a missing `dur` does. The Improvised pipe staggers because it is a length of steel; the Polearm scythe bleeds because it is a blade. `Wear` and `Bleed`/`Stagger` explain the mechanics; this is where the intent lives.\n\n`crit` is the chance this weapon adds to the player's own, and `crit_mul` is how hard its criticals land. They pull in opposite directions on purpose: a rifle or a knife finds the soft parts often and a sledgehammer almost never, but when the sledge does, it is 2.8x. Both are per-weapon because a stone knife and a sledgehammer critting identically was the thing this replaced.",
+  "notes": "Melee: dmg / cd / range / arc / knock. Tools are deliberately poor weapons; `axe`, `pick`, `knife`, `scythe`, `hammer` are what the harvest gates ask for, `chop_mul` is how much better than a fist they are at scenery. The stone tools come before the metal ones so a fresh game finds them first. Guns: real magazines, reload time, spread (radians), bullet speed and life, pellets, pierce, threat per shot and a noise radius. The bow is a gun with a magazine of one and no muzzle flash; it keeps drawing while held.\n\n**Blunt things stagger, edged things bleed, and fists do neither.** That is the whole of the content design for the two, and it is meant to be readable off this table without a tooltip: `stagger` is seconds of interrupted enemy, `bleed` is damage per second left in the wound, and no weapon has both. A missing field means never, the same way a missing `dur` does. The Improvised pipe staggers because it is a length of steel; the Polearm scythe bleeds because it is a blade. `Wear` and `Bleed`/`Stagger` explain the mechanics; this is where the intent lives.\n\n`crit` is the chance this weapon adds to the player's own, and `crit_mul` is how hard its criticals land. They pull in opposite directions on purpose: a rifle or a knife finds the soft parts often and a sledgehammer almost never, but when the sledge does, it is 2.8x. Both are per-weapon because a stone knife and a sledgehammer critting identically was the thing this replaced.\n\n`tier` is the progression band, 1 to 3, and it is a label rather than a gate: tier 1 is the first hour, tier 2 is the workbench, tier 3 is the upgraded bench and what the military left. Mostly it tracks the bench a recipe needs, and the Steel Pipe is the deliberate exception - a bench-1 craft that is tier 1 because it is the starting weapon. The rule the table is held to is that every weapon class has something craftable in every tier it occupies, so no line dead-ends in a weapon you can only find.\n\n**An upgrade is a level on the item, not a row in this table.** A weapon instance carries its level on the Slots stack beside its condition, so the table stays one row per weapon and a save carries one more integer rather than six times the ids. Levels run 1 to 6 and are bought at the bench that makes the weapon, each costing a share of that weapon's own recipe; 4 to 6 also cost Precision Parts, which only come out of an instance past its boss, so the gate is the material and there is no flag to forget. A level is +8% `dmg` and +10% `dur` and touches nothing else on purpose: `cd`, `range`, `arc`, `stagger` and `bleed` are what make a weapon itself, and letting a level move them would turn every weapon into six weapons and blur the shapes this table exists to keep apart. A level makes a weapon more of itself, never something different. **Only a weapon with a recipe takes levels.** A found-only weapon is a fixed point: excellent when you find it, and eventually passed by the crafted line, which is what keeps the bench worth returning to and makes \"a fully upgraded craftable beats a base found special\" true by construction rather than by careful tuning. Loot is not meant to dead-end on it - a found Baseball Bat is what a Spiked Bat will be made from, once a recipe can take a weapon, so the way to upgrade what you find is to build with it. **Every weapon can be found and every weapon can be repaired** (owner, 2026-09-11): a weapon with no recipe mends off its `salvage`, and its `tier` names the bench - the Workbench for 1 and 2, Workbench II for 3. That is why every found-only weapon carries a `tier`, the two boss drops included (3).",
   "rows": [
     {
       "arc": 1.0,
@@ -120,7 +127,8 @@
       "kind": "melee",
       "knock": 70.0,
       "name": "Fists",
-      "range": 34.0
+      "range": 34.0,
+      "tier": 1
     },
     {
       "arc": 1.15,
@@ -135,12 +143,16 @@
       "knock": 150.0,
       "name": "Steel Pipe",
       "range": 48.0,
-      "stagger": 0.35
+      "salvage": {
+        "scrap": 5
+      },
+      "stagger": 0.45,
+      "tier": 1
     },
     {
       "arc": 1.0,
-      "bleed": 6.0,
-      "cd": 0.34,
+      "bleed": 4.0,
+      "cd": 0.42,
       "chop_mul": 1.3,
       "color": "#cfd6dd",
       "crit": 0.08,
@@ -151,7 +163,11 @@
       "kind": "melee",
       "knock": 110.0,
       "name": "Machete",
-      "range": 54.0
+      "range": 54.0,
+      "salvage": {
+        "scrap": 12
+      },
+      "tier": 2
     },
     {
       "arc": 0.9,
@@ -168,7 +184,12 @@
       "knock": 130.0,
       "name": "Hatchet",
       "range": 48.0,
-      "stagger": 0.3,
+      "salvage": {
+        "sticks": 1,
+        "stone": 1
+      },
+      "stagger": 0.4,
+      "tier": 1,
       "tool": true
     },
     {
@@ -186,14 +207,19 @@
       "name": "Stone Pickaxe",
       "pick": true,
       "range": 50.0,
-      "stagger": 0.35,
+      "salvage": {
+        "sticks": 2,
+        "stone": 2
+      },
+      "stagger": 0.45,
+      "tier": 1,
       "tool": true,
       "tool_mul": 2.4
     },
     {
       "arc": 0.8,
-      "bleed": 4.0,
-      "cd": 0.28,
+      "bleed": 6.0,
+      "cd": 0.36,
       "chop_mul": 1.5,
       "color": "#c2b8a6",
       "crit": 0.12,
@@ -206,11 +232,15 @@
       "knock": 60.0,
       "name": "Stone Knife",
       "range": 40.0,
+      "salvage": {
+        "stone": 1
+      },
+      "tier": 1,
       "tool": true
     },
     {
       "arc": 1.6,
-      "bleed": 4.5,
+      "bleed": 8.0,
       "cd": 0.46,
       "chop_mul": 2.0,
       "color": "#b9b3a2",
@@ -223,7 +253,12 @@
       "knock": 80.0,
       "name": "Scythe",
       "range": 62.0,
+      "salvage": {
+        "sticks": 2,
+        "stone": 1
+      },
       "scythe": true,
+      "tier": 2,
       "tool": true,
       "tool_mul": 2.2
     },
@@ -242,8 +277,13 @@
       "knock": 240.0,
       "name": "Stone Hammer",
       "range": 46.0,
-      "stagger": 0.55,
+      "salvage": {
+        "sticks": 1,
+        "stone": 3
+      },
+      "stagger": 0.65,
       "structure_mul": 0.8,
+      "tier": 1,
       "tool": true
     },
     {
@@ -261,7 +301,13 @@
       "knock": 190.0,
       "name": "Fire Axe",
       "range": 52.0,
-      "stagger": 0.4,
+      "salvage": {
+        "parts": 1,
+        "scrap": 10,
+        "wood": 4
+      },
+      "stagger": 0.5,
+      "tier": 2,
       "tool": true
     },
     {
@@ -271,7 +317,7 @@
       "color": "#aeb6bd",
       "crit": 0.05,
       "crit_mul": 2.3,
-      "dmg": 30.0,
+      "dmg": 36.0,
       "dur": 420,
       "id": "steelpick",
       "kind": "melee",
@@ -279,7 +325,13 @@
       "name": "Steel Pickaxe",
       "pick": true,
       "range": 54.0,
-      "stagger": 0.45,
+      "salvage": {
+        "parts": 1,
+        "scrap": 13,
+        "wood": 3
+      },
+      "stagger": 0.55,
+      "tier": 2,
       "tool": true,
       "tool_mul": 2.4
     },
@@ -290,16 +342,22 @@
       "color": "#8d7a5e",
       "crit": 0.02,
       "crit_mul": 2.8,
-      "dmg": 78.0,
+      "dmg": 92.0,
       "dur": 300,
       "id": "sledge",
       "kind": "melee",
       "knock": 340.0,
       "name": "Sledgehammer",
       "range": 60.0,
+      "salvage": {
+        "parts": 1,
+        "scrap": 19,
+        "wood": 9
+      },
       "shake": 5.0,
-      "stagger": 0.9,
-      "structure_mul": 1.0
+      "stagger": 1.1,
+      "structure_mul": 1.0,
+      "tier": 3
     },
     {
       "ammo": "arrow",
@@ -308,7 +366,7 @@
       "color": "#9a7a48",
       "crit": 0.12,
       "crit_mul": 2.2,
-      "dmg": 19.0,
+      "dmg": 30.0,
       "dur": 260,
       "id": "bow",
       "kind": "gun",
@@ -320,10 +378,15 @@
       "pellets": 1,
       "pierce": 0,
       "reload": 0.55,
+      "salvage": {
+        "cloth": 1,
+        "sticks": 4
+      },
       "shake": 0.4,
       "speed": 780.0,
       "spread": 0.03,
-      "threat": 0.15
+      "threat": 0.15,
+      "tier": 2
     },
     {
       "ammo": "ammoP",
@@ -343,10 +406,15 @@
       "pellets": 1,
       "pierce": 0,
       "reload": 1.15,
+      "salvage": {
+        "parts": 2,
+        "scrap": 14
+      },
       "shake": 1.6,
       "speed": 1150.0,
       "spread": 0.035,
-      "threat": 1.0
+      "threat": 1.0,
+      "tier": 2
     },
     {
       "ammo": "ammoP",
@@ -366,10 +434,16 @@
       "pellets": 1,
       "pierce": 0,
       "reload": 1.6,
+      "salvage": {
+        "elec": 5,
+        "parts": 4,
+        "scrap": 24
+      },
       "shake": 1.2,
       "speed": 1100.0,
       "spread": 0.075,
-      "threat": 0.6
+      "threat": 0.6,
+      "tier": 3
     },
     {
       "ammo": "ammoS",
@@ -389,12 +463,18 @@
       "pellets": 8,
       "pierce": 0,
       "reload": 0.5,
+      "salvage": {
+        "parts": 3,
+        "scrap": 22,
+        "wood": 6
+      },
       "shake": 6.5,
       "shell_reload": true,
       "speed": 980.0,
       "spread": 0.2,
-      "stagger": 0.5,
-      "threat": 2.4
+      "stagger": 0.6,
+      "threat": 2.4,
+      "tier": 3
     },
     {
       "ammo": "ammoR",
@@ -414,11 +494,17 @@
       "pellets": 1,
       "pierce": 2,
       "reload": 1.9,
+      "salvage": {
+        "mil": 1,
+        "parts": 6,
+        "scrap": 31
+      },
       "shake": 4.2,
       "speed": 1700.0,
       "spread": 0.012,
-      "stagger": 0.25,
-      "threat": 2.0
+      "stagger": 0.3,
+      "threat": 2.0,
+      "tier": 3
     },
     {
       "ammo": "ammoR",
@@ -438,10 +524,17 @@
       "pellets": 1,
       "pierce": 1,
       "reload": 2.3,
+      "salvage": {
+        "elec": 6,
+        "mil": 7,
+        "parts": 9,
+        "scrap": 42
+      },
       "shake": 2.0,
       "speed": 1500.0,
       "spread": 0.045,
-      "threat": 1.1
+      "threat": 1.1,
+      "tier": 3
     },
     {
       "arc": 1.4,
@@ -455,9 +548,14 @@
       "kind": "melee",
       "knock": 240.0,
       "name": "Varsity Bat",
-      "notes": "The Coach's. A placeholder for the owner to rename and tune. Found only on the School's boss: nothing makes it, so nothing mends or upgrades it, and it lasts to pay for that.",
+      "notes": "The Coach's. A placeholder for the owner to rename and tune. Found only on the School's boss: nothing makes it, so nothing upgrades it, and it lasts to pay for that. It mends off its salvage, and tier 3 puts that at Workbench II (owner, 2026-09-11).",
       "range": 54.0,
-      "stagger": 0.6
+      "salvage": {
+        "scrap": 6,
+        "wood": 4
+      },
+      "stagger": 0.6,
+      "tier": 3
     },
     {
       "ammo": "ammoP",
@@ -474,14 +572,1030 @@
       "mag": 6,
       "name": "Six-Shooter",
       "noise": 520.0,
-      "notes": "The Coach's. A placeholder for the owner to rename and tune. Found only on the School's boss: nothing makes it, so nothing mends or upgrades it, and it lasts to pay for that.",
+      "notes": "The Coach's. A placeholder for the owner to rename and tune. Found only on the School's boss: nothing makes it, so nothing upgrades it, and it lasts to pay for that. It mends off its salvage, and tier 3 puts that at Workbench II (owner, 2026-09-11).",
       "pellets": 1,
       "pierce": 1,
       "reload": 1.6,
+      "salvage": {
+        "parts": 2,
+        "scrap": 10
+      },
       "shake": 1.2,
       "speed": 1300.0,
       "spread": 0.02,
-      "threat": 0.5
+      "threat": 0.5,
+      "tier": 3
+    },
+    {
+      "arc": 0.7,
+      "bleed": 7.0,
+      "cd": 0.48,
+      "color": "#8d97a1",
+      "crit": 0.09,
+      "crit_mul": 2.2,
+      "dmg": 44.0,
+      "dur": 460,
+      "id": "bladedPike",
+      "kind": "melee",
+      "knock": 130.0,
+      "name": "Bladed Pike",
+      "range": 76.0,
+      "salvage": {
+        "scrap": 9
+      },
+      "tier": 3
+    },
+    {
+      "ammo": "arrow",
+      "bow": true,
+      "cd": 0.8,
+      "color": "#4b5a4a",
+      "crit": 0.14,
+      "crit_mul": 2.3,
+      "dmg": 42.0,
+      "dur": 320,
+      "id": "compoundBow",
+      "kind": "gun",
+      "life": 0.9,
+      "mag": 1,
+      "name": "Compound Bow",
+      "noise": 95.0,
+      "pellets": 1,
+      "pierce": 0,
+      "reload": 0.5,
+      "salvage": {
+        "cloth": 2,
+        "sticks": 6
+      },
+      "shake": 0.6,
+      "speed": 900.0,
+      "spread": 0.02,
+      "threat": 0.18,
+      "tier": 2
+    },
+    {
+      "ammo": "arrow",
+      "bow": true,
+      "cd": 1.3,
+      "color": "#6a5a46",
+      "crit": 0.16,
+      "crit_mul": 2.4,
+      "dmg": 70.0,
+      "dur": 400,
+      "id": "crossbow",
+      "kind": "gun",
+      "life": 0.95,
+      "mag": 1,
+      "name": "Crossbow",
+      "noise": 110.0,
+      "pellets": 1,
+      "pierce": 0,
+      "reload": 1.6,
+      "salvage": {
+        "parts": 2,
+        "scrap": 8
+      },
+      "shake": 0.8,
+      "speed": 1050.0,
+      "spread": 0.012,
+      "threat": 0.22,
+      "tier": 3
+    },
+    {
+      "arc": 1.0,
+      "axe": true,
+      "cd": 0.54,
+      "chop_mul": 5.5,
+      "color": "#a2742f",
+      "crit": 0.05,
+      "crit_mul": 2.4,
+      "dmg": 52.0,
+      "dur": 520,
+      "id": "doubleBitAxe",
+      "kind": "melee",
+      "knock": 220.0,
+      "name": "Double-Bit Axe",
+      "range": 54.0,
+      "salvage": {
+        "scrap": 9
+      },
+      "stagger": 0.55,
+      "tier": 3,
+      "tool": true
+    },
+    {
+      "arc": 1.0,
+      "bleed": 6.5,
+      "cd": 0.4,
+      "color": "#3f4449",
+      "crit": 0.1,
+      "crit_mul": 2.0,
+      "dmg": 48.0,
+      "dur": 420,
+      "id": "leafSpringBlade",
+      "kind": "melee",
+      "knock": 110.0,
+      "name": "Leaf-Spring Blade",
+      "range": 56.0,
+      "salvage": {
+        "scrap": 9
+      },
+      "tier": 3
+    },
+    {
+      "ammo": "ammoP",
+      "cd": 0.085,
+      "color": "#5b6166",
+      "crit": 0.03,
+      "crit_mul": 1.7,
+      "dmg": 19.0,
+      "dur": 620,
+      "id": "machinePistol",
+      "kind": "gun",
+      "life": 0.5,
+      "mag": 20,
+      "name": "Machine Pistol",
+      "noise": 430.0,
+      "pellets": 1,
+      "pierce": 0,
+      "reload": 1.3,
+      "salvage": {
+        "scrap": 9
+      },
+      "shake": 1.3,
+      "speed": 1120.0,
+      "spread": 0.085,
+      "threat": 0.8,
+      "tier": 3
+    },
+    {
+      "arc": 1.2,
+      "cd": 0.74,
+      "color": "#9a9a94",
+      "crit": 0.02,
+      "crit_mul": 2.5,
+      "dmg": 48.0,
+      "dur": 240,
+      "id": "makeshiftConcreteClub",
+      "kind": "melee",
+      "knock": 250.0,
+      "name": "Makeshift Concrete Club",
+      "range": 48.0,
+      "salvage": {
+        "stone": 4
+      },
+      "shake": 4.0,
+      "stagger": 0.8,
+      "tier": 2
+    },
+    {
+      "arc": 0.6,
+      "cd": 0.44,
+      "color": "#9aa2ab",
+      "crit": 0.09,
+      "crit_mul": 2.1,
+      "dmg": 37.0,
+      "dur": 420,
+      "id": "metalSpear",
+      "kind": "melee",
+      "knock": 110.0,
+      "name": "Metal Spear",
+      "range": 72.0,
+      "salvage": {
+        "scrap": 4,
+        "wood": 2
+      },
+      "tier": 2
+    },
+    {
+      "ammo": "ammoS",
+      "cd": 1.1,
+      "color": "#5f5850",
+      "crit": 0.01,
+      "crit_mul": 1.6,
+      "dmg": 14.0,
+      "dur": 240,
+      "id": "pipeShotgun",
+      "kind": "gun",
+      "life": 0.28,
+      "mag": 1,
+      "name": "Pipe Shotgun",
+      "noise": 600.0,
+      "pellets": 6,
+      "pierce": 0,
+      "reload": 1.4,
+      "salvage": {
+        "scrap": 6
+      },
+      "shake": 6.8,
+      "speed": 940.0,
+      "spread": 0.24,
+      "threat": 2.2,
+      "tier": 2
+    },
+    {
+      "arc": 1.1,
+      "cd": 0.5,
+      "color": "#6f7a82",
+      "crit": 0.025,
+      "crit_mul": 2.2,
+      "dmg": 56.0,
+      "dur": 380,
+      "id": "pistonHammer",
+      "kind": "melee",
+      "knock": 220.0,
+      "name": "Piston Hammer",
+      "range": 48.0,
+      "salvage": {
+        "scrap": 9
+      },
+      "shake": 3.0,
+      "stagger": 0.7,
+      "tier": 3
+    },
+    {
+      "arc": 0.55,
+      "cd": 0.48,
+      "color": "#b08a5a",
+      "crit": 0.07,
+      "crit_mul": 1.9,
+      "dmg": 22.0,
+      "dur": 200,
+      "id": "woodenSpear",
+      "kind": "melee",
+      "knock": 85.0,
+      "name": "Wooden Spear",
+      "range": 70.0,
+      "salvage": {
+        "sticks": 3
+      },
+      "tier": 1
+    },
+    {
+      "ammo": "ammoR",
+      "cd": 0.11,
+      "color": "#6b5535",
+      "crit": 0.035,
+      "crit_mul": 1.9,
+      "dmg": 40.0,
+      "dur": 950,
+      "id": "akStyleRifle",
+      "kind": "gun",
+      "life": 0.85,
+      "mag": 30,
+      "name": "AK-Style Rifle",
+      "noise": 620.0,
+      "pellets": 1,
+      "pierce": 1,
+      "reload": 2.2,
+      "salvage": {
+        "mil": 4,
+        "parts": 8,
+        "scrap": 30
+      },
+      "shake": 2.2,
+      "speed": 1500.0,
+      "spread": 0.042,
+      "threat": 1.3,
+      "tier": 3
+    },
+    {
+      "ammo": "ammoR",
+      "cd": 0.1,
+      "color": "#4f5550",
+      "crit": 0.04,
+      "crit_mul": 1.9,
+      "dmg": 38.0,
+      "dur": 1000,
+      "id": "arStyleRifle",
+      "kind": "gun",
+      "life": 0.85,
+      "mag": 30,
+      "name": "AR-Style Rifle",
+      "noise": 580.0,
+      "pellets": 1,
+      "pierce": 1,
+      "reload": 2.0,
+      "salvage": {
+        "mil": 4,
+        "parts": 8,
+        "scrap": 30
+      },
+      "shake": 1.9,
+      "speed": 1550.0,
+      "spread": 0.03,
+      "threat": 1.2,
+      "tier": 3
+    },
+    {
+      "arc": 1.15,
+      "cd": 0.46,
+      "color": "#c9a56b",
+      "crit": 0.03,
+      "crit_mul": 2.0,
+      "dmg": 30.0,
+      "dur": 260,
+      "id": "baseballBat",
+      "kind": "melee",
+      "knock": 190.0,
+      "name": "Baseball Bat",
+      "range": 52.0,
+      "salvage": {
+        "wood": 4
+      },
+      "stagger": 0.55,
+      "tier": 1
+    },
+    {
+      "arc": 0.6,
+      "cd": 0.5,
+      "color": "#86705a",
+      "crit": 0.08,
+      "crit_mul": 2.2,
+      "dmg": 46.0,
+      "dur": 500,
+      "id": "boarSpear",
+      "kind": "melee",
+      "knock": 200.0,
+      "name": "Boar Spear",
+      "range": 78.0,
+      "salvage": {
+        "scrap": 9
+      },
+      "tier": 3
+    },
+    {
+      "ammo": "ammoR",
+      "cd": 1.05,
+      "color": "#4a4036",
+      "crit": 0.18,
+      "crit_mul": 2.6,
+      "dmg": 92.0,
+      "dur": 460,
+      "id": "boltActionRifle",
+      "kind": "gun",
+      "life": 0.92,
+      "mag": 5,
+      "name": "Bolt-Action Rifle",
+      "noise": 700.0,
+      "pellets": 1,
+      "pierce": 2,
+      "reload": 2.6,
+      "salvage": {
+        "parts": 5,
+        "scrap": 24
+      },
+      "shake": 4.8,
+      "speed": 1750.0,
+      "spread": 0.01,
+      "threat": 2.1,
+      "tier": 3
+    },
+    {
+      "arc": 0.9,
+      "axe": true,
+      "cd": 0.5,
+      "chop_mul": 3.0,
+      "color": "#9a6f45",
+      "crit": 0.06,
+      "crit_mul": 2.1,
+      "dmg": 32.0,
+      "dur": 480,
+      "id": "campingAxe",
+      "kind": "melee",
+      "knock": 140.0,
+      "name": "Camping Axe",
+      "range": 48.0,
+      "salvage": {
+        "scrap": 4,
+        "wood": 2
+      },
+      "stagger": 0.4,
+      "tier": 1,
+      "tool": true
+    },
+    {
+      "arc": 0.9,
+      "axe": true,
+      "bleed": 12.0,
+      "cd": 0.25,
+      "chop_mul": 8.0,
+      "color": "#d8642c",
+      "crit": 0.02,
+      "crit_mul": 1.5,
+      "dmg": 26.0,
+      "dur": 220,
+      "id": "chainsaw",
+      "kind": "melee",
+      "knock": 60.0,
+      "name": "Chainsaw",
+      "range": 46.0,
+      "salvage": {
+        "scrap": 9
+      },
+      "tier": 3,
+      "tool": true
+    },
+    {
+      "arc": 0.9,
+      "bleed": 3.0,
+      "cd": 0.44,
+      "color": "#c3ccd4",
+      "crit": 0.08,
+      "crit_mul": 2.0,
+      "dmg": 34.0,
+      "dur": 240,
+      "id": "cleaver",
+      "kind": "melee",
+      "knock": 90.0,
+      "name": "Cleaver",
+      "range": 46.0,
+      "salvage": {
+        "scrap": 4
+      },
+      "tier": 2
+    },
+    {
+      "ammo": "ammoP",
+      "cd": 0.07,
+      "color": "#63696f",
+      "crit": 0.025,
+      "crit_mul": 1.7,
+      "dmg": 18.0,
+      "dur": 700,
+      "id": "compactSmg",
+      "kind": "gun",
+      "life": 0.5,
+      "mag": 25,
+      "name": "Compact SMG",
+      "noise": 410.0,
+      "pellets": 1,
+      "pierce": 0,
+      "reload": 1.5,
+      "salvage": {
+        "parts": 4,
+        "scrap": 18
+      },
+      "shake": 1.1,
+      "speed": 1100.0,
+      "spread": 0.08,
+      "threat": 0.7,
+      "tier": 3
+    },
+    {
+      "arc": 1.0,
+      "cd": 0.46,
+      "color": "#8f9499",
+      "crit": 0.035,
+      "crit_mul": 2.0,
+      "dmg": 22.0,
+      "dur": 500,
+      "id": "crowbar",
+      "kind": "melee",
+      "knock": 140.0,
+      "name": "Crowbar",
+      "range": 46.0,
+      "salvage": {
+        "scrap": 5
+      },
+      "stagger": 0.45,
+      "tier": 1
+    },
+    {
+      "ammo": "ammoS",
+      "cd": 0.62,
+      "color": "#6b5a42",
+      "crit": 0.01,
+      "crit_mul": 1.6,
+      "dmg": 13.0,
+      "dur": 260,
+      "id": "doubleBarrelShotgun",
+      "kind": "gun",
+      "life": 0.28,
+      "mag": 2,
+      "name": "Double-Barrel Shotgun",
+      "noise": 640.0,
+      "pellets": 8,
+      "pierce": 0,
+      "reload": 2.2,
+      "salvage": {
+        "parts": 2,
+        "scrap": 16
+      },
+      "shake": 7.0,
+      "speed": 960.0,
+      "spread": 0.22,
+      "threat": 2.5,
+      "tier": 2
+    },
+    {
+      "arc": 1.0,
+      "cd": 0.44,
+      "color": "#4a4a4a",
+      "crit": 0.02,
+      "crit_mul": 1.8,
+      "dmg": 16.0,
+      "dur": 180,
+      "id": "fryingPan",
+      "kind": "melee",
+      "knock": 120.0,
+      "name": "Frying Pan",
+      "range": 38.0,
+      "salvage": {
+        "scrap": 3
+      },
+      "stagger": 0.4,
+      "tier": 1
+    },
+    {
+      "arc": 0.6,
+      "cd": 0.5,
+      "color": "#7f8c7a",
+      "crit": 0.08,
+      "crit_mul": 1.9,
+      "dmg": 24.0,
+      "dur": 220,
+      "id": "gardenSpear",
+      "kind": "melee",
+      "knock": 90.0,
+      "name": "Garden Spear",
+      "range": 68.0,
+      "salvage": {
+        "scrap": 2,
+        "wood": 2
+      },
+      "tier": 1
+    },
+    {
+      "arc": 1.1,
+      "cd": 0.56,
+      "color": "#b5443a",
+      "crit": 0.035,
+      "crit_mul": 2.4,
+      "dmg": 58.0,
+      "dur": 550,
+      "id": "halliganBar",
+      "kind": "melee",
+      "knock": 250.0,
+      "name": "Halligan Bar",
+      "range": 50.0,
+      "salvage": {
+        "scrap": 9
+      },
+      "stagger": 0.75,
+      "tier": 3
+    },
+    {
+      "arc": 0.8,
+      "bleed": 7.0,
+      "cd": 0.38,
+      "color": "#b9c2cb",
+      "crit": 0.13,
+      "crit_mul": 1.8,
+      "dmg": 22.0,
+      "dur": 420,
+      "id": "huntingKnife",
+      "kind": "melee",
+      "knife": true,
+      "knock": 60.0,
+      "name": "Hunting Knife",
+      "range": 42.0,
+      "salvage": {
+        "scrap": 3
+      },
+      "tier": 1,
+      "tool": true
+    },
+    {
+      "arc": 1.0,
+      "bleed": 4.5,
+      "cd": 0.38,
+      "color": "#dfe6ec",
+      "crit": 0.12,
+      "crit_mul": 2.1,
+      "dmg": 52.0,
+      "dur": 300,
+      "id": "katana",
+      "kind": "melee",
+      "knock": 110.0,
+      "name": "Katana",
+      "range": 60.0,
+      "salvage": {
+        "scrap": 8
+      },
+      "tier": 3
+    },
+    {
+      "arc": 0.8,
+      "bleed": 4.5,
+      "cd": 0.34,
+      "color": "#d5dbe1",
+      "crit": 0.13,
+      "crit_mul": 1.7,
+      "dmg": 15.0,
+      "dur": 160,
+      "id": "kitchenKnife",
+      "kind": "melee",
+      "knife": true,
+      "knock": 50.0,
+      "name": "Kitchen Knife",
+      "range": 38.0,
+      "salvage": {
+        "scrap": 2
+      },
+      "tier": 1,
+      "tool": true
+    },
+    {
+      "arc": 0.95,
+      "bleed": 9.0,
+      "cd": 0.42,
+      "color": "#a8b2bb",
+      "crit": 0.1,
+      "crit_mul": 1.9,
+      "dmg": 38.0,
+      "dur": 320,
+      "id": "kukri",
+      "kind": "melee",
+      "knock": 100.0,
+      "name": "Kukri",
+      "range": 50.0,
+      "salvage": {
+        "scrap": 5
+      },
+      "tier": 2
+    },
+    {
+      "ammo": "ammoR",
+      "cd": 0.09,
+      "color": "#3e4238",
+      "crit": 0.01,
+      "crit_mul": 1.8,
+      "dmg": 34.0,
+      "dur": 1400,
+      "id": "lmg",
+      "kind": "gun",
+      "knock": 90.0,
+      "life": 0.85,
+      "mag": 100,
+      "name": "LMG",
+      "noise": 820.0,
+      "pellets": 1,
+      "pierce": 2,
+      "reload": 5.0,
+      "salvage": {
+        "mil": 10,
+        "parts": 14,
+        "scrap": 50
+      },
+      "shake": 2.6,
+      "speed": 1520.0,
+      "spread": 0.06,
+      "threat": 3.2,
+      "tier": 3
+    },
+    {
+      "arc": 1.0,
+      "cd": 0.6,
+      "color": "#79828a",
+      "crit": 0.03,
+      "crit_mul": 2.4,
+      "dmg": 38.0,
+      "dur": 520,
+      "id": "largeWrench",
+      "kind": "melee",
+      "knock": 200.0,
+      "name": "Large Wrench",
+      "range": 46.0,
+      "salvage": {
+        "scrap": 7
+      },
+      "stagger": 0.6,
+      "tier": 2
+    },
+    {
+      "ammo": "ammoR",
+      "cd": 0.6,
+      "color": "#7a5c38",
+      "crit": 0.11,
+      "crit_mul": 2.3,
+      "dmg": 62.0,
+      "dur": 420,
+      "id": "leverActionRifle",
+      "kind": "gun",
+      "life": 0.8,
+      "mag": 7,
+      "name": "Lever-Action Rifle",
+      "noise": 660.0,
+      "pellets": 1,
+      "pierce": 0,
+      "reload": 2.4,
+      "salvage": {
+        "parts": 4,
+        "scrap": 22
+      },
+      "shake": 3.4,
+      "speed": 1500.0,
+      "spread": 0.02,
+      "threat": 1.8,
+      "tier": 3
+    },
+    {
+      "arc": 1.1,
+      "cd": 0.62,
+      "color": "#8a8f96",
+      "crit": 0.03,
+      "crit_mul": 2.3,
+      "dmg": 46.0,
+      "dur": 350,
+      "id": "mace",
+      "kind": "melee",
+      "knock": 230.0,
+      "name": "Mace",
+      "range": 46.0,
+      "salvage": {
+        "scrap": 6
+      },
+      "stagger": 0.7,
+      "tier": 2
+    },
+    {
+      "arc": 0.6,
+      "cd": 0.46,
+      "color": "#a89070",
+      "crit": 0.09,
+      "crit_mul": 2.0,
+      "dmg": 30.0,
+      "dur": 280,
+      "id": "makeshiftKnifeSpear",
+      "kind": "melee",
+      "knock": 95.0,
+      "name": "Makeshift Knife Spear",
+      "range": 70.0,
+      "salvage": {
+        "scrap": 1,
+        "sticks": 3
+      },
+      "tier": 2
+    },
+    {
+      "ammo": "ammoR",
+      "cd": 0.75,
+      "color": "#3f4a3e",
+      "crit": 0.18,
+      "crit_mul": 2.7,
+      "dmg": 96.0,
+      "dur": 440,
+      "id": "marksmanRifle",
+      "kind": "gun",
+      "life": 0.95,
+      "mag": 10,
+      "name": "Marksman Rifle",
+      "noise": 720.0,
+      "pellets": 1,
+      "pierce": 2,
+      "reload": 2.4,
+      "salvage": {
+        "mil": 5,
+        "parts": 8,
+        "scrap": 34
+      },
+      "shake": 5.0,
+      "speed": 1800.0,
+      "spread": 0.008,
+      "threat": 2.3,
+      "tier": 3
+    },
+    {
+      "arc": 1.5,
+      "cd": 1.0,
+      "chop_mul": 3.5,
+      "color": "#7c6a50",
+      "crit": 0.02,
+      "crit_mul": 2.9,
+      "dmg": 110.0,
+      "dur": 380,
+      "id": "maul",
+      "kind": "melee",
+      "knock": 360.0,
+      "name": "Maul",
+      "range": 58.0,
+      "salvage": {
+        "scrap": 8,
+        "wood": 4
+      },
+      "shake": 5.2,
+      "stagger": 1.1,
+      "tier": 3
+    },
+    {
+      "arc": 0.8,
+      "cd": 0.54,
+      "color": "#9aa08f",
+      "crit": 0.07,
+      "crit_mul": 1.9,
+      "dmg": 26.0,
+      "dur": 260,
+      "id": "pitchfork",
+      "kind": "melee",
+      "knock": 110.0,
+      "name": "Pitchfork",
+      "range": 66.0,
+      "salvage": {
+        "scrap": 3,
+        "wood": 2
+      },
+      "tier": 1
+    },
+    {
+      "arc": 1.0,
+      "cd": 0.38,
+      "color": "#2f3336",
+      "crit": 0.03,
+      "crit_mul": 1.8,
+      "dmg": 28.0,
+      "dur": 400,
+      "id": "policeBaton",
+      "kind": "melee",
+      "knock": 150.0,
+      "name": "Police Baton",
+      "range": 44.0,
+      "salvage": {
+        "scrap": 3
+      },
+      "stagger": 0.75,
+      "tier": 2
+    },
+    {
+      "ammo": "ammoP",
+      "cd": 0.42,
+      "color": "#8a8d92",
+      "crit": 0.09,
+      "crit_mul": 2.2,
+      "dmg": 44.0,
+      "dur": 520,
+      "id": "revolver",
+      "kind": "gun",
+      "life": 0.62,
+      "mag": 6,
+      "name": "Revolver",
+      "noise": 480.0,
+      "pellets": 1,
+      "pierce": 0,
+      "reload": 2.0,
+      "salvage": {
+        "parts": 2,
+        "scrap": 10
+      },
+      "shake": 3.0,
+      "speed": 1250.0,
+      "spread": 0.025,
+      "threat": 1.3,
+      "tier": 3
+    },
+    {
+      "ammo": "ammoR",
+      "cd": 0.58,
+      "color": "#45392f",
+      "crit": 0.16,
+      "crit_mul": 2.6,
+      "dmg": 82.0,
+      "dur": 400,
+      "id": "scopedHuntingRifle",
+      "kind": "gun",
+      "life": 0.9,
+      "mag": 8,
+      "name": "Scoped Hunting Rifle",
+      "noise": 700.0,
+      "pellets": 1,
+      "pierce": 2,
+      "reload": 1.9,
+      "salvage": {
+        "mil": 1,
+        "parts": 6,
+        "scrap": 31
+      },
+      "shake": 4.4,
+      "speed": 1720.0,
+      "spread": 0.009,
+      "threat": 2.0,
+      "tier": 3
+    },
+    {
+      "ammo": "ammoS",
+      "cd": 0.42,
+      "color": "#55504a",
+      "crit": 0.01,
+      "crit_mul": 1.6,
+      "dmg": 11.0,
+      "dur": 380,
+      "id": "semiAutoShotgun",
+      "kind": "gun",
+      "life": 0.3,
+      "mag": 8,
+      "name": "Semi-Auto Shotgun",
+      "noise": 650.0,
+      "pellets": 8,
+      "pierce": 0,
+      "reload": 2.6,
+      "salvage": {
+        "parts": 4,
+        "scrap": 20
+      },
+      "shake": 5.6,
+      "speed": 990.0,
+      "spread": 0.19,
+      "threat": 2.6,
+      "tier": 3
+    },
+    {
+      "arc": 1.2,
+      "cd": 0.58,
+      "color": "#7d8a93",
+      "crit": 0.03,
+      "crit_mul": 2.0,
+      "dmg": 21.0,
+      "dur": 300,
+      "id": "shovel",
+      "kind": "melee",
+      "knock": 160.0,
+      "name": "Shovel",
+      "range": 56.0,
+      "salvage": {
+        "scrap": 3,
+        "wood": 2
+      },
+      "stagger": 0.5,
+      "tier": 1
+    },
+    {
+      "ammo": "stone",
+      "bow": true,
+      "cd": 0.65,
+      "color": "#8a7f6a",
+      "crit": 0.06,
+      "crit_mul": 1.6,
+      "dmg": 14.0,
+      "dur": 260,
+      "id": "slingshot",
+      "kind": "gun",
+      "life": 0.7,
+      "mag": 1,
+      "name": "Slingshot",
+      "noise": 45.0,
+      "pellets": 1,
+      "pierce": 0,
+      "reload": 0.5,
+      "salvage": {
+        "scrap": 3
+      },
+      "shake": 0.3,
+      "speed": 620.0,
+      "spread": 0.05,
+      "threat": 0.08,
+      "tier": 1
+    },
+    {
+      "arc": 1.15,
+      "cd": 0.46,
+      "color": "#b08a52",
+      "crit": 0.045,
+      "crit_mul": 2.1,
+      "dmg": 40.0,
+      "dur": 300,
+      "id": "spikedBat",
+      "kind": "melee",
+      "knock": 185.0,
+      "name": "Spiked Bat",
+      "range": 52.0,
+      "salvage": {
+        "scrap": 6
+      },
+      "stagger": 0.55,
+      "tier": 2
+    },
+    {
+      "arc": 0.95,
+      "axe": true,
+      "cd": 0.62,
+      "chop_mul": 5.0,
+      "color": "#8b6239",
+      "crit": 0.05,
+      "crit_mul": 2.4,
+      "dmg": 40.0,
+      "dur": 460,
+      "id": "splittingAxe",
+      "kind": "melee",
+      "knock": 210.0,
+      "name": "Splitting Axe",
+      "range": 52.0,
+      "salvage": {
+        "scrap": 6,
+        "wood": 3
+      },
+      "stagger": 0.55,
+      "tier": 2,
+      "tool": true
     }
   ]
 }

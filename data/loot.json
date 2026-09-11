@@ -69,6 +69,18 @@
           "max": 2,
           "min": 1,
           "w": 8
+        },
+        {
+          "id": "weapon:doubleBarrelShotgun",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:leverActionRifle",
+          "max": 1,
+          "min": 1,
+          "w": 3
         }
       ],
       "id": "cabinet"
@@ -146,6 +158,30 @@
           "max": 2,
           "min": 1,
           "w": 6
+        },
+        {
+          "id": "weapon:cleaver",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:kitchenKnife",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:fryingPan",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:knife",
+          "max": 1,
+          "min": 1,
+          "w": 8
         }
       ],
       "id": "kitchen",
@@ -200,6 +236,42 @@
           "max": 3,
           "min": 1,
           "w": 7
+        },
+        {
+          "id": "weapon:pipeShotgun",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:largeWrench",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:hammer",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:pick",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:crowbar",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:knife",
+          "max": 1,
+          "min": 1,
+          "w": 8
         }
       ],
       "id": "toolbox"
@@ -253,6 +325,54 @@
           "max": 3,
           "min": 1,
           "w": 8
+        },
+        {
+          "id": "weapon:slingshot",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:cleaver",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:crowbar",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:baseballBat",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:gardenSpear",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:shovel",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:campingAxe",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:scythe",
+          "max": 1,
+          "min": 1,
+          "w": 5
         }
       ],
       "id": "shelf"
@@ -370,6 +490,12 @@
           "max": 2,
           "min": 1,
           "w": 10
+        },
+        {
+          "id": "weapon:leafSpringBlade",
+          "max": 1,
+          "min": 1,
+          "w": 3
         }
       ],
       "id": "carTrunk"
@@ -435,6 +561,36 @@
           "max": 1,
           "min": 1,
           "w": 6
+        },
+        {
+          "id": "weapon:machinePistol",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:compactSmg",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:semiAutoShotgun",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:smg",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:policeBaton",
+          "max": 1,
+          "min": 1,
+          "w": 5
         }
       ],
       "id": "policeLocker"
@@ -476,6 +632,78 @@
           "max": 6,
           "min": 3,
           "w": 14
+        },
+        {
+          "id": "weapon:boarSpear",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:crossbow",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:compoundBow",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:revolver",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:marksmanRifle",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:boltActionRifle",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:semiAutoShotgun",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:scopedHuntingRifle",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:doubleBarrelShotgun",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:leverActionRifle",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:huntingKnife",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:smg",
+          "max": 1,
+          "min": 1,
+          "w": 3
         }
       ],
       "id": "gunSafe"
@@ -539,6 +767,48 @@
         {
           "id": "item:medkit",
           "max": 2,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:machinePistol",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:compactSmg",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:arStyleRifle",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:marksmanRifle",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:lmg",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:akStyleRifle",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:kukri",
+          "max": 1,
           "min": 1,
           "w": 5
         }
@@ -770,6 +1040,36 @@
           "max": 1,
           "min": 1,
           "w": 10
+        },
+        {
+          "id": "weapon:chainsaw",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:doubleBitAxe",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:splittingAxe",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:scythe",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:maul",
+          "max": 1,
+          "min": 1,
+          "w": 3
         }
       ],
       "id": "logPile"
@@ -811,6 +1111,66 @@
           "max": 5,
           "min": 2,
           "w": 10
+        },
+        {
+          "id": "weapon:pipeShotgun",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:leafSpringBlade",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:pistonHammer",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:slingshot",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:largeWrench",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:steelpick",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:makeshiftConcreteClub",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:woodenSpear",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:sledge",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:makeshiftKnifeSpear",
+          "max": 1,
+          "min": 1,
+          "w": 5
         }
       ],
       "id": "crate"
@@ -946,6 +1306,18 @@
         {
           "id": "rations",
           "max": 3,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:spikedBat",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:baseballBat",
+          "max": 1,
           "min": 1,
           "w": 8
         }
@@ -1124,6 +1496,12 @@
           "max": 2,
           "min": 1,
           "w": 12
+        },
+        {
+          "id": "weapon:revolver",
+          "max": 1,
+          "min": 1,
+          "w": 3
         }
       ],
       "id": "nightstand"
@@ -1236,6 +1614,24 @@
           "max": 8,
           "min": 3,
           "w": 6
+        },
+        {
+          "id": "weapon:huntingKnife",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:makeshiftKnifeSpear",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:kukri",
+          "max": 1,
+          "min": 1,
+          "w": 5
         }
       ],
       "id": "footlocker"
@@ -1360,6 +1756,108 @@
           "max": 3,
           "min": 1,
           "w": 8
+        },
+        {
+          "id": "weapon:bladedPike",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:chainsaw",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:doubleBitAxe",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:halliganBar",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:crossbow",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:compoundBow",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:metalSpear",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:hammer",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:steelpick",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:pick",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:gardenSpear",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:shovel",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:pitchfork",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:campingAxe",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "weapon:sledge",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:splittingAxe",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:maul",
+          "max": 1,
+          "min": 1,
+          "w": 3
         }
       ],
       "id": "toolrack",
@@ -1402,6 +1900,24 @@
           "max": 8,
           "min": 3,
           "w": 14
+        },
+        {
+          "id": "weapon:boarSpear",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:mace",
+          "max": 1,
+          "min": 1,
+          "w": 5
+        },
+        {
+          "id": "weapon:katana",
+          "max": 1,
+          "min": 1,
+          "w": 3
         }
       ],
       "id": "displaycase"
@@ -1467,6 +1983,18 @@
           "max": 1,
           "min": 1,
           "w": 2
+        },
+        {
+          "id": "weapon:halliganBar",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:policeBaton",
+          "max": 1,
+          "min": 1,
+          "w": 5
         }
       ],
       "id": "schoolLocker",

@@ -700,7 +700,13 @@ func _requirement_lines(s: InventoryScreen, sel: Dictionary) -> Array:
 		var st := status_of(s, sel)
 		var why := String(st.reason)
 		var gated := why.begins_with("Needs a Workbench") or why.begins_with("Needs Workbench") or why.begins_with("Needs a ")
-		out.append(Ui.requires_line("the bench that made it", ("TIER %d IS ENOUGH" % maxi(1, s.bench())) if not gated else why.to_upper(),
+		# A found weapon has no bench that made it: it mends off its salvage
+		# at the bench its tier asks for (`Wear.mend_bench`, PR #36).
+		var wid := String((sel.repair if sel.has("repair") else sel.upgrade).id)
+		var what := "the bench that made it"
+		if sel.has("repair") and Wear.recipe_for(wid).is_empty():
+			what = "Workbench II" if Wear.mend_bench(wid) >= 2 else "a Workbench"
+		out.append(Ui.requires_line(what, ("TIER %d IS ENOUGH" % maxi(1, s.bench())) if not gated else why.to_upper(),
 			not gated, "Mended at" if sel.has("repair") else "Levelled at"))
 	return out
 

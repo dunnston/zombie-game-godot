@@ -564,15 +564,23 @@ func item_facts(stack: Dictionary) -> Dictionary:
 			badges.append(["L%d" % lv, Ui.WAIT, true])
 			rows.append(["Level", "%d  ·  +%d%% damage, +%d%% uses" % [lv, roundi((Upgrade.dmg_mul(lv) - 1.0) * 100.0),
 				roundi((Upgrade.dur_mul(lv) - 1.0) * 100.0)]])
+		# A found weapon mends off its salvage but takes no levels (`Upgrade`),
+		# and has no bench that made it, so its tier names where it mends.
+		var found := Wear.recipe_for(id).is_empty()
+		var parts: Array[String] = []
+		if found:
+			parts.append("Found, not made — mends, but never upgrades.")
 		if Wear.wears(id):
 			if Wear.broken_in(stack):
 				badges.append(["Broken", Ui.SHORT])
-				note = "Broken — mend it at the bench that made it."
+				var where := "the bench that made it"
+				if found:
+					where = "Workbench II" if Wear.mend_bench(id) >= 2 else "a Workbench"
+				parts.append("Broken — mend it at %s." % where)
 			else:
 				var f := float(Wear.left_in(stack)) / maxf(1.0, float(Wear.max_in(stack)))
 				rows.append(["Condition", "%d / %d" % [Wear.left_in(stack), Wear.max_in(stack)], Ui.wear_color(f)])
-		if Wear.recipe_for(id).is_empty():
-			note = "Found, not made  ·  nothing mends or upgrades it."
+		note = "  ".join(parts)
 	elif kind == "consumable":
 		var c: Dictionary = Config.CONSUMABLES[id]
 		if float(c.get("heal", 0.0)) > 0.0:

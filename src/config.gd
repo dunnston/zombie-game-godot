@@ -827,7 +827,9 @@ const LIT_SENSE_BONUS := 90.0
 
 ## What Gunsmith multiplies: everything a gun eats. Crafting a batch of
 ## bandages is not ammunition and is not affected.
-const AMMO_IDS := ["arrow", "ammoP", "ammoS", "ammoR"]
+# Stone is a material first and a Slingshot round second, which is the point
+# of the Slingshot: the only gun whose ammunition is lying on the ground.
+const AMMO_IDS := ["arrow", "ammoP", "ammoS", "ammoR", "stone"]
 
 ## Weapons and consumables carry no weight of their own in the tables, so the
 ## item registry gives them these. A gun is six units; a bandage is half one.
@@ -1174,6 +1176,72 @@ const SFX := {
 	"sixShooter": [
 		{"kind": "noise", "dur": 0.13, "gain": 0.38, "filter": "hp", "freq": 700.0, "q": 0.6},
 		{"kind": "tone", "freq": 240.0, "to": 45.0, "wave": "square", "dur": 0.12, "gain": 0.26},
+	],
+	# A pipe gun is a crude tube: more boom than crack, and it rattles.
+	"pipeShotgun": [
+		{"kind": "noise", "dur": 0.24, "gain": 0.48, "filter": "lp", "freq": 2100.0, "to": 140.0},
+		{"kind": "tone", "freq": 170.0, "to": 38.0, "wave": "square", "dur": 0.17, "gain": 0.28},
+	],
+	"machinePistol": [
+		{"kind": "noise", "dur": 0.07, "gain": 0.26, "filter": "hp", "freq": 1150.0, "q": 0.7},
+		{"kind": "tone", "freq": 330.0, "to": 70.0, "wave": "square", "dur": 0.06, "gain": 0.16},
+	],
+	# Both bows are a release, not a report: a short thump and a string.
+	"compoundBow": [
+		{"kind": "noise", "dur": 0.1, "gain": 0.17, "filter": "bp", "freq": 820.0, "to": 260.0, "q": 1.3},
+		{"kind": "tone", "freq": 190.0, "to": 58.0, "wave": "sine", "dur": 0.09, "gain": 0.15},
+	],
+	"crossbow": [
+		{"kind": "noise", "dur": 0.08, "gain": 0.21, "filter": "bp", "freq": 1400.0, "to": 400.0, "q": 1.6},
+		{"kind": "tone", "freq": 265.0, "to": 80.0, "wave": "square", "dur": 0.07, "gain": 0.16},
+	],
+	"doubleBarrelShotgun": [
+		{"kind": "noise", "dur": 0.26, "gain": 0.52, "filter": "lp", "freq": 2000.0, "q": 0.7},
+		{"kind": "tone", "freq": 165.0, "to": 36.0, "wave": "square", "dur": 0.18, "gain": 0.3},
+	],
+	"semiAutoShotgun": [
+		{"kind": "noise", "dur": 0.2, "gain": 0.46, "filter": "lp", "freq": 2300.0, "q": 0.7},
+		{"kind": "tone", "freq": 185.0, "to": 42.0, "wave": "square", "dur": 0.14, "gain": 0.26},
+	],
+	"akStyleRifle": [
+		{"kind": "noise", "dur": 0.14, "gain": 0.4, "filter": "hp", "freq": 760.0, "q": 0.7},
+		{"kind": "tone", "freq": 250.0, "to": 52.0, "wave": "square", "dur": 0.11, "gain": 0.24},
+	],
+	"arStyleRifle": [
+		{"kind": "noise", "dur": 0.12, "gain": 0.36, "filter": "hp", "freq": 900.0, "q": 0.7},
+		{"kind": "tone", "freq": 285.0, "to": 60.0, "wave": "square", "dur": 0.1, "gain": 0.22},
+	],
+	"boltActionRifle": [
+		{"kind": "noise", "dur": 0.2, "gain": 0.46, "filter": "hp", "freq": 640.0, "q": 0.7},
+		{"kind": "tone", "freq": 200.0, "to": 40.0, "wave": "square", "dur": 0.16, "gain": 0.3},
+	],
+	"marksmanRifle": [
+		{"kind": "noise", "dur": 0.22, "gain": 0.40, "filter": "hp", "freq": 600.0, "q": 0.7},
+		{"kind": "tone", "freq": 185.0, "to": 36.0, "wave": "square", "dur": 0.17, "gain": 0.24},
+	],
+	"scopedHuntingRifle": [
+		{"kind": "noise", "dur": 0.19, "gain": 0.44, "filter": "hp", "freq": 660.0, "q": 0.7},
+		{"kind": "tone", "freq": 205.0, "to": 42.0, "wave": "square", "dur": 0.15, "gain": 0.29},
+	],
+	"leverActionRifle": [
+		{"kind": "noise", "dur": 0.16, "gain": 0.4, "filter": "hp", "freq": 720.0, "q": 0.7},
+		{"kind": "tone", "freq": 230.0, "to": 48.0, "wave": "square", "dur": 0.13, "gain": 0.26},
+	],
+	"compactSmg": [
+		{"kind": "noise", "dur": 0.06, "gain": 0.24, "filter": "hp", "freq": 1200.0, "q": 0.7},
+		{"kind": "tone", "freq": 340.0, "to": 76.0, "wave": "square", "dur": 0.05, "gain": 0.15},
+	],
+	"revolver": [
+		{"kind": "noise", "dur": 0.15, "gain": 0.4, "filter": "hp", "freq": 700.0, "q": 0.7},
+		{"kind": "tone", "freq": 235.0, "to": 44.0, "wave": "square", "dur": 0.12, "gain": 0.27},
+	],
+	"lmg": [
+		{"kind": "noise", "dur": 0.11, "gain": 0.34, "filter": "hp", "freq": 820.0, "q": 0.7},
+		{"kind": "tone", "freq": 265.0, "to": 56.0, "wave": "square", "dur": 0.09, "gain": 0.21},
+	],
+	"slingshot": [
+		{"kind": "noise", "dur": 0.06, "gain": 0.1, "filter": "bp", "freq": 1100.0, "q": 0.7},
+		{"kind": "tone", "freq": 300.0, "to": 120.0, "wave": "square", "dur": 0.05, "gain": 0.08},
 	],
 	"pistol": [
 		{"kind": "noise", "dur": 0.09, "gain": 0.34, "filter": "hp", "freq": 900.0, "q": 0.6},
