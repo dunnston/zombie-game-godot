@@ -1350,6 +1350,30 @@
       "notes": "Build menu, tier 1. The single bench in the game today; the Benches table is the plan to split it up.",
       "status": "in game",
       "subcategory": "Crafting"
+    },
+    {
+      "category": "Materials",
+      "id": "precision",
+      "name": "Precision Parts",
+      "notes": "Levels 4 to 6 of a weapon. Only out of an instance, past its boss.",
+      "status": "in game",
+      "subcategory": "Salvage"
+    },
+    {
+      "category": "Weapons",
+      "id": "varsityBat",
+      "name": "Varsity Bat",
+      "notes": "The Coach's, 25% of the time. Cannot be mended or upgraded; lasts. A placeholder.",
+      "status": "in game",
+      "subcategory": "Blunt"
+    },
+    {
+      "category": "Weapons",
+      "id": "sixShooter",
+      "name": "Six-Shooter",
+      "notes": "The Coach's, 15% of the time. Cannot be mended or upgraded; lasts. A placeholder.",
+      "status": "in game",
+      "subcategory": "Handguns"
     }
   ]
 }

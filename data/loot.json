@@ -1461,6 +1461,12 @@
           "max": 1,
           "min": 1,
           "w": 4
+        },
+        {
+          "id": "precision",
+          "max": 1,
+          "min": 1,
+          "w": 2
         }
       ],
       "id": "schoolLocker",
@@ -1512,6 +1518,12 @@
         },
         {
           "id": "item:lockpick",
+          "max": 1,
+          "min": 1,
+          "w": 4
+        },
+        {
+          "id": "precision",
           "max": 1,
           "min": 1,
           "w": 4
@@ -1641,6 +1653,12 @@
           "max": 2,
           "min": 1,
           "w": 8
+        },
+        {
+          "id": "precision",
+          "max": 2,
+          "min": 1,
+          "w": 12
         }
       ],
       "id": "principalDesk",
@@ -1693,6 +1711,42 @@
       ],
       "id": "supplyCache",
       "notes": "Somebody's last stand, left outside the gym door: the design note's antechamber cache (§6.4), so running dry on the way in is not an automatic loss."
+    },
+    {
+      "entries": [
+        {
+          "id": "precision",
+          "max": 5,
+          "min": 3,
+          "w": 100
+        },
+        {
+          "id": "weapon:varsityBat",
+          "max": 1,
+          "min": 1,
+          "w": 25
+        },
+        {
+          "id": "weapon:sixShooter",
+          "max": 1,
+          "min": 1,
+          "w": 15
+        },
+        {
+          "id": "item:medkit",
+          "max": 2,
+          "min": 1,
+          "w": 50
+        },
+        {
+          "id": "mil",
+          "max": 8,
+          "min": 4,
+          "w": 60
+        }
+      ],
+      "id": "coachDrops",
+      "notes": "What the Coach drops. **For a boss, `w` is a percentage and every entry rolls on its own** — a boss is not one cupboard's pick but a list of chances, which is how a rare weapon can be rare without crowding out the Precision Parts that always come."
     }
   ],
   "shape": "groups"

@@ -16,7 +16,11 @@ extends RefCounted
 
 ## Bumped whenever anything in here changes shape. A guest whose number
 ## differs is refused before it can misread a byte.
-const PROTOCOL := 5
+## 6: PR E (Codex, PR #34) — the `upgrade_weapon` command, a weapon's level
+## on the inventory record, and new ids in the sorted pickup index table. A
+## build before it would take the command and do nothing, and read the new
+## ids as other items.
+const PROTOCOL := 6
 
 const RELIABLE := 1
 const STATE := 2

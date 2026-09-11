@@ -2340,3 +2340,64 @@ prove the tests were watching: a slam with no telegraph (lands at once, four
 tests fail), no shield while it turns, a charge a wall does not stop, and a
 boss awake before anybody comes in — each caught. Numbers: 665 / 8820 fast,
 701 / 8968 with `--all`, zero failures; smoke 86/86 with nothing in its log.
+
+## Instanced dungeons, PR E — weapon levels and the boss's drops
+
+Stacked on PR C's branch (`boss`) on purpose: the gate is the Coach's drop
+table, and the Coach is PR C. Retarget to `main` as its parents merge.
+The owner's answers: Precision Parts; gated by the material, no flag; damage
+and durability; at the weapon's own bench, stored on the weapon; a drop table
+of per-entry chances with two placeholder boss-only weapons.
+
+- [x] Content through `EditApi`: RES `precision`, WEAPONS `varsityBat` and
+      `sixShooter` (no recipe, long `dur`), LOOT `coachDrops` and a little
+      precision in three School tables, the Coach's `loot_table`, CATALOG rows
+- [x] `lv` on a `Slots` stack beside `w`, on every path `w` takes (add,
+      move, record, pickups, drop, save, haul, spill, death pack — lower wins)
+- [x] `Upgrade`: level, multipliers, cost, status (the recipe's bench gate),
+      the one writer; `Config.UPGRADE`
+- [x] `Wear`'s ceiling read off the stack; both damage reads take the level
+- [x] A boss's table rolls each entry as a percentage
+- [x] `Actions.upgrade_weapon`; UPGRADE rows beside MEND; tooltip; hotbar `L4`
+- [x] `upgrade_test.gd` (12); the wear rule rewritten for found weapons; a
+      sound for the Six-Shooter; a smoke checkpoint through the real button
+- [ ] **Owner gate:** take a weapon to 3, beat the Coach, take it to 4
+
+**PR E review.** The first run failed eleven assertions, and none was the
+design: the test's bag was too small for its own stock, so the Machete a
+later line added silently did not exist and the materials were short — the
+failures read like a broken gate and a broken death pack. Two more were the
+Six-Shooter having no sound. The smoke's first cut handed the player a new
+Machete late in the run, when the pack is full; it now upgrades the Pipe
+already carried. Five rules were broken on purpose and each was caught: no
+Precision Parts at level 4, a gun that ignores its level, a record that drops
+it, a death pack that keeps the higher, and boss rolls that ignore their
+odds. Numbers: 677 / 13392 fast, 713 / 13540 with `--all`, zero failures;
+smoke 87/87.
+
+## Review — Codex pass on #30–#34 (2026-09-10)
+
+Ten findings across the five PRs, all real. Each was fixed on the branch it
+belongs to, with a test, and broken on purpose to prove the test was
+watching; each branch was then merged into the next one up.
+
+- **#30 dash** — a burst resumed on its own after a car or the floor.
+  Cancelled at the top of `tick`, above every early return.
+- **#31 School** — (P1) the haul cap only measured the pouch, so a full haul
+  moved into the pack could be filled again: it now counts every find still
+  held (`Instance.haul_load`). (P1) crafting laundered finds past the ledger:
+  nothing is crafted inside. An extraction pending when the whole party died
+  is a wipe. A save from before the School moves what it left on the
+  footprint to the door.
+- **#32 co-op** — a teammate could be swapped in from a running car.
+- **#33 boss** — (P1) a burst could kill it through a threshold: damage now
+  stops at the next uncrossed one. No bleed or stagger through the shield
+  (the Coach's knock resist already floors any stagger, so that guard is
+  untested). A cut-off telegraph is cleared on the phase change.
+- **#34 upgrades** — (P1) protocol 6.
+
+Two things went wrong on the way, both in the tests: a new test inserted in
+the middle of the party test, and the one merge conflict (`_to_haul`, where
+both branches changed the same line). Both are in `tasks/lessons.md`.
+Numbers on `upgrades`, with everything merged: 685 / 13512 fast, 721 / 13660
+with `--all`, zero failures.

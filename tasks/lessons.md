@@ -397,3 +397,30 @@ yet when an earlier autoload's `_ready` wants to know.
   The stash has been reachable from anywhere since Phase 3 and every system
   that spends inherits it; fixing it in farming alone would have made the one
   new system the odd one out. Correct the claim, raise the real card.
+
+## A fixture that quietly refuses is a failure somewhere else (PR E)
+
+`Slots.add` returns how many fitted and nothing else complains. A test bag of
+60 slots filled with ten resources at 500 each was full before the weapon the
+test was about went in — so the death-pack test failed as "kept the higher
+level" and the upgrade tests as "missing materials", and both looked like the
+design. **Rule:** a fixture that stocks a container asserts the stock is
+there, and gives itself room to spare. The smoke has the same trap late in
+its run, when the player's pack is full: use what is already carried rather
+than handing over something new, and put the refusal in the failure message.
+
+## Anchor a new test on the end of a function, not on a line inside it (Codex pass)
+
+A new test was inserted after "the last assertion I could see" of the party
+test — which was not its last line. The rest of that test became the body of
+the new one, and the failures ("already inside", a nil `party`) read like a
+bug in the fix. **Rule:** anchor an insertion on the *next* `func` line, or
+read to the function's end first. The same for anything appended by Edit.
+
+## A merged stack is resolved line by line, never by side
+
+Merging `boss` into `upgrades` conflicted on one line that both changed for
+different reasons: PR E added `lv` to the haul, the Codex fix added the
+finds already held. Taking either side drops the other's fix silently.
+**Rule:** a conflict between two fixes is resolved by writing the line that
+carries both, then the break-checks for both run again on the merged branch.
