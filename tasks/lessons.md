@@ -491,3 +491,12 @@ thread is open and `mergeStateStatus` is CLEAN.
   collapsed and a click landed on the wrong one. The smoke caught it by
   clicking, not by looking. Size a composed button through
   `custom_minimum_size`, recomputed from the caller's floor on every change.
+- Codex on PR #37: a section's signature has to name everything the section
+  draws. Three of four findings were a label that froze — a survivor's HP, a
+  ration count — because the world keeps running behind a full screen and
+  the signature only named the fields that *usually* change. When you write
+  a signature, read it against the build function line by line.
+- A break-check is only a break-check if the test fails on its assertion.
+  Extract the old behaviour into the named function first, watch the test
+  fail on it, then fix; a test that fails because the method is missing
+  proves nothing about the rule.

@@ -630,17 +630,44 @@ class HotSlot extends Control:
 		elif int(stack.get("n", 1)) > 1:
 			sub = "x%d" % int(stack.n)
 		var ui := Ui.font("ui", 500)
-		var name_y := size.y - (20.0 if not sub.is_empty() else 12.0)
+		# The sliver takes the bottom 5px when there is one, and the lines
+		# above it move up to make room rather than drawing over it.
+		var bar := shows_sliver(p, i)
+		var lift := 4.0 if bar else 0.0
+		var name_y := size.y - (20.0 if not sub.is_empty() else 12.0) - lift
 		var name_ := Items.name_of(id)
 		var fs := 12
 		draw_string(ui, Vector2(2, name_y), name_, HORIZONTAL_ALIGNMENT_CENTER, size.x - 4, fs,
 			Ui.TEXT_BODY if broken else Color.WHITE, TextServer.JUSTIFICATION_NONE)
 		if not sub.is_empty():
-			draw_string(sub_font, Vector2(0, size.y - 6), sub, HORIZONTAL_ALIGNMENT_CENTER, size.x, 12, sub_col)
+			draw_string(sub_font, Vector2(0, size.y - 6 - lift), sub, HORIZONTAL_ALIGNMENT_CENTER, size.x, 12, sub_col)
 		# A sliver of condition along the bottom, only once there is something
 		# to say. A weapon must never break as a surprise.
-		if Wear.is_worn(p.hotbar, i) and sub.is_empty():
+		if bar:
 			var frac := Wear.frac(p.hotbar, i)
-			var wb := Rect2(6, size.y - 8, size.x - 12, 3)
+			var wb := Rect2(6, size.y - 5, size.x - 12, 3)
 			draw_rect(wb, Ui.VOID)
 			draw_rect(Rect2(wb.position, Vector2(wb.size.x * frac, 3)), Ui.wear_color(frac))
+
+	## The one line under the name: rounds for a gun, TOOL, BROKEN, a count.
+	static func sub_text(p: PlayerSim, i: int) -> String:
+		var stack := p.hotbar.at(i)
+		var id := String(stack.get("id", ""))
+		if id.is_empty():
+			return ""
+		if Wear.is_broken(p.hotbar, i):
+			return "BROKEN"
+		var wpn: Dictionary = Config.WEAPONS.get(id, {})
+		if wpn.get("kind", "") == "gun":
+			return "%d / %d" % [p.mag.get(id, 0), p.count_res(wpn.ammo)]
+		if wpn.get("tool", false):
+			return "TOOL"
+		if int(stack.get("n", 1)) > 1:
+			return "x%d" % int(stack.n)
+		return ""
+
+	## Whether the slot draws its condition sliver: whenever it is worn and not
+	## yet broken — under a gun's rounds and a tool's TOOL line too. Hiding it
+	## behind the line of text took the warning off every Hatchet (Codex, PR #37).
+	static func shows_sliver(p: PlayerSim, i: int) -> bool:
+		return Wear.is_worn(p.hotbar, i) and not Wear.is_broken(p.hotbar, i)

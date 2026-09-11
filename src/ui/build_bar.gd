@@ -99,6 +99,27 @@ func show_menu() -> void:
 		menu = true
 
 
+## Keeps the selection on the page the menu is showing: a search or the
+## filter that hides the selected piece moves the selection to the first one
+## still shown, the way crafting does — otherwise PLACE would build something
+## that is not on the screen (Codex, PR #37).
+func reconcile() -> void:
+	var id := selected_card()
+	if TOOLS.has(id):
+		return
+	var list := _shown()
+	if not list.is_empty() and not list.has(id):
+		selected = cards().find(list[0])
+
+
+## Whether PLACE, or Enter, would take the selection into the street: a piece
+## that is unlocked and on the page. With the filter hiding everything, that
+## is nothing — an unaffordable piece is not placeable by being remembered.
+func placeable() -> bool:
+	var id := selected_card()
+	return not card_info(id).locked and _shown().has(id)
+
+
 ## Which rail category a piece is filed under, from what it does — derived,
 ## so a new piece in `STRUCTURES` needs no second field kept in step.
 static func category_of(id: String) -> String:
@@ -245,7 +266,7 @@ func _input(event: InputEvent) -> void:
 		KEY_UP: _nav(0, -1)
 		KEY_DOWN: _nav(0, 1)
 		KEY_ENTER, KEY_KP_ENTER:
-			if not k.echo and not card_info(selected_card()).locked:
+			if not k.echo and placeable():
 				place_mode()
 		KEY_SLASH:
 			if _search != null:
@@ -335,6 +356,8 @@ func refresh() -> void:
 			_build_menu()
 		else:
 			_build_bar()
+	if menu:
+		reconcile()
 	run_sections()
 
 
@@ -563,10 +586,13 @@ func _detail_sig() -> String:
 	var have := ""
 	for m in info.cost:
 		have += str(player.total_res(sim, m)) + ","
-	return "%s|%s|%s|%s" % [id, str(info.afford), str(info.locked), have]
+	return "%s|%s|%s|%s|%s" % [id, str(info.afford), str(info.locked), have, str(_shown().has(id))]
 
 
 func _build_detail(box: Container) -> void:
+	if _shown().is_empty():
+		box.add_child(Ui.pad(Ui.para("Nothing matches — clear the search or the filter to choose a piece.", "Body14", Ui.TEXT_DIM), 20))
+		return
 	var id := selected_card()
 	if TOOLS.has(id):
 		id = String(_in_cat(build_cat)[0]) if not _in_cat(build_cat).is_empty() else String(Config.BUILD_ORDER[0])
@@ -615,7 +641,7 @@ func _build_detail(box: Container) -> void:
 		select_card(sid)
 		place_mode())
 	place.custom_minimum_size.y = 56
-	place.disabled = info.locked
+	place.disabled = not placeable()
 	reg_button("place", place)
 	box.add_child(Ui.boxed(Ui.edge(Ui.BASE, Ui.LINE, 0, 1, 0, 0, 20, 20), Ui.vbox(12, [place,
 		Ui.label("Choosing a piece collapses this menu so you can see the street.", "Small")])))

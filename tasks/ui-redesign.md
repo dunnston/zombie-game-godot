@@ -154,6 +154,15 @@ is exercised only by its code paths, not by a smoke leg. Nobody has played
 it: the play gate is in `tasks/todo.md`, and three behaviours moved on
 purpose (a card selects, B opens the menu, full screens are opaque).
 
+**Codex pass (PR #37).** Four P2 findings, all fixed, each with a test in
+`tests/ui_review_test.gd` that was run against the old behaviour first and
+failed on its assertion (not on a missing method): the build selection
+hidden by search or filter, the crew detail's missing health, the ration
+warning's frozen count, and a worn tool's hidden condition sliver. The
+lesson under all three screen ones is the same: a section's signature has
+to name everything it draws, because the world keeps running behind a full
+screen.
+
 **Deliberately left.** The dev menu (F1) is still drawn by hand — a debug
 list, restyled onto the tokens. The Settings page has only what exists plus
 Fullscreen, per the owner. District names on the full map clip at their

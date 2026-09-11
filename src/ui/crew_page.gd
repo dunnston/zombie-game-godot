@@ -11,7 +11,7 @@ extends RefCounted
 
 func build(s: InventoryScreen, col: VBoxContainer) -> void:
 	var status := Ui.hbox(0)
-	s.section(status, func() -> String: return _ration_state(s)[0], func(box: Container) -> void:
+	s.section(status, func() -> String: return _ration_sig(s), func(box: Container) -> void:
 		var r: Array = _ration_state(s)
 		if not String(r[0]).is_empty():
 			box.add_child(Ui.boxed(Ui.box(Ui.SHORT_FILL, Color("#7a3f36"), 1, 0, 14, 7),
@@ -68,6 +68,13 @@ func _ration_state(s: InventoryScreen) -> Array:
 	if per > 0.0 and rations < per * 3.0:
 		return ["Rations short", "%d IN STASH  ·  %.1f / MIN" % [rations, per]]
 	return ["", ""]
+
+
+## What the top bar's warning shows — the label and the count — for its
+## section to rebuild on. The label alone froze the count (Codex, PR #37).
+func _ration_sig(s: InventoryScreen) -> String:
+	var r: Array = _ration_state(s)
+	return "%s|%s" % [r[0], r[1]]
 
 
 func _selected(s: InventoryScreen) -> SurvivorSim:
@@ -182,7 +189,9 @@ func _detail_sig(s: InventoryScreen) -> String:
 	var c := _selected(s)
 	if c == null:
 		return "none"
-	return "%d|%s|%s|%d|%d|%s|%s|%d|%d|%d" % [c.id, c.job, s.crew_job, c.level, roundi(c.xp), str(c.downed), str(c.hungry),
+	# Health is in it because the badge shows it and the world goes on while
+	# the screen is up (Codex, PR #37).
+	return "%d|%d/%d|%s|%s|%d|%d|%s|%s|%d|%d|%d" % [c.id, roundi(c.hp), roundi(c.max_hp), c.job, s.crew_job, c.level, roundi(c.xp), str(c.downed), str(c.hungry),
 		s.sim.crew.free_towers(s.sim).size(), s.sim.structs.damaged_within(c.pos).size() if s.sim.structs.list.size() > 0 else 0,
 		c.carrying.size() + c.carry_items.size()]
 
