@@ -1292,6 +1292,31 @@ func _smoke_school_together(smoke: Node, gp: PlayerSim) -> void:
 	await smoke.frames(6)
 
 
+## The nearest tile centre to `from` with `length` px of open ground due east
+## of it, for a body the player's size: nothing solid in either collision map
+## anywhere along the run. INF when there is none within twelve tiles.
+func _smoke_clear_lane(from: Vector2, length: float) -> Vector2:
+	var r := sim.players[0].r + 2.0
+	var ox := floori(from.x / Config.TILE)
+	var oy := floori(from.y / Config.TILE)
+	for ring in range(12):
+		for dy in range(-ring, ring + 1):
+			for dx in range(-ring, ring + 1):
+				if maxi(absi(dx), absi(dy)) != ring:
+					continue
+				var at := Vector2((ox + dx) * Config.TILE + 16, (oy + dy) * Config.TILE + 16)
+				var clear := true
+				var x := 0.0
+				while x <= length:
+					if sim.world.circle_hits_solid(at.x + x, at.y, r, sim.structs):
+						clear = false
+						break
+					x += 6.0
+				if clear:
+					return at
+	return Vector2.INF
+
+
 ## The scripted session: walk, sprint, photograph the districts, then fight.
 func smoke_run(smoke: Node) -> void:
 	var p := sim.players[0]
@@ -1307,6 +1332,43 @@ func smoke_run(smoke: Node) -> void:
 	if p.stam >= p.max_stam:
 		smoke.fail("sprinting did not drain stamina")
 	await smoke.checkpoint("sprinted_south")
+	# The dash, through the real key: held for a few frames so a physics step
+	# sees the press (§8), and photographed mid-burst for the after-images.
+	# From a stand with open ground for the whole burst: where the sprint ends
+	# moves with the frame rate, and the first run that ended beside a tree
+	# measured the tree rather than the dash.
+	var lane := _smoke_clear_lane(p.pos, float(Config.DASH.dist) + 40.0)
+	if lane == Vector2.INF:
+		smoke.fail("no open ground near the camp to dash across")
+	else:
+		_smoke_stand_at(lane)
+		await smoke.frames(2)
+		var before_dash := p.pos
+		Input.action_press("move_right")
+		# Held until a physics step has seen it, not for a fixed three frames:
+		# at 144Hz three frames can pass with no physics step in them, and the
+		# check below then asks before the game has. Holding cannot dash twice —
+		# the dash reads the edge.
+		Input.action_press("dash")
+		var heard := false
+		for i in range(30):
+			await smoke.frames(1)
+			if p.dash_cd > 0.0:
+				heard = true
+				break
+		Input.action_release("dash")
+		Input.action_release("move_right")
+		# Two questions, two messages: was the key heard, and did the burst go.
+		if not heard:
+			smoke.fail("the dash key was never heard (stamina %.0f, winded %s)" % [p.stam, p.winded])
+		await smoke.checkpoint("dashing")
+		for i in range(30):
+			if p.dash_t <= 0.0:
+				break
+			await smoke.frames(1)
+		var carried := p.pos.x - before_dash.x
+		if p.dash_cd > 0.0 and carried < float(Config.DASH.dist) * 0.85:
+			smoke.fail("the dash was heard and carried only %.1f px of %.0f" % [carried, float(Config.DASH.dist)])
 	for spot in [["suburbs", 118, 120], ["market_row", 200, 158], ["downtown", 262, 172],
 			["farms", 30, 140], ["lake_lodge", 190, 52], ["forest", 60, 30], ["junkyard", 190, 270]]:
 		smoke_teleport(spot[1], spot[2])
