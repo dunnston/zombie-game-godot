@@ -45,16 +45,12 @@ func test_every_weapon_that_wears_can_be_mended_somewhere_or_lasts() -> void:
 	# out, something has to be able to fix it, or it is a trap. Fists are the
 	# deliberate exception and they carry no `dur` at all.
 	#
-	# A boss's weapons (PR E) are the other way out, and the one this test
-	# always said was coming: nothing makes them, so nothing mends them, and
-	# they pay for it by lasting — longer than anything of their kind that
-	# can be made — and by being somewhere to be found. A found-only weapon
-	# that exists nowhere, or that does not last, still fails here.
-	var made_max := {}
-	for id in Config.WEAPONS:
-		if not Wear.recipe_for(id).is_empty():
-			var k := String(Config.WEAPONS[id].kind)
-			made_max[k] = maxi(int(made_max.get(k, 0)), Wear.max_of(id))
+	# The owner settled it on 2026-09-11: every weapon can be found and every
+	# weapon can be repaired. So the old escape hatch — a found-only weapon
+	# pays for being unmendable by outlasting everything craftable — is gone,
+	# and what replaces it is stricter: a weapon has to be findable AND
+	# mendable, with no exceptions but Fists. A weapon nothing makes is mended
+	# off its `salvage`, so the durability ladder is free to say what it likes.
 	var found := {}
 	for table in Config.LOOT:
 		for e in Config.LOOT[table]:
@@ -67,10 +63,11 @@ func test_every_weapon_that_wears_can_be_mended_somewhere_or_lasts() -> void:
 			continue
 		ok(Wear.wears(id), "%s has no durability" % id)
 		gt(Wear.max_of(id), 0, id)
-		if Wear.recipe_for(id).is_empty():
-			ok(found.has(id), "%s is made by nothing and found nowhere" % id)
-			gt(Wear.max_of(id), int(made_max.get(String(w.kind), 0)),
-				"%s cannot be mended, so it has to outlast every %s that can" % [id, w.kind])
+		ok(found.has(id), "%s is found nowhere" % id)
+		ok(not Wear.repair_basis(id).is_empty(),
+			"%s can be mended by nothing: no recipe and no salvage" % id)
+		var need := Wear.mend_bench(id)
+		ok(need >= 0 and need <= 2, "%s asks for a bench that does not exist" % id)
 		# A gun gets far more uses than a club because it spends one per
 		# round, and an SMG empties a magazine in two seconds.
 		if w.kind == "gun":

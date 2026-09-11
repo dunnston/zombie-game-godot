@@ -54,7 +54,8 @@ func test_exactly_the_three_blades_bleed() -> void:
 		if float(Config.WEAPONS[id].get("bleed", 0.0)) > 0.0:
 			bleeders.append(id)
 	bleeders.sort()
-	eq(bleeders, ["bladedPike", "knife", "leafSpringBlade", "machete", "scythe"],
+	eq(bleeders, ["bladedPike", "chainsaw", "cleaver", "huntingKnife", "katana",
+		"kitchenKnife", "knife", "kukri", "leafSpringBlade", "machete", "scythe"],
 		"every weapon whose edge tears, and only those")
 	for id in bleeders:
 		ok(not Config.WEAPONS[id].has("stagger"), "%s is a blade, not a club" % id)
