@@ -190,14 +190,19 @@ func test_a_pistol_kills_a_walker_and_a_rifle_needs_one_round() -> void:
 	ok(f.dead, "one rifle round drops a walker (hp %.0f)" % f.hp)
 
 
-func test_one_bullet_does_what_several_arrows_do() -> void:
+## The bow was 19 damage and took four arrows to a walker. The 2026-09-11
+## sync raised it to 30, so it now kills in two and out-hits the pistol per
+## shot. What it still gives up is the rate of fire and the noise, and those
+## are the reasons to carry it, so that is what this pins.
+func test_the_bow_trades_rate_of_fire_and_noise_not_damage() -> void:
 	var walker: float = Config.ENEMIES.walker.hp
 	var shots := func(id: String) -> int: return ceili(walker / Config.WEAPONS[id].dmg)
-	ok(shots.call("bow") >= 3, "a walker takes at least three arrows")
 	eq(shots.call("rifle"), 1, "a rifle round drops a walker outright")
-	ok(shots.call("bow") > shots.call("pistol"))
+	ok(shots.call("bow") > shots.call("rifle"), "an arrow does not")
 	var dps := func(id: String) -> float: return Config.WEAPONS[id].dmg / Config.WEAPONS[id].cd
-	ok(dps.call("bow") < dps.call("pistol") * 0.4, "a bow is much slower as well as weaker")
+	ok(dps.call("bow") < dps.call("pistol") * 0.4, "a bow is far slower than a pistol")
+	ok(Config.WEAPONS.bow.noise < Config.WEAPONS.pistol.noise * 0.25,
+		"and far quieter, which is the whole reason to carry one")
 
 
 func test_the_bow_keeps_drawing_while_held() -> void:

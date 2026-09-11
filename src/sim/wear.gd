@@ -146,16 +146,35 @@ static func _crossed(before: int, after: int, cap: int, mark: float) -> bool:
 
 # ----------------------------------------------------------------- repair --
 
-## The recipe that makes this weapon, or empty. A weapon nothing makes is
-## repaired nowhere: that is the whole rule behind "found weapons are not
-## bench work", and it needs no flag of its own — the absence of a recipe
-## already says it. Give such a weapon a bigger `dur` and it is the thing
-## that lasts longer and cannot be mended, with no second system underneath.
+## The recipe that makes this weapon, or empty. A found weapon has none, and
+## that used to mean it could never be mended. It no longer does: every
+## weapon can be found and every weapon can be repaired (owner, 2026-09-11),
+## so a weapon with no recipe is mended off its `salvage` instead.
 static func recipe_for(id: String) -> Dictionary:
 	for r in Config.RECIPES:
 		if String(r.get("give", {}).get("weapon", "")) == id:
 			return r
 	return {}
+
+
+## What a weapon is worth in parts. A recipe if something makes it, else the
+## row's `salvage` — what recycling it gives back. Every weapon has one or
+## the other, and that is what lets every weapon be mended.
+static func repair_basis(id: String) -> Dictionary:
+	var r := recipe_for(id)
+	if not r.is_empty():
+		return r.cost
+	return Config.WEAPONS.get(id, {}).get("salvage", {})
+
+
+## The bench a mend asks for. A weapon with a recipe is mended where it was
+## made. A found weapon has no recipe to ask, so its tier answers: the
+## Workbench for the first two bands, its upgrade for the third.
+static func mend_bench(id: String) -> int:
+	var r := recipe_for(id)
+	if not r.is_empty():
+		return int(r.get("bench", 0))
+	return 2 if int(Config.WEAPONS.get(id, {}).get("tier", 1)) >= 3 else 1
 
 
 ## What mending the weapon in a slot costs: a share of what it cost to make,
@@ -173,15 +192,15 @@ static func recipe_for(id: String) -> Dictionary:
 static func repair_cost(cont: Slots, i: int) -> Dictionary:
 	if cont == null or not is_worn(cont, i):
 		return {}
-	var r := recipe_for(cont.id_at(i))
-	if r.is_empty():
+	var basis := repair_basis(cont.id_at(i))
+	if basis.is_empty():
 		return {}
 	var gone := 1.0 - frac(cont, i)
 	var out := {}
 	var main_id := ""
 	var main_n := -1
-	for cid in r.cost:
-		var c: int = r.cost[cid]
+	for cid in basis:
+		var c: int = basis[cid]
 		if c > main_n:
 			main_n = c
 			main_id = cid
@@ -218,10 +237,16 @@ static func repair_status(sim: GameSim, p: PlayerSim, cont_kind: String, i: int,
 		return {"ok": false, "reason": "Not worn"}
 	var r := recipe_for(id)
 	if r.is_empty():
-		return {"ok": false, "reason": "Nothing here can mend it"}
-	var why := Crafting.bench_reason(sim, p, r, bench)
-	if not why.is_empty():
-		return {"ok": false, "reason": why}
+		# Found, so there is no recipe to ask about a bench or a tool.
+		if repair_basis(id).is_empty():
+			return {"ok": false, "reason": "Nothing here can mend it"}
+		var need := mend_bench(id)
+		if bench < need:
+			return {"ok": false, "reason": "Needs a Workbench" if need == 1 else "Needs Workbench II"}
+	else:
+		var why := Crafting.bench_reason(sim, p, r, bench)
+		if not why.is_empty():
+			return {"ok": false, "reason": why}
 	if not p.can_afford(sim, repair_cost(cont, i)):
 		return {"ok": false, "reason": "Missing materials"}
 	return {"ok": true, "reason": ""}

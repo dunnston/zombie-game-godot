@@ -1256,13 +1256,18 @@ func _draw_tooltip(font: Font, stack: Dictionary) -> void:
 		if lv > 1:
 			lines.append("level %d  ·  +%d%% damage, +%d%% uses" % [lv,
 				roundi((Upgrade.dmg_mul(lv) - 1.0) * 100.0), roundi((Upgrade.dur_mul(lv) - 1.0) * 100.0)])
-		if Wear.recipe_for(id).is_empty():
-			lines.append("found, not made  ·  nothing mends or upgrades it")
+		# A found weapon mends off its salvage but takes no levels (`Upgrade`).
+		var found := Wear.recipe_for(id).is_empty()
+		if found:
+			lines.append("found, not made  ·  mends, but never upgrades")
 		# Off the stack itself, so the tooltip describes the weapon under the
 		# cursor rather than some other one of the same name.
 		if Wear.wears(id):
 			if Wear.broken_in(stack):
-				lines.append("BROKEN  ·  mend it at the bench that made it")
+				var where := "the bench that made it"
+				if found:
+					where = "Workbench II" if Wear.mend_bench(id) >= 2 else "a Workbench"
+				lines.append("BROKEN  ·  mend it at %s" % where)
 			else:
 				lines.append("condition %d / %d" % [Wear.left_in(stack), Wear.max_in(stack)])
 	elif kind == "consumable":

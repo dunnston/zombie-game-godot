@@ -54,10 +54,15 @@ func test_exactly_the_three_blades_bleed() -> void:
 		if float(Config.WEAPONS[id].get("bleed", 0.0)) > 0.0:
 			bleeders.append(id)
 	bleeders.sort()
-	eq(bleeders, ["knife", "machete", "scythe"], "the three the prototype declared it on")
+	eq(bleeders, ["bladedPike", "chainsaw", "cleaver", "huntingKnife", "katana",
+		"kitchenKnife", "knife", "kukri", "leafSpringBlade", "machete", "scythe"],
+		"every weapon whose edge tears, and only those")
 	for id in bleeders:
 		ok(not Config.WEAPONS[id].has("stagger"), "%s is a blade, not a club" % id)
-	gt(Config.WEAPONS.machete.bleed, Config.WEAPONS.knife.bleed, "the bigger blade cuts deeper")
+	gt(Config.WEAPONS.knife.bleed, Config.WEAPONS.machete.bleed,
+		"a knapped edge tears where a brush blade cuts clean: bleed is the kind of edge, not the size")
+	gt(Config.WEAPONS.machete.dmg, Config.WEAPONS.knife.dmg,
+		"and the bigger blade still hits harder, so bleed is not a rider on damage")
 
 
 # ------------------------------------------------------------- the wound --

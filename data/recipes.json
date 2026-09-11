@@ -722,6 +722,158 @@
       "notes": "The Chemistry Station's second job, and the same bet the whole game is built on: spend the brain matter that holds the meter down and the ground gives you far more back, far faster.",
       "station": "chem",
       "xp": 12
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "fiber": 3,
+        "sticks": 6
+      },
+      "give": {
+        "weapon": "woodenSpear"
+      },
+      "id": "woodenSpear",
+      "name": "Wooden Spear",
+      "xp": 8
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "fiber": 4,
+        "sticks": 6,
+        "stone": 8
+      },
+      "give": {
+        "weapon": "makeshiftConcreteClub"
+      },
+      "id": "makeshiftConcreteClub",
+      "name": "Makeshift Concrete Club",
+      "xp": 20
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "parts": 2,
+        "scrap": 24,
+        "wood": 10
+      },
+      "give": {
+        "weapon": "doubleBitAxe"
+      },
+      "id": "doubleBitAxe",
+      "name": "Double-Bit Axe",
+      "xp": 40
+    },
+    {
+      "bench": 1,
+      "cost": {
+        "cloth": 4,
+        "fiber": 8,
+        "parts": 2,
+        "sticks": 10
+      },
+      "give": {
+        "weapon": "compoundBow"
+      },
+      "id": "compoundBow",
+      "name": "Compound Bow",
+      "xp": 30
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "fiber": 2,
+        "scrap": 8,
+        "wood": 4
+      },
+      "give": {
+        "weapon": "metalSpear"
+      },
+      "id": "metalSpear",
+      "name": "Metal Spear",
+      "xp": 24
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "parts": 2,
+        "scrap": 22,
+        "wood": 6
+      },
+      "give": {
+        "weapon": "bladedPike"
+      },
+      "id": "bladedPike",
+      "name": "Bladed Pike",
+      "xp": 45
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "parts": 3,
+        "scrap": 30
+      },
+      "give": {
+        "weapon": "leafSpringBlade"
+      },
+      "id": "leafSpringBlade",
+      "name": "Leaf-Spring Blade",
+      "xp": 45
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "parts": 6,
+        "scrap": 32
+      },
+      "give": {
+        "weapon": "pistonHammer"
+      },
+      "id": "pistonHammer",
+      "name": "Piston Hammer",
+      "xp": 45
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "parts": 4,
+        "scrap": 12,
+        "wood": 6
+      },
+      "give": {
+        "weapon": "crossbow"
+      },
+      "id": "crossbow",
+      "name": "Crossbow",
+      "xp": 55
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "parts": 2,
+        "scrap": 16,
+        "wood": 4
+      },
+      "give": {
+        "weapon": "pipeShotgun"
+      },
+      "id": "pipeShotgun",
+      "name": "Pipe Shotgun",
+      "xp": 35
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "elec": 4,
+        "parts": 6,
+        "scrap": 34
+      },
+      "give": {
+        "weapon": "machinePistol"
+      },
+      "id": "machinePistol",
+      "name": "Machine Pistol",
+      "xp": 70
     }
   ],
   "shape": "list"

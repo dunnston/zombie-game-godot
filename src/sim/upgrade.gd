@@ -78,8 +78,9 @@ static func status(sim: GameSim, p: PlayerSim, cont_kind: String, i: int, bench:
 	if not Config.WEAPONS.has(id) or id == "fists":
 		return {"ok": false, "reason": "Not a weapon"}
 	var r := Wear.recipe_for(id)
-	# The rule mending already has, and for the same reason: a weapon nothing
-	# makes has no bench, and a boss's weapon lasts instead.
+	# A level is a share of the weapon's own recipe, and a weapon nothing makes
+	# has none. It still mends, off its salvage (`Wear.repair_basis`), but it
+	# stays the fixed point the table notes describe.
 	if r.is_empty():
 		return {"ok": false, "reason": "Nothing here can upgrade it"}
 	if level(cont, i) >= int(U.max):
