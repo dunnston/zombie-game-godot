@@ -99,6 +99,14 @@ func _draw_player(font: Font, p: PlayerSim, is_local: bool) -> void:
 		var k: float = clampf(p.reviving.t / p.reviving.dur, 0.0, 1.0)
 		draw_rect(Rect2(c.x - 14, c.y - 26, 28, 4), Color(0, 0, 0, 0.6))
 		draw_rect(Rect2(c.x - 14, c.y - 26, 28 * k, 4), Color("#9fd0ff"))
+	if p.dash_t > 0.0:
+		# Three fading after-images back along the burst, so a dodge reads in
+		# a crowd as a dodge and not as a teleport. A remote player's
+		# direction is not on the wire; the step it just took is.
+		var along := p.dash_dir if p.dash_dir != Vector2.ZERO else (p.pos - p.prev_pos).normalized()
+		if along != Vector2.ZERO:
+			for i in range(1, 4):
+				draw_circle(c - along * 16.0 * i, 13.0 - i * 2.0, Color(ring, 0.28 - i * 0.07))
 	if p.sprinting:
 		var back := -dir
 		for k: float in [-4.0, 0.0, 4.0]:

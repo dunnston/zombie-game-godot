@@ -118,6 +118,24 @@ const INSTANCES := {
 	},
 }
 
+## The dash: a short committed burst with i-frames in it (2026-09-10, the
+## first piece of the instanced dungeons — `tasks/instanced-dungeons.md` §8.3).
+## It decides how long a fair boss telegraph is, so these are first guesses to
+## be felt in town before any boss pattern is written against them.
+##
+## `dist` over `time` is the burst; the i-frames cover the burst and `grace`
+## after it, through the same `invuln` a hit already grants. `stam` is paid up
+## front and a dash is refused rather than half-done without it, so stamina is
+## still the budget that dodging spends. `cd` is from the start of one burst to
+## the next press that will be heard.
+const DASH := {
+	"dist": 130.0,
+	"time": 0.18,
+	"grace": 0.06,
+	"stam": 30.0,
+	"cd": 0.9,
+}
+
 # --------------------------------------------------------------- co-op --
 
 ## Phase 5. The host runs the simulation exactly as solo does; guests send
@@ -1137,6 +1155,9 @@ const SFX := {
 
 	# --------------------------------------------------------------- melee --
 	"swing": [{"kind": "noise", "dur": 0.13, "gain": 0.16, "filter": "bp", "freq": 900.0, "to": 320.0, "q": 1.2}],
+	## Higher and quicker than a swing, so dodging and attacking never sound
+	## like the same thing in a fight.
+	"dash": [{"kind": "noise", "dur": 0.16, "gain": 0.2, "filter": "bp", "freq": 1600.0, "to": 420.0, "q": 1.0}],
 	"melee_hit": [
 		{"kind": "noise", "dur": 0.11, "gain": 0.34, "filter": "lp", "freq": 900.0, "to": 200.0},
 		{"kind": "tone", "freq": 130.0, "to": 55.0, "wave": "tri", "dur": 0.1, "gain": 0.22},
