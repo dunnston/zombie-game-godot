@@ -57,7 +57,10 @@ func test_exactly_the_three_blades_bleed() -> void:
 	eq(bleeders, ["knife", "machete", "scythe"], "the three the prototype declared it on")
 	for id in bleeders:
 		ok(not Config.WEAPONS[id].has("stagger"), "%s is a blade, not a club" % id)
-	gt(Config.WEAPONS.machete.bleed, Config.WEAPONS.knife.bleed, "the bigger blade cuts deeper")
+	gt(Config.WEAPONS.knife.bleed, Config.WEAPONS.machete.bleed,
+		"a knapped edge tears where a brush blade cuts clean: bleed is the kind of edge, not the size")
+	gt(Config.WEAPONS.machete.dmg, Config.WEAPONS.knife.dmg,
+		"and the bigger blade still hits harder, so bleed is not a rider on damage")
 
 
 # ------------------------------------------------------------- the wound --
