@@ -92,7 +92,9 @@ static func _town_dict(sim: GameSim, inst: Instance) -> Dictionary:
 			"spawn_tx": p.spawn_tile.x, "spawn_ty": p.spawn_tile.y,
 			"driving_id": p.driving_id, "car_keys": p.car_keys.duplicate(),
 		}
-		if inst != null and not p.away:
+		# Everyone who went in, here or dropped: nobody is written down inside
+		# a map that a save never keeps.
+		if inst != null and inst.party.has(p.seat):
 			rec.merge(inst.walked_out_record(p), true)
 		players.append(rec)
 

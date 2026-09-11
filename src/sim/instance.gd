@@ -42,6 +42,15 @@ var held_nav := {}
 ## rest of the step running on the town with the sim's `instance` gone from
 ## under it, which the smoke run found as a SCRIPT ERROR and no test had.
 var leaving := ""
+## The seats that went in. Whoever went in comes out when the run ends —
+## standing, down, dead or dropped (§10) — so a friend who fell at ninety per
+## cent is not robbed for it, and nobody is left inside a map that has gone.
+var party: Array[int] = []
+## A guest's copy: built from the seed the host sent, never ticked, and never
+## deciding anything. Snapshots bring the crowd; the world diff the rest.
+var mirror := false
+## The boss has killed the lights, and the breaker has not put them back.
+var dark := false
 
 
 ## Exchanges every map field with `held`. Entering, leaving, and the two sides
@@ -96,11 +105,27 @@ static func refusal(sim: GameSim, p: PlayerSim, kind: String) -> String:
 		return "You are already inside"
 	if p.driving_id > 0:
 		return "Get out of the car first"
-	# Co-op runs are PR D: the whole party goes in together, or nobody does.
-	if sim.present_players().size() > 1:
-		return "Not with company yet — going in together is the next piece of work"
 	if sim.cleared.has(kind) and int(sim.cleared[kind]) == sim.clock.day:
 		return "Chained shut. You cleared it today — come back tomorrow"
+	# The party goes in together or nobody does (§10): everyone here, on their
+	# feet, at the door. Splitting it would mean running two maps at once.
+	var f := door_for(sim, kind)
+	var waiting: Array[String] = []
+	for q in sim.present_players():
+		if q == p:
+			continue
+		if q.dead or q.downed:
+			return "%s has to be on their feet to go in" % q.display_name
+		# Everybody, not only whoever pressed E (Codex, PR #32). Entering
+		# swaps the town's cars out from under a driver without `exit`, which
+		# left the car running with its tiles released — a car nothing
+		# collided with — until somebody got in and out of it again.
+		if q.driving_id > 0:
+			return "%s has to get out of the car first" % q.display_name
+		if f.is_empty() or q.pos.distance_to(f.stand) > float(Config.INSTANCE.party_reach):
+			waiting.append(q.display_name)
+	if not waiting.is_empty():
+		return "Everyone goes in together — waiting for %s" % ", ".join(waiting)
 	return ""
 
 
@@ -133,10 +158,13 @@ static func enter(sim: GameSim, p: PlayerSim, kind: String) -> bool:
 	inst.held = inst._interior(sim.clock.day)
 	inst.swap(sim)
 	sim.instance = inst
-	for q in sim.present_players():
-		_arrive(q, sim.world.entry_spot)
+	var present := sim.present_players()
+	for i in range(present.size()):
+		var q := present[i]
+		_arrive(q, arrival(sim.world, i, present.size()))
 		q.haul.clear_all()
 		inst.gained[q.seat] = {}
+		inst.party.append(q.seat)
 	inst._populate(sim)
 	sim.emit({"t": "instance_enter", "kind": kind})
 	sim.notify("%s — what you find in here leaves only past the boss" % title(kind), "#d8c98a", true)
@@ -172,6 +200,17 @@ func _populate(sim: GameSim) -> void:
 	for at in sim.world.enemy_spots:
 		sim.enemies.spawn(sim.enemies.pick_type(tier), at)
 	boss = sim.enemies.spawn(String(def.boss), sim.world.boss_spot, false, false, float(def.boss_hp_mul))
+	if boss != null and Config.BOSSES.has(boss.type):
+		boss.brain = Boss.new(boss, Config.BOSSES[boss.type], sim.world.arena, sim.world.add_spots)
+
+
+## Where the `i`th of `n` arrivals stands: side by side across the foyer, a
+## body's width apart. Everyone on the one entry spot drew as a single player
+## with somebody else's name over them (pillar 4). Host and guest both place
+## the party with this, so a guest's picture of itself does not snap on
+## arrival.
+static func arrival(world: World, i: int, n: int) -> Vector2:
+	return world.entry_spot + Vector2((i - (n - 1) / 2.0) * 30.0, 0.0)
 
 
 static func _arrive(q: PlayerSim, at: Vector2) -> void:
@@ -240,6 +279,34 @@ func found_key(sim: GameSim, key: String) -> void:
 	sim.emit({"t": "key_found", "key": key})
 
 
+## The lights, killed by the boss as its second phase opens and put back by the
+## breaker on the gym's west wall (§8.3: use the arena, so the fight is more
+## than kiting in a circle). The dark is the inside's own clock pushed to the
+## small hours, so the light, the torch and every multiplier that reads the
+## dark already follow it — and a guest's clock comes from the snapshot.
+func lights_out(sim: GameSim) -> void:
+	if dark:
+		return
+	dark = true
+	_set_light(sim)
+	sim.notify("The lights go out. There is a breaker on the gym's west wall", "#e0a070", true)
+	sim.emit({"t": "lights", "on": false})
+
+
+func lights_on(sim: GameSim) -> void:
+	if not dark:
+		return
+	dark = false
+	_set_light(sim)
+	sim.notify("Lights back on", "#d8c98a")
+	sim.emit({"t": "lights", "on": true})
+
+
+func _set_light(sim: GameSim) -> void:
+	sim.clock.t = float(def.get("dark_t", 0.82)) if dark else float(def.clock_t)
+	sim.clock.phase = String(DayNight.phase_at(sim.clock.t).id)
+
+
 ## The chained door, opened with the key the party found. Its tiles become
 ## floor to feet, bullets and sight, and the flow fields rebuild round it.
 func unlock(sim: GameSim, f: Dictionary) -> bool:
@@ -268,8 +335,38 @@ static func walk_out(sim: GameSim, p: PlayerSim) -> bool:
 	var f := feature_near(sim, p, ["leave", "exit"])
 	if f.is_empty() or (String(f.kind) == "exit" and inst.state != "cleared"):
 		return false
+	if inst.state != "cleared":
+		var why := leave_refusal(sim, p)
+		if not why.is_empty():
+			sim.notify(why, "#c96a5a")
+			return false
 	leave(sim, "extracted" if inst.state == "cleared" else "left")
 	return true
+
+
+## Why `p` cannot walk the party out early yet, or "". It takes everybody and
+## everything they found, so everyone still standing has to be at the door —
+## one player calling it from the foyer while another fights would be a
+## decision made for them. The downed and the dead come out with the party.
+static func leave_refusal(sim: GameSim, p: PlayerSim) -> String:
+	var f := feature_near(sim, p, ["leave"])
+	var at := Vector2(f.x, f.y) if not f.is_empty() else p.pos
+	var waiting: Array[String] = []
+	for q in sim.present_players():
+		if q == p or q.dead or q.downed:
+			continue
+		if q.pos.distance_to(at) > float(Config.INSTANCE.party_reach):
+			waiting.append(q.display_name)
+	return "" if waiting.is_empty() else "Everyone standing leaves together — waiting for %s" % ", ".join(waiting)
+
+
+## Everyone who went in, here or not.
+func _members(sim: GameSim) -> Array[PlayerSim]:
+	var out: Array[PlayerSim] = []
+	for q in sim.players:
+		if party.has(q.seat) or (party.is_empty() and not q.away):
+			out.append(q)
+	return out
 
 
 ## The end of a run, however it ended: "extracted" (the boss is down and
@@ -282,7 +379,7 @@ static func leave(sim: GameSim, outcome: String) -> void:
 	if inst == null:
 		return
 	var spill: Array[Dictionary] = []
-	var everyone := sim.present_players()
+	var everyone := inst._members(sim)
 	for q in everyone:
 		if outcome != "extracted":
 			inst.forfeit(q)
@@ -294,8 +391,14 @@ static func leave(sim: GameSim, outcome: String) -> void:
 	var name := title(inst.kind)
 	for q in everyone:
 		if q.dead:
-			Damage.respawn_player(sim, q, inst.door, "You wake up outside %s — it keeps what you found" % name)
+			Damage.respawn_player(sim, q, inst.door, ("You come to outside %s — the party brought you out with everything" if outcome == "extracted"
+				else "You wake up outside %s — it keeps what you found") % name)
 		else:
+			# Down in there is up out here: the party carried you.
+			if q.downed:
+				q.downed = false
+				q.down_t = 0.0
+				q.hp = maxf(1.0, q.max_hp * float(Config.PLAYER.revive_hp_frac))
 			_arrive(q, inst.door)
 	for s in spill:
 		Loot.spawn_pickup(sim, inst.door, String(s.kind), String(s.id), int(s.n), null, int(s.w))
@@ -390,6 +493,85 @@ static func unpack_haul(q: PlayerSim) -> Array[Dictionary]:
 			spill.append({"kind": d.kind, "id": d.id, "n": n - got, "w": w})
 	q.haul.clear_all()
 	return spill
+
+
+## A guest's copy of the run the host just started: the same interior from the
+## same seed — the generator is deterministic — swapped into the mirror the way
+## the host swapped its sim. Snapshots bring the crowd and put the players
+## where the host has them; the world diff brings the doors and the tally.
+static func mirror_enter(sim: GameSim, kind: String, seed: int, day: int) -> void:
+	if sim.instance != null or not Config.INSTANCES.has(kind):
+		return
+	var inst := Instance.new()
+	inst.kind = kind
+	inst.def = Config.INSTANCES[kind]
+	inst.run_seed = seed
+	inst.mirror = true
+	var f := door_for(sim, kind)
+	inst.door = f.stand if not f.is_empty() else Vector2.ZERO
+	inst.held = inst._interior(day)
+	inst.swap(sim)
+	sim.instance = inst
+	var present := sim.present_players()
+	for i in range(present.size()):
+		present[i].pos = arrival(sim.world, i, present.size())
+		present[i].prev_pos = present[i].pos
+	sim.emit({"t": "instance_enter", "kind": kind})
+
+
+## Back out, on a guest: the town mirror as it was, and what was cleared.
+static func mirror_leave(sim: GameSim, cleared: Dictionary) -> void:
+	var inst := sim.instance
+	if inst == null:
+		return
+	inst.swap(sim)
+	sim.instance = null
+	for k in cleared:
+		sim.cleared[String(k)] = int(cleared[k])
+	for q in sim.players:
+		if not q.away:
+			q.pos = inst.door
+			q.prev_pos = q.pos
+	sim.emit({"t": "instance_leave", "kind": inst.kind, "outcome": ""})
+
+
+## What a guest needs of the run that a snapshot does not carry: how it stands,
+## the keys, which chained doors are open, the clock, and what that guest has
+## found — which is what their way-out panel lists.
+func record(sim: GameSim, seat: int) -> Dictionary:
+	var opened: Array = []
+	for f in sim.world.features:
+		if String(f.kind) == "chained" and f.open:
+			var t0: Vector2i = f.tiles[0]
+			opened.append([t0.x, t0.y])
+	return {"st": state, "keys": keys.keys(), "open": opened, "t": snappedf(t, 0.1),
+		"g": gained.get(seat, {}).duplicate(), "dark": dark}
+
+
+func apply_record(sim: GameSim, rec: Dictionary, seat: int) -> void:
+	state = String(rec.get("st", state))
+	# For the breaker's prompt; the light itself follows the host's clock.
+	dark = bool(rec.get("dark", dark))
+	keys.clear()
+	for k in rec.get("keys", []):
+		keys[String(k)] = true
+	t = float(rec.get("t", t))
+	var mine := {}
+	for k in rec.get("g", {}):
+		mine[String(k)] = int(rec.g[k])
+	gained[seat] = mine
+	var opened := {}
+	for o in rec.get("open", []):
+		opened[Vector2i(int(o[0]), int(o[1]))] = true
+	for f in sim.world.features:
+		if String(f.kind) != "chained" or f.open or not opened.has(f.tiles[0]):
+			continue
+		# The mirror's own collision has to open too, or a guest predicting
+		# its footsteps walks into a door the host has already unchained.
+		f.open = true
+		for tile: Vector2i in f.tiles:
+			sim.world.blocked[tile.y * Config.WORLD_TILES + tile.x] = 0
+		sim.world_version += 1
 
 
 ## What a save written now would say `p` has: walked out without the boss.

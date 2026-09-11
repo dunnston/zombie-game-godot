@@ -116,6 +116,12 @@ func _draw() -> void:
 		var pos: Vector2 = b.pos
 		var vel: Vector2 = b.vel
 		var col := Color(b.color)
+		# Slow enough to see coming is slow enough to be a ball, not a streak:
+		# a boss's throw has to be dodged, so it has to be drawn as a thing.
+		if vel.length_squared() < 500.0 * 500.0:
+			draw_circle(pos, 7.0, col)
+			draw_circle(pos, 7.0, col.darkened(0.4), false, 1.5)
+			continue
 		var tail := pos - vel * 0.018
 		draw_line(tail, pos, Color(col, 0.35), 3.0)
 		draw_line(tail, pos, col, 1.5)

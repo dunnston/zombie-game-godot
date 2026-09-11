@@ -23,7 +23,10 @@ static func spawn_bullet(sim: GameSim, at: Vector2, angle: float, speed: float, 
 		"hits": [], "owner": owner, "crit": crit, "w": weapon, "color": color,
 	}
 	sim.bullets.append(b)
-	sim.emit({"t": "shot", "x": at.x, "y": at.y, "a": angle, "w": weapon})
+	# Speed, life and colour ride the event so a guest's tracer is the round
+	# the host fired — a boss's slow ball as much as a rifle's streak — rather
+	# than whatever its weapon row would guess.
+	sim.emit({"t": "shot", "x": at.x, "y": at.y, "a": angle, "w": weapon, "sp": speed, "lf": life, "c": color})
 	return b
 
 

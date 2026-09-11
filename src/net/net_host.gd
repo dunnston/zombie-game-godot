@@ -33,6 +33,10 @@ var _roster_hash := ""
 ## Events the view has already been shown are still in `sim.events` until
 ## the frame ends; this is how far down that list the last relay got.
 var _ev_mark := 0
+## The run the guests were last told about (its seed, 0 for the town), so a
+## swap under the sim is noticed once — however it was set off — and told to
+## everyone before anything else about the new map.
+var _map_run := 0
 var stats := {"sent": 0, "received": 0, "snaps": 0}
 
 
@@ -48,6 +52,14 @@ func _init(sim_: GameSim, name_ := "Host", pw_hash_ := "") -> void:
 ## A new world under the same session: NEW GAME or a load while hosting.
 ## Everything the diffs remembered is about a world that no longer exists.
 func _reset_diffs() -> void:
+	_reset_world_baseline()
+	_roster_hash = ""
+	_ev_mark = 0
+
+
+## What the diffs remember about the *map*. A swap into or out of an instance
+## makes all of it about the wrong map, but not the roster or the events.
+func _reset_world_baseline() -> void:
 	_struct_seen.clear()
 	_store_hash = ""
 	_trunks_sent.clear()
@@ -55,8 +67,6 @@ func _reset_diffs() -> void:
 	_chopped_sent = 0
 	_discovered_seen.clear()
 	_rescues_hash = ""
-	_roster_hash = ""
-	_ev_mark = 0
 
 
 ## A ready connection, before its hello. The broker or the hub hands these in.
@@ -169,6 +179,10 @@ func _admit(g: Dictionary, m: Dictionary) -> void:
 	var why := NetProtocol.join_refusal(m, pw_hash)
 	if why.is_empty() and sim.world == null:
 		why = "the host has not started a game yet"
+	# The party is a map away and the door took everyone who was here; there
+	# is no second map to put somebody on until they come out.
+	if why.is_empty() and sim.instance != null:
+		why = "the party is inside %s — join when they come out" % Instance.title(sim.instance.kind)
 	var identity := String(m.get("id", ""))
 	var name_ := String(m.get("name", "")).strip_edges().left(16)
 	var p: PlayerSim = null
@@ -244,6 +258,8 @@ func _send(g: Dictionary, channel: int, m: Dictionary) -> void:
 func after_tick(dt: float) -> void:
 	step += 1
 	_expire_silent_intents()
+	# First, before any snapshot or diff: those describe the new map.
+	_check_map()
 
 	if step % int(Config.NET.snap_every) == 0:
 		seq += 1
@@ -262,6 +278,28 @@ func after_tick(dt: float) -> void:
 			_send_world_diff(g, false)
 
 	_relay_events()
+
+
+## The map under the sim changed: into an instance, or back out to the town.
+## Every guest is told which — the kind and the seed, from which its mirror
+## builds the same interior — and then everything the diffs remembered is
+## about the wrong map, so each guest gets the new one in full.
+func _check_map() -> void:
+	var run := sim.instance.run_seed if sim.instance != null else 0
+	if run == _map_run:
+		return
+	_map_run = run
+	var m := {"t": "map", "kind": "", "seed": 0, "day": sim.clock.day, "cleared": sim.cleared.duplicate()}
+	if sim.instance != null:
+		m.kind = sim.instance.kind
+		m.seed = run
+	for g in guests:
+		if g.player != null:
+			_send(g, NetProtocol.RELIABLE, m)
+	_reset_world_baseline()
+	for g in guests:
+		_send_world_diff(g, true)
+		_send_inventory(g, true)
 
 
 ## The scene clears `sim.events` at the end of the frame; from then on the
@@ -283,6 +321,10 @@ func _relay_events() -> void:
 	for i in range(_ev_mark, sim.events.size()):
 		var ev: Dictionary = sim.events[i]
 		var t := String(ev.t)
+		# A guest hears about the map changing from `map`, which carries what
+		# it needs to follow; its mirror raises its own event when it has.
+		if t == "instance_enter" or t == "instance_leave":
+			continue
 		for g in guests:
 			var p: PlayerSim = g.player
 			if p == null:
@@ -415,6 +457,10 @@ func _send_world_diff(g: Dictionary, force: bool) -> void:
 		d["roster"] = roster
 
 	d["bench"] = sim.structs.bench_tier
+	# The run, as this guest needs it: small, and it carries the per-seat
+	# tally no other message has, so it goes every time one is on.
+	if sim.instance != null:
+		d["inst"] = sim.instance.record(sim, (g.player as PlayerSim).seat)
 	if d.size() > 2 or force:
 		_send(g, NetProtocol.RELIABLE, d)
 

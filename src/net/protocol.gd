@@ -16,7 +16,10 @@ extends RefCounted
 
 ## Bumped whenever anything in here changes shape. A guest whose number
 ## differs is refused before it can misread a byte.
-const PROTOCOL := 5
+## 6: PR D and PR C — the `map` message, the snapshot's `mp` tag, the per-guest
+## `inst` record in the world diff, the haul on the inventory record, and shots
+## that carry their speed, life and colour. 5 was the dash.
+const PROTOCOL := 6
 
 const RELIABLE := 1
 const STATE := 2
@@ -535,6 +538,9 @@ static func pack_snapshot(sim: GameSim, for_player: PlayerSim, seq: int) -> Dict
 			"hu": sim.raid.human}
 	return {
 		"t": "snap", "q": seq,
+		# Which map this is a picture of: the run's seed, or 0 for the town. A
+		# guest drops a snapshot of the map it is not on (`NetGuest`).
+		"mp": sim.instance.run_seed if sim.instance != null else 0,
 		"tm": snappedf(sim.time, 0.01), "day": sim.clock.day, "dt": snappedf(sim.clock.t, 0.0001),
 		"th": r1(sim.threat.value), "rd": sim.raids_done, "bt": sim.structs.bench_tier,
 		"kills": int(sim.stats.kills), "raid": raid,
@@ -584,7 +590,7 @@ static func pack_roster(sim: GameSim) -> Array:
 ## guest ever learns what is in its pack.
 static func pack_inventory(p: PlayerSim) -> Dictionary:
 	return {
-		"bag": p.bag.to_record(), "hotbar": p.hotbar.to_record(), "equip": p.equip.duplicate(),
+		"bag": p.bag.to_record(), "hotbar": p.hotbar.to_record(), "haul": p.haul.to_record(), "equip": p.equip.duplicate(),
 		"mag": p.mag.duplicate(), "car_keys": p.car_keys.duplicate(), "attrs": p.attrs.duplicate(),
 		"perks": p.perks.duplicate(), "sk": p.skill_points, "slot": p.slot,
 		"light_on": p.light_on, "light_fuel": p.light_fuel, "light_id": p.light_id,
@@ -602,6 +608,7 @@ static func apply_inventory(p: PlayerSim, rec: Dictionary) -> void:
 	# moment anything a guest carries changes.
 	p.bag.from_record(rec.get("bag", []))
 	p.hotbar.from_record(rec.get("hotbar", []))
+	p.haul.from_record(rec.get("haul", []))
 	for k in p.equip:
 		p.equip[k] = String(rec.get("equip", {}).get(k, ""))
 	p.mag.clear()

@@ -428,6 +428,14 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 			if e.dead:
 				continue
 
+		# ------------------------------------------------------------ a boss --
+		# A scripted boss owns its step while it is doing something scripted —
+		# asleep, a telegraph, a charge, a stun, a phase change (`Boss`).
+		# Between moves it falls through and fights like anything else.
+		if e.brain != null and e.brain.tick(sim, e, p, dt):
+			e.last_pos = e.pos
+			continue
+
 		# ----------------------------------------------------------- staggered --
 		# Rocked, and doing nothing about anything until it is over: no
 		# targeting, no step of its own, no swing. Before the human branches

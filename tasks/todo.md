@@ -2448,3 +2448,70 @@ exact error on the old code. Numbers: 640 / 8665 fast, 676 / 8813 with
 checked by eye: the roof reads as a building you cannot walk into, the panel
 is legible, the inside is dusk-dim with the torch lit. One thing to look at
 in play: inside, the minimap is a small building in a large empty square.
+
+## Instanced dungeons, PR D — into the School together
+
+Stacked on PR B's branch on purpose (it cannot compile without the
+`Instance` it builds on); retarget to `main` the moment PR B merges.
+
+- [x] The door wants every present player on their feet within reach, and
+      names who it is waiting for; any of them can press ENTER
+- [x] `Instance.party`: whoever went in comes out — standing, downed, dead or
+      dropped — and a save written inside writes all of them at the door
+- [x] Walking out early wants everyone still standing at the way out; the
+      leave panel says who it is waiting for
+- [x] `NetHost` announces a map swap from the top of its step (`map`: kind,
+      seed, day, cleared), resets the world baseline and sends each guest the
+      new map in full; it no longer relays the local enter/leave events
+- [x] `Instance.mirror_enter` / `mirror_leave`: the guest builds the same
+      interior from the seed; snapshots carry `mp` and one of the other map
+      is dropped; the haul rides the inventory record; the run rides each
+      guest's world diff (`Instance.record` / `apply_record`) — state, keys,
+      unchained doors, clock, that guest's tally
+- [x] Nobody joins mid-run, and is told why
+- [x] `_rebuild_views` keeps a guest's camera on the guest across a swap
+- [x] Protocol 5 (PR A also takes 5: whichever merges second takes 6)
+- [x] Tests: four more in `instance_test.gd`; `instance_coop_test.gd` over a
+      loopback (seven); a smoke leg taking the loopback guest in and out
+- [ ] **Owner gate:** into the School with a friend
+
+**PR D review.** Three rules checked by breaking them: taking a snapshot of
+the other map, bringing out only the players present at the end (the one who
+dropped stays inside), and never telling guests the map changed (the
+guest's mirror stays in the town, in a different building from the host's)
+each fail their test. One test of mine looked up the School's door while the
+party was inside it, where the town — and the door — is set aside; it reads
+the Instance's own copy now. Numbers: 650 / 8717 fast, 686 / 8865 with
+`--all`, zero failures; smoke 81/81 with nothing in its log.
+
+## Instanced dungeons, PR C — the Coach
+
+Stacked on PR D's branch on purpose (its telegraphs reach guests through the
+co-op wire PR D builds, and both need PR B's `Instance`); retarget to `main`
+as its parents merge. Built before the dash was felt, at the owner's word —
+every timing is in `Config.BOSSES` and a test holds each telegraph to
+`min_tell`.
+
+- [x] `Boss` (`src/sim/boss.gd`): asleep until somebody walks into the gym or
+      hurts it; pick a move off cooldown, telegraph, act, recover; owns the
+      step only while scripted, one hook in `Enemies.tick_ai`
+- [x] Slam (ring), charge (lane; dazed 1.6s into a wall), dodgeball (a fan of
+      five slow hostile balls), whistle (three adds from the corners, six max)
+- [x] Phases at 66% (SECOND HALF: the throw and the whistle, the lights out)
+      and 33% (OVERTIME: faster); a 1.2s untouchable beat at each; a burst
+      past two thresholds runs what both open with
+- [x] The breaker on the gym's west wall, offered only in the dark
+- [x] It stays in its gym; the camera pulls out in the arena; a HUD bar with
+      the phase marks
+- [x] `BossView` draws every telegraph from events; shot events carry speed,
+      life and colour so a guest's tracer matches
+- [x] The Coach through `EditApi` (ENEMIES), its brain drops, three sounds
+- [x] `boss_test.gd` (15); the smoke leg photographs each telegraph, the second
+      half and the breaker
+- [ ] **Owner gate:** fight it — `PROJECT.md` §7, *Walk into the School*
+
+**PR C review.** Passed first time, so four rules were broken on purpose to
+prove the tests were watching: a slam with no telegraph (lands at once, four
+tests fail), no shield while it turns, a charge a wall does not stop, and a
+boss awake before anybody comes in — each caught. Numbers: 665 / 8820 fast,
+701 / 8968 with `--all`, zero failures; smoke 86/86 with nothing in its log.

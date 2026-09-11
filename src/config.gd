@@ -92,6 +92,9 @@ const PLAYER := {
 const INSTANCE := {
 	"haul_cap": 120.0,
 	"haul_slots": 16,
+	# How close everyone has to be for the party to go in, or to walk out
+	# early, together (§10: a dungeon is a party commitment).
+	"party_reach": 160.0,
 }
 
 ## One row per instance. `shell` is the building in the town, `door` the tiles
@@ -105,7 +108,9 @@ const INSTANCES := {
 		"name": "PINE HOLLOW HIGH",
 		"tier": 2,
 		"clock_t": 0.70,
-		"boss": "behemoth",
+		# What the inside's clock is pushed to when the boss kills the lights.
+		"dark_t": 0.82,
+		"boss": "coach",
 		"boss_hp_mul": 1.0,
 		"shell": Rect2i(116, 64, 24, 18),
 		"door": Rect2i(116, 71, 1, 2),
@@ -115,6 +120,38 @@ const INSTANCES := {
 			"rect": Rect2i(96, 92, 90, 58), "desc": "The halls, the classrooms, and the gym at the back."},
 		# How many stand in each kind of room, as [min, max].
 		"pop": {"classroom": [2, 3], "hall": [5, 7], "cafeteria": [4, 5], "small": [1, 2]},
+	},
+}
+
+## Phase bosses (`Boss`; `tasks/instanced-dungeons.md` §8), keyed by enemy
+## type — the row in ENEMIES is the body, this is the fight.
+##
+## `moves` are what it can do and how long each one tells you it is coming.
+## Every `tell` is at least `min_tell`, sized against the dash (PR A: a 0.18s
+## burst, 0.9s between) and against simply walking out of a ring. `phases`
+## start at full health and each takes over below its `at`: the moves in its
+## pool, the gap between them, how fast it moves, what it opens with, and what
+## the screen calls it. `transition` is the beat between phases in which it
+## cannot be hurt and does nothing, so a phase change reads as a phase change.
+const BOSSES := {
+	"coach": {
+		"wake": "THE COACH — he has been waiting in here for a team",
+		"min_tell": 0.7,
+		"transition": 1.2,
+		"moves": {
+			"slam": {"tell": 1.0, "radius": 150.0, "dmg": 34.0, "recover": 0.6},
+			# Into a wall it is dazed for `stun`: the opening the move exists for.
+			"charge": {"tell": 0.8, "speed": 560.0, "dist": 520.0, "dmg": 42.0, "stun": 1.6, "recover": 0.5},
+			"dodgeball": {"tell": 0.7, "count": 5, "fan": 0.9, "speed": 360.0, "dmg": 16.0, "range": 700.0,
+				"recover": 0.5, "color": "#e8703a"},
+			"whistle": {"tell": 0.9, "adds": 3, "cap": 6, "recover": 0.6},
+		},
+		"phases": [
+			{"at": 1.00, "moves": ["charge", "slam"], "cd": [2.2, 3.2]},
+			{"at": 0.66, "name": "SECOND HALF", "moves": ["charge", "slam", "dodgeball", "whistle"], "cd": [1.9, 2.8],
+				"enter": ["lights_out", "whistle"]},
+			{"at": 0.33, "name": "OVERTIME", "moves": ["slam", "dodgeball", "charge"], "cd": [1.5, 2.3], "speed_mul": 1.3},
+		],
 	},
 }
 
@@ -178,7 +215,12 @@ const NET := {
 
 ## view_height is world pixels of height on screen at zoom 1; the camera
 ## zooms so that the viewport shows about that much world vertically.
-const CAMERA := {"follow": 7.5, "view_height": 580.0, "min_zoom": 0.9, "max_zoom": 2.6, "lead": 0.22, "lead_max": 170.0}
+## `arena_zoom` is how far the camera pulls out inside a boss's room, so the
+## edge of a slam ring is on screen (§8.4 of the instanced-dungeon note), and
+## `arena_frame` is how far toward the boss it leans, so the fight is framed
+## rather than just you.
+const CAMERA := {"follow": 7.5, "view_height": 580.0, "min_zoom": 0.9, "max_zoom": 2.6, "lead": 0.22, "lead_max": 170.0,
+	"arena_zoom": 0.72, "arena_frame": 0.4}
 
 # -------------------------------------------------------------- progression --
 
@@ -933,6 +975,10 @@ const BRAIN_DROPS := {
 		"also": {"id": "brainRaw", "min": 1, "max": 2}},
 	"behemoth": {"chance": 1.0,  "id": "brainSpec", "min": 1, "max": 2,
 		"also": {"id": "brainMut", "min": 2, "max": 2}},
+	# The School's boss is a Behemoth's worth of tissue: it is the fight a
+	# Behemoth was, with a script on it.
+	"coach":    {"chance": 1.0,  "id": "brainSpec", "min": 1, "max": 2,
+		"also": {"id": "brainMut", "min": 2, "max": 2}},
 }
 
 ## The ambient spawner. A standing population per danger tier near each
@@ -1155,6 +1201,21 @@ const SFX := {
 
 	# --------------------------------------------------------------- melee --
 	"swing": [{"kind": "noise", "dur": 0.13, "gain": 0.16, "filter": "bp", "freq": 900.0, "to": 320.0, "q": 1.2}],
+	## The School's boss. A roar when it wakes and at every phase — the beat
+	## that says the fight just changed — a slam that lands low, and a
+	## whistle that means the team is coming.
+	"boss_roar": [
+		{"kind": "tone", "freq": 110.0, "to": 55.0, "wave": "saw", "dur": 0.8, "gain": 0.3},
+		{"kind": "noise", "dur": 0.6, "gain": 0.22, "filter": "lp", "freq": 700.0, "to": 150.0},
+	],
+	"slam": [
+		{"kind": "noise", "dur": 0.35, "gain": 0.45, "filter": "lp", "freq": 500.0, "to": 80.0},
+		{"kind": "tone", "freq": 90.0, "to": 40.0, "wave": "tri", "dur": 0.3, "gain": 0.3},
+	],
+	"whistle": [
+		{"kind": "tone", "freq": 2300.0, "wave": "square", "dur": 0.12, "gain": 0.12},
+		{"kind": "tone", "freq": 2300.0, "wave": "square", "dur": 0.3, "gain": 0.12, "at": 0.16},
+	],
 	## Higher and quicker than a swing, so dodging and attacking never sound
 	## like the same thing in a fight.
 	"dash": [{"kind": "noise", "dur": 0.16, "gain": 0.2, "filter": "bp", "freq": 1600.0, "to": 420.0, "q": 1.0}],

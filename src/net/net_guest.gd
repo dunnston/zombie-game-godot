@@ -119,6 +119,8 @@ func _read() -> void:
 				_on_stores(msg.get("list", []))
 			"world":
 				_on_world(msg)
+			"map":
+				_on_map(msg)
 			"bye":
 				status = "lost"
 				reason = "the host ended the game"
@@ -197,9 +199,9 @@ func _on_event(ev: Dictionary) -> void:
 ## first one.
 func _spawn_tracer(ev: Dictionary) -> void:
 	var w: Dictionary = Config.WEAPONS.get(String(ev.get("w", "")), {})
-	var speed: float = float(w.get("speed", 1000.0))
-	var life: float = float(w.get("life", 0.5))
-	var color := "#c8a878" if w.get("bow", false) else ("#ffd08a" if String(w.get("id", "")) == "shotgun" else "#ffe6a8")
+	var speed: float = float(ev.get("sp", w.get("speed", 1000.0)))
+	var life: float = float(ev.get("lf", w.get("life", 0.5)))
+	var color := String(ev.get("c", "#c8a878" if w.get("bow", false) else ("#ffd08a" if String(w.get("id", "")) == "shotgun" else "#ffe6a8")))
 	var at := Vector2(float(ev.x), float(ev.y))
 	sim.bullets.append({"pos": at, "prev": at, "vel": Vector2.from_angle(float(ev.a)) * speed,
 		"dmg": 0.0, "life": life, "knock": 0.0, "pierce": 0, "hits": [], "owner": "remote",
@@ -228,7 +230,23 @@ func _on_stores(list: Array) -> void:
 			s.store.from_record(slots)
 
 
+## The host's map changed under everybody: into an instance, or back out. The
+## mirror follows the same way, building the inside from the same seed, and
+## forgets where it thought it was until the first snapshot of the new map.
+func _on_map(m: Dictionary) -> void:
+	var kind := String(m.get("kind", ""))
+	if kind.is_empty():
+		Instance.mirror_leave(sim, m.get("cleared", {}))
+	else:
+		Instance.mirror_enter(sim, kind, int(m.get("seed", 0)), int(m.get("day", sim.clock.day)))
+	_auth = Vector2.INF
+	_targets.clear()
+	world_dirty = true
+
+
 func _on_world(d: Dictionary) -> void:
+	if d.has("inst") and sim.instance != null:
+		sim.instance.apply_record(sim, d.inst, me.seat)
 	for rec in d.get("structs", []):
 		_upsert_structure(rec)
 	for g in d.get("gone", []):
@@ -309,6 +327,11 @@ func _remove_structure(s: Dictionary) -> void:
 # -------------------------------------------------------------- snapshots --
 
 func _on_snapshot(m: Dictionary) -> void:
+	# A picture of the other map — sent before the host's swap reached us on
+	# the reliable channel — would put everybody inside the walls. Dropped.
+	var run := sim.instance.run_seed if sim.instance != null else 0
+	if int(m.get("mp", 0)) != run:
+		return
 	var q := int(m.get("q", 0))
 	if q < last_snap_seq:
 		return                                  # late packet

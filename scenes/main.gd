@@ -18,7 +18,11 @@ var enemy_view: EnemyView
 var pickup_view: PickupView
 var structure_view: StructureView
 var instance_view: InstanceView
+var boss_view: BossView
 var fx: FxView
+## The camera's ordinary zoom, from the viewport; a boss's arena pulls out
+## from it and walking out puts it back.
+var _zoom := 1.0
 var lights: LightView
 var survivor_view: SurvivorView
 var vehicle_view: VehicleView
@@ -86,6 +90,8 @@ func _ready() -> void:
 	add_child(instance_view)
 	enemy_view = EnemyView.new(sim)
 	add_child(enemy_view)
+	boss_view = BossView.new(sim)
+	add_child(boss_view)
 	vehicle_view = VehicleView.new(sim)
 	add_child(vehicle_view)
 	survivor_view = SurvivorView.new(sim)
@@ -106,6 +112,7 @@ func _ready() -> void:
 	var vp := get_viewport_rect().size
 	var z := clampf(vp.y / C.view_height, C.min_zoom, C.max_zoom)
 	camera.zoom = Vector2(z, z)
+	_zoom = z
 	camera.limit_left = 0
 	camera.limit_top = 0
 	camera.limit_right = Config.WORLD_SIZE
@@ -386,8 +393,10 @@ func _load_slot(which: int) -> bool:
 ## Everything a new world invalidates. `_load_slot` does the same work for a
 ## restored one; NEW GAME needs it too, because the world object is replaced
 ## either way and the renderers cache it.
-func _rebuild_views() -> void:
-	var p := sim.players[0]
+## `keep_local` keeps the screen on whoever this machine is — a swap into an
+## instance on a guest must not hand its camera to the host's player.
+func _rebuild_views(keep_local := false) -> void:
+	var p := me if keep_local and me != null else sim.players[0]
 	_set_local(p)
 	inventory.visible = false
 	if build_bar.open:
@@ -447,8 +456,9 @@ func _process(dt: float) -> void:
 		elif ev.t == "instance_enter" or ev.t == "instance_leave":
 			# The map under everybody changed: every view that cached the old
 			# one is rebuilt, the way a load rebuilds them.
-			_rebuild_views()
+			_rebuild_views(true)
 		fx.on_event(ev)
+		boss_view.on_event(ev)
 		lights.on_event(ev)
 		hud.on_event(ev)
 		ears.on_event(ev)
@@ -458,6 +468,7 @@ func _process(dt: float) -> void:
 	_refresh_net_lines()
 	NetDoor.reap()
 	fx.tick(dt)
+	boss_view.tick(dt)
 	lights.tick()
 	hud.tick(dt)
 	shake = maxf(0.0, shake - dt * 22.0)
@@ -473,6 +484,7 @@ func _process(dt: float) -> void:
 	if inventory.visible:
 		inventory.queue_redraw()
 	enemy_view.queue_redraw()
+	boss_view.queue_redraw()
 	player_view.queue_redraw()
 	fx.queue_redraw()
 	hud.queue_redraw()
@@ -490,7 +502,21 @@ func _update_camera(dt: float) -> void:
 	var lead := Vector2(
 		clampf((mouse.x - at.x) * C.lead, -C.lead_max, C.lead_max),
 		clampf((mouse.y - at.y) * C.lead, -C.lead_max, C.lead_max))
-	camera.position = camera.position.lerp(at + lead, Util.smooth(C.follow, dt))
+	# A boss's room is a fight you have to see the whole of — a slam whose
+	# edge is off screen is not a mechanic (§8.4) — so the camera pulls out
+	# while you are in it, and frames the fight rather than you: pulled toward
+	# the boss, because with it at the far end of the gym and the camera on
+	# you, the top of its ring was under the HUD. It eases back when you leave.
+	var focus := at + lead
+	var want := _zoom
+	var ar: Rect2i = sim.world.arena
+	if ar.size.x > 0 and Rect2(Vector2(ar.position) * Config.TILE, Vector2(ar.size) * Config.TILE).has_point(at):
+		want = _zoom * float(C.arena_zoom)
+		var boss := hud._boss_near(p)
+		if boss != null:
+			focus += (boss.pos - at) * float(C.arena_frame)
+	camera.position = camera.position.lerp(focus, Util.smooth(C.follow, dt))
+	camera.zoom = camera.zoom.lerp(Vector2(want, want), Util.smooth(5.0, dt))
 	if shake > 0.0:
 		camera.offset = Vector2(_shake_rng.randf_range(-shake, shake), _shake_rng.randf_range(-shake, shake))
 	else:
@@ -1133,6 +1159,43 @@ func smoke_school(smoke: Node) -> void:
 	camera.position = p.pos
 	await smoke.frames(4)
 	await smoke.checkpoint("school_boss")
+
+	# The fight's vocabulary (PR C), each move forced so the photograph lands
+	# on its telegraph: the ring a slam will fill, the lane a charge will run,
+	# the fan a throw will cover. Then two-thirds down — the second half, and
+	# the lights going out — and the breaker, through the key.
+	var brain: Boss = inst.boss.brain
+	if brain == null:
+		smoke.fail("the School's boss has no script")
+	else:
+		for mv: String in ["slam", "charge", "dodgeball"]:
+			brain.force(sim, inst.boss, p, mv)
+			await smoke.frames(14)
+			await smoke.checkpoint("boss_" + mv)
+			for i in range(180):
+				if brain.state == "fight":
+					break
+				await smoke.frames(1)
+		inst.boss.hp = inst.boss.max_hp * 0.6
+		await smoke.frames(8)
+		if brain.phase != 1:
+			smoke.fail("two-thirds down and the boss is still in phase %d" % brain.phase)
+		if not inst.dark:
+			smoke.fail("the second half did not kill the lights")
+		await smoke.checkpoint("boss_second_half")
+		var breaker := {}
+		for f in sim.world.features:
+			if String(f.kind) == "breaker":
+				breaker = f
+		if breaker.is_empty():
+			smoke.fail("the gym has no breaker")
+		else:
+			_smoke_stand_at(breaker.stand)
+			camera.position = p.pos
+			await smoke.frames(3)
+			if not await _smoke_press_until(smoke, "interact", func() -> bool: return not inst.dark, 60):
+				smoke.fail("E at the breaker did not put the lights back")
+			await smoke.checkpoint("boss_lights_back")
 	Damage.kill_enemy(sim, inst.boss, p)
 	await smoke.frames(3)
 	if inst.state != "cleared":
@@ -1155,6 +1218,59 @@ func smoke_school(smoke: Node) -> void:
 	_smoke_stand_at(back)
 	camera.position = p.pos
 	await smoke.frames(2)
+
+
+## The loopback guest and the host into the School together (PR D): the door
+## takes both, the guest's mirror builds the same building from the seed, and
+## both come out at the door when the boss is down. The solo leg cleared it
+## earlier today, so the chain is taken off first — a leg stocks what it
+## spends (§8), and the daily chain has a test of its own.
+func _smoke_school_together(smoke: Node, gp: PlayerSim) -> void:
+	var p := sim.players[0]
+	var back := p.pos
+	var door := Instance.door_for(sim, "school")
+	sim.cleared.erase("school")
+	p.god_mode = true
+	_smoke_stand_at(door.stand)
+	gp.pos = door.stand + Vector2(0, 24)
+	gp.prev_pos = gp.pos
+	smoke_guest.me.pos = gp.pos
+	smoke_guest.me.prev_pos = gp.pos
+	await smoke.frames(6)
+	if not Actions.enter_instance(sim, p, "school"):
+		smoke.fail("the door would not take the two of you: %s" % Instance.refusal(sim, p, "school"))
+		p.god_mode = false
+		return
+	for i in range(90):
+		if smoke_guest.sim.instance != null:
+			break
+		await smoke.frames(1)
+	if smoke_guest.sim.instance == null:
+		smoke.fail("the guest's mirror never followed the host inside")
+	elif smoke_guest.sim.world.fingerprint() != sim.world.fingerprint():
+		smoke.fail("the guest is in a different building from the host")
+	await smoke.frames(10)
+	if smoke_guest.me.pos.distance_to(gp.pos) > Config.NET.snap_over:
+		smoke.fail("inside, the guest's picture of themselves is %.0f px from the host's" % smoke_guest.me.pos.distance_to(gp.pos))
+	await smoke.checkpoint("coop_school")
+	Damage.kill_enemy(sim, sim.instance.boss, p)
+	await smoke.frames(3)
+	Instance.leave(sim, "extracted")
+	for i in range(90):
+		if smoke_guest.sim.instance == null:
+			break
+		await smoke.frames(1)
+	if smoke_guest.sim.instance != null:
+		smoke.fail("the guest's mirror stayed inside after the party came out")
+	elif smoke_guest.me.pos.distance_to(door.stand) > 96.0:
+		smoke.fail("the guest came out %.0f px from the door" % smoke_guest.me.pos.distance_to(door.stand))
+	await smoke.checkpoint("coop_school_out")
+	p.god_mode = false
+	_smoke_stand_at(back)
+	gp.pos = sim.world.unstick(back + Vector2(64, 0), gp.r)
+	gp.prev_pos = gp.pos
+	camera.position = p.pos
+	await smoke.frames(6)
 
 
 ## The nearest tile centre to `from` with `length` px of open ground due east
@@ -1970,6 +2086,7 @@ func smoke_run(smoke: Node) -> void:
 			if smoke_guest.sim.players.size() != sim.players.size():
 				smoke.fail("the mirror's roster does not match the host's")
 			await smoke.checkpoint("coop_walked")
+			await _smoke_school_together(smoke, gp)
 			# The HOST page as the owner reads it. A smoke run opens no real
 			# door — there is no router in CI and no reason to poke one — so a
 			# `NetDoor` is stood up already answered, the way a router with
