@@ -325,6 +325,11 @@ func _relay_events() -> void:
 		# it needs to follow; its mirror raises its own event when it has.
 		if t == "instance_enter" or t == "instance_leave":
 			continue
+		# The noise lens is a local debugging view of this machine's own sim.
+		# It fires on every swing and every round, and it is never something a
+		# guest's screen should spend reliable packets on.
+		if t == "noise":
+			continue
 		for g in guests:
 			var p: PlayerSim = g.player
 			if p == null:

@@ -227,7 +227,7 @@ The spec for each row is in `tasks/port-inventory.md`.
 | Player movement, stamina, camera | 1 | ported | Winded latch present; sprint alone never trips it (as in the prototype) |
 | Intent (input → sim boundary) | 1 | ported | `LocalInput.gather` is the only reader of `Input` for the sim |
 | Enemies, spawning, chase | 2 | ported | Count radius widened past the spawn ring (§6); stuck test is relative to pace (§6) |
-| Noise | 2 | ported | One `Sound.make_noise`; alert + destination, never aggro |
+| Noise | 2 | improved | One `Sound.make_noise`; alert + destination, never aggro. Every weapon now carries a radius, melee included, and work is as loud as the tool doing it |
 | Quiet field / pressure | 2, 3b | ported | A base standing nearby quietens the ground, and losing it makes it dangerous again |
 | Combat: melee, bow, guns, bullets | 2 | improved | Fed by the hotbar; and what a weapon does on a hit is the weapon's — blunt things stagger, edged things bleed, crit is per weapon plus gloves and buffs |
 | Damage routing | 2, 5 | ported | Alone you die; with a teammate standing you go down for thirty seconds, and E beside you gets you up |
@@ -518,6 +518,60 @@ boss drops, with a percentage on each rare weapon.
   Workbench II.
 - **What you see:** the tooltip gives the level's damage and uses and says
   when a weapon is found, not made; the hotbar marks a levelled weapon `L4`.
+
+### Everything you hold has a volume
+
+Noise was a gun mechanic pretending to be a weapon mechanic. All 22 firearms
+and bows carried a radius; all 41 melee weapons carried none, and
+`melee_attack` never called `Sound.make_noise` at all — so a sledgehammer
+through a skull was heard by nobody, and stealth was not a choice you made
+but a thing you got for free by not owning a gun. Harvesting had the mirror
+problem: one flat `NOISE.chop` of 140, so a chainsaw and a stone knife woke
+the identical ring of zombies.
+
+- **Every weapon carries a `noise`**, guns and melee alike, reached through
+  `Sound.weapon_radius(w)` — one place that answers "how loud is this",
+  whether you are firing it, swinging it or working with it. A row with none
+  falls back to `NOISE.melee` rather than returning zero: silent-by-accident
+  and stealth-weapon look identical from the outside, and only one of them is
+  a design decision.
+- **The melee numbers are the owner's, not the code's.** They were already
+  written down in Notion's Items table, marked as design intent with nothing
+  reading them ("a Sledgehammer's 170 is a number to build to"). All 40 that
+  existed came across unchanged. `varsityBat` is the one invented value (95,
+  between the Baseball Bat's 70 and the Spiked Bat's 85, a notch up for its
+  heavier knock) because it is in the game and has no Notion row — it and
+  `sixShooter` both need one.
+- **The shape of the table is the trade-off.** Melee runs 10 (fists) to 170
+  (sledge); every firearm is 400 or louder. Two things cross on purpose: the
+  chainsaw at 520, which is a motor and is what its `chop_mul` of 8 costs
+  you, and bows at 45-110, sitting down among the melee because a quiet kill
+  at range is the entire reason to carry one.
+- **Landing it is the loud part.** A connected swing makes the weapon's full
+  noise; a whiff makes `NOISE.whiff_mul` of it (0.35). Flailing in the dark
+  can still draw something, but it cannot draw what a hit draws.
+- **Work is as loud as the tool.** Chopping is the weapon's own radius times
+  `NOISE.chop_mul` (1.5) — you swing at a tree over and over, so work carries
+  further than a fight. A stone axe fells a tree at 90 where the old flat
+  number was 140; the chainsaw does it at 780, louder than every gun but the
+  LMG. That is pillar 6 charging rent on the best tool in the game.
+- **You can see it: F2 in a dev build** draws each noise as a dashed circle
+  at its true radius, fading over 1.1s, with the number that heard it above
+  the ring. Amber is a landed hit, cold grey a whiff, green a tool at work,
+  red a gunshot. It does not expand — the thing being debugged is the reach,
+  so the circle has to sit still long enough to measure by eye.
+- **The lens costs nothing when shut.** `Sound.debug` gates the emit, because
+  a noise fires on every swing and every round of automatic fire and
+  `_relay_events` sends any positioned event to every guest reliably. It is
+  also skipped in the relay outright, so turning it on during a co-op session
+  cannot put a single packet on the wire. The sim never reads a key: the view
+  layer sets the flag, on the same debug-build gate as the dev menu.
+- Ten new tests in `sound_test.gd`, including a ring of eight listeners that
+  the chainsaw reaches and the stone axe does not, and one holding the lens
+  to the radius *after* `noise_mul` — drawing the unscaled reach would make a
+  stealth perk look broken while it was working. The old ranking test
+  asserted on `NOISE.chop`, which no longer exists — it asserts on what an
+  axe actually does now.
 
 ### A dash, with i-frames in it
 
@@ -2196,7 +2250,7 @@ groups, and the difference decides how much work a change to one is:
 
 | Rating | Where it stands |
 | --- | --- |
-| Damage, Attack Speed, Reach, Knockback, Noise | **Already per-weapon** in `WEAPONS` as `dmg`, `cd`, `range`, `knock` and (guns) `noise`. A change here is a number. |
+| Damage, Attack Speed, Reach, Knockback, Noise | **Already per-weapon** in `WEAPONS` as `dmg`, `cd`, `range`, `knock` and `noise`. A change here is a number. Noise was guns-only until 2026-09-11; all 64 rows carry one now, and the Notion column's melee values — which had been design intent with nothing reading them — are what the game uses. |
 | Crit Chance, Stagger | **Built 2026-09-10**, and now per-weapon in `WEAPONS` as `crit` / `crit_mul` and `stagger`. The columns were blank (Crit Chance on every row; Stagger on all but two Planned shotguns), so the code's numbers were written first and all seventeen in-game weapon rows filled in from them — the ratings and the game agree as of that date, and a change to either column is now a real change to make. **On Stagger, 1 means the weapon does not interrupt at all**: only nine weapons stagger, and the scale had to say so rather than leaving a blank that reads as missing data. |
 | Durability | **Built 2026-09-09**, and now per-weapon in `WEAPONS` as `dur` — a count of uses, with repair at the recipe's own bench. The Notion column is **blank on every row but one**, so the numbers in the code are the code's first guess; filling that column in and syncing it back is a real change to make, and it is the owner's call, not a sync's. |
 | Stamina Cost, Cleave | **The mechanic exists; the per-weapon field does not.** A swing costs a flat `PLAYER.stam_swing` (2.0) whatever you hold; cleave is real but derived from the weapon's `arc` (`melee_targets` allows 6 targets over 1.4 radians, otherwise 3). A change here means making an existing system read a per-weapon value. |
@@ -2254,6 +2308,8 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-11 | **A lens on the noise (F2).** Each noise draws as a dashed circle at its true radius — amber for a landed hit, grey for a whiff, green for a tool at work, red for a gunshot — fading over 1.1s with the number that heard it. Emission is gated on `Sound.debug` and the event is skipped in `_relay_events`, so a debug view that fires on every swing can never cost a co-op packet. While chasing a flake this surfaced, `Sfx` was rendering its white noise from the global unseeded `randf()`, so the cue bank differed every launch and `test_nothing_clips` was a coin flip on `boltActionRifle`, which peaks at 0.999; the noise RNG is now seeded per op, making the bank a build artifact. 721 tests |
+| 2026-09-11 | **Every weapon has a volume.** `melee_attack` emitted no noise at all, so all 41 melee weapons were silent and stealth was free; chopping was one flat number, so a chainsaw and a stone knife woke the same zombies. `Sound.weapon_radius` is now the one answer to "how loud is this", for firing, swinging and working alike, with `NOISE.melee` as a fallback so a new content row arrives quiet rather than inaudible. The 40 melee values came from Notion's Items table, where they had been sitting as design intent with nothing reading them; only `varsityBat` needed inventing, because it and `sixShooter` are in the game with no Notion row. A landed swing is full volume and a whiff is 0.35 of it; harvesting is the tool's own radius times 1.5. `NOISE.chop` is gone. 717 tests |
 | 2026-09-11 | **Codex pass on the UI redesign (PR #37).** Four findings, all real, each with a test in `ui_review_test.gd` that failed against the old behaviour first. **Build menu:** a search or *Can build now* that hid the selected piece left PLACE and Enter acting on it — the selection now moves to the first piece shown, and nothing is placeable while nothing is. **Crew:** the detail's signature left out the survivor's health and the top bar's left out the ration count, so both froze while the world went on behind the screen. **HUD:** a worn tool's condition sliver was hidden behind its TOOL line, so no Hatchet ever warned it was wearing out; it shows under the text again, as it did before the redesign. 708 tests |
 | 2026-09-11 | **The UI redesign**, to the owner's handoff in `DEADLINE UI redesign/`, in one PR. `src/ui/ui.gd` (tokens, the three OFL faces in `art/fonts/`, named text styles, the four-state boxes, the Theme, the builders), `chrome.gd` (the frame and its rail, search, filter, weight and bench pieces), `ui_screen.gd` (sections and section-owned refreshers), `kit/` (`UiSlot`, `UiMeter`, `UiPips`, `UiSwatch`); the HUD, the pack in all nine modes, crafting and the bench as one screen (`craft_page.gd`), the character sheet (`char_page.gd`), the crew (`crew_page.gd`), the build menu and placement bar, the town map and minimap, and the title, pause, settings and multiplayer pages — all rebuilt as Control nodes. Design resolution 1920x1080 (window 1280x720) with `canvas_items` + `expand`; `Config.MAP.corner` 260. `LocalInput` takes `screen_nav` (the arrows are the screen's) and `typing` (a search field walks nowhere); `main._goto` routes the tabs; Tab steps a rail, Escape backs out one step at a time; the HUD hides under a full screen. `DisplayPrefs` for the Fullscreen toggle. The smoke run clicks the new controls — a build card and PLACE, a recipe card and CRAFT, MEND, the CREW tab, DEPOSIT ALL — through window coordinates (`get_screen_transform`, since logical is no longer window), fails any checkpoint where something reaches off screen, and has a build-menu checkpoint (89). Behaviour that moved on purpose: a card selects and CRAFT makes; a job is chosen then ASSIGNed; B opens the menu first; full screens are opaque |
 | 2026-09-11 | **The whole weapons table (PR #36).** Sixty-four weapons, up from seventeen: the seventeen in game synced from Notion, eleven new craftables with recipes, and the rest found-only, placed in 36 containers where the table's *Found in* says. **Every weapon can be found and every weapon can be repaired** (owner): a weapon with no recipe mends off its new `salvage` field at the bench its `tier` names (`Wear.repair_basis`, `Wear.mend_bench`), and still takes no levels. The boss drops carry `tier: 3`, so they mend at Workbench II rather than for three scrap at the first bench. Stone is Slingshot ammunition (`AMMO_IDS`); sixteen new gun cues in `SFX`. Still out: the Flamethrower and Grenade Launcher (no field holds fire or a blast), and three recipes that want a weapon as an ingredient. |

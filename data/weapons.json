@@ -127,6 +127,7 @@
       "kind": "melee",
       "knock": 70.0,
       "name": "Fists",
+      "noise": 10.0,
       "range": 34.0,
       "tier": 1
     },
@@ -142,6 +143,7 @@
       "kind": "melee",
       "knock": 150.0,
       "name": "Steel Pipe",
+      "noise": 70.0,
       "range": 48.0,
       "salvage": {
         "scrap": 5
@@ -163,6 +165,7 @@
       "kind": "melee",
       "knock": 110.0,
       "name": "Machete",
+      "noise": 45.0,
       "range": 54.0,
       "salvage": {
         "scrap": 12
@@ -183,6 +186,7 @@
       "kind": "melee",
       "knock": 130.0,
       "name": "Hatchet",
+      "noise": 60.0,
       "range": 48.0,
       "salvage": {
         "sticks": 1,
@@ -205,6 +209,7 @@
       "kind": "melee",
       "knock": 150.0,
       "name": "Stone Pickaxe",
+      "noise": 85.0,
       "pick": true,
       "range": 50.0,
       "salvage": {
@@ -231,6 +236,7 @@
       "knife": true,
       "knock": 60.0,
       "name": "Stone Knife",
+      "noise": 22.0,
       "range": 40.0,
       "salvage": {
         "stone": 1
@@ -252,6 +258,7 @@
       "kind": "melee",
       "knock": 80.0,
       "name": "Scythe",
+      "noise": 55.0,
       "range": 62.0,
       "salvage": {
         "sticks": 2,
@@ -276,6 +283,7 @@
       "kind": "melee",
       "knock": 240.0,
       "name": "Stone Hammer",
+      "noise": 90.0,
       "range": 46.0,
       "salvage": {
         "sticks": 1,
@@ -300,6 +308,7 @@
       "kind": "melee",
       "knock": 190.0,
       "name": "Fire Axe",
+      "noise": 80.0,
       "range": 52.0,
       "salvage": {
         "parts": 1,
@@ -323,6 +332,7 @@
       "kind": "melee",
       "knock": 210.0,
       "name": "Steel Pickaxe",
+      "noise": 95.0,
       "pick": true,
       "range": 54.0,
       "salvage": {
@@ -348,6 +358,7 @@
       "kind": "melee",
       "knock": 340.0,
       "name": "Sledgehammer",
+      "noise": 170.0,
       "range": 60.0,
       "salvage": {
         "parts": 1,
@@ -548,6 +559,7 @@
       "kind": "melee",
       "knock": 240.0,
       "name": "Varsity Bat",
+      "noise": 95.0,
       "notes": "The Coach's. A placeholder for the owner to rename and tune. Found only on the School's boss: nothing makes it, so nothing upgrades it, and it lasts to pay for that. It mends off its salvage, and tier 3 puts that at Workbench II (owner, 2026-09-11).",
       "range": 54.0,
       "salvage": {
@@ -599,6 +611,7 @@
       "kind": "melee",
       "knock": 130.0,
       "name": "Bladed Pike",
+      "noise": 45.0,
       "range": 76.0,
       "salvage": {
         "scrap": 9
@@ -675,6 +688,7 @@
       "kind": "melee",
       "knock": 220.0,
       "name": "Double-Bit Axe",
+      "noise": 95.0,
       "range": 54.0,
       "salvage": {
         "scrap": 9
@@ -696,6 +710,7 @@
       "kind": "melee",
       "knock": 110.0,
       "name": "Leaf-Spring Blade",
+      "noise": 45.0,
       "range": 56.0,
       "salvage": {
         "scrap": 9
@@ -740,6 +755,7 @@
       "kind": "melee",
       "knock": 250.0,
       "name": "Makeshift Concrete Club",
+      "noise": 120.0,
       "range": 48.0,
       "salvage": {
         "stone": 4
@@ -760,6 +776,7 @@
       "kind": "melee",
       "knock": 110.0,
       "name": "Metal Spear",
+      "noise": 35.0,
       "range": 72.0,
       "salvage": {
         "scrap": 4,
@@ -805,6 +822,7 @@
       "kind": "melee",
       "knock": 220.0,
       "name": "Piston Hammer",
+      "noise": 130.0,
       "range": 48.0,
       "salvage": {
         "scrap": 9
@@ -825,6 +843,7 @@
       "kind": "melee",
       "knock": 85.0,
       "name": "Wooden Spear",
+      "noise": 25.0,
       "range": 70.0,
       "salvage": {
         "sticks": 3
@@ -899,6 +918,7 @@
       "kind": "melee",
       "knock": 190.0,
       "name": "Baseball Bat",
+      "noise": 70.0,
       "range": 52.0,
       "salvage": {
         "wood": 4
@@ -918,6 +938,7 @@
       "kind": "melee",
       "knock": 200.0,
       "name": "Boar Spear",
+      "noise": 40.0,
       "range": 78.0,
       "salvage": {
         "scrap": 9
@@ -965,6 +986,7 @@
       "kind": "melee",
       "knock": 140.0,
       "name": "Camping Axe",
+      "noise": 65.0,
       "range": 48.0,
       "salvage": {
         "scrap": 4,
@@ -989,6 +1011,7 @@
       "kind": "melee",
       "knock": 60.0,
       "name": "Chainsaw",
+      "noise": 520.0,
       "range": 46.0,
       "salvage": {
         "scrap": 9
@@ -1009,6 +1032,7 @@
       "kind": "melee",
       "knock": 90.0,
       "name": "Cleaver",
+      "noise": 40.0,
       "range": 46.0,
       "salvage": {
         "scrap": 4
@@ -1054,6 +1078,7 @@
       "kind": "melee",
       "knock": 140.0,
       "name": "Crowbar",
+      "noise": 75.0,
       "range": 46.0,
       "salvage": {
         "scrap": 5
@@ -1100,6 +1125,7 @@
       "kind": "melee",
       "knock": 120.0,
       "name": "Frying Pan",
+      "noise": 105.0,
       "range": 38.0,
       "salvage": {
         "scrap": 3
@@ -1119,6 +1145,7 @@
       "kind": "melee",
       "knock": 90.0,
       "name": "Garden Spear",
+      "noise": 28.0,
       "range": 68.0,
       "salvage": {
         "scrap": 2,
@@ -1138,6 +1165,7 @@
       "kind": "melee",
       "knock": 250.0,
       "name": "Halligan Bar",
+      "noise": 100.0,
       "range": 50.0,
       "salvage": {
         "scrap": 9
@@ -1159,6 +1187,7 @@
       "knife": true,
       "knock": 60.0,
       "name": "Hunting Knife",
+      "noise": 20.0,
       "range": 42.0,
       "salvage": {
         "scrap": 3
@@ -1179,6 +1208,7 @@
       "kind": "melee",
       "knock": 110.0,
       "name": "Katana",
+      "noise": 40.0,
       "range": 60.0,
       "salvage": {
         "scrap": 8
@@ -1199,6 +1229,7 @@
       "knife": true,
       "knock": 50.0,
       "name": "Kitchen Knife",
+      "noise": 18.0,
       "range": 38.0,
       "salvage": {
         "scrap": 2
@@ -1219,6 +1250,7 @@
       "kind": "melee",
       "knock": 100.0,
       "name": "Kukri",
+      "noise": 35.0,
       "range": 50.0,
       "salvage": {
         "scrap": 5
@@ -1266,6 +1298,7 @@
       "kind": "melee",
       "knock": 200.0,
       "name": "Large Wrench",
+      "noise": 100.0,
       "range": 46.0,
       "salvage": {
         "scrap": 7
@@ -1312,6 +1345,7 @@
       "kind": "melee",
       "knock": 230.0,
       "name": "Mace",
+      "noise": 95.0,
       "range": 46.0,
       "salvage": {
         "scrap": 6
@@ -1331,6 +1365,7 @@
       "kind": "melee",
       "knock": 95.0,
       "name": "Makeshift Knife Spear",
+      "noise": 28.0,
       "range": 70.0,
       "salvage": {
         "scrap": 1,
@@ -1379,6 +1414,7 @@
       "kind": "melee",
       "knock": 360.0,
       "name": "Maul",
+      "noise": 165.0,
       "range": 58.0,
       "salvage": {
         "scrap": 8,
@@ -1400,6 +1436,7 @@
       "kind": "melee",
       "knock": 110.0,
       "name": "Pitchfork",
+      "noise": 32.0,
       "range": 66.0,
       "salvage": {
         "scrap": 3,
@@ -1419,6 +1456,7 @@
       "kind": "melee",
       "knock": 150.0,
       "name": "Police Baton",
+      "noise": 60.0,
       "range": 44.0,
       "salvage": {
         "scrap": 3
@@ -1520,6 +1558,7 @@
       "kind": "melee",
       "knock": 160.0,
       "name": "Shovel",
+      "noise": 80.0,
       "range": 56.0,
       "salvage": {
         "scrap": 3,
@@ -1567,6 +1606,7 @@
       "kind": "melee",
       "knock": 185.0,
       "name": "Spiked Bat",
+      "noise": 85.0,
       "range": 52.0,
       "salvage": {
         "scrap": 6
@@ -1588,6 +1628,7 @@
       "kind": "melee",
       "knock": 210.0,
       "name": "Splitting Axe",
+      "noise": 90.0,
       "range": 52.0,
       "salvage": {
         "scrap": 6,

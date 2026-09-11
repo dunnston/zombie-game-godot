@@ -4,6 +4,17 @@ extends Node2D
 ## Fed by the sim's events each frame; keeps its own short-lived particles.
 ## Cosmetic only: nothing here changes game state.
 
+## What each kind of noise is drawn in. Landing a blow and whiffing are the
+## pair worth telling apart at a glance, so they are the warm one and the cold
+## one; work is the tool, and a gunshot is the loud mistake.
+const NOISE_TINT := {
+	"hit": Color("#e8a13c"),
+	"whiff": Color("#6f7d8c"),
+	"work": Color("#7fa860"),
+	"gun": Color("#d9584a"),
+	"world": Color("#9a93a8"),
+}
+
 var sim: GameSim
 var particles: Array[Dictionary] = []
 var rng := RandomNumberGenerator.new()
@@ -36,6 +47,15 @@ func on_event(ev: Dictionary) -> void:
 		"muzzle":
 			var scale := 1.9 if ev.w == "shotgun" else (1.5 if ev.w == "rifle" else 1.0)
 			particles.append({"kind": "flash", "pos": Vector2(ev.x, ev.y), "a": ev.a, "life": 0.06, "max": 0.06, "scale": scale})
+		"noise":
+			# The noise lens (F2). Drawn at the true radius and NOT expanding:
+			# the thing being debugged is how far this reached, so the circle
+			# has to sit still long enough to measure by eye. The fade is the
+			# only animation, and the dashes keep it off the solid rings the
+			# game already uses for staggers and raids.
+			particles.append({"kind": "dring", "pos": Vector2(ev.x, ev.y),
+				"life": 1.1, "max": 1.1, "r": float(ev.r), "heard": int(ev.heard),
+				"color": NOISE_TINT.get(ev.src, NOISE_TINT.world)})
 		"chop", "bounce":
 			_debris(Vector2(ev.x, ev.y), 4, Color("#4a3a22"))
 		"harvest":
@@ -152,6 +172,22 @@ func _draw() -> void:
 				draw_line(q.pos, q.pos + dir * 18.0 * sc, Color(1, 0.85, 0.4, 0.8 * k), 4.0 * sc)
 				draw_line(q.pos, q.pos + dir.rotated(0.5) * 9.0 * sc, Color(1, 0.85, 0.4, 0.6 * k), 2.0)
 				draw_line(q.pos, q.pos + dir.rotated(-0.5) * 9.0 * sc, Color(1, 0.85, 0.4, 0.6 * k), 2.0)
+			"dring":
+				var c: Color = q.color
+				# Held near full for the first third, then dropped: long enough
+				# to read, short enough not to litter during automatic fire.
+				c.a = minf(1.0, k * 1.5) * 0.55
+				var segs := 30
+				var span := TAU / segs
+				for i in segs:
+					var a0: float = i * span
+					draw_arc(q.pos, q.r, a0, a0 + span * 0.5, 3, c, 1.5)
+				draw_circle(q.pos, 2.0, c)
+				if q.heard > 0:
+					var t := Color(c)
+					t.a = c.a * 1.3
+					draw_string(font, q.pos + Vector2(0, -q.r - 4.0), str(q.heard),
+						HORIZONTAL_ALIGNMENT_CENTER, -1, 11, t)
 			"ring":
 				var r: float = lerpf(q.r1, q.r0, k)
 				var c: Color = q.color

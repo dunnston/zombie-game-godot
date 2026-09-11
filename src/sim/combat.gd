@@ -233,15 +233,24 @@ static func melee_attack(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 			# and edged things bleed — but nothing here has to know that.
 			Damage.stagger_enemy(sim, e, stagger, crit)
 			Damage.bleed_enemy(e, bleed, p)
+		# Landing it is the loud part. A bat stopped by a skull is a noise; the
+		# same bat stopped by nothing is a swish, which is why the whiff below
+		# is a fraction of this and not the same number.
+		Sound.make_noise(sim, p.pos.x, p.pos.y, Sound.weapon_radius(w), p, "hit")
 		Wear.use_held(sim, p, 1)
 	elif chop_prop(sim, p, w, dmg):
 		p.stam = maxf(0.0, p.stam - chop_stam_cost(p))
 		p.stam_lock = P.stam_chop_delay
 		# Work is what actually blunts a tool, so it costs more than a fight.
 		Wear.use_held(sim, p, int(Config.WEAR.chop_mul))
-	# A swing that connects with nothing costs nothing: flailing at the
-	# scenery is already its own punishment — and it is what stops a broken
-	# weapon being announced once per frame while the trigger is held.
+	else:
+		# A swing that connects with nothing costs nothing — flailing at the
+		# scenery is already its own punishment, and it is what stops a broken
+		# weapon being announced once per frame while the trigger is held —
+		# but it is not free of consequence. Whiffing your way through a dark
+		# room should still be able to bring something.
+		Sound.make_noise(sim, p.pos.x, p.pos.y,
+			Sound.weapon_radius(w) * Config.NOISE.whiff_mul, p, "whiff")
 	return true
 
 
@@ -296,8 +305,11 @@ static func chop_prop(sim: GameSim, p: PlayerSim, w: Dictionary, dmg: float) -> 
 	prop.hp -= dmg * chop_multiplier(w, p, rule)
 	prop.flash = 0.12
 	sim.emit({"t": "chop", "x": prop.x, "y": prop.y})
-	# Work is audible: the other half of felling a tree in the open.
-	Sound.make_noise(sim, prop.x, prop.y, Config.NOISE.chop, p)
+	# Work is audible: the other half of felling a tree in the open. It is the
+	# tool that is loud, not the job, so a chainsaw's chop_mul of 8 is paid for
+	# in attention and a stone knife can strip a bush next to a sleeping horde.
+	Sound.make_noise(sim, prop.x, prop.y,
+		Sound.weapon_radius(w) * Config.NOISE.chop_mul, p, "work")
 	sim.emit({"t": "shake", "amount": 1.2})
 
 	if prop.hp <= 0.0:
@@ -383,7 +395,7 @@ static func fire_gun(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 	p.vel -= Vector2.from_angle(p.angle) * (90.0 if w.id == "shotgun" else 22.0)
 
 	sim.threat.add(sim, Config.THREAT.per_gunshot * w.threat, p)
-	Sound.make_noise(sim, p.pos.x, p.pos.y, w.noise, p)
+	Sound.make_noise(sim, p.pos.x, p.pos.y, Sound.weapon_radius(w), p, "gun")
 	Wear.use_held(sim, p, 1)
 	return true
 
