@@ -40,6 +40,15 @@ static func repair_weapon(sim: GameSim, p: PlayerSim, cont_kind: String, index: 
 	return Wear.repair(sim, p, cont_kind, index, bench)
 
 
+## A weapon up a level, at the bench that makes it. By slot, for the reason
+## mending is: a slot is what was clicked. The host re-derives the bench from
+## where the player stands, so naming a tier you are nowhere near buys nothing.
+static func upgrade_weapon(sim: GameSim, p: PlayerSim, cont_kind: String, index: int, bench: int) -> bool:
+	if _remote("upgrade_weapon", {"c": cont_kind, "i": index, "tier": bench}):
+		return false
+	return Upgrade.upgrade(sim, p, cont_kind, index, bench)
+
+
 ## The bench menu's UPGRADE button. Named by tile like a chest, and the host
 ## re-derives the bench from where the player is standing: a guest naming a
 ## workbench across town upgrades nothing.
@@ -48,6 +57,23 @@ static func upgrade_bench(sim: GameSim, p: PlayerSim, at: Vector2i) -> bool:
 		return false
 	var s := reachable_bench(sim, p, at)
 	return not s.is_empty() and sim.structs.upgrade_bench(sim, s, p)
+
+
+## ENTER on the panel an instance's door opened. The host checks the player is
+## at that door, and that it would open: alone for now, and not chained for
+## the day.
+static func enter_instance(sim: GameSim, p: PlayerSim, kind: String) -> bool:
+	if _remote("enter_instance", {"kind": kind}):
+		return false
+	return Instance.enter(sim, p, kind)
+
+
+## LEAVE on the panel the way out opened: walking out early, which forfeits
+## what was found. The host checks the player is at a way out.
+static func leave_instance(sim: GameSim, p: PlayerSim) -> bool:
+	if _remote("leave_instance", {}):
+		return false
+	return Instance.walk_out(sim, p)
 
 
 ## The workbench on a tile, if `p` is close enough to be using it.
@@ -233,6 +259,13 @@ static func execute(sim: GameSim, p: PlayerSim, name_: String, a: Dictionary) ->
 		"upgrade_bench":
 			var bench := reachable_bench(sim, p, at)
 			return not bench.is_empty() and sim.structs.upgrade_bench(sim, bench, p)
+		"upgrade_weapon":
+			return Upgrade.upgrade(sim, p, String(a.get("c", "")), int(a.get("i", -1)),
+				mini(int(a.get("tier", 0)), Crafting.bench_tier_at(sim, p)))
+		"enter_instance":
+			return Instance.enter(sim, p, String(a.get("kind", "")))
+		"leave_instance":
+			return Instance.walk_out(sim, p)
 		"attr":
 			return Progression.raise_attribute(sim, p, String(a.get("id", "")))
 		"perk":

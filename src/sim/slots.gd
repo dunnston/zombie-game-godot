@@ -96,14 +96,32 @@ func set_wear_at(i: int, w: int) -> void:
 		slots[i]["w"] = w
 
 
+## A weapon's level in the slot at `i`, or 0 for a slot that says nothing —
+## which is level 1 (`Upgrade.level_in`). Carried beside the condition, on
+## every path the condition takes.
+func level_at(i: int) -> int:
+	var s := at(i)
+	return int(s.get("lv", 0)) if not s.is_empty() else 0
+
+
+func set_level_at(i: int, lv: int) -> void:
+	if i < 0 or i >= slots.size() or slots[i].is_empty():
+		return
+	if lv <= 1:
+		slots[i].erase("lv")
+	else:
+		slots[i]["lv"] = lv
+
+
 ## Adds up to `n` units, topping up part-used stacks before opening new
 ## slots. Returns how many actually fitted so the caller can spill the rest —
 ## no path may destroy material for want of somewhere to put it.
 ##
 ## `wear` is uses left for a weapon that arrives already worn — out of a
 ## chest, off the ground, out of the pack of somebody who died. -1 is the
-## ordinary case: a new thing, whole.
-func add(id: String, n: int, wear := -1) -> int:
+## ordinary case: a new thing, whole. `level` is a weapon's level on the way
+## in, beside it, for the same reason; 0 or 1 is level 1.
+func add(id: String, n: int, wear := -1, level := 0) -> int:
 	if n <= 0 or not Items.has(id):
 		return 0
 	var maximum := Items.stack_limit(id)
@@ -124,6 +142,8 @@ func add(id: String, n: int, wear := -1) -> int:
 		slots[i] = {"id": id, "n": take}
 		if wear >= 0:
 			slots[i]["w"] = wear
+		if level > 1:
+			slots[i]["lv"] = level
 		left -= take
 	return n - left
 
@@ -132,7 +152,7 @@ func add(id: String, n: int, wear := -1) -> int:
 ## `allowance`. Returns how many were added; the caller puts the rest on the
 ## ground. Slot space can still refuse what weight allowed, and `add` reports
 ## what actually fitted.
-func add_capped(id: String, n: int, allowance: float, wear := -1) -> int:
+func add_capped(id: String, n: int, allowance: float, wear := -1, level := 0) -> int:
 	if n <= 0 or not Items.has(id):
 		return 0
 	var per := Items.weight_of(id)
@@ -141,7 +161,7 @@ func add_capped(id: String, n: int, allowance: float, wear := -1) -> int:
 		fit = mini(n, maxi(0, floori((allowance - weight()) / per + 1e-9)))
 	if fit <= 0:
 		return 0
-	return add(id, fit, wear)
+	return add(id, fit, wear, level)
 
 
 ## Removes up to `n` units. Returns how many were actually removed.
@@ -234,6 +254,8 @@ func move_amount(from: int, to: int, n: int, other: Slots = null) -> bool:
 		dst.slots[to] = {"id": a.id, "n": got}
 		if a.has("w"):
 			dst.slots[to]["w"] = a.w
+		if a.has("lv"):
+			dst.slots[to]["lv"] = a.lv
 	else:
 		b.n += got
 	a.n -= got
@@ -263,7 +285,11 @@ func to_record() -> Array:
 	for i in range(slots.size()):
 		if slots[i].is_empty():
 			continue
-		if slots[i].has("w"):
+		# A level rides fifth, after the condition — with -1 there for a
+		# levelled weapon that is still whole.
+		if slots[i].has("lv"):
+			out.append([i, slots[i].id, slots[i].n, int(slots[i].get("w", -1)), int(slots[i].lv)])
+		elif slots[i].has("w"):
 			out.append([i, slots[i].id, slots[i].n, int(slots[i].w)])
 		else:
 			out.append([i, slots[i].id, slots[i].n])
@@ -276,5 +302,7 @@ func from_record(rec: Array) -> void:
 		var i: int = e[0]
 		if i >= 0 and i < slots.size():
 			slots[i] = {"id": String(e[1]), "n": int(e[2])}
-			if e.size() > 3:
+			if e.size() > 3 and int(e[3]) >= 0:
 				slots[i]["w"] = int(e[3])
+			if e.size() > 4 and int(e[4]) > 1:
+				slots[i]["lv"] = int(e[4])

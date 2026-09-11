@@ -188,6 +188,7 @@ static func container(p: PlayerSim, name: String, store: Slots = null) -> Slots:
 	match name:
 		"bag": return p.bag
 		"hotbar": return p.hotbar
+		"haul": return p.haul
 		"store": return store
 	return null
 
@@ -206,12 +207,31 @@ static func move_stack(sim: GameSim, p: PlayerSim, from_cont: String, from_index
 	var to := container(p, to_cont, store)
 	if from == null or to == null:
 		return false
-	# Weight is the capacity rule, and taking out of a chest is the one move
-	# that can add weight to a player — everything else here shuffles what
-	# they already carry. Without this you could stand at the cap and drag an
-	# arbitrarily heavy stack out of a locker, which is the hole every capped
-	# path (pickups, TAKE SUPPLIES, crafting) exists to close.
-	if from_cont == "store" and to_cont != "store":
+	# The haul is for carrying *out* of an instance, and it is only open inside
+	# one: anywhere else it would be a second backpack that weighs nothing.
+	# Inside, it holds what its own budget allows and not a gram more.
+	if to_cont == "haul" and from_cont != "haul":
+		if sim == null or sim.instance == null:
+			return false
+		var s := from.at(from_index)
+		if not s.is_empty():
+			# What the haul would count with this in it, the way the cap counts
+			# (`Instance.haul_load`): a find coming back from the pack was never
+			# off the bill, and your own things going in are new to it.
+			var delta := {String(s.id): int(s.n)}
+			var dest := to.at(to_index)
+			if not dest.is_empty() and dest.id != s.id:
+				delta[String(dest.id)] = -int(dest.n)
+			if Instance.haul_load(sim, p, delta) > float(Config.INSTANCE.haul_cap) + 1e-9:
+				sim.notify("The haul cannot take that much", "#c96a5a")
+				return false
+	# Weight is the capacity rule, and taking out of a chest — or out of the
+	# haul, which is outside your carry budget for the same reason a chest is —
+	# is the one move that can add weight to a player; everything else here
+	# shuffles what they already carry. Without this you could stand at the cap
+	# and drag an arbitrarily heavy stack out of a locker, which is the hole
+	# every capped path (pickups, TAKE SUPPLIES, crafting) exists to close.
+	if (from_cont == "store" or from_cont == "haul") and (to_cont == "bag" or to_cont == "hotbar"):
 		var s := from.at(from_index)
 		if not s.is_empty():
 			var dest := to.at(to_index)
@@ -257,6 +277,7 @@ static func drop_stack(sim: GameSim, p: PlayerSim, cont_kind: String, index: int
 	# The condition goes down with it. A weapon dropped and picked back up
 	# has to be the same weapon, or the ground is a free bench.
 	var wear := int(s.get("w", -1))
+	var lv := int(s.get("lv", 0))
 	# Out of *this* slot, not out of the first stack that happens to hold the
 	# same thing: `take(id, n)` would empty an unrelated pile across the grid
 	# and leave the cell you clicked still full.
@@ -264,7 +285,7 @@ static func drop_stack(sim: GameSim, p: PlayerSim, cont_kind: String, index: int
 	if s.n <= 0:
 		c.slots[index] = {}
 	var d := Loot.entry_to_pickup(Loot.item_entry_id(id))
-	Loot.spawn_pickup(sim, p.pos, d.kind, d.id, n, p, wear)
+	Loot.spawn_pickup(sim, p.pos, d.kind, d.id, n, p, wear, lv)
 	sim.notify("Dropped %d %s" % [n, Items.name_of(id)], "#8a8f84")
 	return true
 

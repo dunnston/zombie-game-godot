@@ -45,6 +45,17 @@ func tick(dt: float) -> void:
 			notices.remove_at(i)
 
 
+## The boss worth a bar: awake — hunting, or hurt — and close enough to be the
+## fight you are in. On a guest it is whatever the snapshot says it is.
+func _boss_near(p: PlayerSim) -> EnemySim:
+	for e in sim.enemies.list:
+		if e.dead or not e.def.get("boss", false):
+			continue
+		if (e.aggro or e.hp < e.max_hp) and e.pos.distance_to(p.pos) < 1100.0:
+			return e
+	return null
+
+
 func _draw() -> void:
 	var font := ThemeDB.fallback_font
 	var p: PlayerSim = player if player != null else sim.players[0]
@@ -78,6 +89,36 @@ func _draw() -> void:
 	draw_string(font, Vector2(1, 33), label, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 20, Color(0, 0, 0, 0.7))
 	draw_string(font, Vector2(0, 32), label, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 20, Color("#ebe6d6"))
 	draw_string(font, Vector2(0, 52), "danger " + "◆".repeat(tier), HORIZONTAL_ALIGNMENT_CENTER, vp.x, 13, TIER_COLORS[tier])
+
+	# A run: what you are carrying out, how long it has taken against the
+	# eight-to-twelve-minute budget, and what is open. On the raid banner's
+	# line, because a raid cannot happen in here.
+	var inst := sim.instance
+	if inst != null:
+		var line := "HAUL %d / %d  ·  %d:%02d" % [roundi(Instance.haul_load(sim, p)), roundi(float(Config.INSTANCE.haul_cap)),
+			int(inst.t) / 60, int(inst.t) % 60]
+		var icol := Color("#d8c98a")
+		if inst.state == "cleared":
+			line += "  ·  THE WAY OUT IS OPEN"
+			icol = Color("#ffe08a")
+		elif not inst.keys.is_empty():
+			line += "  ·  YOU HAVE THE %s KEY" % String(inst.keys.keys()[0]).to_upper()
+		draw_string(font, Vector2(0, 72), line, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 14, icol)
+
+	# The boss, once it is awake and near: its name, what is left of it, and
+	# the marks where the fight changes, so the phase beat is expected rather
+	# than a surprise.
+	var boss := _boss_near(p)
+	if boss != null:
+		var bw := 420.0
+		var bx := (vp.x - bw) / 2.0
+		var by := 100.0
+		draw_string(font, Vector2(0, by - 5.0), String(boss.def.name).to_upper(), HORIZONTAL_ALIGNMENT_CENTER, vp.x, 14, Color("#e8c0b0"))
+		draw_rect(Rect2(bx, by, bw, 9), Color(0, 0, 0, 0.65))
+		draw_rect(Rect2(bx, by, bw * clampf(boss.hp / boss.max_hp, 0.0, 1.0), 9), Color("#c8423a"))
+		for ph in Config.BOSSES.get(boss.type, {}).get("phases", []).slice(1):
+			var mx: float = bx + bw * float(ph.at)
+			draw_line(Vector2(mx, by - 2.0), Vector2(mx, by + 11.0), Color("#ebe6d6"), 2.0)
 
 	# The raid banner.
 	var raid := sim.raid
@@ -216,6 +257,12 @@ func _draw() -> void:
 		var edge := Color(Items.color_of(id)) if not id.is_empty() else Color("#888888")
 		draw_rect(r, edge if i == p.slot else Color(1, 1, 1, 0.15), false, 2.0 if i == p.slot else 1.0)
 		draw_string(font, Vector2(r.position.x + 4, r.position.y + 12), str(i + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, 9, Color(1, 1, 1, 0.5))
+		# A weapon's level, top right, so an upgraded one reads as upgraded
+		# from the bar without opening anything.
+		var slot_lv := Upgrade.level_in(stack)
+		if slot_lv > 1:
+			draw_string(font, Vector2(r.position.x, r.position.y + 12), "L%d" % slot_lv, HORIZONTAL_ALIGNMENT_RIGHT,
+				r.size.x - 4, 9, Color("#ffe08a"))
 		if id.is_empty():
 			continue
 		draw_string(font, Vector2(r.position.x, r.position.y + 25), Items.name_of(id), HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 10, Color.WHITE)

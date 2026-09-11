@@ -17,7 +17,12 @@ var props_above: PropRenderer
 var enemy_view: EnemyView
 var pickup_view: PickupView
 var structure_view: StructureView
+var instance_view: InstanceView
+var boss_view: BossView
 var fx: FxView
+## The camera's ordinary zoom, from the viewport; a boss's arena pulls out
+## from it and walking out puts it back.
+var _zoom := 1.0
 var lights: LightView
 var survivor_view: SurvivorView
 var vehicle_view: VehicleView
@@ -81,8 +86,12 @@ func _ready() -> void:
 	add_child(pickup_view)
 	structure_view = StructureView.new(sim)
 	add_child(structure_view)
+	instance_view = InstanceView.new(sim)
+	add_child(instance_view)
 	enemy_view = EnemyView.new(sim)
 	add_child(enemy_view)
+	boss_view = BossView.new(sim)
+	add_child(boss_view)
 	vehicle_view = VehicleView.new(sim)
 	add_child(vehicle_view)
 	survivor_view = SurvivorView.new(sim)
@@ -103,6 +112,7 @@ func _ready() -> void:
 	var vp := get_viewport_rect().size
 	var z := clampf(vp.y / C.view_height, C.min_zoom, C.max_zoom)
 	camera.zoom = Vector2(z, z)
+	_zoom = z
 	camera.limit_left = 0
 	camera.limit_top = 0
 	camera.limit_right = Config.WORLD_SIZE
@@ -383,8 +393,10 @@ func _load_slot(which: int) -> bool:
 ## Everything a new world invalidates. `_load_slot` does the same work for a
 ## restored one; NEW GAME needs it too, because the world object is replaced
 ## either way and the renderers cache it.
-func _rebuild_views() -> void:
-	var p := sim.players[0]
+## `keep_local` keeps the screen on whoever this machine is — a swap into an
+## instance on a guest must not hand its camera to the host's player.
+func _rebuild_views(keep_local := false) -> void:
+	var p := me if keep_local and me != null else sim.players[0]
 	_set_local(p)
 	inventory.visible = false
 	if build_bar.open:
@@ -433,7 +445,20 @@ func _process(dt: float) -> void:
 				inventory.open_bench(Vector2i(ev.tx, ev.ty))
 				if build_bar.open:
 					build_bar.toggle()
+		elif ev.t == "open_instance":
+			if int(ev.get("seat", me.seat)) == me.seat:
+				inventory.open_door(String(ev.kind))
+				if build_bar.open:
+					build_bar.toggle()
+		elif ev.t == "open_leave":
+			if int(ev.get("seat", me.seat)) == me.seat:
+				inventory.open_leave()
+		elif ev.t == "instance_enter" or ev.t == "instance_leave":
+			# The map under everybody changed: every view that cached the old
+			# one is rebuilt, the way a load rebuilds them.
+			_rebuild_views(true)
 		fx.on_event(ev)
+		boss_view.on_event(ev)
 		lights.on_event(ev)
 		hud.on_event(ev)
 		ears.on_event(ev)
@@ -443,6 +468,7 @@ func _process(dt: float) -> void:
 	_refresh_net_lines()
 	NetDoor.reap()
 	fx.tick(dt)
+	boss_view.tick(dt)
 	lights.tick()
 	hud.tick(dt)
 	shake = maxf(0.0, shake - dt * 22.0)
@@ -451,12 +477,14 @@ func _process(dt: float) -> void:
 	props_above.queue_redraw()
 	pickup_view.queue_redraw()
 	structure_view.queue_redraw()
+	instance_view.queue_redraw()
 	if build_bar.open:
 		build_bar.queue_redraw()
 	inventory.tick()
 	if inventory.visible:
 		inventory.queue_redraw()
 	enemy_view.queue_redraw()
+	boss_view.queue_redraw()
 	player_view.queue_redraw()
 	fx.queue_redraw()
 	hud.queue_redraw()
@@ -474,7 +502,21 @@ func _update_camera(dt: float) -> void:
 	var lead := Vector2(
 		clampf((mouse.x - at.x) * C.lead, -C.lead_max, C.lead_max),
 		clampf((mouse.y - at.y) * C.lead, -C.lead_max, C.lead_max))
-	camera.position = camera.position.lerp(at + lead, Util.smooth(C.follow, dt))
+	# A boss's room is a fight you have to see the whole of — a slam whose
+	# edge is off screen is not a mechanic (§8.4) — so the camera pulls out
+	# while you are in it, and frames the fight rather than you: pulled toward
+	# the boss, because with it at the far end of the gym and the camera on
+	# you, the top of its ring was under the HUD. It eases back when you leave.
+	var focus := at + lead
+	var want := _zoom
+	var ar: Rect2i = sim.world.arena
+	if ar.size.x > 0 and Rect2(Vector2(ar.position) * Config.TILE, Vector2(ar.size) * Config.TILE).has_point(at):
+		want = _zoom * float(C.arena_zoom)
+		var boss := hud._boss_near(p)
+		if boss != null:
+			focus += (boss.pos - at) * float(C.arena_frame)
+	camera.position = camera.position.lerp(focus, Util.smooth(C.follow, dt))
+	camera.zoom = camera.zoom.lerp(Vector2(want, want), Util.smooth(5.0, dt))
 	if shake > 0.0:
 		camera.offset = Vector2(_shake_rng.randf_range(-shake, shake), _shake_rng.randf_range(-shake, shake))
 	else:
@@ -906,6 +948,25 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 			if int(wb.tier) != 2:
 				smoke.fail("UPGRADE did not upgrade the workbench")
 		await smoke.checkpoint("workbench_upgraded")
+		# A weapon level (PR E), at the bench that makes it: the Pipe already
+		# in the hotbar taken to level 2 from its row beside MEND. The pack is
+		# full by now, so this upgrades what is carried rather than handing
+		# over something new — the first cut tried and got NO ROOM.
+		var ur := inventory.upgrade_centre("pipe")
+		if ur == Vector2.ZERO:
+			var offered: Array = []
+			for row in Upgrade.upgradeable_carried(p):
+				offered.append(row.id)
+			smoke.fail("the workbench offers no UPGRADE for the Pipe (screen %s/%s; offered %s)"
+				% [str(inventory.visible), inventory.mode, str(offered)])
+		else:
+			var pi := p.hotbar_index("pipe")
+			var why := String(Upgrade.status(sim, p, "hotbar", pi, Crafting.bench_tier_at(sim, p)).reason)
+			await smoke_click(ur)
+			await smoke.frames(3)
+			if Upgrade.level(p.hotbar, pi) != 2:
+				smoke.fail("UPGRADE left the Pipe at level %d (%s)" % [Upgrade.level(p.hotbar, pi), why])
+		await smoke.checkpoint("weapon_upgraded")
 		await smoke.tap("inventory")
 		await smoke.frames(2)
 	_smoke_stand_at(wb_origin)
@@ -1030,6 +1091,232 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 		smoke.fail("a bleeding walker lost no health over a second and a half")
 
 
+## Presses `action` and holds it until `done` says the game has answered, then
+## lets go. A fixed number of frames can pass without a physics step at a high
+## refresh rate, and the check would then ask before the game had (§8).
+func _smoke_press_until(smoke: Node, action: String, done: Callable, cap := 480) -> bool:
+	Input.action_press(action)
+	var ok := false
+	for i in range(cap):
+		await smoke.frames(1)
+		if done.call():
+			ok = true
+			break
+	Input.action_release(action)
+	await smoke.frames(2)
+	return ok
+
+
+## Pine Hollow High, end to end: the sealed building and its door, the panel
+## that asks, the foyer, the key in the principal's desk, the chained gym, the
+## stand-in boss, and out through the exit with the door chained behind you.
+## The fight itself is PR C's; here the boss is put down so the way out can be.
+func smoke_school(smoke: Node) -> void:
+	var p := sim.players[0]
+	var back := p.pos
+	var door := Instance.door_for(sim, "school")
+	if door.is_empty():
+		smoke.fail("there is no door to the School in the town")
+		return
+	p.god_mode = true
+	_smoke_stand_at(door.stand)
+	camera.position = p.pos
+	await smoke.frames(3)
+	var offered := String(Interact.best_target(sim, p).get("kind", ""))
+	if offered != "instance_door":
+		smoke.fail("E at the School's door offers '%s'" % offered)
+	await smoke.checkpoint("school_door")
+
+	if not await _smoke_press_until(smoke, "interact", func() -> bool: return inventory.visible and inventory.mode == "door", 60):
+		smoke.fail("E at the School's door did not open its panel")
+	await smoke.checkpoint("school_panel")
+	var enter := inventory.button_centre("enter")
+	if enter == Vector2.ZERO:
+		smoke.fail("the door panel has no ENTER")
+	else:
+		await smoke_click(enter)
+	for i in range(30):
+		if sim.instance != null:
+			break
+		await smoke.frames(1)
+	var inst := sim.instance
+	if inst == null or sim.world.layout != "school":
+		smoke.fail("ENTER did not take you inside")
+		p.god_mode = false
+		return
+	await smoke.frames(4)
+	await smoke.checkpoint("school_foyer")
+
+	# The key, through the search channel the way any cupboard is searched.
+	var desk := {}
+	for c in sim.world.containers:
+		if c.has("key"):
+			desk = c
+	if desk.is_empty() or not smoke_stand_beside(desk):
+		smoke.fail("could not get to the principal's desk")
+	elif not await _smoke_press_until(smoke, "interact", func() -> bool: return inst.keys.get("gym", false)):
+		smoke.fail("searching the principal's desk did not find the gym key")
+
+	# The chained door, on E, with the key.
+	var chained := {}
+	var exit := {}
+	for f in sim.world.features:
+		if String(f.kind) == "chained":
+			chained = f
+		elif String(f.kind) == "exit":
+			exit = f
+	_smoke_stand_at(Vector2(chained.x, chained.y + 44.0))
+	camera.position = p.pos
+	await smoke.frames(3)
+	if not await _smoke_press_until(smoke, "interact", func() -> bool: return chained.open, 60):
+		smoke.fail("E with the key did not unchain the gym")
+	await smoke.checkpoint("school_gym_open")
+
+	# The stand-in, on its feet, and then put down: the way out is what this
+	# leg is about, and PR C is the fight.
+	_smoke_stand_at(Vector2(chained.x, chained.y - 90.0))
+	camera.position = p.pos
+	await smoke.frames(4)
+	await smoke.checkpoint("school_boss")
+
+	# The fight's vocabulary (PR C), each move forced so the photograph lands
+	# on its telegraph: the ring a slam will fill, the lane a charge will run,
+	# the fan a throw will cover. Then two-thirds down — the second half, and
+	# the lights going out — and the breaker, through the key.
+	var brain: Boss = inst.boss.brain
+	if brain == null:
+		smoke.fail("the School's boss has no script")
+	else:
+		for mv: String in ["slam", "charge", "dodgeball"]:
+			brain.force(sim, inst.boss, p, mv)
+			await smoke.frames(14)
+			await smoke.checkpoint("boss_" + mv)
+			for i in range(180):
+				if brain.state == "fight":
+					break
+				await smoke.frames(1)
+		inst.boss.hp = inst.boss.max_hp * 0.6
+		await smoke.frames(8)
+		if brain.phase != 1:
+			smoke.fail("two-thirds down and the boss is still in phase %d" % brain.phase)
+		if not inst.dark:
+			smoke.fail("the second half did not kill the lights")
+		await smoke.checkpoint("boss_second_half")
+		var breaker := {}
+		for f in sim.world.features:
+			if String(f.kind) == "breaker":
+				breaker = f
+		if breaker.is_empty():
+			smoke.fail("the gym has no breaker")
+		else:
+			_smoke_stand_at(breaker.stand)
+			camera.position = p.pos
+			await smoke.frames(3)
+			if not await _smoke_press_until(smoke, "interact", func() -> bool: return not inst.dark, 60):
+				smoke.fail("E at the breaker did not put the lights back")
+			await smoke.checkpoint("boss_lights_back")
+	Damage.kill_enemy(sim, inst.boss, p)
+	await smoke.frames(3)
+	if inst.state != "cleared":
+		smoke.fail("the boss is down and the School is not cleared")
+
+	_smoke_stand_at(Vector2(exit.x, exit.y + 44.0))
+	camera.position = p.pos
+	await smoke.frames(3)
+	if not await _smoke_press_until(smoke, "interact", func() -> bool: return sim.instance == null, 60):
+		smoke.fail("the exit did not let you out")
+	await smoke.frames(4)
+	if not sim.cleared.has("school"):
+		smoke.fail("walked out past the boss and the School is not marked cleared")
+	if p.pos.distance_to(door.stand) > 4.0:
+		smoke.fail("came out %.0fpx from the door" % p.pos.distance_to(door.stand))
+	if Instance.refusal(sim, p, "school").is_empty():
+		smoke.fail("the School would open again the same day")
+	await smoke.checkpoint("school_out")
+	p.god_mode = false
+	_smoke_stand_at(back)
+	camera.position = p.pos
+	await smoke.frames(2)
+
+
+## The loopback guest and the host into the School together (PR D): the door
+## takes both, the guest's mirror builds the same building from the seed, and
+## both come out at the door when the boss is down. The solo leg cleared it
+## earlier today, so the chain is taken off first — a leg stocks what it
+## spends (§8), and the daily chain has a test of its own.
+func _smoke_school_together(smoke: Node, gp: PlayerSim) -> void:
+	var p := sim.players[0]
+	var back := p.pos
+	var door := Instance.door_for(sim, "school")
+	sim.cleared.erase("school")
+	p.god_mode = true
+	_smoke_stand_at(door.stand)
+	gp.pos = door.stand + Vector2(0, 24)
+	gp.prev_pos = gp.pos
+	smoke_guest.me.pos = gp.pos
+	smoke_guest.me.prev_pos = gp.pos
+	await smoke.frames(6)
+	if not Actions.enter_instance(sim, p, "school"):
+		smoke.fail("the door would not take the two of you: %s" % Instance.refusal(sim, p, "school"))
+		p.god_mode = false
+		return
+	for i in range(90):
+		if smoke_guest.sim.instance != null:
+			break
+		await smoke.frames(1)
+	if smoke_guest.sim.instance == null:
+		smoke.fail("the guest's mirror never followed the host inside")
+	elif smoke_guest.sim.world.fingerprint() != sim.world.fingerprint():
+		smoke.fail("the guest is in a different building from the host")
+	await smoke.frames(10)
+	if smoke_guest.me.pos.distance_to(gp.pos) > Config.NET.snap_over:
+		smoke.fail("inside, the guest's picture of themselves is %.0f px from the host's" % smoke_guest.me.pos.distance_to(gp.pos))
+	await smoke.checkpoint("coop_school")
+	Damage.kill_enemy(sim, sim.instance.boss, p)
+	await smoke.frames(3)
+	Instance.leave(sim, "extracted")
+	for i in range(90):
+		if smoke_guest.sim.instance == null:
+			break
+		await smoke.frames(1)
+	if smoke_guest.sim.instance != null:
+		smoke.fail("the guest's mirror stayed inside after the party came out")
+	elif smoke_guest.me.pos.distance_to(door.stand) > 96.0:
+		smoke.fail("the guest came out %.0f px from the door" % smoke_guest.me.pos.distance_to(door.stand))
+	await smoke.checkpoint("coop_school_out")
+	p.god_mode = false
+	_smoke_stand_at(back)
+	gp.pos = sim.world.unstick(back + Vector2(64, 0), gp.r)
+	gp.prev_pos = gp.pos
+	camera.position = p.pos
+	await smoke.frames(6)
+
+
+## The nearest tile centre to `from` with `length` px of open ground due east
+## of it, for a body the player's size: nothing solid in either collision map
+## anywhere along the run. INF when there is none within twelve tiles.
+func _smoke_clear_lane(from: Vector2, length: float) -> Vector2:
+	var r := sim.players[0].r + 2.0
+	var ox := floori(from.x / Config.TILE)
+	var oy := floori(from.y / Config.TILE)
+	for ring in range(12):
+		for dy in range(-ring, ring + 1):
+			for dx in range(-ring, ring + 1):
+				if maxi(absi(dx), absi(dy)) != ring:
+					continue
+				var at := Vector2((ox + dx) * Config.TILE + 16, (oy + dy) * Config.TILE + 16)
+				var clear := true
+				var x := 0.0
+				while x <= length:
+					if sim.world.circle_hits_solid(at.x + x, at.y, r, sim.structs):
+						clear = false
+						break
+					x += 6.0
+				if clear:
+					return at
+	return Vector2.INF
+
+
 ## The scripted session: walk, sprint, photograph the districts, then fight.
 func smoke_run(smoke: Node) -> void:
 	var p := sim.players[0]
@@ -1045,6 +1332,43 @@ func smoke_run(smoke: Node) -> void:
 	if p.stam >= p.max_stam:
 		smoke.fail("sprinting did not drain stamina")
 	await smoke.checkpoint("sprinted_south")
+	# The dash, through the real key: held for a few frames so a physics step
+	# sees the press (§8), and photographed mid-burst for the after-images.
+	# From a stand with open ground for the whole burst: where the sprint ends
+	# moves with the frame rate, and the first run that ended beside a tree
+	# measured the tree rather than the dash.
+	var lane := _smoke_clear_lane(p.pos, float(Config.DASH.dist) + 40.0)
+	if lane == Vector2.INF:
+		smoke.fail("no open ground near the camp to dash across")
+	else:
+		_smoke_stand_at(lane)
+		await smoke.frames(2)
+		var before_dash := p.pos
+		Input.action_press("move_right")
+		# Held until a physics step has seen it, not for a fixed three frames:
+		# at 144Hz three frames can pass with no physics step in them, and the
+		# check below then asks before the game has. Holding cannot dash twice —
+		# the dash reads the edge.
+		Input.action_press("dash")
+		var heard := false
+		for i in range(30):
+			await smoke.frames(1)
+			if p.dash_cd > 0.0:
+				heard = true
+				break
+		Input.action_release("dash")
+		Input.action_release("move_right")
+		# Two questions, two messages: was the key heard, and did the burst go.
+		if not heard:
+			smoke.fail("the dash key was never heard (stamina %.0f, winded %s)" % [p.stam, p.winded])
+		await smoke.checkpoint("dashing")
+		for i in range(30):
+			if p.dash_t <= 0.0:
+				break
+			await smoke.frames(1)
+		var carried := p.pos.x - before_dash.x
+		if p.dash_cd > 0.0 and carried < float(Config.DASH.dist) * 0.85:
+			smoke.fail("the dash was heard and carried only %.1f px of %.0f" % [carried, float(Config.DASH.dist)])
 	for spot in [["suburbs", 118, 120], ["market_row", 200, 158], ["downtown", 262, 172],
 			["farms", 30, 140], ["lake_lodge", 190, 52], ["forest", 60, 30], ["junkyard", 190, 270]]:
 		smoke_teleport(spot[1], spot[2])
@@ -1636,6 +1960,11 @@ func smoke_run(smoke: Node) -> void:
 	p.perks.erase("sixthSense")
 	Perks.recompute_stats(p)
 
+	# The School: the first instanced dungeon, through the real key and the
+	# real panel. Late in the run on purpose — going in draws on the shared
+	# RNG, and every roll after that moves (§8).
+	await smoke_school(smoke)
+
 	# The front door. The smoke run starts in the world rather than at the
 	# title, so this drives the menu directly — but through the same rows and
 	# the same signal a click goes through, not by calling the handlers.
@@ -1776,6 +2105,7 @@ func smoke_run(smoke: Node) -> void:
 			if smoke_guest.sim.players.size() != sim.players.size():
 				smoke.fail("the mirror's roster does not match the host's")
 			await smoke.checkpoint("coop_walked")
+			await _smoke_school_together(smoke, gp)
 			# The HOST page as the owner reads it. A smoke run opens no real
 			# door — there is no router in CI and no reason to poke one — so a
 			# `NetDoor` is stood up already answered, the way a router with
@@ -2164,7 +2494,9 @@ func _quick_load() -> void:
 ## A game with a slot writes itself down on a timer. One without does not:
 ## autosave must never invent a slot behind the player's back.
 func _tick_autosave(dt: float) -> void:
-	if slot < 0 or role == "guest":
+	# Never from inside an instance: a run is never saved (§7). A save the
+	# player asks for is written as the walked-out game (`SaveGame.to_dict`).
+	if slot < 0 or role == "guest" or sim.instance != null:
 		return
 	_autosave_t += dt
 	if _autosave_t < Saves.AUTOSAVE_EVERY:

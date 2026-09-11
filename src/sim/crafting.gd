@@ -107,6 +107,13 @@ static func bench_reason(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) 
 
 ## Why a recipe cannot be made right now, in the order a player meets it.
 static func status(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> Dictionary:
+	# Nothing is made inside an instance (Codex, PR #31). The ledger writes
+	# down what was found, and crafting would turn four found cloth into two
+	# bandages it never wrote down — which a walk-out or a death would then
+	# leave in your pack, and only the boss is meant to let things out. What
+	# you need in there is what you brought: the loadout is the decision.
+	if sim != null and sim.instance != null:
+		return {"ok": false, "reason": "Nothing can be made in here"}
 	var why := bench_reason(sim, p, r, bench)
 	if not why.is_empty():
 		return {"ok": false, "reason": why}

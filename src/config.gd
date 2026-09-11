@@ -12,7 +12,7 @@ const WORLD_SIZE := TILE * WORLD_TILES   # 10240px square
 enum T {
 	GRASS, ROAD, SIDEWALK, DIRT, FLOOR_WOOD,
 	WALL, WATER, RUBBLE, LOT, FLOOR_TILE, GRAVEL,
-	FIELD, SAND, FENCE,
+	FIELD, SAND, FENCE, ROOF,
 }
 
 ## Base colour `a` and a translucent detail colour `b`, per terrain.
@@ -31,12 +31,15 @@ const TERRAIN := {
 	T.FIELD:      {"a": Color("#4b3a26"), "b": Color("#5a4630aa")},
 	T.SAND:       {"a": Color("#6e6449"), "b": Color("#7c7255aa")},
 	T.FENCE:      {"a": Color("#38472a"), "b": Color("#31402552")},
+	# A building you cannot walk into, and the solid dark around an instance's
+	# rooms. Solid to feet, bullets and sight, like a wall.
+	T.ROOF:       {"a": Color("#33363c"), "b": Color("#3c404764")},
 }
 
-## Indexed by T. Solid to feet: wall, water, fence.
-const SOLID_BY_TILE := [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1]
+## Indexed by T. Solid to feet: wall, water, fence, roof.
+const SOLID_BY_TILE := [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1]
 ## Solid to feet but not to bullets: you shoot across a river or over a fence.
-const SHOOT_OVER_BY_TILE := [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1]
+const SHOOT_OVER_BY_TILE := [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0]
 
 # ------------------------------------------------------------------- player --
 
@@ -75,6 +78,99 @@ const PLAYER := {
 	# Ground-ring tints, one per seat.
 	"colors": ["#dff0ff", "#ffd27a", "#9fe8a0", "#f0a0e8"],
 	"names": ["Survivor", "Ash", "Bex", "Cole", "Dee"],
+}
+
+# --------------------------------------------------------------- instances --
+
+## Instanced dungeons (`tasks/instanced-dungeons.md`): a sealed building in the
+## town whose door loads a separate map, with a boss at the end that is the
+## only way out with what you found.
+##
+## The haul pouch is §6.2's second budget: what you carry *out*, kept apart
+## from what you fight with so a good looting run does not make you slow for
+## the hardest fight in the game. By weight, like the pack.
+const INSTANCE := {
+	"haul_cap": 120.0,
+	"haul_slots": 16,
+	# How close everyone has to be for the party to go in, or to walk out
+	# early, together (§10: a dungeon is a party commitment).
+	"party_reach": 160.0,
+}
+
+## One row per instance. `shell` is the building in the town, `door` the tiles
+## you walk up to, `out` which way the door faces and `lot` the apron from the
+## road to it. `clock_t` is the time of day the inside is frozen at — it is
+## what `LightView` and the dark multipliers read, so 0.70 is dusk-dim: past
+## `DARK_ENOUGH`, so a worn torch lights itself, and nowhere near black.
+## `boss` is PR B's stand-in; the phase boss is PR C.
+const INSTANCES := {
+	"school": {
+		"name": "PINE HOLLOW HIGH",
+		"tier": 2,
+		"clock_t": 0.70,
+		# What the inside's clock is pushed to when the boss kills the lights.
+		"dark_t": 0.82,
+		"boss": "coach",
+		"boss_hp_mul": 1.0,
+		"shell": Rect2i(116, 64, 24, 18),
+		"door": Rect2i(116, 71, 1, 2),
+		"out": Vector2i(-1, 0),
+		"lot": Rect2i(110, 68, 6, 8),
+		"location": {"id": "school_inside", "name": "PINE HOLLOW HIGH", "tier": 2,
+			"rect": Rect2i(96, 92, 90, 58), "desc": "The halls, the classrooms, and the gym at the back."},
+		# How many stand in each kind of room, as [min, max].
+		"pop": {"classroom": [2, 3], "hall": [5, 7], "cafeteria": [4, 5], "small": [1, 2]},
+	},
+}
+
+## Phase bosses (`Boss`; `tasks/instanced-dungeons.md` §8), keyed by enemy
+## type — the row in ENEMIES is the body, this is the fight.
+##
+## `moves` are what it can do and how long each one tells you it is coming.
+## Every `tell` is at least `min_tell`, sized against the dash (PR A: a 0.18s
+## burst, 0.9s between) and against simply walking out of a ring. `phases`
+## start at full health and each takes over below its `at`: the moves in its
+## pool, the gap between them, how fast it moves, what it opens with, and what
+## the screen calls it. `transition` is the beat between phases in which it
+## cannot be hurt and does nothing, so a phase change reads as a phase change.
+const BOSSES := {
+	"coach": {
+		"wake": "THE COACH — he has been waiting in here for a team",
+		"min_tell": 0.7,
+		"transition": 1.2,
+		"moves": {
+			"slam": {"tell": 1.0, "radius": 150.0, "dmg": 34.0, "recover": 0.6},
+			# Into a wall it is dazed for `stun`: the opening the move exists for.
+			"charge": {"tell": 0.8, "speed": 560.0, "dist": 520.0, "dmg": 42.0, "stun": 1.6, "recover": 0.5},
+			"dodgeball": {"tell": 0.7, "count": 5, "fan": 0.9, "speed": 360.0, "dmg": 16.0, "range": 700.0,
+				"recover": 0.5, "color": "#e8703a"},
+			"whistle": {"tell": 0.9, "adds": 3, "cap": 6, "recover": 0.6},
+		},
+		"phases": [
+			{"at": 1.00, "moves": ["charge", "slam"], "cd": [2.2, 3.2]},
+			{"at": 0.66, "name": "SECOND HALF", "moves": ["charge", "slam", "dodgeball", "whistle"], "cd": [1.9, 2.8],
+				"enter": ["lights_out", "whistle"]},
+			{"at": 0.33, "name": "OVERTIME", "moves": ["slam", "dodgeball", "charge"], "cd": [1.5, 2.3], "speed_mul": 1.3},
+		],
+	},
+}
+
+## The dash: a short committed burst with i-frames in it (2026-09-10, the
+## first piece of the instanced dungeons — `tasks/instanced-dungeons.md` §8.3).
+## It decides how long a fair boss telegraph is, so these are first guesses to
+## be felt in town before any boss pattern is written against them.
+##
+## `dist` over `time` is the burst; the i-frames cover the burst and `grace`
+## after it, through the same `invuln` a hit already grants. `stam` is paid up
+## front and a dash is refused rather than half-done without it, so stamina is
+## still the budget that dodging spends. `cd` is from the start of one burst to
+## the next press that will be heard.
+const DASH := {
+	"dist": 130.0,
+	"time": 0.18,
+	"grace": 0.06,
+	"stam": 30.0,
+	"cd": 0.9,
 }
 
 # --------------------------------------------------------------- co-op --
@@ -119,7 +215,12 @@ const NET := {
 
 ## view_height is world pixels of height on screen at zoom 1; the camera
 ## zooms so that the viewport shows about that much world vertically.
-const CAMERA := {"follow": 7.5, "view_height": 580.0, "min_zoom": 0.9, "max_zoom": 2.6, "lead": 0.22, "lead_max": 170.0}
+## `arena_zoom` is how far the camera pulls out inside a boss's room, so the
+## edge of a slam ring is on screen (§8.4 of the instanced-dungeon note), and
+## `arena_frame` is how far toward the boss it leans, so the fight is framed
+## rather than just you.
+const CAMERA := {"follow": 7.5, "view_height": 580.0, "min_zoom": 0.9, "max_zoom": 2.6, "lead": 0.22, "lead_max": 170.0,
+	"arena_zoom": 0.72, "arena_frame": 0.4}
 
 # -------------------------------------------------------------- progression --
 
@@ -776,6 +877,22 @@ const WEAR := {
 	"spent_at": 0.1,
 }
 
+## Weapon levels (PR E; `Upgrade`). 1 to 6, at the bench that makes the
+## weapon; every level adds damage and uses. Levels 4 to 6 cost Precision
+## Parts, which only come out of an instance past its boss — the gate is that
+## material, so there is no flag here to forget. Feel numbers, unplayed.
+const UPGRADE := {
+	"max": 6,
+	# Per level above 1: level 6 hits 40% harder and lasts 50% longer.
+	"dmg_per_level": 0.08,
+	"dur_per_level": 0.10,
+	# The level being bought -> the share of the weapon's recipe it costs.
+	"cost_share": {2: 0.5, 3: 0.75, 4: 1.0, 5: 1.25, 6: 1.5},
+	# The level being bought -> Precision Parts on top.
+	"precision": {4: 2, 5: 4, 6: 6},
+	"xp": 8,
+}
+
 ## Stagger: the blow that interrupts a committed swing.
 ##
 ## A weapon's `stagger` above is in seconds, and what actually lands is
@@ -873,6 +990,10 @@ const BRAIN_DROPS := {
 	"brute":    {"chance": 0.85, "id": "brainMut",  "min": 1, "max": 1,
 		"also": {"id": "brainRaw", "min": 1, "max": 2}},
 	"behemoth": {"chance": 1.0,  "id": "brainSpec", "min": 1, "max": 2,
+		"also": {"id": "brainMut", "min": 2, "max": 2}},
+	# The School's boss is a Behemoth's worth of tissue: it is the fight a
+	# Behemoth was, with a script on it.
+	"coach":    {"chance": 1.0,  "id": "brainSpec", "min": 1, "max": 2,
 		"also": {"id": "brainMut", "min": 2, "max": 2}},
 }
 
@@ -1048,6 +1169,12 @@ const SFX_RANGE := 1500.0
 
 const SFX := {
 	# ------------------------------------------------------------- gunfire --
+	# The Coach's revolver (PR E): a pistol's crack with a deeper, longer
+	# body, so a boss's weapon sounds like one. A placeholder, like the gun.
+	"sixShooter": [
+		{"kind": "noise", "dur": 0.13, "gain": 0.38, "filter": "hp", "freq": 700.0, "q": 0.6},
+		{"kind": "tone", "freq": 240.0, "to": 45.0, "wave": "square", "dur": 0.12, "gain": 0.26},
+	],
 	"pistol": [
 		{"kind": "noise", "dur": 0.09, "gain": 0.34, "filter": "hp", "freq": 900.0, "q": 0.6},
 		{"kind": "tone", "freq": 320.0, "to": 60.0, "wave": "square", "dur": 0.08, "gain": 0.22},
@@ -1096,6 +1223,24 @@ const SFX := {
 
 	# --------------------------------------------------------------- melee --
 	"swing": [{"kind": "noise", "dur": 0.13, "gain": 0.16, "filter": "bp", "freq": 900.0, "to": 320.0, "q": 1.2}],
+	## The School's boss. A roar when it wakes and at every phase — the beat
+	## that says the fight just changed — a slam that lands low, and a
+	## whistle that means the team is coming.
+	"boss_roar": [
+		{"kind": "tone", "freq": 110.0, "to": 55.0, "wave": "saw", "dur": 0.8, "gain": 0.3},
+		{"kind": "noise", "dur": 0.6, "gain": 0.22, "filter": "lp", "freq": 700.0, "to": 150.0},
+	],
+	"slam": [
+		{"kind": "noise", "dur": 0.35, "gain": 0.45, "filter": "lp", "freq": 500.0, "to": 80.0},
+		{"kind": "tone", "freq": 90.0, "to": 40.0, "wave": "tri", "dur": 0.3, "gain": 0.3},
+	],
+	"whistle": [
+		{"kind": "tone", "freq": 2300.0, "wave": "square", "dur": 0.12, "gain": 0.12},
+		{"kind": "tone", "freq": 2300.0, "wave": "square", "dur": 0.3, "gain": 0.12, "at": 0.16},
+	],
+	## Higher and quicker than a swing, so dodging and attacking never sound
+	## like the same thing in a fight.
+	"dash": [{"kind": "noise", "dur": 0.16, "gain": 0.2, "filter": "bp", "freq": 1600.0, "to": 420.0, "q": 1.0}],
 	"melee_hit": [
 		{"kind": "noise", "dur": 0.11, "gain": 0.34, "filter": "lp", "freq": 900.0, "to": 200.0},
 		{"kind": "tone", "freq": 130.0, "to": 55.0, "wave": "tri", "dur": 0.1, "gain": 0.22},
@@ -1263,6 +1408,8 @@ const LOCATIONS := [
 	{"id": "hospital",   "name": "ST. MARTHA HOSPITAL", "tier": 3, "rect": Rect2i(90, 188, 46, 42),  "desc": "Medicine. The halls are full."},
 	{"id": "industrial", "name": "DOCK YARD",           "tier": 3, "rect": Rect2i(144, 198, 30, 36), "desc": "Electronics and parts. Brutes work here."},
 	{"id": "military",   "name": "CHECKPOINT DELTA",    "tier": 4, "rect": Rect2i(204, 204, 32, 32), "desc": "Military hardware. You will need a plan."},
+	# An instance: the building is sealed and its door loads the inside (`INSTANCES`).
+	{"id": "school",     "name": "PINE HOLLOW HIGH",    "tier": 2, "rect": Rect2i(108, 62, 34, 22), "desc": "The high school, chained shut. Whatever is in the gym kept it that way."},
 	# the country
 	{"id": "farms",      "name": "HOLLOW CREEK FARMS",  "tier": 1, "rect": Rect2i(2, 66, 52, 106),   "desc": "Fields and barns across the river. Food, fuel, quiet."},
 	{"id": "ranch",      "name": "SADDLEBACK RANCH",    "tier": 1, "rect": Rect2i(2, 206, 52, 50),   "desc": "Paddocks and a stable. The end of the lane."},
@@ -1516,6 +1663,10 @@ static var CONTAINERS: Dictionary = DataTable.load_table("containers")
 ## fills with wardrobes and a precinct with filing cabinets, so a building's
 ## exterior tells you what is worth searching inside.
 const FURNISHING := {
+	# The School's rooms. An instance is furnished like anywhere else; only the
+	# kinds are its own (`school*` in LOOT and CONTAINERS).
+	"schoolClass": [["teacherDesk", 8], ["schoolLocker", 12], ["bookshelf", 6], ["filing", 3]],
+	"schoolCafeteria": [["lunchCounter", 18], ["fridge", 8], ["kitchen", 8], ["vending", 6]],
 	"house": [
 		["cabinet", 12], ["dresser", 14], ["wardrobe", 12], ["bookshelf", 12],
 		["nightstand", 12], ["fridge", 9], ["kitchen", 9], ["vanity", 8],

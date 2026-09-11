@@ -23,7 +23,10 @@ static func spawn_bullet(sim: GameSim, at: Vector2, angle: float, speed: float, 
 		"hits": [], "owner": owner, "crit": crit, "w": weapon, "color": color,
 	}
 	sim.bullets.append(b)
-	sim.emit({"t": "shot", "x": at.x, "y": at.y, "a": angle, "w": weapon})
+	# Speed, life and colour ride the event so a guest's tracer is the round
+	# the host fired — a boss's slow ball as much as a rifle's streak — rather
+	# than whatever its weapon row would guess.
+	sim.emit({"t": "shot", "x": at.x, "y": at.y, "a": angle, "w": weapon, "sp": speed, "lf": life, "c": color})
 	return b
 
 
@@ -196,7 +199,7 @@ static func melee_attack(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 	if refuse_broken(sim, p, w):
 		return false
 	var reach: float = w.range + p.r
-	var dmg: float = w.dmg * p.melee_mul * (Config.ADRENALINE_MELEE if p.adrenaline_active else 1.0)
+	var dmg: float = w.dmg * p.melee_mul * Upgrade.held_mul(p) * (Config.ADRENALINE_MELEE if p.adrenaline_active else 1.0)
 	var hits := melee_targets(sim, p, w)
 
 	if swing_refused(sim, p, w, not hits.is_empty()):
@@ -356,7 +359,7 @@ static func fire_gun(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 		var crit := sim.rng.chance(chance)
 		var b := spawn_bullet(sim, muzzle, a,
 			w.speed * (0.92 + sim.rng.next() * 0.16),
-			w.dmg * p.gun_mul * (mul if crit else 1.0),
+			w.dmg * p.gun_mul * Upgrade.held_mul(p) * (mul if crit else 1.0),
 			w.life * p.range_mul, w.knock, w.get("pierce", 0), p, crit,
 			w.id if i == 0 else "", color)   # one sound per shot, not per pellet
 		# Written onto the round rather than passed in: `spawn_bullet` has

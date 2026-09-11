@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-10, the owner's second playtest: night is genuinely black past your torch, and a torch in your off-hand lights itself when the dark comes and goes out at dawn. Before that, content out of `config.gd` into `data/*.json` with a local editor (`tools\edit`: views by bench and weapon class, item art, loot odds both ways), and the roadmap moved from Notion to Linear. Before that, the owner's first playtest: Mutation three times slower, near-black nights and a torch you can see, E opens a workbench (the upgrade is a button in it), C is the six basics, a Hatchet lasts about a hundred trees, click food to eat, and nothing is built on litter. Before that, on 2026-09-09, the Notion catalogue restructured to eleven categories with a tab each, and weapons split into six melee and eight ranged classes. Before that, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1. The HOST page also names your public address when UPnP will not
+- **Last updated:** 2026-09-10, **weapon levels and the boss's drops** — weapons go from level 1 to 6 at the bench that makes them, more damage and more uses each level, and levels 4 to 6 cost Precision Parts, which only come out of the School past its boss; the boss drops a list of chances, two boss-only weapons among them (PR E). Before that, **the Coach, the School's phase boss** — a slam, a charge that stuns itself on a wall, a fan of dodgeballs and a whistle for the team, a second half that kills the gym lights and an overtime that speeds it up, every move telegraphed for at least 0.7s and drawn from events so a guest sees what the host does (PR C). Before that, **into the School together** — the whole party goes in at the door and comes out together, a guest's game follows the host's into the same building from its seed, and a friend who fell in there is brought out with everything (PR D). Before that, **Pine Hollow High, the first instanced dungeon** — a sealed, roofed building north of the suburbs whose door loads a map of its own, where the boss is the only way out with what you find (PR B of five; the design is `tasks/instanced-dungeons.md`). Before that, **a dash on Space** — a committed burst with i-frames, the first piece of the instanced dungeons (`tasks/instanced-dungeons.md`, recovered from the prototype, with the owner's decisions of the day in its §0 and the five-PR plan in `tasks/todo.md`). Before that, the owner's second playtest: night is genuinely black past your torch, and a torch in your off-hand lights itself when the dark comes and goes out at dawn. Before that, content out of `config.gd` into `data/*.json` with a local editor (`tools\edit`: views by bench and weapon class, item art, loot odds both ways), and the roadmap moved from Notion to Linear. Before that, the owner's first playtest: Mutation three times slower, near-black nights and a torch you can see, E opens a workbench (the upgrade is a button in it), C is the six basics, a Hatchet lasts about a hundred trees, click food to eat, and nothing is built on litter. Before that, on 2026-09-09, the Notion catalogue restructured to eleven categories with a tab each, and weapons split into six melee and eight ranged classes. Before that, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1. The HOST page also names your public address when UPnP will not
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -208,9 +208,9 @@ that will not fit is ever destroyed: it lands on the ground.
 | | |
 | --- | --- |
 | Phase | **5 of 5 built.** 4a progression, 4b day and fire, 4c survivors and vehicles, 4d the front door, the map and the audio, 5 co-op. None of it has been played by the owner yet |
-| Playable | The whole loop, it levels you, it gets dark, you can hold it with other people, and a friend can join you in it. **E** searches, uses and gets a teammate up, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** goes dark on purpose (the torch lights itself), **F5** / **F9** save and load, MULTIPLAYER on the title and HOST THIS GAME on the pause menu. |
-| Unit tests | 616 tests, 8319 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials, the survivor combat tests, the UPnP door and the real broker under Node: 652 tests, 8459 assertions. The broker leg needs `node` and `npm` on PATH; `server/node_modules/` is gitignored, so in a fresh worktree the test runs `npm install` itself (through `cmd.exe` on Windows, where npm is a batch file) and needs the network that once. Wall-clock varies with the machine — see §9 |
-| Smoke | 73 checkpoints: a loopback guest joined, walked and parked, and before that walk, sprint, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted from the six-recipe C tab, broken and mended at the bench that made it, a workbench opened with E and upgraded with its button, the character sheet opened and a point spent, a chest filled, **four raised beds at four stages, the bed panel, compost dug in and a ripe bed harvested on the key**, a save reloaded, a walker shot, a raid, dusk and night, **a worn torch that the dark lit by itself, put out with T and struck again, and the flashlight's cone on a battery**, a treeline set alight, a swing interrupted mid-wind-up and something left bleeding, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked, the town map with its districts, Sixth Sense widening the reveal, a Chemistry Station and the dose it unlocks, the Lurch, a Raider holding its standoff, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it, and every cue reaching a voice |
+| Playable | The whole loop, it levels you, it gets dark, you can hold it with other people, and a friend can join you in it. **E** searches, uses and gets a teammate up, **Tab** the pack, **C** crafting, **K** the character sheet, **B** build mode, **T** goes dark on purpose (the torch lights itself), **Space** dashes, **F5** / **F9** save and load, MULTIPLAYER on the title and HOST THIS GAME on the pause menu. |
+| Unit tests | 677 tests, 13392 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials, the survivor combat tests, the UPnP door and the real broker under Node: 713 tests, 13540 assertions. The broker leg needs `node` and `npm` on PATH; `server/node_modules/` is gitignored, so in a fresh worktree the test runs `npm install` itself (through `cmd.exe` on Windows, where npm is a batch file) and needs the network that once. Wall-clock varies with the machine — see §9 |
+| Smoke | 87 checkpoints: **a weapon taken to level 2 with the UPGRADE row at the workbench**, **the Coach's slam ring, charge lane and dodgeball fan each photographed mid-telegraph, the second half killing the lights, and the breaker putting them back on the key**, **the loopback guest into the School with the host and back out, its mirror in the same building from the seed**, and before that **the School end to end — its door, the panel, the foyer, the gym unchained with the key from the principal's desk, the stand-in boss, and out through the exit to a door chained for the day** — a loopback guest joined, walked and parked, and before that walk, sprint, **a dash photographed mid-burst**, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted from the six-recipe C tab, broken and mended at the bench that made it, a workbench opened with E and upgraded with its button, the character sheet opened and a point spent, a chest filled, **four raised beds at four stages, the bed panel, compost dug in and a ripe bed harvested on the key**, a save reloaded, a walker shot, a raid, dusk and night, **a worn torch that the dark lit by itself, put out with T and struck again, and the flashlight's cone on a battery**, a treeline set alight, a swing interrupted mid-wind-up and something left bleeding, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked, the town map with its districts, Sixth Sense widening the reveal, a Chemistry Station and the dose it unlocks, the Lurch, a Raider holding its standoff, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it, and every cue reaching a voice |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
 | Save format | **v11** — what is in every raised bed: the seed, the feed, the water and the growing banked so far. **Not the stage**, which is derived from the last of those on load exactly as it is in play, so a save can no more carry a stale stage than it can a stale stat. On top of v10's weapon condition (on the slot, so it travels with the weapon), v9's and v8's the Mutation meter and the effect clocks (the band derived on load), and v7's every player by identity, with whether they are here, so a guest's character comes back to them next week (a guest's seat loads parked; the host's never does), on top of v6's the districts you have found (ids only: the rects are `Config`, so a save cannot carry a stale map), on top of v5's what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
 
@@ -257,6 +257,228 @@ The spec for each row is in `tasks/port-inventory.md`.
 ---
 
 ## 4. What is built
+
+### Pine Hollow High (the first instanced dungeon)
+
+The owner's idea, recovered as `tasks/instanced-dungeons.md` with the day's
+decisions in its §0: a big building that loads a map of its own rather than
+letting you in, a boss at the back, and **the boss is the only way out with
+what you found**. This is PR B of five: the building, the machinery and the
+rules, end to end, with a Behemoth standing in for the boss. The phase boss
+is PR C; going in with a friend is PR D; the crafting tier it pays for is PR E.
+
+- **A new kind of building.** North of Pine Hollow Suburbs on the west street
+  stands a sealed shell with a slate roof (`ROOF`, a new tile: solid to feet,
+  bullets and sight) and one pair of doors facing the road. It is its own
+  district, tier 2. **It is stamped after the generator has finished**, so not
+  one RNG draw moved — the town is the prototype's town to the container (644)
+  — and what was growing on the plot is taken off it. The map's fingerprint
+  changed with it, and **a save from before the School still loads**: the
+  pre-stamp fingerprint is accepted too, because the stamp only ever removes
+  props under its own footprint (`World.accepts_fingerprint`).
+- **Going in is one swap.** `Instance.MAP_FIELDS` is everything that belongs
+  to a map rather than to the players — the world, the crowd, piles, packs,
+  bullets, fire, cars, crew, the base, the stash, the quiet field, the clock,
+  Threat and the raid — and `swap` exchanges the town's set with a fresh
+  interior's. Entering, leaving and saving from inside are all that exchange.
+  It is also why **the town is frozen while you are in there** (the owner's
+  call): nothing that runs it is in the sim to be ticked. No day passes, no
+  raid comes, and the crew wait.
+- **The inside is a `World` with a layout**, so collision, sight, the flow
+  field, loot and rendering all work on it unchanged. The skeleton is fixed so
+  a run can be learned — foyer, a long hall, nine classrooms, the cafeteria,
+  the nurse, the principal's office, an antechamber with two supply caches
+  (§6.4), and the gym — and everything in it is rolled from the entry seed:
+  every doorway's place, every desk and locker, and who is standing in which
+  room. **A fresh roll every time you go in.** About thirty of the dead, placed
+  per room and never topped up: the standing-population spawner is off,
+  because a dungeon has to be clearable. Nobody waits in the foyer. The light
+  is a clock frozen at dusk (0.70): dim enough that a worn torch lights
+  itself, nowhere near black.
+- **The gym is chained, and the key is in the principal's desk.** Searching it
+  teaches the party the key — a fact, like a car key, not an item — and E at
+  the door takes the chains off. The one piece of §9's pacing system this PR
+  needs, and the shape the next dungeons will reuse.
+- **What you find goes in the HAUL** (§6.2): 120 units on a budget of its own,
+  so a good looting run never makes you slow for the boss. It sits beside the
+  pack grid inside a run and is closed everywhere else — outside, it would be
+  a second backpack that weighs nothing. Drag a find into the pack to use it;
+  found medicine is a real resource for the run.
+- **What you find is a tally, not a flag** (§6.3). Walking out early or dying
+  takes back, per item, the smaller of what you found and what you still
+  carry: forty rounds brought, twenty found and ten fired, thirty come out;
+  a found medkit already used costs nothing. Your own things, dropped and
+  picked back up, are not finds.
+- **Only the boss lets it out.** Put it down and the exit at the back of the
+  gym lights up, the foyer door stops asking, and walking out empties the haul
+  into the pack — what does not fit lands at the door, never nowhere. The door
+  is then chained until the next in-game day.
+- **Walking out early asks first**, with the list of exactly what you would
+  lose. **Dying leaves no pack**: you wake outside the door carrying what you
+  brought, less what you found (the owner's call; the note had your pack drop
+  at the entrance instead).
+- **Nothing is built in there** — the written exception to pillar 7 (§5): six
+  Stone Walls round a boss and a gun through them would skip every phase it
+  will ever have. And the stash is out of reach, because it is in the town.
+- **A run is never saved** (§7). No autosave inside; a save you ask for is
+  written as the game walked out — the town, you at the door, what you found
+  gone — worked out on a copy so writing it changes nothing about the run.
+  Which instances were cleared, and on which day, rides in the save as
+  `cleared`; an older save without it means "never", so no version bump.
+- **The party goes in together, or nobody does** (§10, PR D). The door wants
+  everyone here, on their feet and within five tiles, and names whoever it is
+  waiting for; any of you can press ENTER, and it takes the lot. Splitting
+  the party would mean running two maps at once, which is the one thing the
+  swap was built not to need.
+- **A guest's game follows the host's in.** The host notices the swap at the
+  top of its next step — however it was set off: a panel, the key, a wipe, a
+  guest's own ENTER — and sends every guest the kind and the seed before
+  anything else about the new map. The generator is deterministic, so the
+  guest's mirror builds the same building room for room and swaps the same
+  way; snapshots bring the crowd, and each guest's world diff carries the run
+  (its state, the keys, the doors unchained, the clock, and what that guest
+  found). A snapshot of the other map is dropped rather than drawn.
+- **Whoever went in comes out.** Walking out early wants everyone still
+  standing at the door, because it takes the whole party and what they found.
+  When the run ends, everyone who went in is outside: the downed on their
+  feet, the dead awake, and anyone whose line dropped moved to the door and
+  still parked. Extraction is a party event — a friend who fell at ninety per
+  cent comes out with everything they carried (§10: otherwise reviving would
+  be a worse deal than leaving them).
+- **Nobody joins mid-run.** A connection while the party is inside is turned
+  away with the reason: there is no second map to put anybody on.
+
+#### The Coach (PR C)
+
+The School's boss, and the game's first phase boss: `tasks/instanced-dungeons.md`
+§8 as written — telegraphed patterns that change at health thresholds, with
+mechanics to deal with rather than a bigger health bar. The name is a
+placeholder in the ENEMIES table, where the owner can change it.
+
+- **A script on top of the ordinary AI.** `Boss` owns the Coach's step only
+  while something scripted is happening — asleep, a telegraph, a charge, a
+  stun, a phase change — and between moves hands it back, so it chases and
+  bites like anything else. One hook in `Enemies.tick_ai`, and everything it
+  does is data in `Config.BOSSES.coach`.
+- **Four moves, each a promise about where it will land.** The *slam* shows
+  its whole ring from the first frame and fills it as the second runs out.
+  The *charge* shows its lane, runs it once, hits each person in it once —
+  and **into a wall it stands there dazed for 1.6s**, which is the opening
+  the move exists to give you. *Dodgeball* is a fan of five slow balls: the
+  hostile rounds the Raiders already fire, drawn as balls because anything
+  slow enough to dodge has to be drawn as a thing. The *whistle* calls three
+  of the team in from the corners, six at most — the fight is the boss, not
+  a horde. Every telegraph is at least 0.7s, sized against the dash and
+  against a walk out of the ring; a test holds them to it.
+- **Three phases, and each change is unmistakable.** Full health is charge
+  and slam. **SECOND HALF** at two-thirds adds the throw and the whistle,
+  opens with the team, and **kills the gym lights**. **OVERTIME** at a third
+  is faster and busier. Every change is a roar, a shake, an aura in the
+  phase's colour and 1.2s in which it cannot be hurt and does nothing (§8.4:
+  a change that is not obvious reads as inconsistent AI). A burst of damage
+  past two thresholds still runs what each opens with.
+- **Use the arena** (§8.3). The lights go out by pushing the inside's own clock
+  to the small hours, so the torch and every multiplier that reads the dark
+  follow it for free; a **breaker on the gym's west wall** puts them back, and
+  is only offered while there is a dark to undo. It is what stops the fight
+  collapsing into kiting in a circle.
+- **Its room is its own.** It sleeps until somebody walks into the gym — or
+  hurts it from the doorway, since a boss that slept through being shot would
+  be a target — and it will not leave the gym: it goes to the threshold and no
+  further, which also keeps its adds, its lights and its walls where the fight
+  was drawn for them. The camera pulls out inside the arena so a slam's edge
+  is on screen, and the HUD grows a bar with the phase marks on it.
+- **A guest sees what the host sees.** Every telegraph is an event carrying
+  where and how long, and `BossView` draws from events, so a guest's copy of the
+  boss — which has no script — shows the same ring, lane and fan. Shot events
+  now carry their speed, life and colour, so a guest's tracer is the round the
+  host fired rather than its weapon row's guess.
+- **Not a damage check** (§6.4): 1400 health, and the difficulty is in the
+  patterns, so arriving low on ammunition makes the fight longer, not lost.
+- **The screens.** E at the door opens a panel of the pack screen: six lines
+  of rules down the left and your pack beside them, because what you bring is
+  the whole decision (§6.6), then ENTER. The HUD runs a line under the
+  district name — the haul, the run's time against the eight-to-twelve-minute
+  budget, the key, and THE WAY OUT IS OPEN. `InstanceView` draws the four
+  kinds of door. Two dev verbs: walk into the School, and put down its boss.
+- **The content went in through the editor's own write path** — six loot
+  tables and six container kinds (lockers, teacher's desks, the cafeteria
+  counter, the nurse's cabinet, the principal's desk, the supply cache) —
+  so every reference was checked the way the page checks it.
+
+#### Weapon levels and what the boss drops (PR E)
+
+The owner's call of 2026-09-10: weapons go up in level, **capped at 3 until
+the School's boss is beaten, and to 6 after**; the boss drops things only a
+boss drops, with a percentage on each rare weapon.
+
+- **A level lives on the weapon.** `lv` rides on a `Slots` stack beside its
+  condition and on every path condition takes — the ground, a save, the wire,
+  the haul, a death pack — so a level can never be lost or gained by moving
+  a weapon. A death pack flattens two of a kind to the *lower* level, the way
+  it keeps the worse condition, so dying never levels anything up. `Upgrade`
+  is the one writer.
+- **Every level is more damage and more uses:** +8% damage and +10% uses per
+  level above 1, so level 6 hits 40% harder and lasts half again as long. The
+  swing and the shot are the only two readers; a weapon's ceiling of uses is
+  now read off the stack (`Wear.max_in`), because two Machetes at different
+  levels last differently. A new level comes back whole.
+- **At the bench that makes it,** as an UPGRADE row beside MEND, asking the
+  recipe's own bench gate (`Crafting.bench_reason`) — so a Machete is
+  upgraded at a Workbench, and a weapon nothing makes is upgraded nowhere.
+  Levels 2 and 3 cost half and three-quarters of the recipe; 4, 5 and 6 cost
+  the recipe and more **plus 2, 4 and 6 Precision Parts** (`Config.UPGRADE`).
+- **The gate is the material, not a flag.** Precision Parts are a new
+  resource found only inside the School — a little in its desks, some always
+  on the boss — and the School only lets a haul out past its boss. A test
+  holds that no town table has any. Nothing records "has beaten the Coach".
+- **A boss's drop table is a list of chances.** For a boss, each entry's `w`
+  is a percentage rolled on its own (`coachDrops`): Precision Parts 3–5
+  always, the **Varsity Bat 25%**, the **Six-Shooter 15%**, medkits 50%,
+  military supplies 60%. Both weapons are placeholders for the owner to rename
+  and tune: nothing makes them, so nothing mends or upgrades them, and they
+  last for it (1400 and 1500 uses). The wear test's rule became "every weapon
+  that wears can be mended, **or** is found somewhere and outlasts everything
+  of its kind that can be made."
+- **What you see:** the tooltip gives the level's damage and uses and says
+  when a weapon is found, not made; the hotbar marks a levelled weapon `L4`.
+
+### A dash, with i-frames in it
+
+The first piece of the instanced dungeons, and deliberately built before any
+of them: every boss telegraph will be sized against it, so it has to be felt
+in town first. `tasks/instanced-dungeons.md` §8.3 is the argument — without a
+fast committed move with invulnerability in it, a phase boss collapses into
+kiting in a circle, and stamina alone is a blunt dodge.
+
+- **Space, 130px in 0.18s** (`Config.DASH`), in the direction you are moving
+  or, from a standstill, toward the cursor — a dodge from a standstill has to
+  go somewhere you chose, and the mouse is the only direction you have given.
+  It covers exactly `dist` whatever the frame rate: the last step is cut to
+  what is left of the burst. It leaves you at a walk the same way, not dead
+  still.
+- **The i-frames are the burst plus 0.06s**, through the same `invuln` a hit
+  already grants, so the damage path needed no new code and the blink that
+  says "can't be hurt" says it here too. Fire is not a hit and still burns.
+- **Paid up front: 30 stamina**, and refused rather than half-done without
+  it, so stamina stays the budget a dodge spends. A 0.9s cooldown from the
+  start of one burst; a press inside it is dropped **silently**, because
+  mashing the key should not fill the screen with refusals.
+- **Every other refusal says why**: winded, short of stamina, in the middle of
+  healing or getting somebody up, and — at FERAL — "Your legs are not yours".
+  Downed, dead and driving never reach movement at all.
+- **It lives in `PlayerSim.move`, not `tick`**, for the same reason the rest
+  of movement does: a guest runs `move` to predict itself, and a 130px burst
+  it had not predicted would snap back on its own screen. `move` has no sim,
+  so it records `dash_refused` and `dash_began` and `tick` says them out loud.
+- **On the wire**: an intent bit (2048), which `net_test` proves on every leg
+  of the journey because it loops over `Intent.EDGES`; and `PF_DASH` in the
+  player snapshot so everyone else's screen draws the burst. Protocol 5.
+- **You can see and hear it**: three fading after-images in your ring colour
+  back along the burst, and a whoosh pitched above a melee swing so a dodge
+  and an attack never sound the same in a fight.
+- The numbers are first guesses. `dash_test.gd` pins what they *do*, not what
+  they are.
 
 ### A seed, some water, and a few days
 
@@ -1282,6 +1504,29 @@ Phases 1–4 respecting it.
 | 2026-09-10 | An equipped light strikes itself when it gets dark, and goes out at dawn | Pillar 1, survival without survival chores. The owner wore a torch, waited for night and expected to see by it; pressing a second key every dusk is a chore and forgetting it is a death. `Equipment.update_light` lights what is in the off-hand once the clock crosses `DARK_ENOUGH` and puts it out at first light, so fuel is only ever spent in the dark — which is what makes `burn` mean something: 210 seconds of torch against a 213-second night is one torch, one night. T is now *going dark on purpose*, `light_doused` makes that stick against the auto-strike, and daybreak clears it so tomorrow night lights itself again. T in daylight is refused rather than lit for one frame, which on a flashlight would have cost a battery. | Yes |
 | 2026-09-10 | The light falloff is `(1 - d²)²`, not `(1 - d)²` | `(1 - d)²` is down to a quarter at half the radius, so a 300px torch was a 75px puddle inside a wide haze — and against a night that is now genuinely black, that haze banded into visible contour rings. This curve holds 0.71 at 40% of the radius and 0.41 at 60% and has zero slope at both ends: no rim outside, no hotspot in the middle, still vague at the edge. The flashlight's cone got the same treatment along its length (`1 - d²`) and squared across its width, so the beam has soft sides rather than visible edges. | Yes, one line each |
 | 2026-09-10 | Night was deepened by scaling the curve, with `DARKNESS_FULL` scaled to match | The owner found night bright and a lit torch invisible; the photographs agreed — the lit torch was barely distinguishable from the ambient. Every key of `DARKNESS_KEYS`, `DARKNESS_FULL` and `DARK_ENOUGH` was multiplied by the same 1.17 (peak 0.82 → 0.959), so `k` — what spawns, sense, speed, Threat and Mutation read — is unchanged at every moment and only the picture moved. The torch went from 200px at 0.8 to 300px at 1.15. | Yes, one factor |
+| 2026-09-10 | An instance is a second map swapped into the one sim, not a second sim | Every system already reads `sim.world`, `sim.enemies` and the rest, and every view re-reads them each frame, so exchanging those fields is the whole of entering — the collision, sight, flow field, loot and rendering stack runs on the inside unchanged, and the load path's `_rebuild_views` covers the screen. The same exchange writes a save from inside. Running both maps at once is what split parties would need, and the owner chose the party going in together. | Yes, but everything after builds on it |
+| 2026-09-10 | The town is frozen while anyone is inside | The owner's call. Coming back to a base flattened by a raid nobody saw is the feel-bad the design note warned of; the note's answer was to bank the Threat and land it after, and freezing is simpler and fairer. It falls out of the swap: the town's clock, Threat, crew and base are not in the sim to be ticked. | Yes |
+| 2026-09-10 | The School is stamped after generation, and the pre-School fingerprint is still accepted | Stamping it anywhere in the generator would shift the shared RNG and re-lay the whole town. After it, nothing moves but the props under the footprint, which is also why a save that names the old map is safe to load: every container and every other tile it names is where it was, and a chopped tree the stamp already took simply finds nothing. | Yes |
+| 2026-09-10 | Finds are a tally per item, and the haul is a separate budget | The design note's §6.2 and §6.3, as written. A flag on items cannot say which twenty of sixty rounds were found; a count can, and it makes stacking, spending and moving a find into the pack come out right by arithmetic. Your own drops are marked `yours` so picking them back up is not a find. | Yes |
+| 2026-09-10 | Dying inside drops no pack; you wake at the door with what you brought | The owner's call on 2026-09-10, superseding the note's §6.5 (a pack at the entrance and a walk back to it). Both lose everything found; this one charges nothing more, and leaves nothing lying in a map that is about to stop existing. | Yes |
+| 2026-09-10 | A run is never saved: autosave waits, and a save asked for inside is the walked-out game | The note's §7. Saving a run would make dungeon generation part of the save format for ever. Writing the walked-out game instead means a save is always a town, quitting inside costs exactly what walking out would, and it is worked out on a copy so pressing F5 cannot rob you. | Yes |
+| 2026-09-10 | Nothing can be built inside an instance | The written exception to pillar 7 (§5 of the note): walls round a boss and a gun through them, because bullets pass over your own structures, would bypass every phase any boss will ever have. It is the first refusal in `can_place`, ahead of everything else about the tile. | Only by redesigning every boss |
+| 2026-09-10 | A guest builds the instance from the seed rather than being sent it | The interior is a deterministic function of its seed, so twelve bytes rebuild the map on the guest exactly — a test compares the two fingerprints — where the whole tile map would be a payload on the scale of a join. It is the same bet a join already makes on the town. | Yes |
+| 2026-09-10 | The host announces a map swap from the top of its step, by comparing the run's seed | Enter and leave can be set off from four places (a panel, the key, a wipe, a guest's command). Watching the one number they all change means none of them can forget to tell the guests, and doing it before the snapshot means the guest hears "new map" before any picture of it. Snapshots carry the seed too, so one that crosses the swap is dropped rather than drawn inside the walls. | Yes |
+| 2026-09-10 | Walking out early needs everyone standing at the door; extraction takes the whole party | Leaving early forfeits everyone's finds, so one player calling it while another fights would be a decision made for them. Extracting costs nobody anything, so any one of you can do it. Everyone who went in comes out — downed, dead or dropped — because the note is right that the alternative makes reviving a friend a worse deal than leaving them. | Yes |
+| 2026-09-10 | Nobody can join while the party is inside | Admitting them would need the second map the party-together rule exists to avoid. They are told why and can join the moment everyone is out. | Yes |
+| 2026-09-10 | A boss is a script on top of the ordinary AI, not a second AI | The note's §8.2 sketch, kept small: `Boss.tick` returns whether it owns this step, and when it does not the boss is an enemy like any other — the same chase, flow field, separation and bite. One hook in `tick_ai`, no second movement system to keep honest, and the next boss is a new row in `Config.BOSSES` plus whatever new move it needs. | Yes |
+| 2026-09-10 | Boss telegraphs are events, and the view draws only from events | A guest's copy of an enemy has no script — it is a mirror — so anything drawn from the script's state would be invisible to a guest. An event carrying where and how long is enough to draw every telegraph, and it arrives through the relay every other event already takes. The same reasoning put speed and colour on the shot event. | Yes |
+| 2026-09-10 | The boss was built before the dash was felt | The note says boss patterns wait for the dash; the owner said carry on. Every timing is a number in `Config.BOSSES` and every telegraph is held to a `min_tell` floor by a test, so re-tuning after the dash is a table edit, not a rewrite. | Yes, the numbers |
+| 2026-09-10 | The Coach does not leave its gym | Its adds come in at the gym's corners, its lights are the gym's and its charge stuns on the gym's walls; a boss that chased you through the school would take its mechanics somewhere they do not exist. It walks to the threshold and stops, which also makes the doorway a place to catch your breath rather than a place to snipe from — shooting it from there wakes it. | Yes |
+| 2026-09-10 | Weapon levels 4 to 6 are gated by a material, not a flag | Precision Parts only come out of the School, and the School only lets a haul out past its boss, so "beat the boss first" is true without anything recording it — no save field, no co-op sync, nothing a second instance has to remember to set. A test holds that no town table has any; the next instance can drop the same parts or its own. | Yes, one table |
+| 2026-09-10 | A weapon's level lives on its stack, beside its condition | The owner's "on the weapon": two Machetes can be different weapons, and the level has to survive everything a weapon survives. Riding beside `w` means every path that already carried condition carries the level — and the death pack keeps the lower of two for the reason it keeps the worse condition. | With a save migration |
+| 2026-09-10 | A boss's drop table is per-entry percentages | A cupboard picks one thing by weight; a boss should always give the parts and *sometimes* give the rare weapon. Reading `w` as a percentage only when the enemy is a boss keeps one table format and one editor page. | Yes |
+| 2026-09-10 | Boss-only weapons are made by nothing, so mended and upgraded by nothing | Mending and upgrading both ask the recipe's bench; a weapon with no recipe has none. They pay for it by lasting longer than anything of their kind that can be made, which the wear test now holds. | Yes, add a recipe |
+| 2026-09-10 | PR B's boss is a Behemoth stand-in | The way out, the ledger and the daily chain are testable without the fight, and the fight waits on the dash (PR A), which sets how long every telegraph is. The phase boss is PR C and replaces it in `Config.INSTANCES`. | Yes, one row |
+| 2026-09-10 | The player gets a dash with i-frames, built before any dungeon | The owner's call, on the design note's argument (`tasks/instanced-dungeons.md` §8.3): every game the owner named for boss fights gives the player a committed move with invulnerability in it, and a phase boss without one collapses into kiting in a circle. It is built first and felt in town because it sets the telegraph budget — authoring boss patterns before it would mean re-tuning every one of them after. It changes every existing fight too, which is exactly why it gets its own gate. | Yes — `Config.DASH`, and the key |
+| 2026-09-10 | The dash lives in `PlayerSim.move`, and refusals are recorded there and spoken by `tick` | `move` is what a guest runs to predict itself. Starting the dash in `tick` would have kept the refusal messages simple and made every guest's dash snap back 130px a round trip later. `move` has no sim, so it sets `dash_refused` / `dash_began` and `tick` notifies and emits — the guest ignores both, because the host's notice and event arrive anyway. | Yes |
+| 2026-09-10 | A dash costs its stamina up front and is refused without it; a press inside the cooldown is silent | Refusing keeps stamina the budget a dodge spends — a dash that fired on an empty bar and went half as far would be a dodge you could not predict, which is the one thing a dodge must not be. Every refusal but the cooldown names its reason; the cooldown says nothing, because a player mashing the key in a panic does not need a notice per press. | Yes |
 
 ---
 
@@ -1302,6 +1547,36 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 
 ### Next up
 
+0. **Walk into the School.** PR B's gate. The dev menu has *Walk into Pine
+   Hollow High* and *Put down the School's boss*, so the way out can be seen
+   without the fight. The questions: does the building read as somewhere you
+   cannot walk into, from across the street; is the door panel read or
+   skipped; does the HUD's run clock land in eight to twelve minutes for a
+   full clear; is 120 units of haul generous or tight; does losing what you
+   found on a walk-out feel like tension or like punishment; does the key in
+   the principal's office read as a dungeon or as an errand; and is the
+   inside's dusk dark enough to want the torch. With a friend (PR D): is
+   waiting for everyone at the door a moment or a nag; does walking out
+   early needing the whole party read as fair; and does coming out with a
+   friend who died in there feel right. And the Coach (PR C): does every
+   telegraph read in time — the ring, the lane, the fan — and are 1.0s, 0.8s
+   and 0.7s fair once the dash is under your fingers; is the stun after a
+   wall-charge an opening you notice and use; does the second half's dark
+   and the breaker feel like a mechanic or a chore; is 1400 health a fight or
+   a slog; and is the camera's pull-out in the gym enough. And the levels
+   (PR E): is +8% a level felt by level 3; do the costs of 2 and 3 feel like
+   a reason to spend scrap or a tax; does stalling at 3 make the School the
+   next thing to do; are 3–5 Precision Parts a clear enough to want a second
+   run; and do 25% and 15% make the Varsity Bat and the Six-Shooter feel
+   rare or missing. The dev menu's
+   *Put down the School's boss* is still there for seeing the way out.
+0. **Feel the dash** — the gate on the instanced dungeons, because every boss
+   telegraph is sized against it. Kite a runner and break from a brute with
+   it. The questions: is 130px far enough to leave a bite's reach and short
+   enough that it is not a teleport; is 30 stamina a real cost or a free
+   escape; is 0.9s between dashes right; does the after-image read in a
+   crowd; and is Space the right key. Then the School: `tasks/todo.md`,
+   *Instanced dungeons*, PR B.
 0. **Hand the garden to the crew.** The Farmer job: a fifth `JOBS` row and a
    `_farmer_step` beside `_scavenger_step` — walk to the driest planted bed in
    the base, water it **out of the shared stash** like every other thing a
@@ -1874,6 +2149,12 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-10 | **Codex pass on the five instanced-dungeon PRs (#30–#34).** Ten findings, each fixed on its own branch with a test and a break-check, then merged up the stack. **Dash:** a burst ends when the legs that started it stop (car, floor, death), rather than resuming unasked. **School:** the haul cap counts every find you still hold, wherever it is (`Instance.haul_load`), so emptying a full haul into the pack no longer doubles what comes out; nothing is crafted inside an instance, because crafting made things the ledger never wrote down; an extraction pending when the whole party dies is a wipe; a save from before the School moves whatever it left on the footprint to the door (structures down with a full refund, cars to the lot). **Co-op:** nobody goes in from behind a wheel. **Boss:** damage stops at the next uncrossed threshold, so no burst skips a phase; no wound or stagger through the phase shield; a phase change clears its cut-off telegraph on screen. **Upgrades:** protocol 6 |
+| 2026-09-10 | **Weapon levels and the boss's drops (PR E).** Weapons go from level 1 to 6 at the bench that makes them — an UPGRADE row beside MEND, asking the recipe's own bench gate — and each level is +8% damage and +10% uses; a new level comes back whole. Levels 2 and 3 cost half and three-quarters of the recipe; 4 to 6 cost more than the recipe **plus Precision Parts**, a new resource found only inside the School, so the ceiling is 3 until the Coach has been beaten, with no flag anywhere. The level rides on the `Slots` stack beside condition, on every path condition takes, and a death pack keeps the lower of two. A boss's drop table is per-entry percentages (`coachDrops`: the parts always, the **Varsity Bat** 25%, the **Six-Shooter** 15%, medkits, military supplies); both weapons are placeholders with no recipe, so nothing mends or upgrades them and they last for it — the wear test's rule now allows exactly that. Content through `EditApi`; the Six-Shooter got a sound. `upgrade_test.gd` (12), five rules checked by breaking them (677 fast, 713 with `--all`); one smoke checkpoint (87) |
+| 2026-09-10 | **The Coach — the School's phase boss (PR C).** `Boss` is a script on top of the ordinary AI: asleep until somebody walks into the gym or hurts it, then moves off cooldown — telegraph, act, recover — and a new pattern at each threshold, owning the enemy's step only while it is doing something scripted (one hook in `Enemies.tick_ai`; everything else is `Config.BOSSES.coach`). Four moves: a **slam** that shows its whole ring and fills it, a **charge** down a telegraphed lane that hits each person once and **stuns itself for 1.6s on a wall**, **dodgeball** (a fan of five slow hostile balls, drawn as balls), and a **whistle** for three adds from the gym's corners, six at most. **SECOND HALF** at 66% adds the throw and the whistle and **kills the gym lights** — the inside's clock pushed to the small hours — until somebody throws **the breaker** on the west wall; **OVERTIME** at 33% is 30% faster. Every change is a roar, a shake, an aura and 1.2s untouchable; every telegraph is at least 0.7s and a test holds them to it. It will not leave its gym; the camera pulls out in the arena and leans toward the boss, because the first photograph had the top of its ring under the HUD; the HUD grows a bar with the phase marks. `BossView` draws every telegraph from events, so a guest sees what the host sees, and shot events now carry speed, life and colour so a guest's tracer is the round the host fired. The Coach went into ENEMIES through `EditApi`; three new sounds. `boss_test.gd` (15), four rules checked by breaking them (665 fast, 701 with `--all`); five smoke checkpoints (86). Built before the dash was felt, at the owner's word: re-tuning after it is a table edit |
+| 2026-09-10 | **Into the School together (PR D).** The door wants the whole party on its feet within five tiles and names who it is waiting for; any of you can press ENTER. `Instance.party` is whoever went in, and whoever went in comes out — downed on their feet, dead awake, dropped moved to the door — with everything, when the boss is down; walking out early wants everyone still standing at the way out, and the leave panel says who. The host notices a swap at the top of its step by the run's seed, however it was set off, and sends every guest `map` (kind, seed, day, cleared) before anything else; it resets the world baseline and sends the new map in full. The guest's mirror builds the same interior from the seed (`Instance.mirror_enter`), a test compares the fingerprints, snapshots carry `mp` so one that crosses the swap is dropped, the haul rides the inventory record, and each guest's world diff carries the run — its state, keys, unchained doors, clock and that guest's tally. Nobody joins mid-run, and is told why. `_rebuild_views` keeps a guest's camera on the guest. The party arrives side by side across the foyer (`Instance.arrival`, the same on host and guest): the first photograph of two players going in showed one body with the other's name over it, because both had been put on the one entry spot. Protocol 5. Four more tests in `instance_test.gd`, `instance_coop_test.gd` over a loopback (seven), three rules checked by breaking them (650 fast, 686 with `--all`); a smoke leg takes the loopback guest in and out (81) |
+| 2026-09-10 | **Pine Hollow High — the first instanced dungeon (PR B of five).** The owner's design note from the prototype, lost in the move and pasted back, is `tasks/instanced-dungeons.md`, with the day's decisions in its §0. A sealed, slate-roofed building north of the suburbs (`ROOF`, a new tile; district `school`, tier 2), stamped after the generator so no RNG draw moved — 644 containers, as before — with the pre-stamp fingerprint still accepted so older saves load. Its door opens a panel of the pack screen (six lines of rules beside your pack, then ENTER) and loads a map of its own: `Instance` swaps every map field of the sim with a fresh interior's, so the town is frozen while you are in there and entering, leaving and saving from inside are all that one exchange. The inside is a `World` with a layout — foyer, hall, nine classrooms, cafeteria, nurse, principal's office, an antechamber with two supply caches, and a chained gym whose key is in the principal's desk — every doorway, desk and body rolled from the entry seed, about thirty of the dead placed and never topped up, a frozen dusk light, and a Behemoth standing in for PR C's phase boss. What you find goes in a 120-unit **haul** on its own budget and into a per-item tally; the boss is the only way out with it. Walking out early (it asks, and lists what you would lose) or dying forfeits the smaller of found and still carried per item — forty brought, twenty found, ten fired, thirty out — and dying leaves no pack: you wake at the door with what you brought. Nothing is built in there, the stash is out of reach, a run is never saved (a save asked for is the walked-out game, no autosave), one clear a day (`cleared`, no save version bump), and solo until PR D. Six loot tables and six container kinds through the editor's write path; `InstanceView` draws the four kinds of door; the HUD runs a line for the haul, the run's time, the key and the open exit; two dev verbs. `instance_test.gd` (24 tests; 640 fast, 676 with `--all`), five of its rules checked by breaking them — and the first draft of the spawner test could not fail, because the building it asserted on was already fuller than the spawner's target. Fixed before it shipped, from the smoke run's log: the key at the exit swapped the map in the middle of a player's step and the rest of the step called into an instance that was gone; a way out on the key now waits for the end of the step. Six smoke checkpoints (79) |
+| 2026-09-10 | **A dash on Space, and the plan for the instanced dungeons.** The owner asked for the first instance; the design note from the prototype (lost in the move, pasted back) is now `tasks/instanced-dungeons.md`, with the day's decisions in its §0 — a new sealed, roofed kind of building whose door loads a separate map, the School first, dying inside wakes you at the door with what you brought, a fresh roll every entry and one clear a day, the party goes in together with the town frozen, and walking out early forfeits the haul. The five-PR plan is in `tasks/todo.md`. **PR A is the dash**, because the note is right that every boss telegraph is sized against it: `Config.DASH` (130px in 0.18s, i-frames for the burst plus 0.06s through the existing `invuln`, 30 stamina up front, 0.9s cooldown), in the direction you move or toward the cursor from a standstill, stopped by walls through `move_circle`, refused with a reason when winded, short of stamina, mid-heal or mid-Lurch, and silent inside the cooldown. It lives in `PlayerSim.move` so a guest predicts its own; an intent bit and `PF_DASH` on the wire, protocol 5; after-images and a whoosh. `dash_test.gd` (16 tests; 632 fast, 668 with `--all`), each of the wire, the cue and the i-frames checked by breaking it and watching its test fail; a smoke checkpoint photographs a dash mid-burst |
 | 2026-09-10 | **The owner's second playtest — the dark, and the torch in it.** Two faults behind one report (*"it never got so dark that I couldn't see; the torch did not appear to do anything"*), and neither was the number anyone would have looked at. **The dark had a floor**: `LightView` multiplied the canvas down and then added the night's colour back as a `DirectionalLight2D`, and Godot's canvas shader multiplies every light pass by the surface's own colour — so that add was a second multiply, it never tinted anything black, and at the old tints the map still came through at a seventh of daylight. It is one `lerp(WHITE, tint, alpha)` on the `CanvasModulate` now, in `DayNight.canvas_tint_at` where the fast suite can assert on it, the `DirectionalLight2D` is gone, and the deep-night keys are near-black (#04060f) with the alphas scaled to peak at exactly 1.0 — `DARKNESS_FULL` and `DARK_ENOUGH` scaled with them, so `k` is unchanged at every key and only the picture moved. The tint is interpolated rather than stepped. **The torch wanted a keystroke nobody pressed**: an equipped light now strikes itself when the clock crosses `DARK_ENOUGH` and goes out at first light, so `burn` is only spent in the dark and a 210-second torch is one 213-second night; `T` became *going dark on purpose* with `light_doused` to make it stick, forgiven at dawn, and refused in daylight rather than costing a battery for one frame. The light falloff went from `(1 - d)²` to `(1 - d²)²` — the old curve was a quarter as bright at half the radius, which against a black night banded into contour rings. The HUD gained the burn-down (name, seconds left, a bar that turns red under a quarter) and its dark hint now names which of the three ways you are unlit. `light_doused` rides in the save and the join record; save stays v11 because an absent field reads false, which is what an older save means. `torch_test.gd` (18 tests, 616 fast / 652 with `--all`) and two smoke checkpoints — a worn torch the dark lit by itself and then doused with T, and **the flashlight's cone, which had never been on screen**. Fixed from Codex's review of PR #29: `update_light` was at the bottom of `PlayerSim.tick`, below the early returns for downed and driving — so the states where the clock keeps running were exactly the states the light stopped hearing about it. A torch carried into a car before dark never struck, and a lit one hung there for free (`LightView` draws a downed player's light, and a driver's follows the car), burning no fuel and never doused by the dawn. The light is a clock, not an action: it runs above those branches now, while T stays at the bottom with the rest of the input, because striking a torch *is* an action and you cannot do it from the floor. Three tests, each of which fails without the move |
 | 2026-09-10 | **The owner's first playtest — nine notes, nine fixes.** **Mutation** fills untouched in 7.5 in-game days rather than 2.5 (about sixty-seven minutes), and a bite is one hit in ten at +6 rather than one in seven at +12. **Night** is near-black: the darkness curve, `DARKNESS_FULL` and `DARK_ENOUGH` were all scaled by 1.17 so every night multiplier fires exactly when it did, and the torch is 300px at 1.15 — the before photograph showed a lit torch you could barely see. The HUD's dark hint is readable and says the next step (*wear a Torch in your off-hand, then T*). **E at a workbench opens it** instead of spending on the upgrade: a BENCH mode of the pack screen at that bench's tier, titled WORKBENCH / WORKBENCH II, with a priced UPGRADE button through the new `Actions.upgrade_bench`; a Chemistry Station opens the same way. **C is by hand only** — Bandage, Hatchet, Stone Knife, Stone Pickaxe, Stone Hammer, Torch — and seven recipes moved to bench 1, in `config.gd` and in Notion; the Stone Hammer's portable-bench privilege is gone. **Wear**: a chop costs one use rather than two, and the five stone tools have 600 rather than 140-160, so a Hatchet fells about a hundred trees (measured off the swing: six chops a tree). **Click food to eat**: a click that does not drag opens a small menu beside the cell — EAT, DRINK or USE by an optional `verb` on the consumable, and DROP; right-click still uses directly. **Nothing is built on litter**: placement refuses with *Pick up the stone first*, and a piece loaded over litter from an older save clears it for good. `playtest_test.gd` (11 tests); two new smoke checkpoints (the workbench menu, and the bench after UPGRADE); the chem leg now opens its station with E |
 | 2026-09-10 | **A seed, some water, and a few days — the Raised Bed.** Farming comes off §7's "deliberately not building" list, the third amendment to it, because that list is against *chores* and not against growing things. Three rules make a garden allowed, and `farming_test.gd` (27 tests) asserts each: **a dry bed stalls and never dies** — nothing anywhere takes a planting away, so forgetting costs time and never the crop; **nothing is ever required**, so crops are buffs and cooking inputs like everything else in the food table and `test_nothing_here_is_a_hunger_meter` says so; and **it is delegable**, which the Farmer job collects next. `Config.FARM`, `CROPS` and `FERTILIZER`; `raisedBed` in `STRUCTURES`, not solid and deliberately not `protect`; `src/sim/farming.gd` as the whole mechanic, with four fields on the structure and **the stage never stored** — derived from `grow`, so a save, a wire packet and a screen cannot disagree about what is in the ground. Water is Clean Water out of your own pack, the same bottle that buys Hydrated, so *drink it or grow with it* is the decision the bed poses; one bottle is half a tank and a full bed dries out over a day and a half. Three crops and each is a reason: potatoes are the staple, **corn becomes Rations** and Rations are what the crew eats out of the shared stash, **herbs become Medical** at two an in-game day against a pharmacy's eight to sixteen. Every harvest hands a seed back, and seeds are in five loot tables, so a farm can neither dead-end nor be bootstrapped from nothing. Two fertilizers, both yield: Compost by hand at +60%, and **Mutagen Sludge at the Chemistry Station** — brain matter for +150% and 40% faster, that bench's second job and this game's own bargain in a vegetable patch. `E` at a bed is contextual the way the generator key is: a ripe one harvests where you stand, anything else opens a fifth mode of the pack screen with two typed slots and the meters. Destruction loses the planting and salvage returns it. Save v11, four fields on the structure diff, four `Actions` commands, a dev verb and four smoke checkpoints. Fixed in passing: the chem checkpoint had been asserting a recipe was on the *visible* craft page rather than offered at its bench, so it failed the day a recipe was added above it |

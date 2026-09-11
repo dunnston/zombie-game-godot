@@ -33,6 +33,18 @@ static func wears(id: String) -> bool:
 	return max_of(id) > 0
 
 
+## How many uses this particular weapon has when whole: the row's `dur`,
+## raised by its level (`Upgrade`). Two Machetes at different levels last
+## differently, which is why the ceiling is read off the stack.
+static func max_in(stack: Dictionary) -> int:
+	var id := String(stack.get("id", ""))
+	return roundi(max_of(id) * Upgrade.dur_mul(Upgrade.level_in(stack)))
+
+
+static func max_at(cont: Slots, i: int) -> int:
+	return 0 if cont == null else max_in(cont.at(i))
+
+
 ## Uses left, read off a stack. An unset stack is a whole weapon, so nothing
 ## has to write a full value into a slot to say the obvious — which is also
 ## what makes a crafted or scavenged weapon arrive new without anyone
@@ -47,7 +59,7 @@ static func left_in(stack: Dictionary) -> int:
 	if not wears(id):
 		return 0
 	var raw := int(stack.get("w", -1))
-	return max_of(id) if raw < 0 else clampi(raw, 0, max_of(id))
+	return max_in(stack) if raw < 0 else clampi(raw, 0, max_in(stack))
 
 
 static func broken_in(stack: Dictionary) -> bool:
@@ -63,7 +75,7 @@ static func left(cont: Slots, i: int) -> int:
 static func frac(cont: Slots, i: int) -> float:
 	if cont == null or not wears(cont.id_at(i)):
 		return 1.0
-	return float(left(cont, i)) / float(max_of(cont.id_at(i)))
+	return float(left(cont, i)) / float(max_at(cont, i))
 
 
 static func is_broken(cont: Slots, i: int) -> bool:
@@ -74,13 +86,13 @@ static func is_worn(cont: Slots, i: int) -> bool:
 	if cont == null:
 		return false
 	var id := cont.id_at(i)
-	return wears(id) and left(cont, i) < max_of(id)
+	return wears(id) and left(cont, i) < max_at(cont, i)
 
 
-## Sets a slot back to new.
+## Sets a slot back to new — new for its level.
 static func mend(cont: Slots, i: int) -> void:
 	if cont != null and wears(cont.id_at(i)):
-		cont.set_wear_at(i, max_of(cont.id_at(i)))
+		cont.set_wear_at(i, max_at(cont, i))
 
 
 # ------------------------------------------------------------- what is held --
@@ -113,8 +125,8 @@ static func use(sim: GameSim, p: PlayerSim, cont: Slots, i: int, n := 1) -> void
 	if before <= 0:
 		return
 	var after := maxi(0, before - n)
+	var cap := max_at(cont, i)
 	cont.set_wear_at(i, after)
-	var cap := max_of(id)
 	var name_: String = Config.WEAPONS[id].name
 	if after <= 0:
 		sim.notify("%s broke — it needs mending before it is any use" % name_, "#c96a5a", true)

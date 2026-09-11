@@ -353,6 +353,51 @@ yet when an earlier autoload's `_ready` wants to know.
 - A review finding can be right about the fact and wrong about the target.
   (See the entry below for the owner's first playtest.)
 
+## 2026-09-10 (the dash)
+
+- A smoke leg that moves the player has to choose where it starts. The dash
+  leg dashed from wherever the sprint before it ended, and the sprint is
+  counted in process frames, so the end point moved with the frame rate: one
+  run carried 130px, the next stopped at a tree after 56. `_smoke_clear_lane`
+  finds open ground for the whole run and `_smoke_stand_at` puts the player
+  there. Same rule as "stock a leg for what it spends", applied to space.
+- Hold a smoke key until the game says it saw it, not for a number of
+  frames. The owner's monitor runs at 144Hz and the sim at 60, so three
+  process frames can hold no physics step at all, and "the dash key was never
+  heard" fired on a dash that was fine — the check asked before the game had.
+  Press, poll the sim for the consequence (`dash_cd > 0`) with a cap, then
+  release; an edge-read key cannot fire twice however long it is held.
+- Split "did it happen" from "did it do enough" in a smoke assertion. "The
+  dash did not carry" could not tell a press the physics step never saw from
+  a burst that hit a wall; `dash_cd > 0` answers the first on its own line.
+- Seven failures in one smoke run, all in legs that wait on a clock, and none
+  of them came back on the next run with nothing changed: the focus lesson in
+  §8 again, most likely the chat window taking focus mid-run. Re-run before
+  bisecting, and never read a flake as a pass for the leg you just wrote.
+
+## 2026-09-10 (the School)
+
+- A test that says "nothing spawned" in a room already fuller than the
+  spawner's target density cannot fail: the spawner would add nobody either
+  way. Mine did exactly that, and so did "no raid came" asserted against the
+  town's Threat, which is not ticked in there at all. Breaking the gate on
+  purpose showed both were watching the wrong thing. Empty the room first,
+  and push the value the sim actually reads — the inside's Threat, not the
+  town's.
+- Anything that replaces the map under the sim happens at one point in the
+  step, and that point is the end. E at the exit called `Instance.leave` from
+  inside `PlayerSim.tick`, so the rest of `GameSim.tick` ran on the town with
+  `instance` already null and crashed calling it. Every test called
+  `walk_out` from outside a tick and passed; the smoke run pressed the real
+  key and logged a SCRIPT ERROR under a green summary. Read the smoke log,
+  not just its last line, and test a state change through the step that
+  makes it.
+- The owner's Godot editor parses the working tree live. A change that adds a
+  constant in one file and uses it in another shows them a parser error for
+  as long as the two edits are apart, and it lands on whatever branch the
+  folder is on. Put the definition in before the first use, and say which
+  branch the folder is on before the owner opens it.
+
 ## 2026-09-10 (the owner's first playtest)
 
 - Look at the photograph before reading the renderer. "The torch gave no
@@ -374,3 +419,38 @@ yet when an earlier autoload's `_ready` wants to know.
   The stash has been reachable from anywhere since Phase 3 and every system
   that spends inherits it; fixing it in farming alone would have made the one
   new system the odd one out. Correct the claim, raise the real card.
+
+## A fixture that quietly refuses is a failure somewhere else (PR E)
+
+`Slots.add` returns how many fitted and nothing else complains. A test bag of
+60 slots filled with ten resources at 500 each was full before the weapon the
+test was about went in — so the death-pack test failed as "kept the higher
+level" and the upgrade tests as "missing materials", and both looked like the
+design. **Rule:** a fixture that stocks a container asserts the stock is
+there, and gives itself room to spare. The smoke has the same trap late in
+its run, when the player's pack is full: use what is already carried rather
+than handing over something new, and put the refusal in the failure message.
+
+## Anchor a new test on the end of a function, not on a line inside it (Codex pass)
+
+A new test was inserted after "the last assertion I could see" of the party
+test — which was not its last line. The rest of that test became the body of
+the new one, and the failures ("already inside", a nil `party`) read like a
+bug in the fix. **Rule:** anchor an insertion on the *next* `func` line, or
+read to the function's end first. The same for anything appended by Edit.
+
+## A merged stack is resolved line by line, never by side
+
+Merging `boss` into `upgrades` conflicted on one line that both changed for
+different reasons: PR E added `lv` to the haul, the Codex fix added the
+finds already held. Taking either side drops the other's fix silently.
+**Rule:** a conflict between two fixes is resolved by writing the line that
+carries both, then the break-checks for both run again on the merged branch.
+
+## A Codex finding is closed on GitHub, not in the commit (owner correction, 2026-09-10)
+
+All ten findings on #30–#34 were fixed, tested and pushed — and every PR was
+still blocked: branch protection requires each review conversation resolved.
+**Rule:** the last step of a Codex pass is a reply on each thread naming the
+fixing commit and its test, then `resolveReviewThread`, then a check that no
+thread is open and `mergeStateStatus` is CLEAN.

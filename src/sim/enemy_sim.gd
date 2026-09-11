@@ -89,6 +89,14 @@ var pending_struct := {}
 ## The survivor this swing is committed to, if it is not a structure.
 var pending_survivor: SurvivorSim = null
 
+## A boss's script (`Boss`), or null for everything else. It claims the step
+## while a move or a phase change is running.
+var brain: Boss = null
+## Seconds of a phase change during which nothing can hurt it.
+var shield_t := 0.0
+## Called in by a boss's whistle, so the whistle can count its own team.
+var minion := false
+
 
 ## The structure this enemy is about to hit, or an empty Dictionary. Kept as
 ## a function so the view can ask without knowing the three fields.

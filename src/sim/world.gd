@@ -42,11 +42,31 @@ var locations: Array[Dictionary] = []
 var spawn_tiles: Array[Vector2i] = []
 var rng: Rng
 
+## "town", or the instance this map is the inside of ("school").
+var layout := "town"
+## What the interact key does at a tile that is not a container. In the town,
+## the door to an instance; inside one, the way out, a chained door and the
+## exit the boss guards. {kind, id, tiles, x, y, stand, key, open}.
+var features: Array[Dictionary] = []
+## Inside an instance: where the party arrives, where the placed population
+## stands, and where the boss waits.
+var entry_spot := Vector2.ZERO
+var enemy_spots: Array[Vector2] = []
+var boss_spot := Vector2.ZERO
+## The boss's room, in tiles: the floor it will not leave and the space its
+## fight is framed for. And where its whistle's team comes in.
+var arena := Rect2i()
+var add_spots: Array[Vector2] = []
+## The town's fingerprint before the instance buildings were stamped on it. A
+## save written before the School existed carries this one (`accepts_fingerprint`).
+var base_fingerprint := 0
+
 var _no_tree := PackedByteArray()    # tiles the woodland pass must leave alone
 
 
-func _init(seed_value: int = 20240917) -> void:
+func _init(seed_value: int = 20240917, layout_: String = "town") -> void:
 	world_seed = seed_value
+	layout = layout_
 	rng = Rng.new(seed_value)
 	var n := W * W
 	tiles.resize(n)
@@ -56,11 +76,16 @@ func _init(seed_value: int = 20240917) -> void:
 	danger.resize(n)
 	danger.fill(1)
 	_no_tree.resize(n)
-	for l in Config.LOCATIONS:
-		var d: Dictionary = l.duplicate()
-		d["discovered"] = false
-		locations.append(d)
-	_generate()
+	if layout == "town":
+		for l in Config.LOCATIONS:
+			var d: Dictionary = l.duplicate()
+			d["discovered"] = false
+			locations.append(d)
+		_generate()
+		base_fingerprint = _hash()
+		_gen_instances()
+	else:
+		_generate_instance()
 	_take_fingerprint()
 
 
@@ -653,6 +678,234 @@ func _generate() -> void:
 	_gen_danger_and_spawns()
 
 
+# --------------------------------------------------------------- instances --
+
+## The buildings whose doors load an instance rather than let you in
+## (`Config.INSTANCES`). Stamped after everything else on purpose: not one draw
+## on the generator's RNG moves, so the rest of the town is exactly what it was
+## before they existed, and what was growing on the plot is cleared off it.
+func _gen_instances() -> void:
+	for kind: String in Config.INSTANCES:
+		var d: Dictionary = Config.INSTANCES[kind]
+		var r: Rect2i = d.shell
+		var lot: Rect2i = d.lot
+		_clear_props(r.merge(lot))
+		_fill(lot.position.x, lot.position.y, lot.size.x, lot.size.y, T.LOT)
+		for y in range(r.position.y, r.end.y):
+			for x in range(r.position.x, r.end.x):
+				var edge := x == r.position.x or y == r.position.y or x == r.end.x - 1 or y == r.end.y - 1
+				_put(x, y, T.WALL if edge else T.ROOF)
+		var out: Vector2i = d.out
+		var f := _door(d.door, "instance_door")
+		f["id"] = kind
+		f["stand"] = Vector2(f.x, f.y) + Vector2(out) * TILE
+
+
+## Takes every prop whose tile is in `r` off the map, as if it had never grown.
+## Generator output, not a harvest: nothing is written to `chopped`.
+func _clear_props(r: Rect2i) -> void:
+	for i in range(props.size() - 1, -1, -1):
+		var p: Dictionary = props[i]
+		if not p.has("tx"):
+			continue
+		var t := Vector2i(int(p.tx), int(p.ty))
+		if not r.has_point(t):
+			continue
+		props.remove_at(i)
+		prop_grid.erase(t.y * W + t.x)
+		if p.get("solid", false):
+			blocked[t.y * W + t.x] = 0
+
+
+## A doorway that answers the interact key instead of letting you through:
+## floor to look at, solid to feet, bullets and sight until something opens it.
+## Returns the feature, already in `features`.
+func _door(r: Rect2i, kind: String) -> Dictionary:
+	var tiles_: Array[Vector2i] = []
+	for y in range(r.position.y, r.end.y):
+		for x in range(r.position.x, r.end.x):
+			_put(x, y, T.FLOOR_TILE)
+			_block(x, y, 1)
+			tiles_.append(Vector2i(x, y))
+	var c := _centre_px(r)
+	var f := {"kind": kind, "id": "", "tiles": tiles_, "x": c.x, "y": c.y, "stand": c, "key": "", "open": false}
+	features.append(f)
+	return f
+
+
+static func _centre_px(r: Rect2i) -> Vector2:
+	return Vector2((r.position.x + r.size.x / 2.0) * TILE, (r.position.y + r.size.y / 2.0) * TILE)
+
+
+## The inside of an instance. Everything outside its rooms is solid roof, the
+## danger is the instance's tier everywhere, and its one location is already
+## discovered — an entry is not a district to be paid for finding.
+func _generate_instance() -> void:
+	var d: Dictionary = Config.INSTANCES[layout]
+	var loc: Dictionary = d.location.duplicate()
+	loc["discovered"] = true
+	locations.append(loc)
+	danger.fill(int(d.tier))
+	tiles.fill(T.ROOF)
+	blocked.fill(1)
+	match layout:
+		"school":
+			_gen_school(d)
+
+
+## A room: its border becomes wall wherever it is still roof, so two rooms can
+## share a wall, and its inside becomes floor.
+func _room(x: int, y: int, w: int, h: int, floor_t: int = T.FLOOR_TILE) -> Rect2i:
+	for yy in range(y, y + h):
+		for xx in range(x, x + w):
+			var edge := xx == x or yy == y or xx == x + w - 1 or yy == y + h - 1
+			if edge:
+				if tiles[yy * W + xx] == T.ROOF:
+					_put(xx, yy, T.WALL)
+			else:
+				_put(xx, yy, floor_t)
+	return Rect2i(x, y, w, h)
+
+
+## A gap in a shared wall, `w` wide along x or `h` tall along y.
+func _gap(x: int, y: int, w: int, h: int) -> void:
+	for yy in range(y, y + h):
+		for xx in range(x, x + w):
+			_put(xx, yy, T.FLOOR_TILE)
+
+
+## A doorway to the hall at a rolled place along the room's shared wall.
+func _gap_to(r: Rect2i, wall_y: int) -> void:
+	_gap(rng.irange(r.position.x + 1, r.end.x - 3), wall_y, 2, 1)
+
+
+## The inside of a room that furniture may stand on: floor, and not beside a
+## gap in its own border — two cabinets either side of a doorway wall it off.
+func _furnishable(r: Rect2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	for y in range(r.position.y + 1, r.end.y - 1):
+		for x in range(r.position.x + 1, r.end.x - 1):
+			if blocked[y * W + x]:
+				continue
+			var beside_gap := false
+			for n: Vector2i in [Vector2i(x - 1, y), Vector2i(x + 1, y), Vector2i(x, y - 1), Vector2i(x, y + 1)]:
+				var on_border := n.x == r.position.x or n.y == r.position.y or n.x == r.end.x - 1 or n.y == r.end.y - 1
+				if on_border and tiles[n.y * W + n.x] != T.WALL:
+					beside_gap = true
+			if not beside_gap:
+				out.append(Vector2i(x, y))
+	return out
+
+
+## `n` places in a room for something to stand, each with open floor on every
+## side so even a Brute arrives clear of the walls.
+func _spots_in(r: Rect2i, n: int) -> void:
+	var pool: Array[Vector2i] = []
+	for y in range(r.position.y + 2, r.end.y - 2):
+		for x in range(r.position.x + 2, r.end.x - 2):
+			var open := true
+			for j in range(-1, 2):
+				for i in range(-1, 2):
+					if blocked[(y + j) * W + x + i]:
+						open = false
+			if open:
+				pool.append(Vector2i(x, y))
+	var used := {}
+	var guard := 0
+	while n > 0 and not pool.is_empty() and guard < 200:
+		guard += 1
+		var t: Vector2i = rng.pick(pool)
+		if used.has(t):
+			continue
+		used[t] = true
+		enemy_spots.append(Vector2(t.x * TILE + TILE / 2.0, t.y * TILE + TILE / 2.0))
+		n -= 1
+
+
+func _pop(d: Dictionary, room: String) -> int:
+	var range_: Array = d.pop[room]
+	return rng.irange(int(range_[0]), int(range_[1]))
+
+
+## Pine Hollow High. The skeleton is fixed so a run can be learned — you come
+## in at the foyer, the hall runs east and west, the gym is at the back and the
+## principal's office has its key — and what is in it is rolled from the entry
+## seed: every doorway's place, every desk and locker, and who is standing in
+## which room. Nine classrooms, the cafeteria, the nurse, the office, the
+## antechamber with its cache, and the gym. Budgeted for eight to twelve
+## minutes (§6.1): a room a minute and the fight.
+func _gen_school(d: Dictionary) -> void:
+	var hall := _room(100, 129, 82, 7)
+	var cafeteria := _room(100, 118, 18, 12)
+	var north: Array[Rect2i] = [_room(117, 118, 10, 12, T.FLOOR_WOOD), _room(126, 118, 10, 12, T.FLOOR_WOOD),
+		_room(148, 118, 10, 12, T.FLOOR_WOOD), _room(157, 118, 10, 12, T.FLOOR_WOOD)]
+	var ante := _room(135, 118, 14, 12)
+	var office := _room(166, 118, 16, 12, T.FLOOR_WOOD)
+	var gym := _room(128, 96, 28, 23, T.FLOOR_WOOD)
+	var foyer := _room(133, 135, 18, 12)
+	var south: Array[Rect2i] = [_room(100, 135, 12, 12, T.FLOOR_WOOD), _room(111, 135, 12, 12, T.FLOOR_WOOD),
+		_room(122, 135, 12, 12, T.FLOOR_WOOD), _room(161, 135, 11, 12, T.FLOOR_WOOD), _room(171, 135, 11, 12, T.FLOOR_WOOD)]
+	var nurse := _room(150, 135, 12, 12)
+
+	# Doorways, rolled along each shared wall. The antechamber and the foyer
+	# open wide and in the middle, so the way in and the way to the gym are the
+	# two things you never have to look for.
+	_gap_to(cafeteria, 129)
+	_gap_to(cafeteria, 129)
+	for r in north:
+		_gap_to(r, 129)
+	_gap_to(office, 129)
+	for r in south:
+		_gap_to(r, 135)
+	_gap_to(nurse, 135)
+	_gap(140, 129, 4, 1)
+	_gap(138, 135, 8, 1)
+
+	# The three doors that answer E instead of letting you through.
+	var leave := _door(Rect2i(140, 146, 4, 1), "leave")
+	var chained := _door(Rect2i(140, 118, 4, 1), "chained")
+	chained["key"] = "gym"
+	_door(Rect2i(140, 96, 4, 1), "exit")
+	entry_spot = Vector2(142 * TILE, 144 * TILE + TILE / 2.0)
+	leave["stand"] = entry_spot
+	boss_spot = _centre_px(gym)
+	arena = Rect2i(gym.position + Vector2i.ONE, gym.size - Vector2i(2, 2))
+	for c: Vector2i in [gym.position + Vector2i(2, 2), Vector2i(gym.end.x - 3, gym.position.y + 2),
+			Vector2i(gym.position.x + 2, gym.end.y - 4), Vector2i(gym.end.x - 3, gym.end.y - 4)]:
+		add_spots.append(Vector2(c.x * TILE + TILE / 2.0, c.y * TILE + TILE / 2.0))
+	# The breaker, on the gym's west wall: what the lights come back on with
+	# when the boss kills them. A switch on a wall, not a door — it takes no
+	# tile of its own and blocks nothing.
+	var bt := Vector2i(gym.position.x, gym.position.y + gym.size.y / 2)
+	var bt_tiles: Array[Vector2i] = [bt]
+	features.append({"kind": "breaker", "id": "", "tiles": bt_tiles, "x": bt.x * TILE + TILE / 2.0,
+		"y": bt.y * TILE + TILE / 2.0, "stand": Vector2((bt.x + 1) * TILE + TILE / 2.0, bt.y * TILE + TILE / 2.0),
+		"key": "", "open": false})
+
+	# What is in it.
+	for r in north + south:
+		_stock(_furnishable(r), "schoolClass", rng.irange(3, 5))
+	_stock(_furnishable(hall), ["schoolLocker"], rng.irange(6, 9))
+	_stock(_furnishable(cafeteria), "schoolCafeteria", rng.irange(5, 7))
+	_stock(_furnishable(nurse), ["nurseCabinet", "nurseCabinet", "pharmacy"], 3)
+	var desk_at: Vector2i = rng.pick(_furnishable(office))
+	var desk := _add_container(desk_at.x, desk_at.y, "principalDesk")
+	desk["key"] = "gym"
+	_stock(_furnishable(office), ["filing", "bookshelf"], 2)
+	_add_container(136, 120, "supplyCache")
+	_add_container(147, 120, "supplyCache")
+	_stock(_furnishable(foyer), ["vending"], 2)
+
+	# Who is in it. Nobody waits in the foyer — arriving is not an ambush — and
+	# nobody in the antechamber, which is where you catch your breath.
+	for r in north + south:
+		_spots_in(r, _pop(d, "classroom"))
+	_spots_in(hall, _pop(d, "hall"))
+	_spots_in(cafeteria, _pop(d, "cafeteria"))
+	_spots_in(nurse, _pop(d, "small"))
+	_spots_in(office, _pop(d, "small"))
+
+
 func _gen_town() -> void:
 	# camp: a couple of shacks, a wreck, and easy pickings.
 	_stock(_building(150, 150, 8, 7, {"doors": 1}), "house", 4)
@@ -1187,13 +1440,26 @@ func fingerprint() -> int:
 
 
 func _take_fingerprint() -> void:
+	gen_fingerprint = _hash()
+
+
+func _hash() -> int:
 	var h := 2166136261
 	for i in range(tiles.size()):
 		h = ((h ^ tiles[i]) * 16777619) & 0xFFFFFFFF
 		h = ((h ^ blocked[i]) * 16777619) & 0xFFFFFFFF
 	h = ((h ^ props.size()) * 16777619) & 0xFFFFFFFF
 	h = ((h ^ containers.size()) * 16777619) & 0xFFFFFFFF
-	gen_fingerprint = h
+	return h
+
+
+## Whether a save carrying `fp` describes this map. The town from before the
+## instance buildings existed is accepted as well as this one, because the
+## stamp only ever *takes away* the props under its own footprint: every
+## container, every other prop and every other tile a save names is where it
+## was, and a chopped tree the stamp already cleared simply finds nothing.
+func accepts_fingerprint(fp: int) -> bool:
+	return fp == gen_fingerprint or (layout == "town" and fp == base_fingerprint)
 
 
 ## The first location whose rect contains the point, or an empty Dictionary.

@@ -110,7 +110,7 @@
       "type": "float"
     }
   },
-  "notes": "Melee: dmg / cd / range / arc / knock. Tools are deliberately poor weapons; `axe`, `pick`, `knife`, `scythe`, `hammer` are what the harvest gates ask for, `chop_mul` is how much better than a fist they are at scenery. The stone tools come before the metal ones so a fresh game finds them first. Guns: real magazines, reload time, spread (radians), bullet speed and life, pellets, pierce, threat per shot and a noise radius. The bow is a gun with a magazine of one and no muzzle flash; it keeps drawing while held.\n\n**Blunt things stagger, edged things bleed, and fists do neither.** That is the whole of the content design for the two, and it is meant to be readable off this table without a tooltip: `stagger` is seconds of interrupted enemy, `bleed` is damage per second left in the wound, and no weapon has both. A missing field means never, the same way a missing `dur` does. The Improvised pipe staggers because it is a length of steel; the Polearm scythe bleeds because it is a blade. `Wear` and `Bleed`/`Stagger` explain the mechanics; this is where the intent lives.\n\n`crit` is the chance this weapon adds to the player's own, and `crit_mul` is how hard its criticals land. They pull in opposite directions on purpose: a rifle or a knife finds the soft parts often and a sledgehammer almost never, but when the sledge does, it is 2.8x. Both are per-weapon because a stone knife and a sledgehammer critting identically was the thing this replaced.\n\n`tier` is the progression band, 1 to 3, and it is a label rather than a gate: tier 1 is the first hour, tier 2 is the workbench, tier 3 is the upgraded bench and what the military left. Mostly it tracks the bench a recipe needs, and the Steel Pipe is the deliberate exception - a bench-1 craft that is tier 1 because it is the starting weapon. The rule the table is held to is that every weapon class has something craftable in every tier it occupies, so no line dead-ends in a weapon you can only find.\n\n**An upgrade is a level on the item, not a row in this table.** A weapon instance carries a level of 0 to 3 in the slot that holds it, beside its durability - the same per-slot shape `Wear` already uses - so the table stays one row per weapon and a save carries one more integer rather than four times the ids. A level is +8% `dmg` and +15% `dur` and touches nothing else on purpose: `cd`, `range`, `arc`, `stagger` and `bleed` are what make a weapon itself, and letting a level move them would turn every weapon into four weapons and blur the shapes this table exists to keep apart. A level makes a weapon more of itself, never something different. The three are named Reinforced, Honed and Masterwork, which is why the bat that carries nails is the Spiked Bat and not the Reinforced one. **Only a weapon with a recipe takes levels.** A found-only weapon is a fixed point: excellent when you find it, and eventually passed by the crafted line, which is what keeps the bench worth returning to and makes \"a fully upgraded craftable beats a base found special\" true by construction rather than by careful tuning. Loot does not dead-end on it - a found Baseball Bat is what a Spiked Bat is made from, so the way to upgrade what you find is to build with it.",
+  "notes": "Melee: dmg / cd / range / arc / knock. Tools are deliberately poor weapons; `axe`, `pick`, `knife`, `scythe`, `hammer` are what the harvest gates ask for, `chop_mul` is how much better than a fist they are at scenery. The stone tools come before the metal ones so a fresh game finds them first. Guns: real magazines, reload time, spread (radians), bullet speed and life, pellets, pierce, threat per shot and a noise radius. The bow is a gun with a magazine of one and no muzzle flash; it keeps drawing while held.\n\n**Blunt things stagger, edged things bleed, and fists do neither.** That is the whole of the content design for the two, and it is meant to be readable off this table without a tooltip: `stagger` is seconds of interrupted enemy, `bleed` is damage per second left in the wound, and no weapon has both. A missing field means never, the same way a missing `dur` does. The Improvised pipe staggers because it is a length of steel; the Polearm scythe bleeds because it is a blade. `Wear` and `Bleed`/`Stagger` explain the mechanics; this is where the intent lives.\n\n`crit` is the chance this weapon adds to the player's own, and `crit_mul` is how hard its criticals land. They pull in opposite directions on purpose: a rifle or a knife finds the soft parts often and a sledgehammer almost never, but when the sledge does, it is 2.8x. Both are per-weapon because a stone knife and a sledgehammer critting identically was the thing this replaced.\n\n`tier` is the progression band, 1 to 3, and it is a label rather than a gate: tier 1 is the first hour, tier 2 is the workbench, tier 3 is the upgraded bench and what the military left. Mostly it tracks the bench a recipe needs, and the Steel Pipe is the deliberate exception - a bench-1 craft that is tier 1 because it is the starting weapon. The rule the table is held to is that every weapon class has something craftable in every tier it occupies, so no line dead-ends in a weapon you can only find.\n\n**An upgrade is a level on the item, not a row in this table.** A weapon instance carries its level on the Slots stack beside its condition, so the table stays one row per weapon and a save carries one more integer rather than six times the ids. Levels run 1 to 6 and are bought at the bench that makes the weapon, each costing a share of that weapon's own recipe; 4 to 6 also cost Precision Parts, which only come out of an instance past its boss, so the gate is the material and there is no flag to forget. A level is +8% `dmg` and +10% `dur` and touches nothing else on purpose: `cd`, `range`, `arc`, `stagger` and `bleed` are what make a weapon itself, and letting a level move them would turn every weapon into six weapons and blur the shapes this table exists to keep apart. A level makes a weapon more of itself, never something different. **Only a weapon with a recipe takes levels.** A found-only weapon is a fixed point: excellent when you find it, and eventually passed by the crafted line, which is what keeps the bench worth returning to and makes \"a fully upgraded craftable beats a base found special\" true by construction rather than by careful tuning. Loot does not dead-end on it - a found Baseball Bat is what a Spiked Bat is made from, so the way to upgrade what you find is to build with it. The two boss drops carry no `tier`: tier tracks the bench a recipe needs, and they have no recipe.",
   "rows": [
     {
       "arc": 1.0,
@@ -462,6 +462,46 @@
       "spread": 0.045,
       "threat": 1.1,
       "tier": 3
+    },
+    {
+      "arc": 1.4,
+      "cd": 0.5,
+      "color": "#c9a227",
+      "crit": 0.06,
+      "crit_mul": 2.3,
+      "dmg": 46.0,
+      "dur": 1400,
+      "id": "varsityBat",
+      "kind": "melee",
+      "knock": 240.0,
+      "name": "Varsity Bat",
+      "notes": "The Coach's. A placeholder for the owner to rename and tune. Found only on the School's boss: nothing makes it, so nothing mends or upgrades it, and it lasts to pay for that.",
+      "range": 54.0,
+      "stagger": 0.6
+    },
+    {
+      "ammo": "ammoP",
+      "cd": 0.42,
+      "color": "#b8a070",
+      "crit": 0.12,
+      "crit_mul": 2.3,
+      "dmg": 48.0,
+      "dur": 1500,
+      "id": "sixShooter",
+      "kind": "gun",
+      "knock": 95.0,
+      "life": 0.6,
+      "mag": 6,
+      "name": "Six-Shooter",
+      "noise": 520.0,
+      "notes": "The Coach's. A placeholder for the owner to rename and tune. Found only on the School's boss: nothing makes it, so nothing mends or upgrades it, and it lasts to pay for that.",
+      "pellets": 1,
+      "pierce": 1,
+      "reload": 1.6,
+      "shake": 1.2,
+      "speed": 1300.0,
+      "spread": 0.02,
+      "threat": 0.5
     }
   ]
 }

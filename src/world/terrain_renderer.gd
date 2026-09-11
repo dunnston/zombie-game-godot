@@ -30,10 +30,10 @@ func _init() -> void:
 func build(world: World) -> void:
 	# Look the atlas coordinates up once; string formatting per tile is slow.
 	var tv := []
-	for t in range(14):
+	for t in range(T.size()):
 		var row: Array[Vector2i] = []
 		for v in range(5):
-			row.append(TileArt.coords("t%d_v%d" % [t, v]) if t != T.WALL else Vector2i.ZERO)
+			row.append(TileArt.coords("t%d_v%d" % [t, v]) if t != T.WALL and t != T.ROOF else Vector2i.ZERO)
 		tv.append(row)
 	var water: Array[Vector2i] = []
 	var fence: Array[Vector2i] = []
@@ -51,6 +51,9 @@ func build(world: World) -> void:
 	var wall: Array[Vector2i] = []
 	for v in range(3):
 		wall.append(TileArt.coords("wall_%d" % v))
+	var roof: Array[Vector2i] = []
+	for v in range(3):
+		roof.append(TileArt.coords("roof_%d" % v))
 	var shadow_c := TileArt.coords("shadow")
 
 	ground.clear()
@@ -61,9 +64,10 @@ func build(world: World) -> void:
 			var i := ty * W + tx
 			var t := world.tiles[i]
 			var cell := Vector2i(tx, ty)
-			if t == T.WALL:
+			if t == T.WALL or t == T.ROOF:
 				var hw := Util.hash2(tx * 3, ty * 7)
-				walls.set_cell(cell, 0, wall[0 if hw <= 0.5 else (1 if hw <= 0.78 else 2)])
+				var art := wall if t == T.WALL else roof
+				walls.set_cell(cell, 0, art[0 if hw <= 0.5 else (1 if hw <= 0.78 else 2)])
 				shadow.set_cell(cell, 0, shadow_c)
 				continue
 			var h := Util.hash2(tx, ty)

@@ -24,7 +24,10 @@ const CELL := 44.0
 const GAP := 4.0
 const BAG_COLS := 6
 const STORE_COLS := 6
+const HAUL_COLS := 4
 const ROW := 22.0                # a recipe row in the craft list
+## Modes that are one panel opened on one thing, rather than tabs of the pack.
+const SINGLE := ["store", "bed", "bench", "door", "leave"]
 
 var sim: GameSim
 var player: PlayerSim
@@ -32,8 +35,11 @@ var drag := {}                   # {from: cell, id, n} while held
 var hover := {}
 var mouse := Vector2.ZERO
 
-## "pack", "craft", "char", "crew", "store" or "bed".
+## "pack", "craft", "char", "crew", "store", "bed", "bench", or an instance's
+## "door" and "leave".
 var mode := "pack"
+## The instance whose door is open, for the ENTER button.
+var door_kind := ""
 ## The tile of the container being looked into, or (-1, -1). A tile rather
 ## than the container itself, so the reach check happens every frame and
 ## walking away closes the screen.
@@ -73,7 +79,7 @@ func toggle() -> void:
 	visible = not visible
 	pop = {}
 	if visible:
-		if mode == "store" or mode == "bed" or mode == "bench":
+		if mode in SINGLE:
 			mode = "pack"
 		store_tile = Vector2i(-1, -1)
 		store_car = 0
@@ -120,6 +126,32 @@ func open_bench(tile: Vector2i) -> void:
 	craft_top = 0
 	pop = {}
 	mode = "bench"
+	visible = true
+
+
+## An instance's door: the rules, what you are carrying, and ENTER. The pack is
+## on screen on purpose — what you bring is the whole of the decision (§6.6),
+## and it is made here, once, with the things themselves in front of you.
+func open_door(kind: String) -> void:
+	door_kind = kind
+	store_tile = Vector2i(-1, -1)
+	store_car = 0
+	bed_tile = Vector2i(-1, -1)
+	bench_tile = Vector2i(-1, -1)
+	pop = {}
+	mode = "door"
+	visible = true
+
+
+## The way out of an instance before the boss is down: exactly what walking out
+## now costs, and LEAVE. Nothing is ever forfeited on the key alone.
+func open_leave() -> void:
+	store_tile = Vector2i(-1, -1)
+	store_car = 0
+	bed_tile = Vector2i(-1, -1)
+	bench_tile = Vector2i(-1, -1)
+	pop = {}
+	mode = "leave"
 	visible = true
 
 
@@ -196,6 +228,14 @@ func tick() -> void:
 	if visible and mode == "bench" and bench_struct().is_empty():
 		visible = false
 		_cancel_drag()
+	# A door panel belongs to the door: step away from it, or through it, and
+	# the question is no longer being asked.
+	if visible and mode == "door" and (sim.instance != null or Instance.feature_near(sim, player, ["instance_door"]).is_empty()):
+		visible = false
+		_cancel_drag()
+	if visible and mode == "leave" and (sim.instance == null or Instance.feature_near(sim, player, ["leave"]).is_empty()):
+		visible = false
+		_cancel_drag()
 
 
 # ------------------------------------------------------------------ layout --
@@ -211,13 +251,19 @@ func _tabs() -> Array[Dictionary]:
 	var panel := _panel()
 	var out: Array[Dictionary] = []
 	var names := ["pack", "craft", "char", "crew"]
-	if mode == "store" or mode == "bed" or mode == "bench":
+	if mode in SINGLE:
 		names = [mode]
 	var x := panel.position.x + 24.0
 	for name in names:
 		var label := String(name).to_upper()
 		var w := 84.0
-		if name == "bench":
+		if name == "door":
+			label = Instance.title(door_kind).to_upper()
+			w = 260.0
+		elif name == "leave":
+			label = "WALK OUT"
+			w = 140.0
+		elif name == "bench":
 			var s := bench_struct()
 			label = "WORKBENCH II" if s.get("type", "") == "workbench" and int(s.get("tier", 1)) >= 2 \
 				else String(s.get("def", {}).get("name", "Workbench")).to_upper()
@@ -250,6 +296,9 @@ func _cells() -> Array[Dictionary]:
 		gx = x0 + CELL + 96.0
 		out.append({"kind": "seed", "slot": "seed", "index": -1, "rect": Rect2(x0, y0, CELL, CELL)})
 		out.append({"kind": "fert", "slot": "fert", "index": -1, "rect": Rect2(x0, y0 + CELL + GAP, CELL, CELL)})
+	elif mode == "door" or mode == "leave":
+		# The rules down the left, and what you are carrying beside them.
+		gx = x0 + 330.0
 	elif mode == "pack":
 		for i in range(Config.GEAR_SLOTS.size()):
 			var slot: String = Config.GEAR_SLOTS[i]
@@ -262,11 +311,25 @@ func _cells() -> Array[Dictionary]:
 			out.append({"kind": "bag", "slot": "", "index": i,
 				"rect": Rect2(gx + (i % BAG_COLS) * (CELL + GAP), y0 + (i / BAG_COLS) * (CELL + GAP), CELL, CELL)})
 
+	# Inside an instance, the haul beside the pack: what you are trying to carry
+	# out, on its own budget, and nowhere else.
+	if mode == "pack" and sim.instance != null:
+		var hx := _haul_x()
+		for i in range(player.haul.size()):
+			out.append({"kind": "haul", "slot": "", "index": i,
+				"rect": Rect2(hx + (i % HAUL_COLS) * (CELL + GAP), y0 + (i / HAUL_COLS) * (CELL + GAP), CELL, CELL)})
+
 	var hy := panel.position.y + panel.size.y - CELL - 26.0
 	for i in range(player.hotbar.size()):
 		out.append({"kind": "hotbar", "slot": "", "index": i,
 			"rect": Rect2(gx + i * (CELL + GAP), hy, CELL, CELL)})
 	return out
+
+
+## Where the haul grid starts: to the right of the pack grid in PACK mode.
+func _haul_x() -> float:
+	var x0 := _panel().position.x + 24.0
+	return x0 + CELL + 96.0 + BAG_COLS * (CELL + GAP) + 18.0
 
 
 ## The recipe rows on screen, as {recipe, rect}.
@@ -287,6 +350,10 @@ func _craft_rows() -> Array[Dictionary]:
 	if bench_station().is_empty():
 		for row in Wear.worn_carried(player):
 			list.append({"repair": row})
+		# Then every weapon a bench could take further: the level beside the
+		# mending, because both are the bench that made it doing more work.
+		for row in Upgrade.upgradeable_carried(player):
+			list.append({"upgrade": row})
 	for r in recipes():
 		list.append({"recipe": r})
 	var top := panel.position.y + 76.0
@@ -356,6 +423,14 @@ func repair_centre(id: String) -> Vector2:
 	return Vector2.ZERO
 
 
+## The middle of a weapon's UPGRADE row, likewise.
+func upgrade_centre(id: String) -> Vector2:
+	for r in _craft_rows():
+		if r.has("upgrade") and String(r.upgrade.id) == id:
+			return r.rect.get_center()
+	return Vector2.ZERO
+
+
 ## The middle of a panel button, for the smoke run's cursor.
 func button_centre(id: String) -> Vector2:
 	for b in _buttons():
@@ -383,6 +458,7 @@ func _stack_in(cell: Dictionary) -> Dictionary:
 	match cell.kind:
 		"bag": return player.bag.at(cell.index)
 		"hotbar": return player.hotbar.at(cell.index)
+		"haul": return player.haul.at(cell.index)
 		"store":
 			var s := store()
 			return s.at(cell.index) if s != null else {}
@@ -463,6 +539,8 @@ func _click_chrome(at: Vector2) -> bool:
 		if r.rect.has_point(at):
 			if r.has("repair"):
 				Actions.repair_weapon(sim, player, String(r.repair.c), int(r.repair.i), bench())
+			elif r.has("upgrade"):
+				Actions.upgrade_weapon(sim, player, String(r.upgrade.c), int(r.upgrade.i), bench())
 			else:
 				Actions.craft(sim, player, r.recipe, bench())
 			return true
@@ -513,6 +591,12 @@ func _buttons() -> Array[Dictionary]:
 			out.append({"id": "harvest", "label": "HARVEST", "rect": Rect2(panel.position.x + 132.0, y, 110.0, 24.0)})
 	elif mode == "pack":
 		out.append({"id": "equip_best", "label": "EQUIP BEST", "rect": Rect2(panel.position.x + 24.0, y, 120.0, 24.0)})
+	elif mode == "door":
+		out.append({"id": "enter", "label": "ENTER", "rect": Rect2(panel.position.x + 24.0, y, 120.0, 24.0)})
+		out.append({"id": "close", "label": "NOT YET", "rect": Rect2(panel.position.x + 152.0, y, 110.0, 24.0)})
+	elif mode == "leave":
+		out.append({"id": "leave", "label": "LEAVE WITHOUT IT", "rect": Rect2(panel.position.x + 24.0, y, 170.0, 24.0)})
+		out.append({"id": "close", "label": "STAY", "rect": Rect2(panel.position.x + 202.0, y, 90.0, 24.0)})
 	elif mode == "bench":
 		# The upgrade lives here, priced, rather than on E: the key you press
 		# to look at a bench must never be the key that spends on it.
@@ -540,6 +624,14 @@ func _press_button(id: String) -> void:
 			Actions.equip_best(sim, player)
 		"upgrade":
 			Actions.upgrade_bench(sim, player, bench_tile)
+		"enter":
+			Actions.enter_instance(sim, player, door_kind)
+			visible = false
+		"leave":
+			Actions.leave_instance(sim, player)
+			visible = false
+		"close":
+			visible = false
 
 
 func _press(cell: Dictionary, mb: InputEventMouseButton) -> void:
@@ -650,7 +742,9 @@ func _quick_move(cell: Dictionary) -> void:
 	# wearing it; for a meal, a bandage or a dose it is taking it. Moving one
 	# to the hotbar is still a drag — the same gesture everything else moves
 	# by — and inside a store the obvious thing is still to move it across.
-	if mode != "store" and Items.kind_of(stack.id) == "consumable" \
+	# Out of the haul, the obvious thing is into the pack — where a find can be
+	# used. Nothing is eaten or worn straight out of what you are carrying out.
+	if mode != "store" and cell.kind != "haul" and Items.kind_of(stack.id) == "consumable" \
 		and not Config.CONSUMABLES[stack.id].get("tool", false):
 		Actions.use_slot(sim, player, cell.kind, cell.index)
 		return
@@ -773,6 +867,10 @@ func _draw() -> void:
 			_draw_crew(font, panel)
 		"bed":
 			_draw_bed(font, panel)
+		"door":
+			_draw_door(font, panel)
+		"leave":
+			_draw_leave(font, panel)
 		"store":
 			var s := store()
 			var label := "%d / %d slots" % [s.used() if s != null else 0, s.size() if s != null else 0]
@@ -788,6 +886,10 @@ func _draw() -> void:
 			var dr := player.armor_dr
 			draw_string(font, panel.position + Vector2(24, 60), "ARMOUR  %d%%" % roundi(dr * 100.0),
 				HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#9fd07a") if dr > 0.0 else Color("#8a8f84"))
+			if mode == "pack" and sim.instance != null:
+				draw_string(font, Vector2(_haul_x(), panel.position.y + 60), "HAUL  %.0f / %.0f  ·  out only past the boss" % [
+					Instance.haul_load(sim, player), float(Config.INSTANCE.haul_cap)],
+					HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color("#d8c98a"))
 
 	for cell in _cells():
 		_draw_cell(font, cell)
@@ -826,6 +928,55 @@ func _draw() -> void:
 		draw_string(font, r.position + Vector2(0, CELL - 6), _short(drag.id), HORIZONTAL_ALIGNMENT_CENTER, CELL, 9, Color.BLACK)
 	elif not hover.is_empty():
 		_draw_tooltip(font, _stack_in(hover))
+
+
+## The door's rules, down the left beside your pack. Six lines, because that is
+## the whole of what is different in there, and each is a rule you will meet.
+func _draw_door(font: Font, panel: Rect2) -> void:
+	var x := panel.position.x + 24.0
+	var y := panel.position.y + 80.0
+	var why := Instance.refusal(sim, player, door_kind)
+	var lines := [
+		["What you are carrying is all you will have in there.", "#ebe6d6"],
+		["No building, and no stash.", "#d8c98a"],
+		["What you find goes in the HAUL — %d units, and it weighs nothing in a fight." % int(Config.INSTANCE.haul_cap), "#ebe6d6"],
+		["Only the boss lets it out. Walk out early, or die, and it keeps everything you found.", "#e0a070"],
+		["What you brought is yours whatever happens.", "#9fd07a"],
+		["Clear it and the doors are chained until tomorrow.", "#8a8f84"],
+	]
+	if not why.is_empty():
+		lines = [[why, "#c96a5a"]]
+	for l in lines:
+		draw_multiline_string(font, Vector2(x, y), String(l[0]), HORIZONTAL_ALIGNMENT_LEFT, 290.0, 12, -1, Color(String(l[1])))
+		y += 46.0
+
+
+## What walking out now costs, item by item: everything found in here, wherever
+## it is now — the haul or your pack.
+func _draw_leave(font: Font, panel: Rect2) -> void:
+	var x := panel.position.x + 24.0
+	var y := panel.position.y + 80.0
+	var inst := sim.instance
+	if inst == null:
+		return
+	draw_multiline_string(font, Vector2(x, y), "Walk out now and %s keeps everything you found." % Instance.title(inst.kind),
+		HORIZONTAL_ALIGNMENT_LEFT, 290.0, 13, -1, Color("#e0a070"))
+	y += 48.0
+	var found: Dictionary = inst.gained.get(player.seat, {})
+	var parts: Array[String] = []
+	for id: String in found:
+		var n := mini(int(found[id]), Instance.held_count(player, id))
+		if n > 0:
+			parts.append("%d %s" % [n, Items.name_of(id)])
+	var lose := "Nothing yet — you have not found anything." if parts.is_empty() else "You would lose: " + ",  ".join(parts)
+	draw_multiline_string(font, Vector2(x, y), lose, HORIZONTAL_ALIGNMENT_LEFT, 290.0, 12, -1, Color("#ebe6d6"))
+	y += 96.0
+	draw_multiline_string(font, Vector2(x, y), "Put down what is in the gym and all of it comes with you.",
+		HORIZONTAL_ALIGNMENT_LEFT, 290.0, 12, -1, Color("#9fd07a"))
+	# With company, walking out takes everyone: say who it is waiting for.
+	var why := Instance.leave_refusal(sim, player)
+	if not why.is_empty():
+		draw_multiline_string(font, Vector2(x, y + 48.0), why, HORIZONTAL_ALIGNMENT_LEFT, 290.0, 12, -1, Color("#c96a5a"))
 
 
 ## The Raised Bed's two gauges. The water meter is the thing the owner asked
@@ -933,6 +1084,14 @@ func _draw_craft(font: Font, panel: Rect2) -> void:
 			name_ = "%s  ·  %d%%" % [Config.WEAPONS[at.id].name, roundi(Wear.frac(cont, int(at.i)) * 100.0)]
 			cost = Wear.repair_cost(cont, int(at.i))
 			st = Wear.repair_status(sim, player, String(at.c), int(at.i), b)
+		elif row.has("upgrade"):
+			var up: Dictionary = row.upgrade
+			var ucont := Wear.container_for(player, String(up.c))
+			var lv := Upgrade.level(ucont, int(up.i))
+			verb = "UPGRADE"
+			name_ = "%s  ·  level %d → %d" % [Config.WEAPONS[up.id].name, lv, lv + 1]
+			cost = Upgrade.cost(ucont, int(up.i))
+			st = Upgrade.status(sim, player, String(up.c), int(up.i), b)
 		else:
 			var r: Dictionary = row.recipe
 			name_ = r.name
@@ -1092,14 +1251,20 @@ func _draw_tooltip(font: Font, stack: Dictionary) -> void:
 			lines.append("%s  ·  %ds of light" % [Config.GEAR_SLOT_NAMES[g.slot], roundi(float(g.burn))])
 	elif kind == "weapon":
 		var w: Dictionary = Config.WEAPONS[id]
-		lines.append("%.0f damage  ·  %s" % [w.dmg, w.kind])
+		var lv := Upgrade.level_in(stack)
+		lines.append("%.0f damage  ·  %s" % [float(w.dmg) * Upgrade.dmg_mul(lv), w.kind])
+		if lv > 1:
+			lines.append("level %d  ·  +%d%% damage, +%d%% uses" % [lv,
+				roundi((Upgrade.dmg_mul(lv) - 1.0) * 100.0), roundi((Upgrade.dur_mul(lv) - 1.0) * 100.0)])
+		if Wear.recipe_for(id).is_empty():
+			lines.append("found, not made  ·  nothing mends or upgrades it")
 		# Off the stack itself, so the tooltip describes the weapon under the
 		# cursor rather than some other one of the same name.
 		if Wear.wears(id):
 			if Wear.broken_in(stack):
 				lines.append("BROKEN  ·  mend it at the bench that made it")
 			else:
-				lines.append("condition %d / %d" % [Wear.left_in(stack), Wear.max_of(id)])
+				lines.append("condition %d / %d" % [Wear.left_in(stack), Wear.max_in(stack)])
 	elif kind == "consumable":
 		var c: Dictionary = Config.CONSUMABLES[id]
 		if float(c.heal) > 0.0:

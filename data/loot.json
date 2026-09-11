@@ -1405,6 +1405,348 @@
         }
       ],
       "id": "displaycase"
+    },
+    {
+      "entries": [
+        {
+          "id": "cloth",
+          "max": 3,
+          "min": 1,
+          "w": 30
+        },
+        {
+          "id": "item:candyBar",
+          "max": 2,
+          "min": 1,
+          "w": 14
+        },
+        {
+          "id": "item:soda",
+          "max": 1,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "scrap",
+          "max": 3,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "battery",
+          "max": 2,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "elec",
+          "max": 2,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "rations",
+          "max": 2,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "item:bandage",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        },
+        {
+          "id": "gear:denimPants",
+          "max": 1,
+          "min": 1,
+          "w": 4
+        },
+        {
+          "id": "precision",
+          "max": 1,
+          "min": 1,
+          "w": 2
+        }
+      ],
+      "id": "schoolLocker",
+      "notes": "What a teenager kept in a locker: a hoodie, snacks, a dead phone."
+    },
+    {
+      "entries": [
+        {
+          "id": "elec",
+          "max": 3,
+          "min": 1,
+          "w": 18
+        },
+        {
+          "id": "battery",
+          "max": 2,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "item:coffee",
+          "max": 2,
+          "min": 1,
+          "w": 14
+        },
+        {
+          "id": "item:candyBar",
+          "max": 2,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "med",
+          "max": 2,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "scrap",
+          "max": 2,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "cloth",
+          "max": 2,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "item:lockpick",
+          "max": 1,
+          "min": 1,
+          "w": 4
+        },
+        {
+          "id": "precision",
+          "max": 1,
+          "min": 1,
+          "w": 4
+        }
+      ],
+      "id": "teacherDesk",
+      "notes": "Calculators, a kettle's worth of coffee, a first-aid tin in the bottom drawer."
+    },
+    {
+      "entries": [
+        {
+          "id": "item:cannedFood",
+          "max": 3,
+          "min": 1,
+          "w": 24
+        },
+        {
+          "id": "rations",
+          "max": 5,
+          "min": 2,
+          "w": 22
+        },
+        {
+          "id": "item:water",
+          "max": 2,
+          "min": 1,
+          "w": 16
+        },
+        {
+          "id": "item:soda",
+          "max": 2,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "item:candyBar",
+          "max": 3,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "item:jerky",
+          "max": 2,
+          "min": 1,
+          "w": 8
+        }
+      ],
+      "id": "lunchCounter",
+      "notes": "The cafeteria: the one room in the school that was stocked for a siege."
+    },
+    {
+      "entries": [
+        {
+          "id": "med",
+          "max": 4,
+          "min": 2,
+          "w": 26
+        },
+        {
+          "id": "item:bandage",
+          "max": 3,
+          "min": 1,
+          "w": 26
+        },
+        {
+          "id": "item:medkit",
+          "max": 1,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "item:water",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "battery",
+          "max": 1,
+          "min": 1,
+          "w": 6
+        }
+      ],
+      "id": "nurseCabinet",
+      "notes": "The nurse's office. Smaller than a pharmacy, and nobody got to it first."
+    },
+    {
+      "entries": [
+        {
+          "id": "elec",
+          "max": 4,
+          "min": 2,
+          "w": 16
+        },
+        {
+          "id": "battery",
+          "max": 3,
+          "min": 2,
+          "w": 14
+        },
+        {
+          "id": "item:coffee",
+          "max": 2,
+          "min": 1,
+          "w": 12
+        },
+        {
+          "id": "item:booze",
+          "max": 1,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "ammoP",
+          "max": 10,
+          "min": 4,
+          "w": 10
+        },
+        {
+          "id": "item:lockpick",
+          "max": 1,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "parts",
+          "max": 2,
+          "min": 1,
+          "w": 8
+        },
+        {
+          "id": "precision",
+          "max": 2,
+          "min": 1,
+          "w": 12
+        }
+      ],
+      "id": "principalDesk",
+      "notes": "The principal's desk. The gym key is in here too, but that is the instance's doing, not the table's."
+    },
+    {
+      "entries": [
+        {
+          "id": "ammoP",
+          "max": 20,
+          "min": 10,
+          "w": 20
+        },
+        {
+          "id": "ammoS",
+          "max": 10,
+          "min": 4,
+          "w": 14
+        },
+        {
+          "id": "ammoR",
+          "max": 12,
+          "min": 6,
+          "w": 10
+        },
+        {
+          "id": "arrow",
+          "max": 12,
+          "min": 6,
+          "w": 10
+        },
+        {
+          "id": "item:bandage",
+          "max": 3,
+          "min": 2,
+          "w": 20
+        },
+        {
+          "id": "item:medkit",
+          "max": 1,
+          "min": 1,
+          "w": 10
+        },
+        {
+          "id": "battery",
+          "max": 2,
+          "min": 1,
+          "w": 8
+        }
+      ],
+      "id": "supplyCache",
+      "notes": "Somebody's last stand, left outside the gym door: the design note's antechamber cache (§6.4), so running dry on the way in is not an automatic loss."
+    },
+    {
+      "entries": [
+        {
+          "id": "precision",
+          "max": 5,
+          "min": 3,
+          "w": 100
+        },
+        {
+          "id": "weapon:varsityBat",
+          "max": 1,
+          "min": 1,
+          "w": 25
+        },
+        {
+          "id": "weapon:sixShooter",
+          "max": 1,
+          "min": 1,
+          "w": 15
+        },
+        {
+          "id": "item:medkit",
+          "max": 2,
+          "min": 1,
+          "w": 50
+        },
+        {
+          "id": "mil",
+          "max": 8,
+          "min": 4,
+          "w": 60
+        }
+      ],
+      "id": "coachDrops",
+      "notes": "What the Coach drops. **For a boss, `w` is a percentage and every entry rolls on its own** — a boss is not one cupboard's pick but a list of chances, which is how a rare weapon can be rare without crowding out the Precision Parts that always come."
     }
   ],
   "shape": "groups"
