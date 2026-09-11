@@ -50,6 +50,23 @@ static func upgrade_bench(sim: GameSim, p: PlayerSim, at: Vector2i) -> bool:
 	return not s.is_empty() and sim.structs.upgrade_bench(sim, s, p)
 
 
+## ENTER on the panel an instance's door opened. The host checks the player is
+## at that door, and that it would open: alone for now, and not chained for
+## the day.
+static func enter_instance(sim: GameSim, p: PlayerSim, kind: String) -> bool:
+	if _remote("enter_instance", {"kind": kind}):
+		return false
+	return Instance.enter(sim, p, kind)
+
+
+## LEAVE on the panel the way out opened: walking out early, which forfeits
+## what was found. The host checks the player is at a way out.
+static func leave_instance(sim: GameSim, p: PlayerSim) -> bool:
+	if _remote("leave_instance", {}):
+		return false
+	return Instance.walk_out(sim, p)
+
+
 ## The workbench on a tile, if `p` is close enough to be using it.
 static func reachable_bench(sim: GameSim, p: PlayerSim, at: Vector2i) -> Dictionary:
 	var s := sim.structs.at_tile(at.x, at.y)
@@ -233,6 +250,10 @@ static func execute(sim: GameSim, p: PlayerSim, name_: String, a: Dictionary) ->
 		"upgrade_bench":
 			var bench := reachable_bench(sim, p, at)
 			return not bench.is_empty() and sim.structs.upgrade_bench(sim, bench, p)
+		"enter_instance":
+			return Instance.enter(sim, p, String(a.get("kind", "")))
+		"leave_instance":
+			return Instance.walk_out(sim, p)
 		"attr":
 			return Progression.raise_attribute(sim, p, String(a.get("id", "")))
 		"perk":

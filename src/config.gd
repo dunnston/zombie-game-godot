@@ -12,7 +12,7 @@ const WORLD_SIZE := TILE * WORLD_TILES   # 10240px square
 enum T {
 	GRASS, ROAD, SIDEWALK, DIRT, FLOOR_WOOD,
 	WALL, WATER, RUBBLE, LOT, FLOOR_TILE, GRAVEL,
-	FIELD, SAND, FENCE,
+	FIELD, SAND, FENCE, ROOF,
 }
 
 ## Base colour `a` and a translucent detail colour `b`, per terrain.
@@ -31,12 +31,15 @@ const TERRAIN := {
 	T.FIELD:      {"a": Color("#4b3a26"), "b": Color("#5a4630aa")},
 	T.SAND:       {"a": Color("#6e6449"), "b": Color("#7c7255aa")},
 	T.FENCE:      {"a": Color("#38472a"), "b": Color("#31402552")},
+	# A building you cannot walk into, and the solid dark around an instance's
+	# rooms. Solid to feet, bullets and sight, like a wall.
+	T.ROOF:       {"a": Color("#33363c"), "b": Color("#3c404764")},
 }
 
-## Indexed by T. Solid to feet: wall, water, fence.
-const SOLID_BY_TILE := [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1]
+## Indexed by T. Solid to feet: wall, water, fence, roof.
+const SOLID_BY_TILE := [0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1]
 ## Solid to feet but not to bullets: you shoot across a river or over a fence.
-const SHOOT_OVER_BY_TILE := [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1]
+const SHOOT_OVER_BY_TILE := [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0]
 
 # ------------------------------------------------------------------- player --
 
@@ -75,6 +78,44 @@ const PLAYER := {
 	# Ground-ring tints, one per seat.
 	"colors": ["#dff0ff", "#ffd27a", "#9fe8a0", "#f0a0e8"],
 	"names": ["Survivor", "Ash", "Bex", "Cole", "Dee"],
+}
+
+# --------------------------------------------------------------- instances --
+
+## Instanced dungeons (`tasks/instanced-dungeons.md`): a sealed building in the
+## town whose door loads a separate map, with a boss at the end that is the
+## only way out with what you found.
+##
+## The haul pouch is §6.2's second budget: what you carry *out*, kept apart
+## from what you fight with so a good looting run does not make you slow for
+## the hardest fight in the game. By weight, like the pack.
+const INSTANCE := {
+	"haul_cap": 120.0,
+	"haul_slots": 16,
+}
+
+## One row per instance. `shell` is the building in the town, `door` the tiles
+## you walk up to, `out` which way the door faces and `lot` the apron from the
+## road to it. `clock_t` is the time of day the inside is frozen at — it is
+## what `LightView` and the dark multipliers read, so 0.70 is dusk-dim: past
+## `DARK_ENOUGH`, so a worn torch lights itself, and nowhere near black.
+## `boss` is PR B's stand-in; the phase boss is PR C.
+const INSTANCES := {
+	"school": {
+		"name": "PINE HOLLOW HIGH",
+		"tier": 2,
+		"clock_t": 0.70,
+		"boss": "behemoth",
+		"boss_hp_mul": 1.0,
+		"shell": Rect2i(116, 64, 24, 18),
+		"door": Rect2i(116, 71, 1, 2),
+		"out": Vector2i(-1, 0),
+		"lot": Rect2i(110, 68, 6, 8),
+		"location": {"id": "school_inside", "name": "PINE HOLLOW HIGH", "tier": 2,
+			"rect": Rect2i(96, 92, 90, 58), "desc": "The halls, the classrooms, and the gym at the back."},
+		# How many stand in each kind of room, as [min, max].
+		"pop": {"classroom": [2, 3], "hall": [5, 7], "cafeteria": [4, 5], "small": [1, 2]},
+	},
 }
 
 ## The dash: a short committed burst with i-frames in it (2026-09-10, the
@@ -1284,6 +1325,8 @@ const LOCATIONS := [
 	{"id": "hospital",   "name": "ST. MARTHA HOSPITAL", "tier": 3, "rect": Rect2i(90, 188, 46, 42),  "desc": "Medicine. The halls are full."},
 	{"id": "industrial", "name": "DOCK YARD",           "tier": 3, "rect": Rect2i(144, 198, 30, 36), "desc": "Electronics and parts. Brutes work here."},
 	{"id": "military",   "name": "CHECKPOINT DELTA",    "tier": 4, "rect": Rect2i(204, 204, 32, 32), "desc": "Military hardware. You will need a plan."},
+	# An instance: the building is sealed and its door loads the inside (`INSTANCES`).
+	{"id": "school",     "name": "PINE HOLLOW HIGH",    "tier": 2, "rect": Rect2i(108, 62, 34, 22), "desc": "The high school, chained shut. Whatever is in the gym kept it that way."},
 	# the country
 	{"id": "farms",      "name": "HOLLOW CREEK FARMS",  "tier": 1, "rect": Rect2i(2, 66, 52, 106),   "desc": "Fields and barns across the river. Food, fuel, quiet."},
 	{"id": "ranch",      "name": "SADDLEBACK RANCH",    "tier": 1, "rect": Rect2i(2, 206, 52, 50),   "desc": "Paddocks and a stable. The end of the lane."},
@@ -1537,6 +1580,10 @@ static var CONTAINERS: Dictionary = DataTable.load_table("containers")
 ## fills with wardrobes and a precinct with filing cabinets, so a building's
 ## exterior tells you what is worth searching inside.
 const FURNISHING := {
+	# The School's rooms. An instance is furnished like anywhere else; only the
+	# kinds are its own (`school*` in LOOT and CONTAINERS).
+	"schoolClass": [["teacherDesk", 8], ["schoolLocker", 12], ["bookshelf", 6], ["filing", 3]],
+	"schoolCafeteria": [["lunchCounter", 18], ["fridge", 8], ["kitchen", 8], ["vending", 6]],
 	"house": [
 		["cabinet", 12], ["dresser", 14], ["wardrobe", 12], ["bookshelf", 12],
 		["nightstand", 12], ["fridge", 9], ["kitchen", 9], ["vanity", 8],

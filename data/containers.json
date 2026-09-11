@@ -314,6 +314,66 @@
       ],
       "sprite": "displaycase",
       "table": "displaycase"
+    },
+    {
+      "id": "schoolLocker",
+      "label": "School Locker",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "locker",
+      "table": "schoolLocker"
+    },
+    {
+      "id": "teacherDesk",
+      "label": "Teacher's Desk",
+      "rolls": [
+        1,
+        2
+      ],
+      "sprite": "desk",
+      "table": "teacherDesk"
+    },
+    {
+      "id": "lunchCounter",
+      "label": "Cafeteria Counter",
+      "rolls": [
+        2,
+        3
+      ],
+      "sprite": "displaycase",
+      "table": "lunchCounter"
+    },
+    {
+      "id": "nurseCabinet",
+      "label": "Nurse's Cabinet",
+      "rolls": [
+        2,
+        3
+      ],
+      "sprite": "medcab",
+      "table": "nurseCabinet"
+    },
+    {
+      "id": "principalDesk",
+      "label": "Principal's Desk",
+      "rolls": [
+        2,
+        3
+      ],
+      "sprite": "desk",
+      "table": "principalDesk"
+    },
+    {
+      "id": "supplyCache",
+      "label": "Supply Cache",
+      "rolls": [
+        3,
+        4
+      ],
+      "sprite": "milcrate",
+      "table": "supplyCache"
     }
   ],
   "shape": "by_id_bare"

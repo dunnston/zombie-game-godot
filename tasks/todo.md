@@ -2384,3 +2384,67 @@ stand-in in the gym until PR C replaces it.
 3. The haul pouch at 120 units, which is about half of what you carry.
 4. The School's name, the boss's name and idea, and the material's name —
    PR C and PR E, so they do not block the start.
+
+## Instanced dungeons, PR B — Pine Hollow High
+
+The design is `tasks/instanced-dungeons.md` (its §0 holds the owner's
+decisions of 2026-09-10). The five-PR plan is in PR A's copy of this file;
+this branch is cut from `main`, and the two sections are reconciled when the
+second of them merges. PR B: the School end to end, solo, with a Behemoth
+standing in for the boss.
+
+*The building in the town*
+- [x] District `school` (tier 2) north of Pine Hollow Suburbs on the west
+      street, at the plot finder's best real site
+- [x] A sealed shell with a slate roof (`ROOF`: solid to feet, bullets and
+      sight) and one pair of doors, stamped after generation — not one RNG
+      draw moved, 644 containers exactly
+- [x] Saves from before the School still load (`World.accepts_fingerprint`)
+
+*The instance*
+- [x] `Instance` (`src/sim/instance.gd`): the map swap, entering, the three
+      ways out, the ledger and the forfeit, the key, the wipe, and the record
+      a save writes from inside
+- [x] `GameSim.instance` and `cleared`; the town does not tick while a run is on
+- [x] The School's interior: `World` with a layout, a fixed skeleton, rolled
+      doorways, contents and population, a frozen dusk clock
+- [x] The chained gym and the key in the principal's desk
+- [x] Six loot tables and six container kinds, through `EditApi`
+
+*The rules*
+- [x] The haul: its own 120-unit budget, closed outside, found things usable
+      once moved into the pack
+- [x] The ledger: min(found, still carried) per item on any way out but the boss
+- [x] Boss down: the exit opens, the haul comes out, the door chains for the day
+- [x] Walking out early asks first, and lists what you would lose
+- [x] Death inside: no pack, and you wake at the door with what you brought
+- [x] No building, and the stash out of reach
+- [x] No autosave inside; a save asked for is the walked-out game; `cleared`
+      in the save without a version bump
+- [x] Solo only until PR D, and the door says so
+
+*The screen*
+- [x] Door and leave panels in the pack screen; the haul grid; the HUD's run
+      line; `InstanceView`'s four doors; views rebuilt on the way in and out
+- [x] Dev verbs: walk into the School, put down its boss
+- [x] `instance_test.gd` (23 tests); a smoke leg of six checkpoints through
+      the real key and the real panel
+
+- [ ] **Owner gate:** walk in and out — see `PROJECT.md` §7, *Walk into the School*
+
+**PR B review.** Built as planned, with the owner's four defaults (the site,
+old saves loading, a 120-unit haul, placeholder names). Five rules were
+checked by breaking them: no forfeit fails two tests with the note's own
+numbers, finds kept out of the haul fails five, and the spawner and the town
+gate each fail the "nothing that runs the town runs in here" test — which in
+its first draft could not fail, because it asserted "nothing spawned" in a
+building already fuller than the spawner's target and "no raid" against the
+town's Threat, which is not ticked in there at all. The smoke run passed its
+first time through but logged a SCRIPT ERROR: pressing E at the exit swapped
+the map in the middle of the player's step. A way out on the key now waits
+for the end of the step, and `test_walking_out_on_the_key_…` reproduces the
+exact error on the old code. Numbers: 640 / 8665 fast, 676 / 8813 with
+`--all`, zero failures; smoke 79/79 with nothing in its log. Six photographs
+checked by eye: the roof reads as a building you cannot walk into, the panel
+is legible, the inside is dusk-dim with the torch lit. One thing to look at
+in play: inside, the minimap is a small building in a large empty square.

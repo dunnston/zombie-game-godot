@@ -375,6 +375,29 @@ yet when an earlier autoload's `_ready` wants to know.
   §8 again, most likely the chat window taking focus mid-run. Re-run before
   bisecting, and never read a flake as a pass for the leg you just wrote.
 
+## 2026-09-10 (the School)
+
+- A test that says "nothing spawned" in a room already fuller than the
+  spawner's target density cannot fail: the spawner would add nobody either
+  way. Mine did exactly that, and so did "no raid came" asserted against the
+  town's Threat, which is not ticked in there at all. Breaking the gate on
+  purpose showed both were watching the wrong thing. Empty the room first,
+  and push the value the sim actually reads — the inside's Threat, not the
+  town's.
+- Anything that replaces the map under the sim happens at one point in the
+  step, and that point is the end. E at the exit called `Instance.leave` from
+  inside `PlayerSim.tick`, so the rest of `GameSim.tick` ran on the town with
+  `instance` already null and crashed calling it. Every test called
+  `walk_out` from outside a tick and passed; the smoke run pressed the real
+  key and logged a SCRIPT ERROR under a green summary. Read the smoke log,
+  not just its last line, and test a state change through the step that
+  makes it.
+- The owner's Godot editor parses the working tree live. A change that adds a
+  constant in one file and uses it in another shows them a parser error for
+  as long as the two edits are apart, and it lands on whatever branch the
+  folder is on. Put the definition in before the first use, and say which
+  branch the folder is on before the owner opens it.
+
 ## 2026-09-10 (the owner's first playtest)
 
 - Look at the photograph before reading the renderer. "The torch gave no

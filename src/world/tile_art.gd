@@ -28,8 +28,9 @@ static func coords(key: String) -> Vector2i:
 
 static func _build() -> void:
 	var keys: Array[String] = []
-	for t in range(14):
-		if t == T.WALL:
+	for t in range(T.size()):
+		# Walls and roofs are drawn on the wall layer from art of their own.
+		if t == T.WALL or t == T.ROOF:
 			continue
 		for v in range(5):
 			keys.append("t%d_v%d" % [t, v])
@@ -44,6 +45,8 @@ static func _build() -> void:
 		keys.append("roadv_v%d" % v)
 	for v in range(3):
 		keys.append("wall_%d" % v)
+	for v in range(3):
+		keys.append("roof_%d" % v)
 	keys.append("shadow")
 
 	var rows := ceili(keys.size() / float(COLS))
@@ -92,6 +95,20 @@ static func _paint(img: Image, ox: int, oy: int, key: String) -> void:
 			_rect(img, ox, oy, 0, TILE - 4, TILE, 4, Color("#00000033"))
 			if v == 2:
 				_rect(img, ox, oy, 6, 10, 12, 7, Color("#4a4238"))
+		"roof":
+			# Slate, in shingle courses, darker than any wall: a building you
+			# cannot walk into has to read as one from across the street
+			# (pillar 4), and a wall-coloured block reads as rubble.
+			var v := int(parts[1])
+			var base: Color = Config.TERRAIN[T.ROOF].a
+			_rect(img, ox, oy, 0, 0, TILE, TILE, base if v != 1 else base.lightened(0.05))
+			for r in range(0, TILE, 8):
+				_rect(img, ox, oy, 0, r, TILE, 2, Color("#23262b"))
+				var off := 8 if (r / 8) % 2 == 0 else 0
+				for x in range(off, TILE, 16):
+					_rect(img, ox, oy, x, r, 2, 8, Color("#2a2d32"))
+			if v == 2:
+				_rect(img, ox, oy, 10, 12, 8, 6, Color("#4a4f57"))
 		"water":
 			# bit 1 up, 2 down, 4 left, 8 right: a pale lip where water meets land.
 			var m := int(parts[1].substr(1))
