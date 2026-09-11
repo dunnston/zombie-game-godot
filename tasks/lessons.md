@@ -446,3 +446,11 @@ different reasons: PR E added `lv` to the haul, the Codex fix added the
 finds already held. Taking either side drops the other's fix silently.
 **Rule:** a conflict between two fixes is resolved by writing the line that
 carries both, then the break-checks for both run again on the merged branch.
+
+## A Codex finding is closed on GitHub, not in the commit (owner correction, 2026-09-10)
+
+All ten findings on #30–#34 were fixed, tested and pushed — and every PR was
+still blocked: branch protection requires each review conversation resolved.
+**Rule:** the last step of a Codex pass is a reply on each thread naming the
+fixing commit and its test, then `resolveReviewThread`, then a check that no
+thread is open and `mergeStateStatus` is CLEAN.
