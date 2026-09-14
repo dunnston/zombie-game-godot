@@ -91,7 +91,7 @@ static func buy_perk(sim: GameSim, p: PlayerSim, perk_id: String) -> bool:
 ## build, which is why it lives here and not in the recompute.
 static func _hand_over_gains(p: PlayerSim, hp_before: float, stam_before: float) -> void:
 	p.hp += maxf(0.0, p.max_hp - hp_before)
-	p.stam += maxf(0.0, p.max_stam - stam_before)
+	Stamina.grant(p, maxf(0.0, p.max_stam - stam_before))
 
 
 # -------------------------------------------------------------- for the sheet --
