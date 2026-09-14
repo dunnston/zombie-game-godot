@@ -224,9 +224,7 @@ func _physics_process(dt: float) -> void:
 			held.interact_held = false
 			held.aim = me.pos + Vector2.from_angle(me.angle) * 64.0
 			if role == "guest":
-				net_guest.poll()
-				net_guest.tick(dt)
-				_after_guest_step()
+				_guest_step(dt)
 			else:
 				_host_step(dt)
 			return
@@ -317,9 +315,7 @@ func _physics_process(dt: float) -> void:
 	if role == "guest":
 		# No `sim.tick` on a guest: the mirror is the host's picture, and the
 		# only thing this machine simulates is its own next step.
-		net_guest.poll()
-		net_guest.tick(dt)
-		_after_guest_step()
+		_guest_step(dt)
 		return
 	_host_step(dt)
 
@@ -347,6 +343,18 @@ func _host_step(dt: float) -> void:
 		smoke_guest.tick(dt)
 
 
+## One step on a guest: the socket, the session, and what follows from it.
+## The hub is pumped here, every step, menu up or not. Nothing else does it
+## once the guest is in: without this its ENet peer neither sends nor
+## receives, and the host times it out five seconds after it arrives.
+func _guest_step(dt: float, idle := false) -> void:
+	if hub != null:
+		hub.poll()
+	net_guest.poll()
+	net_guest.tick(dt, idle)
+	_after_guest_step()
+
+
 ## What a guest checks after every step: whether the renderers have to be
 ## told about a felled tree, and whether the host is still there.
 func _after_guest_step() -> void:
@@ -368,9 +376,7 @@ func _after_guest_step() -> void:
 func _net_menu_step(dt: float) -> void:
 	match role:
 		"guest":
-			net_guest.poll()
-			net_guest.tick(dt, true)
-			_after_guest_step()
+			_guest_step(dt, true)
 		"host":
 			# The door stays open while the host reads the menu: a dial has to
 			# land even if nobody else is here yet.
@@ -379,8 +385,10 @@ func _net_menu_step(dt: float) -> void:
 			if room != null:
 				room.poll()
 			# Guests are playing: the world goes on without the host's hands
-			# on it. Alone, a pause is a pause.
-			if net_host.connected_count() > 0 or (hub != null and not hub.joined.is_empty()) \
+			# on it. Alone, a pause is a pause. A connection still shaking
+			# hands counts as a guest: its `hello` lands a round trip after the
+			# dial, and only `_host_step` reads it.
+			if not net_host.guests.is_empty() or (hub != null and not hub.joined.is_empty()) \
 					or (room != null and not room.joined.is_empty()):
 				NetProtocol.clear_intent(me.intent)
 				_host_step(dt)
@@ -2245,6 +2253,122 @@ func smoke_run(smoke: Node) -> void:
 	# in the smoke run had ever chopped or gathered anything — which is how a gap
 	# that size stayed open.
 	await smoke_chop_and_gather(smoke)
+
+	# After everything, because the second half leaves this scene inside
+	# somebody else's world.
+	await _smoke_coop_over_udp(smoke)
+
+
+## Co-op over a real UDP socket, with this scene pumping its own hub — the
+## one thing the loopback leg above cannot see. The owner's first game with a
+## friend over the internet dropped the friend five seconds after they
+## arrived: the scene pumped a guest's hub while dialling and never again, so
+## its ENet peer went silent and the host timed it out. And a host reading the
+## pause menu ran its session only for guests already admitted, so a friend's
+## `hello` sat unread until their game gave up. A port of its own, so a copy
+## of the game hosting on this machine is not in the way.
+func _smoke_coop_over_udp(smoke: Node) -> void:
+	var dt := 1.0 / Engine.physics_ticks_per_second
+	var port := int(Config.NET.port) + 400 + randi() % 100
+	NetGuest.reuse_world = sim.world
+
+	# A friend dials while the host has the pause menu up.
+	var hh := EnetHub.new()
+	var err := hh.host(port, 3)
+	if not err.is_empty():
+		smoke.fail("smoke could not listen for the UDP leg: %s" % err)
+		NetGuest.reuse_world = null
+		return
+	hub = hh
+	net_host = NetHost.new(sim, "Host")
+	role = "host"
+	menu.over_game = true
+	menu.open(MenuScreen.Page.PAUSE)
+	var gh := EnetHub.new()
+	gh.join("127.0.0.1", port)
+	var friend: NetGuest = null
+	var dialled := -1
+	for i in range(240):
+		await get_tree().physics_frame
+		gh.poll()
+		if dialled < 0 and gh.host_link() != null:
+			dialled = i
+		# A few frames late, so the hello cannot ride in with the dial.
+		if friend == null and dialled >= 0 and i - dialled >= 3:
+			friend = NetGuest.new(gh.host_link(), "smoke-udp", "Dee")
+		if friend != null:
+			friend.poll()
+			friend.tick(dt, true)
+			if friend.status != "connecting":
+				break
+	if friend == null or not friend.joined():
+		smoke.fail("a friend who dialled while the host read the pause menu was never let in: %s" %
+			("still %s %s" % [friend.status, friend.reason] if friend != null else "the dial never landed"))
+	if friend != null:
+		friend.leave()
+	for i in range(6):
+		await get_tree().physics_frame
+		gh.poll()
+	gh.close()
+	menu.close()
+	_stop_hosting()
+
+	# This scene as the friend: joined through the JOIN page, then left to
+	# run on its own loop while an in-process host feeds it.
+	var host_sim := GameSim.new()
+	host_sim.start(sim.world, 7)
+	var hh2 := EnetHub.new()
+	err = hh2.host(port + 1, 3)
+	if not err.is_empty():
+		smoke.fail("smoke could not listen for the UDP guest leg: %s" % err)
+		NetGuest.reuse_world = null
+		return
+	var far := NetHost.new(host_sim, "Ryan")
+	var pump := func() -> void:
+		hh2.poll()
+		for id in hh2.joined:
+			if hh2.links.has(id):
+				far.attach(hh2.links[id])
+		hh2.joined.clear()
+		hh2.left.clear()
+		far.poll()
+		host_sim.tick(dt)
+		far.after_tick(dt)
+	menu.open(MenuScreen.Page.JOIN)
+	menu.fields.address = "127.0.0.1:%d" % (port + 1)
+	_on_menu("join_start", 0)
+	for i in range(240):
+		await get_tree().physics_frame
+		pump.call()
+		if role != "joining":
+			break
+	if role != "guest":
+		smoke.fail("the scene never joined over UDP: %s" % menu.net.error)
+	else:
+		var snaps: int = net_guest.stats.snaps
+		for i in range(90):
+			await get_tree().physics_frame
+			pump.call()
+		if net_guest == null or net_guest.stats.snaps < snaps + 10:
+			smoke.fail("a guest stopped hearing the host once it was in: %d snapshots in 1.5s" %
+				((net_guest.stats.snaps - snaps) if net_guest != null else -1))
+		if far.connected_count() != 1:
+			smoke.fail("the host lost the guest that the scene is playing")
+		await smoke.checkpoint("coop_udp_guest")
+		if net_guest != null:
+			menu.over_game = true
+			menu.open(MenuScreen.Page.PAUSE)
+			snaps = net_guest.stats.snaps
+			for i in range(90):
+				await get_tree().physics_frame
+				pump.call()
+			if net_guest == null or net_guest.stats.snaps < snaps + 10:
+				smoke.fail("a guest behind the pause menu stopped hearing the host")
+			menu.close()
+	_leave_game()
+	far.stop()
+	hh2.close()
+	NetGuest.reuse_world = null
 
 # --------------------------------------------------------------- the menu --
 
