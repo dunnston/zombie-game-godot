@@ -32,6 +32,14 @@ static var _built := false
 ## impacts and a horde. Past this the oldest voice is taken, which is the right
 ## answer — the sound you are stealing is already a third of a second old.
 const VOICES := 24
+
+## The white noise in a cue comes from here, not from `randf()`. A cue is a
+## fixed recipe rendered once at boot, so it should be the same waveform every
+## launch — with the global RNG it was whatever the engine had been asked for
+## beforehand, which made `test_nothing_clips` a coin flip on any cue mixed
+## near full scale (boltActionRifle peaks at 0.999). Seeded here, the bank is
+## a build artifact and that test means something.
+static var _noise_rng := RandomNumberGenerator.new()
 ## Where the mute setting lives. A `static var` rather than a `const` for the
 ## same reason `KeyBinds.STORE` is one: `user://` is shared with the real game,
 ## and a smoke run that wrote its own muting into it would silence the player.
@@ -178,6 +186,9 @@ static func _wave(kind: String, phase: float) -> float:
 ## lowpass, highpass and bandpass the prototype's biquad gave — from one loop,
 ## and able to sweep its cutoff per sample the way `hit` and `struct_break` do.
 static func _noise(buf: PackedFloat32Array, rate: int, op: Dictionary) -> void:
+	# Per op, not per bank: otherwise adding a cue to the table would change
+	# the sound of every cue rendered after it.
+	_noise_rng.seed = 0x50f7
 	var start := int(float(op.get("at", 0.0)) * rate)
 	var n := int(float(op.dur) * rate)
 	var gain: float = op.gain
@@ -201,7 +212,7 @@ static func _noise(buf: PackedFloat32Array, rate: int, op: Dictionary) -> void:
 		env = float(i) / float(attack) if i < attack else env * decay
 		var f := 2.0 * sin(PI * clampf(fc, 20.0, top) / float(rate))
 		fc *= glide
-		var x := randf() * 2.0 - 1.0
+		var x := _noise_rng.randf() * 2.0 - 1.0
 		low += f * band
 		var high := x - low - damp * band
 		band += f * high
