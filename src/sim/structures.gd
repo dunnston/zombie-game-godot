@@ -485,6 +485,26 @@ static func cost_label(cost: Dictionary) -> String:
 	return " · ".join(parts)
 
 
+## A piece's picture for the build menu, `art/structures/<id>.png`, or null
+## when it has none and the menu shows its colour instead — the same seam as
+## `Items.icon_of`. Menu art only: the street draws a piece in code, because
+## it shows what the piece is doing (damage, an open gate, a turret's aim).
+##
+## A `static var` so a test can point it at user:// instead of the project.
+static var ART_DIR := "res://art/structures/"
+static var _art := {}
+
+
+static func icon_of(type: String) -> Texture2D:
+	if not _art.has(type):
+		_art[type] = Items.load_png(ART_DIR + type + ".png")
+	return _art[type]
+
+
+static func clear_art_cache() -> void:
+	_art.clear()
+
+
 func damaged_within(at: Vector2, radius := B.repair_all_range) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for s in list:

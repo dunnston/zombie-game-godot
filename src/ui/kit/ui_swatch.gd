@@ -11,14 +11,23 @@ var frame := false
 var frame_color := Ui.LINE
 ## Inner size when framed.
 var inner := 0.0
-## Draw `color` with no item behind it: a structure, which has no art.
+## Draw `color` with no item behind it: a structure, or a tool.
 var solid := false
+## A solid swatch's picture, drawn instead of `color` when there is one.
+var tex: Texture2D = null
 
 
 static func of_color(c: Color, px := 8, framed := false, inner_px := 0.0) -> UiSwatch:
 	var s := UiSwatch.new("", px, framed, inner_px)
 	s.color = c
 	s.solid = true
+	return s
+
+
+## A buildable piece: its art when it has some, its colour when it does not.
+static func of_structure(type: String, c: Color, px := 8, framed := false, inner_px := 0.0) -> UiSwatch:
+	var s := of_color(c, px, framed, inner_px)
+	s.tex = Structures.icon_of(type)
 	return s
 
 
@@ -29,6 +38,7 @@ func _init(item_id := "", px := 8, framed := false, inner_px := 0.0) -> void:
 	frame = framed
 	inner = inner_px if inner_px > 0.0 else px * 0.6
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_filter = Items.ART_FILTER
 
 
 func set_item(item_id: String, a := 1.0, edge: Variant = null) -> void:
@@ -50,7 +60,9 @@ func _draw() -> void:
 		draw_rect(r, frame_color, false, 1.0)
 		sw = Rect2((size - Vector2(inner, inner)) / 2.0, Vector2(inner, inner))
 	if id.is_empty():
-		if solid:
+		if solid and tex != null:
+			draw_texture_rect(tex, Items.art_rect(tex, sw), false, Color(1, 1, 1, alpha))
+		elif solid:
 			draw_rect(sw, Color(color, alpha))
 		return
 	var tex := Items.icon_of(id)

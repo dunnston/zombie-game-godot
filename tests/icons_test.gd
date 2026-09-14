@@ -65,3 +65,31 @@ func test_every_file_in_the_art_folder_is_named_after_an_item() -> void:
 			continue
 		var id := f.get_basename().trim_suffix("_ground")
 		ok(Items.has(id) or planned.has(id), "art/items/%s is named after no item" % f)
+
+
+# -------------------------------------------------------------- structures --
+# Buildables are not items, so their menu art has its own folder with the
+# same rules: found by name, absent means the colour, a stray name is caught.
+
+func test_a_structure_with_no_file_keeps_its_colour() -> void:
+	var was := Structures.ART_DIR
+	Structures.ART_DIR = DIR
+	Structures.clear_art_cache()
+	eq(Structures.icon_of("woodWall"), null)
+	var tile := UiSwatch.of_structure("woodWall", Color.RED, 56, true, 34)
+	eq(tile.tex, null, "the tile draws its colour")
+	_png("woodWall", 8, 8)
+	Structures.clear_art_cache()
+	ok(Structures.icon_of("woodWall") != null, "found by name")
+	var art := UiSwatch.of_structure("woodWall", Color.RED, 56, true, 34)
+	eq(art.tex, Structures.icon_of("woodWall"), "the tile draws the art")
+	tile.free()
+	art.free()
+	Structures.ART_DIR = was
+	Structures.clear_art_cache()
+
+
+func test_every_file_in_the_structure_art_folder_is_named_after_a_structure() -> void:
+	for f: String in DirAccess.get_files_at(Structures.ART_DIR):
+		if f.ends_with(".png"):
+			ok(Config.STRUCTURES.has(f.get_basename()), "art/structures/%s is named after no structure" % f)
