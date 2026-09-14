@@ -57,15 +57,15 @@ func run_sections() -> void:
 		(r.f as Callable).call()
 
 
-## Drops lookups into a section that is about to be rebuilt.
+## Drops lookups into a section that is about to be rebuilt. An entry is read
+## untyped and checked before it is used: assigning a freed node to a `Node`
+## variable is itself a script error.
 func _forget(box: Node) -> void:
 	for k in _buttons.keys():
-		var b: Node = _buttons[k]
-		if not is_instance_valid(b) or box.is_ancestor_of(b):
+		if not is_instance_valid(_buttons[k]) or box.is_ancestor_of(_buttons[k]):
 			_buttons.erase(k)
 	for k in _named.keys():
-		var r: Node = _named[k]
-		if not is_instance_valid(r) or box.is_ancestor_of(r):
+		if not is_instance_valid(_named[k]) or box.is_ancestor_of(_named[k]):
 			_named.erase(k)
 
 
@@ -82,14 +82,18 @@ func reg_row(key: String, c: Control) -> Control:
 ## The middle of a button, for the smoke run's cursor; zero when it is not on
 ## screen, which the smoke run reports rather than clicking nothing.
 func button_centre(id: String) -> Vector2:
-	var b: Control = _buttons.get(id, null)
-	if b == null or not is_instance_valid(b) or not b.is_visible_in_tree():
+	if not is_instance_valid(_buttons.get(id, null)):
+		return Vector2.ZERO
+	var b: Control = _buttons[id]
+	if not b.is_visible_in_tree():
 		return Vector2.ZERO
 	return b.get_global_rect().get_center()
 
 
 func _centre(key: String) -> Vector2:
-	var c: Control = _named.get(key, null)
-	if c == null or not is_instance_valid(c) or not c.is_visible_in_tree():
+	if not is_instance_valid(_named.get(key, null)):
+		return Vector2.ZERO
+	var c: Control = _named[key]
+	if not c.is_visible_in_tree():
 		return Vector2.ZERO
 	return c.get_global_rect().get_center()
