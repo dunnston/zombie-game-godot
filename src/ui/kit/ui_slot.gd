@@ -25,6 +25,7 @@ func _init(cell_info := {}, px := Ui.SLOT_SIZE) -> void:
 	info = cell_info
 	custom_minimum_size = Vector2(px, px)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	texture_filter = Items.ART_FILTER
 	mouse_entered.connect(func() -> void:
 		hovered = true
 		queue_redraw())

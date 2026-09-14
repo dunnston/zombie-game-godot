@@ -102,6 +102,13 @@ static func is_weapon(id: String) -> bool:
 static var ART_DIR := "res://art/items/"
 static var _art := {}
 
+## How anything that draws art filters it. The art is 128px and a pack slot
+## shows it at about 30: nearest-neighbour — the project default, right for
+## the world's hard edges — keeps an arbitrary third of the pixels and turns a
+## stone knife to noise. Mipmaps average them. The imports generate them
+## (`importer_defaults` in project.godot).
+const ART_FILTER := CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+
 
 static func icon_of(id: String, where := "icon") -> Texture2D:
 	var key := "%s/%s" % [where, id]
@@ -132,14 +139,22 @@ static func art_rect(tex: Texture2D, box: Rect2) -> Rect2:
 
 
 static func _load_art(name: String) -> Texture2D:
-	var path := ART_DIR + name + ".png"
+	return load_png(ART_DIR + name + ".png")
+
+
+## A picture on disk as a texture, or null when there is no file. Structures
+## read their art through this too (`Structures.icon_of`).
+static func load_png(path: String) -> Texture2D:
 	if ResourceLoader.exists(path):
 		return load(path) as Texture2D
 	if FileAccess.file_exists(path):
 		# Not imported yet — a file dropped in since the editor last ran, or a
 		# test's under user:// — so read the pixels directly.
 		var img := Image.load_from_file(path)
-		return ImageTexture.create_from_image(img) if img != null else null
+		if img == null:
+			return null
+		img.generate_mipmaps()
+		return ImageTexture.create_from_image(img)
 	return null
 
 
