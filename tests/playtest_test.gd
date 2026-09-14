@@ -199,6 +199,35 @@ func test_the_click_menu_says_what_using_it_is() -> void:
 	eq(InventoryScreen.use_verb("wood"), "", "nor wood")
 
 
+func test_eating_from_the_click_menu_does_not_break_the_screen() -> void:
+	# Playtest: EAT or USE on food or a medkit threw "previously freed instance"
+	# on the next rebuild, because the menu's buttons outlived the menu.
+	p.bag.clear_all()
+	p.bag.add("hotMeal", 2)
+	var screen := InventoryScreen.new(sim)
+	# The menu as `_open_pop` leaves it (which needs a viewport this runner lacks).
+	screen.pop = {"cell": {"kind": "bag", "index": 0}, "id": "hotMeal"}
+	screen._pop_layer = Control.new()
+	for act in ["use", "drop"]:
+		var b := Button.new()
+		screen._pop_layer.add_child(b)
+		screen._buttons["pop_" + act] = b
+	var layer := screen._pop_layer
+	screen._pop_do("use")
+	ok(not screen._buttons.has("pop_use") and not screen._buttons.has("pop_drop"),
+		"closing the menu forgets its buttons")
+	layer.free()
+	# And a button freed some other way is dropped by the next rebuild, not read.
+	var stale := Button.new()
+	screen._buttons["stale"] = stale
+	stale.free()
+	var box := VBoxContainer.new()
+	screen._forget(box)
+	ok(not screen._buttons.has("stale"), "a freed button is dropped, not dereferenced")
+	box.free()
+	screen.free()
+
+
 # --------------------------------------------------- 3. night, but darker --
 
 func test_deep_night_is_near_black() -> void:

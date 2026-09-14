@@ -1023,9 +1023,11 @@ is the one meter the player manages, and it is not food.
   only the dial did — so a real guest went silent the moment it arrived and
   the host timed it out five seconds later; every test and the loopback
   smoke leg pump their own links and could not see it. A host reading a
-  menu also runs its session for a connection still shaking hands, or that
-  friend's `hello` waits unread. The smoke's last leg (`_smoke_coop_over_udp`)
-  plays both over a real socket through the scene's own loop.
+  menu also reads its links (`_host_read`), or a friend's `hello` waits
+  unread — but only an admitted guest runs the paused world, so a connection
+  that never says hello cannot unpause it. The smoke's last leg
+  (`_smoke_coop_over_udp`) plays all of it over a real socket through the
+  scene's own loop.
 
 ### The ears (Phase 4d — audio)
 
@@ -2374,7 +2376,8 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
-| 2026-09-14 | **A friend stays in the game.** The owner's first internet game: the friend joined, appeared, and was gone five seconds later. Once a guest was in the world the scene never called `hub.poll()` for it (only the dial did), so its ENet peer went silent and the host timed it out. `_guest_step` now pumps the hub on every guest step, menu up or not. Same class on the host: with a menu up the session ran only for admitted guests, so a friend dialling then had their `hello` sit unread until their game gave up — now any attached connection counts. The smoke gains `_smoke_coop_over_udp` (a dial behind the pause menu, then the scene as a guest over real UDP, menu down and up); it fails three ways without the fix. Protocol unchanged — **but the fix is on the guest's side, so a friend needs the new build** |
+| 2026-09-14 | **A friend stays in the game.** The owner's first internet game: the friend joined, appeared, and was gone five seconds later. Once a guest was in the world the scene never called `hub.poll()` for it (only the dial did), so its ENet peer went silent and the host timed it out. `_guest_step` now pumps the hub on every guest step, menu up or not. Same class on the host: with a menu up the links were read only for admitted guests, so a friend dialling then had their `hello` sit unread until their game gave up — now `_host_read` answers handshakes behind the menu, and the world still runs only for an admitted guest (Codex on #43: a connection that never says hello must not unpause the host). The smoke gains `_smoke_coop_over_udp` (a dial behind the pause menu, then the scene as a guest over real UDP, menu down and up); it fails three ways without the fix. Protocol unchanged — **but the fix is on the guest's side, so a friend needs the new build** |
+| 2026-09-14 | **Eating from the click menu no longer throws.** EAT, DRINK or USE on the pack's click menu freed the menu, but its `pop_use`/`pop_drop` buttons stayed in `_buttons`, and the next section rebuild (the pack changing when the item was used) read one into a `var b: Node` — which is itself a script error on a freed instance, so the debugger stopped the game. `_close_pop` now forgets the menu's buttons, and `UiScreen._forget`, `button_centre` and `_centre` check validity before any typed read. `playtest_test.gd` covers both, and fails against the old code with the playtest's own error |
 | 2026-09-14 | **The icon set.** 124 item icons in `art/items/` and 19 build-menu pictures in `art/structures/`, cut from twelve generated sheets by `tools/slice_icons.py`. `Structures.icon_of` and `UiSwatch.of_structure` put structure art on the build menu (cards, detail, placement bar) with the colour as fallback; `Items.load_png` is shared by both. Art draws with `Items.ART_FILTER` (linear + mipmaps) and textures import with mipmaps. `icons_test` covers the structure seam and misnamed structure files |
 | 2026-09-14 | **Notion stays.** The owner works in Notion, not Linear, so the 2026-09-10 Linear move is abandoned at Phase 1: the board is *Ideas & Roadmap* under DEADLINE, and the session protocol reads its `Next up` column. The Notion pages were rewritten to describe the Godot project (they still described the browser prototype), the nine prototype-era `Next up` cards that Godot had already shipped were closed with their PR links, and the Items & Crafting and Graphics pages now name `data/*.json` and `art/items/` rather than `config.gd` and a generator that does not exist |
 | 2026-09-14 | Prototype-era cleanup, docs only: the UI design handoff moved from the repo root to `tasks/ui-redesign-handoff/`; `tasks/port-inventory.md` and the handoff relabelled as history rather than the spec; `config.gd`'s and `CLAUDE.md`'s headers no longer point at the prototype's `config.js` and `PROJECT.md` as the source of truth. No code or data changed |

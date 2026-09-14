@@ -326,6 +326,17 @@ func _host_step(dt: float) -> void:
 	if net_host == null:
 		sim.tick(dt)
 		return
+	_host_read()
+	sim.tick(dt)
+	net_host.after_tick(dt)
+	if smoke_guest != null:
+		smoke_guest.poll()
+		smoke_guest.tick(dt)
+
+
+## The wire in, without a step: every hub pumped, new connections attached,
+## and every link read — a `hello` admitted, a guest's intent taken.
+func _host_read() -> void:
 	for h: PeerHub in [hub, room]:
 		if h == null:
 			continue
@@ -336,11 +347,6 @@ func _host_step(dt: float) -> void:
 		h.joined.clear()
 		h.left.clear()
 	net_host.poll()
-	sim.tick(dt)
-	net_host.after_tick(dt)
-	if smoke_guest != null:
-		smoke_guest.poll()
-		smoke_guest.tick(dt)
 
 
 ## One step on a guest: the socket, the session, and what follows from it.
@@ -378,20 +384,17 @@ func _net_menu_step(dt: float) -> void:
 		"guest":
 			_guest_step(dt, true)
 		"host":
-			# The door stays open while the host reads the menu: a dial has to
-			# land even if nobody else is here yet.
-			if hub != null:
-				hub.poll()
-			if room != null:
-				room.poll()
+			# The door stays open while the host reads the menu, and a dial is
+			# answered: its `hello` lands a round trip after it, and a friend
+			# must not wait for the host to close the menu to be let in.
+			_host_read()
 			# Guests are playing: the world goes on without the host's hands
-			# on it. Alone, a pause is a pause. A connection still shaking
-			# hands counts as a guest: its `hello` lands a round trip after the
-			# dial, and only `_host_step` reads it.
-			if not net_host.guests.is_empty() or (hub != null and not hub.joined.is_empty()) \
-					or (room != null and not room.joined.is_empty()):
+			# on it. Alone, a pause is a pause — and a connection that has not
+			# said a valid `hello` is nobody, however long it stays open.
+			if net_host.connected_count() > 0:
 				NetProtocol.clear_intent(me.intent)
-				_host_step(dt)
+				sim.tick(dt)
+				net_host.after_tick(dt)
 		"joining":
 			_join_step(dt)
 
@@ -2264,8 +2267,9 @@ func smoke_run(smoke: Node) -> void:
 ## friend over the internet dropped the friend five seconds after they
 ## arrived: the scene pumped a guest's hub while dialling and never again, so
 ## its ENet peer went silent and the host timed it out. And a host reading the
-## pause menu ran its session only for guests already admitted, so a friend's
-## `hello` sat unread until their game gave up. A port of its own, so a copy
+## pause menu read its links only for guests already admitted, so a friend's
+## `hello` sat unread until their game gave up — while a connection that never
+## says hello must still leave the paused world paused. A port of its own, so a copy
 ## of the game hosting on this machine is not in the way.
 func _smoke_coop_over_udp(smoke: Node) -> void:
 	var dt := 1.0 / Engine.physics_ticks_per_second
@@ -2288,6 +2292,7 @@ func _smoke_coop_over_udp(smoke: Node) -> void:
 	gh.join("127.0.0.1", port)
 	var friend: NetGuest = null
 	var dialled := -1
+	var paused_at := sim.time
 	for i in range(240):
 		await get_tree().physics_frame
 		gh.poll()
@@ -2295,6 +2300,12 @@ func _smoke_coop_over_udp(smoke: Node) -> void:
 			dialled = i
 		# A few frames late, so the hello cannot ride in with the dial.
 		if friend == null and dialled >= 0 and i - dialled >= 3:
+			# A connection that has said nothing is nobody: it must not
+			# unpause the host's world, however long it stays open.
+			if net_host.guests.is_empty():
+				smoke.fail("the host never attached the dial")
+			if sim.time != paused_at:
+				smoke.fail("a connection that never said hello ran the paused host's world: %.2fs" % (sim.time - paused_at))
 			friend = NetGuest.new(gh.host_link(), "smoke-udp", "Dee")
 		if friend != null:
 			friend.poll()
