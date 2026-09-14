@@ -1,6 +1,6 @@
 # UI redesign — one PR (`ui-redesign`)
 
-Source: `DEADLINE UI redesign/design_handoff_deadline_ui/` (README + 11 `.dc.html`
+Source: `tasks/ui-redesign-handoff/` (moved from the repo root 2026-09-14; README + 11 `.dc.html`
 mockups at 1920×1080). High fidelity: tokens, type, spacing, borders and states
 are exact. Branch off an up-to-date `origin/main`, PR into `main`.
 

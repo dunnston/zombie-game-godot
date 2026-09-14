@@ -1,11 +1,16 @@
 # DEADLINE — port inventory
 
-What the browser prototype does, distilled so the Godot build can be ported
-from it. Source of truth: `PROJECT.md` §4/§6/§8 and `src/game/config.js` in
-`C:\Users\ryans\OneDrive\Desktop\AI Games\zombie-game`. Numbers are the
-prototype's current values; a number that moved in the port should move for a
-reason. Units are world pixels unless stated; the tile is 32px and the player
-moves 176px/s, so "400px" is about 2.3 seconds of walking.
+**Historical.** The port this measured is complete (PROJECT.md §3; `tasks/todo.md`, Phase 4);
+the code and `data/*.json` are the spec now, and a number here that disagrees
+with `Config` is simply out of date. Kept because it says what the prototype
+did and why, which the code comments cite.
+
+What the browser prototype did, distilled so the Godot build could be ported
+from it. It was distilled from the prototype's `PROJECT.md` §4/§6/§8 and
+`src/game/config.js` (`C:\Users\ryans\OneDrive\Desktop\AI Games\zombie-game`,
+read-only). Numbers were the prototype's values at the time; a number that
+moved in the port moved for a reason, recorded in PROJECT.md. Units are world
+pixels unless stated; the tile is 32px and the player moves 176px/s, so "400px" is about 2.3 seconds of walking.
 
 ---
 

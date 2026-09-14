@@ -1,5 +1,13 @@
 # Handoff: DEADLINE UI redesign
 
+> **Historical.** This handoff was built in full in PR #37 (2026-09-11, see
+> `tasks/ui-redesign.md`); `src/ui/ui.gd` holds the tokens now and wins if
+> the two disagree. The `.dc.html` files are Claude Design pages; `support.js`
+> beside them is the runtime and fetches React, ReactDOM and Babel from
+> unpkg.com, so opening a page in a browser works as long as that CDN is
+> reachable and fails blank offline. The README below is the reference; it
+> is unchanged.
+
 ## Overview
 
 A full UI redesign for **DEADLINE**, a top-down 2D zombie survival game with online co-op, built in **Godot 4.7.2** (`dunnston/zombie-game-godot`, branch `main`). The redesign covers every screen the game has today: HUD, Crafting, Building (menu plus placement mode), Inventory, Container/storage, Workbench, Character, Crew, Map, Title with save slots, Settings and Pause.

@@ -286,7 +286,7 @@ Split from vehicles: two systems in one PR is one review of neither.
 
 ## The UI redesign (`ui-redesign`, 2026-09-11)
 
-One PR, to the owner's handoff in `DEADLINE UI redesign/`. The plan, the
+One PR, to the owner's handoff in `tasks/ui-redesign-handoff/`. The plan, the
 owner's four decisions and the review are in **`tasks/ui-redesign.md`**.
 
 - [x] Every screen rebuilt as Control nodes on one theme (`src/ui/ui.gd`)
@@ -1945,6 +1945,11 @@ reverting the fix and watching it fail first.
       mechanic exists without a per-weapon field.
 
 ## Off Notion: Linear for tracking, git for content
+
+**Outcome (2026-09-14): Phase 1 abandoned, Phase 2 kept.** The owner works in
+Notion, so the roadmap stays on the Notion board and Linear is not read or
+written (its 55 imported issues plus 13 added by mistake on 2026-09-14 are
+stale). Content did move to `data/` with the editor, and that stands.
 
 Branch `claude/notion-to-linear-git-bb7ffc`, off `main` at 6b1a030. Owner's
 brief: Linear first, then a local content editor over the real data, and
