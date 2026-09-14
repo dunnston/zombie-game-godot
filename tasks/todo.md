@@ -286,7 +286,7 @@ Split from vehicles: two systems in one PR is one review of neither.
 
 ## The UI redesign (`ui-redesign`, 2026-09-11)
 
-One PR, to the owner's handoff in `DEADLINE UI redesign/`. The plan, the
+One PR, to the owner's handoff in `tasks/ui-redesign-handoff/`. The plan, the
 owner's four decisions and the review are in **`tasks/ui-redesign.md`**.
 
 - [x] Every screen rebuilt as Control nodes on one theme (`src/ui/ui.gd`)

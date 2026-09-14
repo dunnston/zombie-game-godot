@@ -1,7 +1,9 @@
 class_name Config
-## Every tunable number and every content definition lives here. One file to
-## balance. Numbers are the prototype's current values (see
-## tasks/port-inventory.md); a number that moves should move for a reason.
+## Every tunable number lives here, and every content table is reached through
+## here: tunables are consts, content is `data/*.json` loaded into `static var`s
+## of the same names and edited with `tools/edit` (PROJECT.md §10). The numbers
+## started as the browser prototype's (`tasks/port-inventory.md`, now history)
+## and many have moved since; a number that moves should move for a reason.
 
 const TILE := 32
 const WORLD_TILES := 320

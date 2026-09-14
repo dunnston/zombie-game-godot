@@ -2,8 +2,9 @@ class_name Ui
 extends RefCounted
 ## The look of the game, in one place: every colour, face, size and border the
 ## screens use, the `Theme` built from them, and the handful of builders every
-## screen assembles itself out of. The design is `DEADLINE UI redesign/` (the
-## handoff's README is the spec); this file is its tokens.
+## screen assembles itself out of. The design was the handoff in
+## `tasks/ui-redesign-handoff/` (its README lists the tokens); this file is
+## where those tokens live now, and it wins if the two ever disagree.
 ##
 ## One source, like `config.gd` is for tunables. The Theme is built from these
 ## constants at boot rather than kept as a `.tres` beside them, because two

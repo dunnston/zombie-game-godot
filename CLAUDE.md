@@ -1,8 +1,11 @@
 # DEADLINE (Godot) — start here
 
-**Read `PROJECT.md` first**, then `tasks/todo.md`. This is the Godot rebuild of
-the browser prototype at `C:\Users\ryans\OneDrive\Desktop\AI Games\zombie-game`;
-that repo's `PROJECT.md` is the design spec and is not edited from here.
+**Read this repo's `PROJECT.md` first**, then `tasks/todo.md`. This is the Godot
+rebuild of a browser prototype (`C:\Users\ryans\OneDrive\Desktop\AI Games\zombie-game`).
+The port is complete: the prototype is read-only history, not a spec, and
+nothing here is JavaScript except two tools (`server/`, the room-code broker;
+`tools/editor/`, the content editor's page) and the archived UI mockups in
+`tasks/ui-redesign-handoff/`.
 
 ## Facts that are expensive to rediscover
 
