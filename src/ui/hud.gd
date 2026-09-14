@@ -423,8 +423,12 @@ func refresh() -> void:
 	_effects.visible = not chips.is_empty()
 
 	_hp.set_value(p.hp / maxf(1.0, p.max_hp), null, "HP %d" % roundi(p.hp))
-	_stam.set_value(p.stam / maxf(1.0, p.max_stam), Color("#8a8a7a") if p.winded else Ui.ACCENT_HI,
-		"Stamina" + ("  —  winded" if p.winded else ""))
+	# SHORT, not DANGER: DANGER is the health bar's own colour and the two
+	# meters sit next to each other, so a winded bar in it reads as a second
+	# health bar. The countdown is the debuff, not the bar — you are slow
+	# until it runs out, whatever the bar has climbed back to by then.
+	_stam.set_value(p.stam / maxf(1.0, p.max_stam), Ui.SHORT if p.winded else Ui.ACCENT_HI,
+		"Stamina" + ("  —  winded %.1fs" % p.winded_t if p.winded else ""))
 	var band := Mutation.band_of(p)
 	_mut.set_value(Mutation.fraction(p), Color(String(band.color)), "Mutation  ·  %s" % String(band.name),
 		"%d%%" % roundi(p.mutation))

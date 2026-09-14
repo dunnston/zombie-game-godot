@@ -96,7 +96,7 @@ func test_a_tree_is_six_hatchet_swings_and_a_bar_is_three_trees() -> void:
 	var per_swing: float = axe.dmg * p.melee_mul * Combat.chop_multiplier(axe, p, Config.HARVEST.wood)
 	var swings := ceili(470.0 / per_swing)
 	eq(swings, 6, "a tree is %d hatchet swings at starting stats" % swings)
-	var trees := p.max_stam / (swings * Combat.chop_stam_cost(p))
+	var trees := p.max_stam / (swings * Stamina.chop_cost(p, axe))
 	ok(trees >= 2.5 and trees < 4.0, "a full bar is %.2f trees" % trees)
 	var refill: float = Config.PLAYER.stam_chop_delay + p.max_stam / p.stam_regen
 	ok(refill > 4.0 and refill < 12.0, "%.1fs to get back to full" % refill)
@@ -150,10 +150,17 @@ func test_a_pipe_bounces_off_a_tree() -> void:
 	run(sim, 2.0)
 	near(tree.hp, tree.max_hp, 1e-6, "no axe, no wood")
 	ok(not events_of(sim, "notify").is_empty(), "and it says so")
-	near(p.stam, p.max_stam, 1.0, "a swing that moves nothing costs nothing")
+	# Every swing costs now, this one included: it moved no material, so it
+	# is charged at the fighting rate rather than the working one.
+	ok(p.stam < p.max_stam, "a swing that moves nothing still costs: %.1f" % p.stam)
+	var swings := ceili(2.0 / Config.WEAPONS.pipe.cd)
+	near(p.max_stam - p.stam, swings * Config.PLAYER.stam_swing, 2.5,
+		"and costs the swing rate, not the working one")
 
 
-func test_refused_work_winds_you_and_the_pipe_never_is() -> void:
+func test_work_is_never_refused_it_only_gets_slower() -> void:
+	# The old rule turned a short bar down and that refusal was what wound
+	# you. Nothing is refused now: you fell the tree anyway, slowly.
 	var w := World.new()
 	sim.world = w
 	var tree := {}
@@ -166,9 +173,11 @@ func test_refused_work_winds_you_and_the_pipe_never_is() -> void:
 	_hold("axe")
 	p.stam = 3.0
 	p.intent.fire = true
-	run(sim, 0.2)
-	ok(p.winded, "turned down for work: winded")
-	ok(not events_of(sim, "deny").is_empty())
+	run(sim, 0.6)
+	ok(p.winded, "the bar ran out")
+	ok(tree.hp < tree.max_hp, "and the tree came down anyway: %.0f" % tree.hp)
+	ok(events_of(sim, "deny").is_empty(), "nothing was refused")
+	ok(p.swing_rate_mul > 1.0, "the swing is slower instead: %.2f" % p.swing_rate_mul)
 
 
 func test_a_pistol_kills_a_walker_and_a_rifle_needs_one_round() -> void:
@@ -400,3 +409,78 @@ func test_gloves_and_chemistry_move_it_and_the_cap_holds() -> void:
 	Equipment.recompute_stats(p)
 	ok(Combat.crit_chance(p, w) < Config.MAX_CRIT, "the best build in the game is under the cap")
 	near(Combat.crit_chance(p, {"crit": 5.0}), Config.MAX_CRIT, 1e-9, "and nothing gets past it")
+
+
+# ---------------------------------------------------------------- winded --
+
+func test_a_winded_swing_is_slower_and_hits_exactly_as_hard() -> void:
+	# The whole point of the redesign: being tired costs you time, never
+	# damage. A winded player deals the same number, more slowly.
+	_hold("machete")
+	var fresh := sim.enemies.spawn("brute", plot + Vector2(30, 0))
+	p.intent.fire = true
+	run(sim, 0.04)
+	var per_swing: float = fresh.max_hp - fresh.hp
+	ok(per_swing > 0.0, "a fresh swing landed for %.1f" % per_swing)
+	near(p.swing_rate_mul, 1.0, 0.001, "and was not slowed")
+
+	Stamina.spend(p, p.max_stam)
+	ok(p.winded, "winded")
+	near(p.swing_rate_mul, float(Config.WINDED.mul.swing_rate_mul), 0.001,
+		"the swing stretched to %.2f" % p.swing_rate_mul)
+	var tired := sim.enemies.spawn("brute", plot + Vector2(30, 0))
+	p.attack_cd = 0.0
+	run(sim, 0.04)
+	near(fresh.max_hp - tired.hp, per_swing, 0.001, "a winded swing hits for the same")
+
+
+func test_a_winded_harvest_pays_exactly_what_a_fresh_one_pays() -> void:
+	# There is no yield penalty anywhere in the system, by design.
+	var rule: Dictionary = Config.HARVEST.wood
+	var before: int = rule.min
+	Stamina.spend(p, p.max_stam)
+	ok(p.winded, "winded")
+	near(p.loot_mul, 1.0, 0.001, "being winded touches no loot multiplier")
+	eq(int(Config.HARVEST.wood.min), before, "nor the harvest rule itself")
+
+
+func test_a_gun_costs_no_stamina_and_is_never_slowed() -> void:
+	# Guns are outside the system: being tired must not spoil your aim.
+	_hold("pistol")
+	Stamina.spend(p, p.max_stam - 20.0)
+	var before := p.stam
+	var cd_before: float = Config.WEAPONS.pistol.cd * p.fire_rate_mul
+	sim.enemies.spawn("walker", plot + Vector2(200, 0))
+	p.intent.fire = true
+	run(sim, 0.04)
+	ok(p.mag.pistol < 12, "it fired")
+	near(p.stam, before, 0.001, "and cost no stamina")
+	near(Config.WEAPONS.pistol.cd * p.fire_rate_mul, cd_before, 0.001, "and was not slowed")
+
+
+func test_the_swing_animation_stretches_with_the_cooldown() -> void:
+	# Slowing the cooldown alone would leave a full-speed swing with a longer
+	# gap after it, which reads as lag rather than as fatigue.
+	_hold("machete")
+	p.intent.fire = true
+	run(sim, 0.04)
+	var quick: float = p.swing.dur
+	Stamina.spend(p, p.max_stam)
+	p.attack_cd = 0.0
+	p.swing = {}
+	run(sim, 0.04)
+	ok(p.swing.dur > quick, "the winded swing animation is %.3f vs %.3f" % [p.swing.dur, quick])
+
+
+func test_the_penalty_is_rebuilt_from_the_flag_alone() -> void:
+	# What makes a guest agree with the host. The snapshot ships `winded` as
+	# one flag bit and recomputes on arrival, so the penalty is derived at the
+	# far end rather than sent — and a guest predicting its own swing gets the
+	# same number the host used.
+	near(p.swing_rate_mul, 1.0, 0.001, "fresh")
+	p.winded = true
+	Equipment.recompute_stats(p)
+	near(p.swing_rate_mul, float(Config.WINDED.mul.swing_rate_mul), 0.001, "flag on")
+	p.winded = false
+	Equipment.recompute_stats(p)
+	near(p.swing_rate_mul, 1.0, 0.001, "flag off")

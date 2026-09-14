@@ -403,7 +403,10 @@ func _apply_player(pr: Dictionary) -> void:
 	p.dead = bool(f & NetProtocol.PF_DEAD)
 	p.downed = bool(f & NetProtocol.PF_DOWNED)
 	p.away = bool(f & NetProtocol.PF_AWAY)
-	p.winded = bool(f & NetProtocol.PF_WINDED)
+	# Through `Stamina`, not a bare assignment: the flag has to reach
+	# `recompute_stats` or the guest's own swing keeps full speed while the
+	# host's is stretched.
+	Stamina.sync(p, bool(f & NetProtocol.PF_WINDED))
 	p.lit = bool(f & NetProtocol.PF_LIT)
 	p.light_on = p.lit
 	p.down_t = n[NetProtocol.PL_DOWN_T]
@@ -734,8 +737,11 @@ func _predict_swing(dt: float) -> void:
 	var w := me.weapon()
 	if w.kind != "melee" or not me.intent.fire or me.attack_cd > 0.0:
 		return
-	me.swing = {"t": 0.0, "dur": minf(0.26, w.cd * 0.75), "angle": me.angle, "arc": w.arc, "range": w.range + me.r}
-	me.attack_cd = w.cd
+	# The same stretch the host applies, so a winded guest sees its own arm
+	# slow down instead of learning it from the host a round trip later.
+	me.swing = {"t": 0.0, "dur": minf(0.26, w.cd * 0.75) * me.swing_rate_mul,
+		"angle": me.angle, "arc": w.arc, "range": w.range + me.r}
+	me.attack_cd = w.cd * me.swing_rate_mul
 
 
 ## Everyone and everything else eases toward its last reported place.

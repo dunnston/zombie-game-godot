@@ -654,3 +654,30 @@ func test_enet_on_localhost() -> void:
 		ok(gp.away, "bye parked the character")
 	hh.close()
 	gh.close()
+
+
+# ----------------------------------------------------------------- winded --
+
+func test_a_guest_learns_winded_from_the_flag_and_swings_slow() -> void:
+	# The snapshot ships `winded` as one flag bit and nothing else — not the
+	# clock, not the multiplier. So the guest has to rebuild the penalty on
+	# arrival: a bare assignment of the flag leaves its own predicted swing at
+	# full speed while the host's is stretched, and the two disagree for as
+	# long as the guest is tired.
+	var t := _table()
+	var g: NetGuest = t.guest
+	var gp: PlayerSim = t.gp
+	near(g.me.swing_rate_mul, 1.0, 0.001, "fresh")
+
+	Stamina.spend(gp, gp.stam)
+	ok(gp.winded, "the host ran the guest flat")
+	_pump(t, 0.2)
+	ok(g.me.winded, "the guest heard it")
+	near(g.me.swing_rate_mul, float(Config.WINDED.mul.swing_rate_mul), 0.001,
+		"and its own swing is stretched by the same number the host uses")
+	ok(g.me.winded_t > 0.0, "with a countdown on its own HUD")
+
+	_pump(t, float(Config.WINDED.dur) + 0.5)
+	ok(not gp.winded, "the host recovered")
+	ok(not g.me.winded, "so did the mirror")
+	near(g.me.swing_rate_mul, 1.0, 0.001, "and the penalty is gone with it")

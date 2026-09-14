@@ -310,7 +310,7 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 		# what is standing under it is restored, or a Constitution build loads
 		# clamped back down to the base 112.
 		p.hp = minf(float(rec.hp), p.max_hp)
-		p.stam = minf(float(rec.stam), p.max_stam)
+		Stamina.restore(p, float(rec.stam))
 		p.lit = p.light_on
 		sim.players.append(p)
 	if sim.players.is_empty():
