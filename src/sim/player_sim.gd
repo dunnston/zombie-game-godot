@@ -76,6 +76,9 @@ var stam := 110.0
 var stam_regen := 21.2
 var stam_lock := 0.0
 var winded := false
+## Seconds left on the winded debuff. Ticked in `move`, so a guest predicting
+## itself counts its own down and its HUD is right without the host shipping it.
+var winded_t := 0.0
 var sprinting := false
 var sneaking := false
 ## The dash (`Config.DASH`). Seconds left in the burst, seconds until the next
@@ -96,6 +99,9 @@ var gun_mul := 1.0
 var spread_mul := 0.96
 var range_mul := 1.0
 var fire_rate_mul := 1.0
+## Guns use fire_rate_mul; melee and tools use this. Above 1.0 is slower, and
+## the only thing that raises it is being winded.
+var swing_rate_mul := 1.0
 var reload_mul := 1.0
 var crit_chance := 0.08
 ## Added to the weapon's own `crit_mul`, so what a critical costs the thing it
@@ -201,7 +207,6 @@ var car_hold := {}
 var swing := {}                  # {t, dur, angle, arc, range} for the view
 var recoil := 0.0
 var recoil_dir := 1.0
-var winded_told_at := -99.0
 var needs_hint_at := -99.0
 var broken_told_at := -99.0
 
@@ -596,9 +601,10 @@ func tick(sim: GameSim, dt: float) -> void:
 
 		if it.fire and attack_cd <= 0.0:
 			if w.kind == "melee":
-				# A refused swing (too winded to harvest) takes a short beat
+				# Winded stretches the swing (`swing_rate_mul`); a swing that
+				# never happened at all — a broken weapon — takes a short beat
 				# rather than the full cooldown.
-				attack_cd = w.cd if Combat.melee_attack(sim, self, w) else 0.3
+				attack_cd = w.cd * swing_rate_mul if Combat.melee_attack(sim, self, w) else 0.3
 			elif not reloading.is_empty() and not reloading.shell:
 				pass                         # hold fire while a magazine swap finishes
 			else:
@@ -678,26 +684,15 @@ func move(world: World, dt: float, rooted := false, structs: Structures = null) 
 		return
 
 	sneaking = it.sneak
-	sprinting = not sneaking and it.sprint and moving and stam > 1.0
+	# Sprinting runs the bar all the way down now — the old floor of 1.0 is
+	# why it could never wind you (PROJECT.md, 2026-09-08).
+	sprinting = not sneaking and it.sprint and moving and stam > 0.0
 
 	if sprinting:
-		stam = maxf(0.0, stam - P.stam_drain * dt)
-		stam_lock = P.stam_regen_delay
+		Stamina.spend(self, P.stam_drain * dt)
 		if stam <= 0.0:
 			sprinting = false
-	else:
-		stam_lock = maxf(0.0, stam_lock - dt)
-		if stam_lock <= 0.0:
-			stam = minf(max_stam, stam + stam_regen * dt)
-
-	# Winded latches on running yourself flat and clears at half. The other
-	# edge — a harvest swing turned down — is in Combat.melee_attack, the only
-	# place that knows a swing was work. Clearing lives here, in the function
-	# a guest also runs, so host and guest agree about when you may work.
-	if stam <= 0.0:
-		winded = true
-	elif winded and stam >= max_stam * P.stam_winded_recovery:
-		winded = false
+	Stamina.tick(self, dt)
 
 	var speed: float = P.speed * speed_mul
 	if adrenaline_active:
@@ -742,8 +737,7 @@ func _start_dash(it: Intent) -> void:
 	dash_dir = d.normalized() if d.length_squared() > 0.0001 else Vector2.from_angle(angle)
 	dash_t = float(D.time)
 	dash_cd = float(D.cd)
-	stam = maxf(0.0, stam - float(D.stam))
-	stam_lock = Config.PLAYER.stam_regen_delay
+	Stamina.spend(self, float(D.stam))
 	invuln = maxf(invuln, float(D.time) + float(D.grace))
 	sprinting = false
 	dash_began = true
