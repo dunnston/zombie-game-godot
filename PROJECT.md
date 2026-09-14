@@ -19,7 +19,8 @@ contradicts it, the code is right — fix this file and say so.
 | `tasks/ui-redesign-handoff/` | **History.** The owner's UI design handoff (README + eleven `.dc.html` mockups), built in PR #37. `src/ui/ui.gd` holds the tokens now. |
 | `tasks/lessons.md` | Raw running log of lessons. §8 here is the distilled version. |
 | `tasks/switch-to-webrtc.md` | The runbook for turning on room codes over WebRTC. Built, tested, switched off. |
-| **Notion → DEADLINE → Items & Crafting** | **The content catalogue.** Every item, recipe, bench and loot source, owner-editable. §10 says how it is synced into `config.gd`. |
+| **Notion → DEADLINE** | **The owner's board.** *Ideas & Roadmap* (the kanban Claude reads at the start of a session), the *Playtest Log*, and the design pages. Linear was tried on 2026-09-10 and not adopted. |
+| **Notion → DEADLINE → Items & Crafting** | **The content catalogue.** Every item, recipe, bench and loot source, owner-editable. §10 says how it is synced into `data/*.json`. |
 
 ---
 
@@ -2131,7 +2132,8 @@ window is not wanted, once the desktop app has restarted with the 4.7.2 path.
 
 ## 10. Session protocol
 
-1. Read this file, then `tasks/todo.md`.
+1. Read this file, then `tasks/todo.md`, then Notion's *Ideas & Roadmap*
+   `Next up` column (the owner's board; DEADLINE page).
 2. **Branch from an up-to-date `main`:**
    `git fetch origin && git checkout -b <name> origin/main`.
 3. Work. `tools\test.cmd` before every commit.
@@ -2170,8 +2172,11 @@ categories and fourteen weapon classes, each with what it is for).
 
 ### Syncing content from Notion
 
-Retiring: content now lives in `data/` and is edited with the tool above;
-this procedure goes when Notion is archived (Phase 3 of the Linear move).
+Content lives in `data/` and the game reads only that; Notion is where the
+owner designs it. This procedure is how the two meet: a sync writes `data/`
+through the editor's encoder, never `config.gd`, and never by hand. (The
+2026-09-10 plan to retire Notion for Linear was dropped on 2026-09-14: the
+owner works in Notion.)
 
 The owner designs content in Notion, on the **Items & Crafting** page under
 DEADLINE (page `3d610d456b16816fbf35d781eeaccb11`). Three tables:
@@ -2256,6 +2261,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-14 | **Notion stays.** The owner works in Notion, not Linear, so the 2026-09-10 Linear move is abandoned at Phase 1: the board is *Ideas & Roadmap* under DEADLINE, and the session protocol reads its `Next up` column. The Notion pages were rewritten to describe the Godot project (they still described the browser prototype), the nine prototype-era `Next up` cards that Godot had already shipped were closed with their PR links, and the Items & Crafting and Graphics pages now name `data/*.json` and `art/items/` rather than `config.gd` and a generator that does not exist |
 | 2026-09-14 | Prototype-era cleanup, docs only: the UI design handoff moved from the repo root to `tasks/ui-redesign-handoff/`; `tasks/port-inventory.md` and the handoff relabelled as history rather than the spec; `config.gd`'s and `CLAUDE.md`'s headers no longer point at the prototype's `config.js` and `PROJECT.md` as the source of truth. No code or data changed |
 | 2026-09-11 | **Codex pass on the UI redesign (PR #37).** Four findings, all real, each with a test in `ui_review_test.gd` that failed against the old behaviour first. **Build menu:** a search or *Can build now* that hid the selected piece left PLACE and Enter acting on it — the selection now moves to the first piece shown, and nothing is placeable while nothing is. **Crew:** the detail's signature left out the survivor's health and the top bar's left out the ration count, so both froze while the world went on behind the screen. **HUD:** a worn tool's condition sliver was hidden behind its TOOL line, so no Hatchet ever warned it was wearing out; it shows under the text again, as it did before the redesign. 708 tests |
 | 2026-09-11 | **The UI redesign**, to the owner's handoff in `tasks/ui-redesign-handoff/`, in one PR. `src/ui/ui.gd` (tokens, the three OFL faces in `art/fonts/`, named text styles, the four-state boxes, the Theme, the builders), `chrome.gd` (the frame and its rail, search, filter, weight and bench pieces), `ui_screen.gd` (sections and section-owned refreshers), `kit/` (`UiSlot`, `UiMeter`, `UiPips`, `UiSwatch`); the HUD, the pack in all nine modes, crafting and the bench as one screen (`craft_page.gd`), the character sheet (`char_page.gd`), the crew (`crew_page.gd`), the build menu and placement bar, the town map and minimap, and the title, pause, settings and multiplayer pages — all rebuilt as Control nodes. Design resolution 1920x1080 (window 1280x720) with `canvas_items` + `expand`; `Config.MAP.corner` 260. `LocalInput` takes `screen_nav` (the arrows are the screen's) and `typing` (a search field walks nowhere); `main._goto` routes the tabs; Tab steps a rail, Escape backs out one step at a time; the HUD hides under a full screen. `DisplayPrefs` for the Fullscreen toggle. The smoke run clicks the new controls — a build card and PLACE, a recipe card and CRAFT, MEND, the CREW tab, DEPOSIT ALL — through window coordinates (`get_screen_transform`, since logical is no longer window), fails any checkpoint where something reaches off screen, and has a build-menu checkpoint (89). Behaviour that moved on purpose: a card selects and CRAFT makes; a job is chosen then ASSIGNed; B opens the menu first; full screens are opaque |

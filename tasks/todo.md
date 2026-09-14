@@ -1946,6 +1946,11 @@ reverting the fix and watching it fail first.
 
 ## Off Notion: Linear for tracking, git for content
 
+**Outcome (2026-09-14): Phase 1 abandoned, Phase 2 kept.** The owner works in
+Notion, so the roadmap stays on the Notion board and Linear is not read or
+written (its 55 imported issues plus 13 added by mistake on 2026-09-14 are
+stale). Content did move to `data/` with the editor, and that stands.
+
 Branch `claude/notion-to-linear-git-bb7ffc`, off `main` at 6b1a030. Owner's
 brief: Linear first, then a local content editor over the real data, and
 Notion retired only after the owner has confirmed both. Docs (CLAUDE.md, §10)

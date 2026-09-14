@@ -28,12 +28,19 @@ to WebRTC", "room codes", "UPnP didn't work", "my friend can't connect",
   double-clicks `Content Editor.cmd` in the project folder (it calls
   `tools\edit.cmd`; PROJECT.md §10, *Editing content*). The owner's shell is Windows
   PowerShell 5.1: give `.\tools\<name>.cmd` commands, one per line.
-- **Content was designed in Notion (retiring):** DEADLINE → *Items & Crafting* (page
-  `3d610d456b16816fbf35d781eeaccb11`) holds the Items, Workbenches and Loot
-  Sources tables. Items has eleven categories with a tab each, and its shape is
-  the owner's, not the code's — map by `Code ID`, never by category name. "Look at Notion and update the game" means
-  the procedure in `PROJECT.md` §10, *Syncing content from Notion*: diff, report,
-  then build. Notion owns what exists and what it costs; the code owns how it behaves.
+- **Notion is the owner's board.** The DEADLINE page (`3d510d456b168121bc2ad63cf545e76a`)
+  holds *Ideas & Roadmap* (the kanban: check `Next up` at the start of a
+  session, move cards as you go, put the PR link on a shipped card), the
+  *Playtest Log*, and the design pages. The Linear import of 2026-09-10 was
+  never adopted; do not read or write Linear.
+- **Content is designed in Notion, read from `data/`:** DEADLINE → *Items & Crafting*
+  (page `3d610d456b16816fbf35d781eeaccb11`) holds the Items, Workbenches and
+  Loot Sources tables. Items has eleven categories with a tab each, and its
+  shape is the owner's, not the code's — map by `Code ID`, never by category
+  name. "Look at Notion and update the game" means the procedure in
+  `PROJECT.md` §10, *Syncing content from Notion*: diff, report, then build,
+  writing `data/*.json` through the editor's encoder. Notion owns what exists
+  and what it costs; the code owns how it behaves.
 
 ## Invariants (carried from the prototype, still true)
 
