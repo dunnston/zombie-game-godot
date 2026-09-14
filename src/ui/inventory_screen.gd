@@ -1344,6 +1344,10 @@ func _open_pop(cell: Dictionary) -> void:
 
 func _close_pop() -> void:
 	pop = {}
+	# Its rows go with it: the layer is freed outside any section, so no
+	# rebuild would ever drop them.
+	_buttons.erase("pop_use")
+	_buttons.erase("pop_drop")
 	if _pop_layer != null and is_instance_valid(_pop_layer):
 		_pop_layer.queue_free()
 	_pop_layer = null
