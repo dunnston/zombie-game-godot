@@ -98,6 +98,9 @@
     "stagger": {
       "type": "float"
     },
+    "stam": {
+      "type": "float"
+    },
     "structure_mul": {
       "type": "float"
     },

@@ -74,6 +74,17 @@ static func grant(p: PlayerSim, amount: float) -> void:
 		p.winded_t = minf(p.winded_t, float(Config.WINDED.dur))
 
 
+## A guest's mirror learns `winded` from the host's flag bit, not from its own
+## bar: the host is the one spending on its swings. Routed through the edge
+## so the penalty is rebuilt on arrival (the flag alone is just a bool, and
+## `recompute_stats` is what turns it into a slower swing). The clock is not
+## shipped, so a guest's countdown starts at `dur` whenever the host says
+## winded and its own clock has run out — an estimate, right whenever the
+## host restarted it by spending, which is the only way it restarts.
+static func sync(p: PlayerSim, on: bool) -> void:
+	_set_winded(p, on)
+
+
 static func restore(p: PlayerSim, value: float) -> void:
 	p.stam = clampf(value, 0.0, p.max_stam)
 	_set_winded(p, p.stam <= 0.0)
