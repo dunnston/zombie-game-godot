@@ -2,9 +2,11 @@
 
 > **Historical.** This handoff was built in full in PR #37 (2026-09-11, see
 > `tasks/ui-redesign.md`); `src/ui/ui.gd` holds the tokens now and wins if
-> the two disagree. The `.dc.html` files are Claude Design pages: `support.js`
-> expects the design viewer's React runtime, so they do not render as plain
-> files in a browser. The README below is the reference; it is unchanged.
+> the two disagree. The `.dc.html` files are Claude Design pages; `support.js`
+> beside them is the runtime and fetches React, ReactDOM and Babel from
+> unpkg.com, so opening a page in a browser works as long as that CDN is
+> reachable and fails blank offline. The README below is the reference; it
+> is unchanged.
 
 ## Overview
 
