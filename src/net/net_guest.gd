@@ -247,12 +247,14 @@ func _on_map(m: Dictionary) -> void:
 func _on_world(d: Dictionary) -> void:
 	if d.has("inst") and sim.instance != null:
 		sim.instance.apply_record(sim, d.inst, me.seat)
-	for rec in d.get("structs", []):
-		_upsert_structure(rec)
+	# Removals first, and only of the piece anchored there: a "gone" names an
+	# anchor, and a bed built in the same diff may now cover that tile.
 	for g in d.get("gone", []):
 		var s := sim.structs.at_tile(int(g[0]), int(g[1]))
-		if not s.is_empty():
+		if not s.is_empty() and s.tx == int(g[0]) and s.ty == int(g[1]):
 			_remove_structure(s)
+	for rec in d.get("structs", []):
+		_upsert_structure(rec)
 	if d.has("looted"):
 		var by_tile := {}
 		for c in sim.world.containers:

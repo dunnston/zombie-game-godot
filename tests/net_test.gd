@@ -501,6 +501,33 @@ func test_a_guest_builds_a_turned_long_bed_and_sees_it_turned() -> void:
 	ok(guest.sim.structs.at_tile(plot.x + 2, plot.y).is_empty(), "no half a bed left on the mirror")
 
 
+## A bed over a wall's old tile, in one diff, arrives as the bed and the
+## wall's "gone". Applied in that order, the "gone" found the new bed on the
+## wall's tile and took it, and an unchanged bed is never sent again (Codex,
+## PR #50).
+func test_a_bed_built_over_a_removed_wall_survives_the_same_diff() -> void:
+	var t := _table()
+	var guest: NetGuest = t.guest
+	var gp: PlayerSim = t.gp
+	var plot := TestCase.clear_plot(6)
+	gp.pos = TestCase.tile_centre(plot)
+	guest.me.pos = gp.pos
+	for id in ["wood", "sticks", "fiber"]:
+		gp.bag.add(id, 80)
+	var wall: Dictionary = t.sim.structs.place(t.sim, "woodWall", plot.x + 3, plot.y, gp)
+	ok(not wall.is_empty(), "the wall went up")
+	_pump(t, 0.6)
+	eq(guest.sim.structs.at_tile(plot.x + 3, plot.y).get("type", ""), "woodWall", "and reached the mirror")
+	t.sim.structs.demolish(t.sim, wall, gp)
+	var bed: Dictionary = t.sim.structs.place(t.sim, "longBed", plot.x + 2, plot.y, gp)
+	ok(not bed.is_empty(), "the bed went up across the wall's tile")
+	_pump(t, 0.6)
+	for x in [plot.x + 2, plot.x + 3]:
+		eq(guest.sim.structs.at_tile(x, plot.y).get("type", ""), "longBed", "the mirror has the bed at %d" % x)
+	_pump(t, 1.5)
+	eq(guest.sim.structs.at_tile(plot.x + 2, plot.y).get("type", ""), "longBed", "and still has it later")
+
+
 func test_the_stash_and_a_searched_container_are_shared() -> void:
 	var t := _table()
 	var guest: NetGuest = t.guest
