@@ -180,6 +180,29 @@ func test_harvesting_into_a_full_pack_drops_the_wood_rather_than_losing_it() -> 
 	eq(wood, 8, "all eight are on the ground")
 
 
+func test_loot_does_not_come_to_you_through_a_wall() -> void:
+	# A column of wall two tiles east, the pile just past it: inside magnet
+	# range, but on the wrong side of the brick.
+	var here := Vector2i(floori(p.pos.x / Config.TILE), floori(p.pos.y / Config.TILE))
+	var walls: Array[Dictionary] = []
+	for dy in range(-3, 4):
+		walls.append(sim.structs.make(sim, "woodWall", here.x + 2, here.y + dy))
+	var pile := Loot.spawn_pickup(sim, tile_centre(here + Vector2i(3, 0)), "res", "wood", 5)
+	var before := p.bag.count("wood")
+	for i in range(600):
+		Loot.update_pickups(sim, 1.0 / 60.0)
+	eq(p.bag.count("wood"), before, "the wall kept it")
+	has(sim.pickups, pile, "and it is still lying there")
+	ok(pile.pos.x > (here.x + 3) * Config.TILE, "on its own side of the wall: x=%.0f" % pile.pos.x)
+
+	for s in walls:
+		sim.structs.destroy(sim, s)
+	# The pull is gentle at the edge of its range: this is a long walk for it.
+	for i in range(1800):
+		Loot.update_pickups(sim, 1.0 / 60.0)
+	eq(p.bag.count("wood"), before + 5, "with the wall gone it comes: pile at %s, you at %s" % [pile.pos, p.pos])
+
+
 # --------------------------------------------------------------- backpacks --
 
 func test_dying_leaves_a_pack_you_can_walk_back_to() -> void:
