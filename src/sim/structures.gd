@@ -21,6 +21,41 @@ static func key(tx: int, ty: int) -> int:
 	return ty * W + tx
 
 
+# -------------------------------------------------------------- footprint --
+# Most pieces are one tile. A piece whose row carries `w`/`h` covers that
+# many, lying flat, and `rot` 1 turns it a quarter. `tx, ty` is always the
+# top-left tile, every covered tile points at the piece in `grid`, and `pos`
+# is the middle of the whole footprint — so everything that asks "which piece
+# is on this tile" or "how far is that piece" needed no change.
+
+## The tiles a piece covers, as placed.
+static func footprint(type: String, rot := 0) -> Vector2i:
+	var def: Dictionary = Config.STRUCTURES.get(type, {})
+	var f := Vector2i(int(def.get("w", 1)), int(def.get("h", 1)))
+	return Vector2i(f.y, f.x) if rot % 2 == 1 else f
+
+
+## Whether turning a piece changes anything. A square one ignores R, and its
+## `rot` is always stored as 0, so a save or a snapshot never carries noise.
+static func turns(type: String) -> bool:
+	var f := footprint(type)
+	return f.x != f.y
+
+
+static func tiles_of(type: String, tx: int, ty: int, rot := 0) -> Array[Vector2i]:
+	var f := footprint(type, rot)
+	var out: Array[Vector2i] = []
+	for j in range(f.y):
+		for i in range(f.x):
+			out.append(Vector2i(tx + i, ty + j))
+	return out
+
+
+static func centre_of(type: String, tx: int, ty: int, rot := 0) -> Vector2:
+	var f := footprint(type, rot)
+	return Vector2(tx * Config.TILE, ty * Config.TILE) + Vector2(f) * Config.TILE / 2.0
+
+
 # ---------------------------------------------------------------- queries --
 
 func at_tile(tx: int, ty: int) -> Dictionary:
@@ -199,7 +234,7 @@ func cost_of(type: String, p: PlayerSim) -> Dictionary:
 ## Every reason a piece cannot go here, in the order a player would meet
 ## them. The reason is the message: "Blocked" and "Not enough resources"
 ## are different problems and the build bar says which.
-func can_place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim) -> Dictionary:
+func can_place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim, rot := 0) -> Dictionary:
 	var def: Dictionary = Config.STRUCTURES.get(type, {})
 	if def.is_empty():
 		return {"ok": false, "reason": "Unknown"}
@@ -210,29 +245,33 @@ func can_place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim) -> Di
 		return {"ok": false, "reason": "Nothing can be built in here"}
 	if not is_unlocked(type):
 		return {"ok": false, "reason": "Needs Workbench II"}
-	if tx < 1 or ty < 1 or tx >= W - 1 or ty >= W - 1:
-		return {"ok": false, "reason": "Out of bounds"}
-	if sim.world.is_blocked_tile(tx, ty):
-		return {"ok": false, "reason": "Blocked"}
-	if not at_tile(tx, ty).is_empty():
-		return {"ok": false, "reason": "Occupied"}
+	var tiles := tiles_of(type, tx, ty, rot)
+	for t in tiles:
+		if t.x < 1 or t.y < 1 or t.x >= W - 1 or t.y >= W - 1:
+			return {"ok": false, "reason": "Out of bounds"}
+	for t in tiles:
+		if sim.world.is_blocked_tile(t.x, t.y):
+			return {"ok": false, "reason": "Blocked"}
+	for t in tiles:
+		if not at_tile(t.x, t.y).is_empty():
+			return {"ok": false, "reason": "Occupied"}
 
-	var centre := Vector2(tx * Config.TILE + Config.TILE / 2.0, ty * Config.TILE + Config.TILE / 2.0)
+	var centre := centre_of(type, tx, ty, rot)
 	if centre.distance_squared_to(p.pos) > B.range * B.range:
 		return {"ok": false, "reason": "Too far"}
 
-	# Never let a solid piece trap anyone — or anything — inside its tile.
+	# Never let a solid piece trap anyone — or anything — inside its tiles.
 	if def.solid:
-		var half: float = Config.TILE * 0.5
+		var half := Vector2(footprint(type, rot)) * Config.TILE * 0.5
 		for q in sim.players:
 			if q.dead:
 				continue
-			if absf(centre.x - q.pos.x) < half + q.r and absf(centre.y - q.pos.y) < half + q.r:
+			if absf(centre.x - q.pos.x) < half.x + q.r and absf(centre.y - q.pos.y) < half.y + q.r:
 				return {"ok": false, "reason": "You are standing there" if q == p else "%s is standing there" % q.display_name}
 		for e in sim.enemies.list:
 			if e.dead:
 				continue
-			if absf(centre.x - e.pos.x) < half + e.r and absf(centre.y - e.pos.y) < half + e.r:
+			if absf(centre.x - e.pos.x) < half.x + e.r and absf(centre.y - e.pos.y) < half.y + e.r:
 				return {"ok": false, "reason": "Enemy in the way"}
 	# Loot cannot be buried: a container blocks its own tile in the terrain
 	# bitmap, so "Blocked" above has already refused it. The prototype
@@ -241,17 +280,19 @@ func can_place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim) -> Di
 	# Nor can litter. A loose stone, a bush or a thicket does not block the
 	# tile, so without this a wall went up on top of a stone and the stone
 	# lived on inside it. You clear the ground first.
-	var prop := sim.world.prop_at_tile(tx, ty)
-	if not prop.is_empty():
-		var what := String(prop.get("res", prop.kind))
-		return {"ok": false, "reason": ("Pick up the %s first" if prop.kind == "litter" else "Clear the %s first") % what}
+	for t in tiles:
+		var prop := sim.world.prop_at_tile(t.x, t.y)
+		if not prop.is_empty():
+			var what := String(prop.get("res", prop.kind))
+			return {"ok": false, "reason": ("Pick up the %s first" if prop.kind == "litter" else "Clear the %s first") % what}
 	if not p.can_afford(sim, def.cost, p.build_cost_mul):
 		return {"ok": false, "reason": "Not enough materials"}
 	return {"ok": true, "reason": ""}
 
 
-func make(sim: GameSim, type: String, tx: int, ty: int, hp_mul := 1.0) -> Dictionary:
+func make(sim: GameSim, type: String, tx: int, ty: int, hp_mul := 1.0, rot := 0) -> Dictionary:
 	var def: Dictionary = Config.STRUCTURES[type]
+	rot = posmod(rot, 2) if turns(type) else 0
 	var max_hp := roundf(def.hp * hp_mul)
 	var store: Slots = null
 	if def.has("store"):
@@ -266,8 +307,8 @@ func make(sim: GameSim, type: String, tx: int, ty: int, hp_mul := 1.0) -> Dictio
 		else:
 			store = Slots.new(def.store)
 	var s := {
-		"type": type, "def": def, "tx": tx, "ty": ty,
-		"pos": Vector2(tx * Config.TILE + Config.TILE / 2.0, ty * Config.TILE + Config.TILE / 2.0),
+		"type": type, "def": def, "tx": tx, "ty": ty, "rot": rot,
+		"pos": centre_of(type, tx, ty, rot),
 		"hp": max_hp, "max_hp": max_hp, "solid": def.solid, "flash": 0.0,
 		"open": false, "cd": 0.0, "ammo": 0, "reload_t": 0.0, "aim": 0.0,
 		"fuel": 0.0, "on": true, "running": false, "powered": false, "starved": false,
@@ -283,14 +324,16 @@ func make(sim: GameSim, type: String, tx: int, ty: int, hp_mul := 1.0) -> Dictio
 		"arm": Config.DEFAULT_ARMAMENT if def.get("post", "") == "sniper" else "",
 	}
 	list.append(s)
-	grid[key(tx, ty)] = s
-	# Nothing lives on under a piece. `can_place` already refuses a tile with
-	# litter on it; this is for a save made before it did, and for anything
-	# else that calls `make` directly. Out through the chopping door, so the
-	# tile is in `chopped` and stays clear through every later save.
-	var prop := sim.world.prop_at_tile(tx, ty) if sim.world != null else {}
-	if not prop.is_empty() and not prop.solid:
-		sim.world.remove_prop(prop)
+	for t in tiles_of(type, tx, ty, rot):
+		grid[key(t.x, t.y)] = s
+		# Nothing lives on under a piece. `can_place` already refuses a tile
+		# with litter on it; this is for a save made before it did, and for
+		# anything else that calls `make` directly. Out through the chopping
+		# door, so the tile is in `chopped` and stays clear through every later
+		# save.
+		var prop := sim.world.prop_at_tile(t.x, t.y) if sim.world != null else {}
+		if not prop.is_empty() and not prop.solid:
+			sim.world.remove_prop(prop)
 	if s.solid:
 		# A new wall is a new obstacle: the flow fields have to be rebuilt or
 		# the horde walks through it in spirit.
@@ -298,15 +341,15 @@ func make(sim: GameSim, type: String, tx: int, ty: int, hp_mul := 1.0) -> Dictio
 	return s
 
 
-func place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim) -> Dictionary:
-	var check := can_place(sim, type, tx, ty, p)
+func place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim, rot := 0) -> Dictionary:
+	var check := can_place(sim, type, tx, ty, p, rot)
 	if not check.ok:
 		sim.notify(check.reason, "#c96a5a")
 		return {}
 	var def: Dictionary = Config.STRUCTURES[type]
 	p.spend(sim, def.cost, p.build_cost_mul)
 	# Wall strength is a base-wide number, so it comes off the host's build.
-	var s := make(sim, type, tx, ty, sim.host().struct_hp_mul if sim.host() != null else 1.0)
+	var s := make(sim, type, tx, ty, sim.host().struct_hp_mul if sim.host() != null else 1.0, rot)
 
 	if type == "bedroll":
 		for q in sim.players:
@@ -388,9 +431,10 @@ func _after_removed(sim: GameSim, s: Dictionary) -> void:
 
 
 func _unlink(s: Dictionary) -> void:
-	var k := key(s.tx, s.ty)
-	if grid.get(k) == s:
-		grid.erase(k)
+	for t in tiles_of(s.type, s.tx, s.ty, int(s.get("rot", 0))):
+		var k := key(t.x, t.y)
+		if grid.get(k) == s:
+			grid.erase(k)
 	list.erase(s)
 
 
@@ -487,18 +531,36 @@ static func cost_label(cost: Dictionary) -> String:
 
 ## A piece's picture for the build menu, `art/structures/<id>.png`, or null
 ## when it has none and the menu shows its colour instead — the same seam as
-## `Items.icon_of`. Menu art only: the street draws a piece in code, because
-## it shows what the piece is doing (damage, an open gate, a turret's aim).
+## `Items.icon_of`.
 ##
 ## A `static var` so a test can point it at user:// instead of the project.
 static var ART_DIR := "res://art/structures/"
 static var _art := {}
+
+## How a piece looks standing in the street, top-down: `art/world/<id>.png`,
+## and `<id>_<state>.png` where a piece has a second look. The street keeps
+## drawing what the piece is doing over the picture — damage, a crop, a
+## turret's aim — and a piece with no picture is drawn in code as before.
+static var WORLD_ART_DIR := "res://art/world/"
+## The second looks a picture may be named for. A file named after anything
+## else fails `icons_test`.
+const WORLD_STATES := {"gate": ["open"], "turret": ["head"]}
 
 
 static func icon_of(type: String) -> Texture2D:
 	if not _art.has(type):
 		_art[type] = Items.load_png(ART_DIR + type + ".png")
 	return _art[type]
+
+
+## `state` empty is the piece itself. A missing state falls back to nothing,
+## not to the plain picture: an open gate drawn shut would lie.
+static func world_art_of(type: String, state := "") -> Texture2D:
+	var name := type if state.is_empty() else "%s_%s" % [type, state]
+	var key := "world/" + name
+	if not _art.has(key):
+		_art[key] = Items.load_png(WORLD_ART_DIR + name + ".png")
+	return _art[key]
 
 
 static func clear_art_cache() -> void:

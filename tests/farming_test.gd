@@ -267,6 +267,35 @@ func test_compost_pays_more_and_changes_nothing_else() -> void:
 	eq(String(s.fert), "", "and the dose was spent on the crop")
 
 
+func test_a_long_bed_is_one_planting_with_a_bigger_harvest() -> void:
+	for id in ["seedPotato", "compost", "wood", "sticks", "fiber"]:
+		p.bag.add(id, 40)
+	p.bag.add("water", 40)
+	var s := sim.structs.place(sim, "longBed", plot.x + 1, plot.y, p)
+	ok(Farming.is_bed(s), "it is a bed")
+	ok(Farming.plant(sim, p, s, "seedPotato"))
+	ok(not Farming.plant(sim, p, sim.structs.at_tile(plot.x + 2, plot.y), "seedPotato"), "its second tile is the same bed, already sown")
+	Farming.fertilize(sim, p, s, "compost")
+	Farming.water(sim, p, s)
+	Farming.water(sim, p, s)
+	near(Farming.grow_time(s), DAY, 0.01, "no slower than a small bed")
+	_grow(DAY + 1.0)
+	var mul: float = float(Config.STRUCTURES.longBed.yield_mul) * float(Config.FERTILIZER.compost.yield_mul)
+	eq(Farming.yield_mul(s), mul, "the soil and the feed multiply")
+	var row: Dictionary = Config.CROPS.seedPotato
+	var n := Farming.harvest(sim, p, s)
+	ok(n >= floori(int(row.min) * mul) and n <= floori(int(row.max) * mul), "%d is outside %d-%d" % [n, floori(int(row.min) * mul), floori(int(row.max) * mul)])
+
+
+func test_a_long_bed_beats_two_small_ones() -> void:
+	# The reason to build one: cheaper than two beds, and more from it.
+	var long_: Dictionary = Config.STRUCTURES.longBed
+	var small: Dictionary = Config.STRUCTURES.raisedBed
+	for id in small.cost:
+		ok(int(long_.cost.get(id, 0)) < 2 * int(small.cost[id]), "%s: %d is not under two beds' %d" % [id, long_.cost.get(id, 0), 2 * int(small.cost[id])])
+	gt(float(long_.yield_mul), 2.0, "and it pays more than two")
+
+
 func test_sludge_is_faster_and_far_more_of_it() -> void:
 	var s := _bed()
 	Farming.plant(sim, p, s, "seedCorn")

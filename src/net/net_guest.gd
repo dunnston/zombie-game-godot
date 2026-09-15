@@ -289,12 +289,19 @@ func _upsert_structure(rec: Dictionary) -> void:
 		return
 	var tx := int(rec.get("tx", -1))
 	var ty := int(rec.get("ty", -1))
+	var rot := int(rec.get("ro", 0))
 	var s := sim.structs.at_tile(tx, ty)
-	if not s.is_empty() and s.type != type:
+	if not s.is_empty() and (s.type != type or s.tx != tx or s.ty != ty or s.rot != rot):
 		_remove_structure(s)
 		s = {}
 	if s.is_empty():
-		s = sim.structs.make(sim, type, tx, ty)
+		# Whatever the mirror still has under the rest of the footprint went
+		# on the host before this was built; its "gone" may not be here yet.
+		for t in Structures.tiles_of(type, tx, ty, rot):
+			var under := sim.structs.at_tile(t.x, t.y)
+			if not under.is_empty():
+				_remove_structure(under)
+		s = sim.structs.make(sim, type, tx, ty, 1.0, rot)
 	s.max_hp = float(rec.get("mh", s.max_hp))
 	s.hp = minf(float(rec.get("hp", s.max_hp)), s.max_hp)
 	s.open = bool(rec.get("op", false))

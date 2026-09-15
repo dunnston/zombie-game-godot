@@ -46,6 +46,15 @@ static func fert_of(s: Dictionary) -> Dictionary:
 	return Config.FERTILIZER.get(String(s.fert), {}) if is_bed(s) else {}
 
 
+## What a harvest is multiplied by: the bed's own `yield_mul` (a Long Raised
+## Bed's soil) times the fertilizer's. One function, so the panel's band and
+## the harvest are the same number.
+static func yield_mul(s: Dictionary) -> float:
+	if not is_bed(s):
+		return 1.0
+	return float(s.def.get("yield_mul", 1.0)) * float(fert_of(s).get("yield_mul", 1.0))
+
+
 ## How long this planting takes, in seconds, fertilizer included.
 static func grow_time(s: Dictionary) -> float:
 	var crop := crop_of(s)
@@ -221,8 +230,8 @@ static func harvest(sim: GameSim, p: PlayerSim, s: Dictionary) -> int:
 		return 0
 	var crop: Dictionary = crop_of(s)
 	var seed_id := String(s.seed)
-	# Fertilizer is the *only* multiplier on a harvest, and the panel prints
-	# the band it produces. `p.loot_mul` used to be in here as well, which
+	# The soil and the fertilizer are the *only* multipliers on a harvest
+	# (`yield_mul`), and the panel prints the band they produce. `p.loot_mul` used to be in here as well, which
 	# made the panel promise 3-5 and pay 4-6 to anyone with a rank of
 	# Scrounger (Codex, PR #24). Taking it out rather than printing it: the
 	# perk's own description is "+35% resources **from containers**", a crop
@@ -230,7 +239,7 @@ static func harvest(sim: GameSim, p: PlayerSim, s: Dictionary) -> int:
 	# scaled with a loot perk. It also keeps the feed slot the one dial the
 	# whole system is built around, instead of a number quietly stacked on by
 	# a Perception build.
-	var mul: float = float(fert_of(s).get("yield_mul", 1.0))
+	var mul := yield_mul(s)
 	var base: int = sim.rng.irange(int(crop.min), int(crop.max))
 	var n := maxi(1, floori(base * mul))
 

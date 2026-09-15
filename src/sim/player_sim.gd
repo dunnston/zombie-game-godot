@@ -657,7 +657,7 @@ func _build(sim: GameSim, it: Intent) -> void:
 	var t := it.build_tile
 	match it.build_action:
 		"place":
-			sim.structs.place(sim, it.build_type, t.x, t.y, self)
+			sim.structs.place(sim, it.build_type, t.x, t.y, self, it.build_rot)
 		"repair":
 			var s := sim.structs.at_tile(t.x, t.y)
 			if not s.is_empty():

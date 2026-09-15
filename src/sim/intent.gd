@@ -34,6 +34,7 @@ var slot := -1               # 0-5 selects a hotbar slot; -1 means no change
 var build_action := ""       # "place" / "repair" / "repair_all" / "demolish"
 var build_type := ""         # which structure, for "place"
 var build_tile := Vector2i.ZERO
+var build_rot := 0           # a quarter turn, for a piece longer than it is wide
 var wheel := 0               # +1 / -1 cycles the hotbar
 
 
