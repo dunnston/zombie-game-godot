@@ -16,8 +16,12 @@ doing — damage, a crop, power, a turret's aim — is drawn over the picture.
 Any other file name fails `tests/icons_test.gd`; the states a piece may have
 are `Structures.WORLD_STATES`.
 
-Draw the piece to fill its tiles: a wall has to reach the edge of its tile to
-meet the next one. Transparent background. The pictures are drawn with
+Draw the piece to fill its tiles. A wall or gate is stretched to the whole
+tile, and wherever it meets another wall piece the street trims off a 4px
+outline (of 128) on that side, so the row reads as one wall: give those
+pictures an outline about that thick, and no stubs past the edge. A gate is
+drawn with its posts left and right; the street turns it when its wall runs
+up and down. Transparent background. The pictures are drawn with
 mipmaps, like the icons, so 128px on the long side shrinks cleanly.
 
 The current set was cut from the owner's `building/` sheets by

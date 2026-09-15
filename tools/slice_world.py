@@ -10,8 +10,8 @@ a black caption under each picture, a turret head on its own and the long
 raised bed on its own. Captions are the only short things on a sheet — every
 picture is taller than 70px, every line of text shorter than 40 — so they
 are dropped by height before `slice_icons.cut` gives each picture to its
-seed. Unlike an icon, a picture is cropped tight and keeps its shape: a wall
-has to reach the edge of its tile to meet the next one.
+seed. Unlike an icon, a picture is cropped tight and keeps its shape — except
+a wall or gate, which is the whole tile so the street can join it to the next.
 
     conda activate deadline-art      (python, pillow, numpy, scipy)
     python tools/slice_world.py path/to/building
@@ -46,6 +46,14 @@ HEAD = ("barrelsprite.png", "turret_head", (552, 656))
 # Pictures named after a piece in a state rather than a piece.
 STATES = {"gate_open", "turret_head"}
 
+# Pieces the street joins into one wall with their neighbours, so each is
+# the whole tile, stretched square. A wall is cut to its body first: the post
+# stubs along its top would otherwise stand up out of a joined wall at every
+# tile. A gate keeps its posts — they are what reads as a gate in the line.
+WALL_BODY = {"barricade", "woodWall", "stoneWall", "reinforcedWall", "metalWall"}
+WALL_WHOLE = {"gate", "gate_open"}
+BODY_FILL = 0.5     # a row or column is body where this much of it is solid
+
 # Pieces that arrived with no build-menu icon: theirs is cut from the same
 # picture, padded square the way `slice_icons` pads every icon.
 NEEDS_ICON = {"longBed"}
@@ -64,6 +72,17 @@ def fit(rgba):
     k = SIZE / max(h, w)
     size = (max(1, round(w * k)), max(1, round(h * k)))
     return Image.fromarray(rgba, "RGBA").convert("RGBa").resize(size, Image.LANCZOS).convert("RGBA")
+
+
+def wall(rgba, name):
+    """The whole tile: cut to the body where a wall has stubs, then stretched square."""
+    if name in WALL_BODY:
+        solid = rgba[..., 3] > SOLID
+        rows = np.nonzero(solid.mean(1) >= BODY_FILL)[0]
+        cols = np.nonzero(solid.mean(0) >= BODY_FILL)[0]
+        rgba = rgba[rows.min():rows.max() + 1, cols.min():cols.max() + 1]
+    img = Image.fromarray(np.ascontiguousarray(rgba), "RGBA").convert("RGBa")
+    return img.resize((SIZE, SIZE), Image.LANCZOS).convert("RGBA")
 
 
 def head(src):
@@ -91,7 +110,8 @@ def main():
         sheet = np.array(Image.open(src / file).convert("RGBA"))
         uncaption(sheet)
         for name, rgba in cut(sheet, seeds).items():
-            fit(rgba).save(folder / f"{name}.png", optimize=True)
+            joined = name in WALL_BODY or name in WALL_WHOLE
+            (wall(rgba, name) if joined else fit(rgba)).save(folder / f"{name}.png", optimize=True)
             if name in NEEDS_ICON:
                 square(rgba).save(ROOT / "art" / "structures" / f"{name}.png", optimize=True)
             written.append(name)
