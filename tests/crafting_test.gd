@@ -295,10 +295,10 @@ func test_you_cannot_craft_a_rifle_you_cannot_lift() -> void:
 		sim.stash.add(id, 200)
 	p.bag.clear_all()
 	p.hotbar.clear_all()
-	p.carry_cap = 200.0
+	p.carry_cap = 200.0                                  # ceiling 300
 	p.bag.add_capped("stone", 400, p.pack_allowance())
 	ok(p.bag.first_empty() >= 0, "there is a slot free")
-	near(p.carried_weight(), 199.5, 0.01)
+	near(p.carried_weight(), 300.0, 0.01, "loaded to the ceiling")
 	var r := _recipe("rifle")
 	eq(Crafting.status(sim, p, r, 2).reason, "Too heavy to carry")
 	ok(not Crafting.craft(sim, p, r, 2))
@@ -308,4 +308,4 @@ func test_you_cannot_craft_a_rifle_you_cannot_lift() -> void:
 	p.bag.take("stone", 20)
 	ok(Crafting.craft(sim, p, r, 2))
 	eq(p.count_carried("rifle"), 1)
-	ok(not p.overloaded())
+	ok(p.carried_weight() <= p.carry_limit(), "carrying %.1f" % p.carried_weight())

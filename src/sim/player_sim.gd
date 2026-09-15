@@ -271,15 +271,23 @@ func carried_weight() -> float:
 	return bag.weight() + hotbar.weight()
 
 
+## The hard ceiling. `carry_cap` is what you can carry *comfortably*; past it
+## you are overburdened (winded, no sprint, no dash) and this is where the
+## refusals start (owner, 2026-09-15 — the cap used to be the refusal itself,
+## so a find one unit too heavy simply would not go in).
+func carry_limit() -> float:
+	return carry_cap * float(Config.PLAYER.overload_mul)
+
+
 ## How much weight the pack may still take. The budget covers pack and hotbar
 ## together, because that is what the weight bar shows — check against
 ## anything narrower and loot keeps fitting after the bar has passed 100%.
 func pack_allowance() -> float:
-	return carry_cap - hotbar.weight()
+	return carry_limit() - hotbar.weight()
 
 
 func overloaded() -> bool:
-	return carried_weight() > carry_cap
+	return carried_weight() > carry_cap + 1e-9
 
 
 ## What a bill costs after this player's building or crafting perks
@@ -694,7 +702,14 @@ func move(world: World, dt: float, rooted := false, structs: Structures = null) 
 	sneaking = it.sneak
 	# Sprinting runs the bar all the way down now — the old floor of 1.0 is
 	# why it could never wind you (PROJECT.md, 2026-09-08).
-	sprinting = not sneaking and it.sprint and moving and stam > 0.0
+	#
+	# Winded, and overburdened, you cannot sprint at all: the key does nothing
+	# and spends nothing. It used to be charged for — which restarted the
+	# clock every step — so anyone walking home with the key held stayed winded
+	# for ever (the owner's report, 2026-09-15). Walking it off is the way out,
+	# and now it works whether or not the key is down.
+	sprinting = not sneaking and it.sprint and moving and stam > 0.0 \
+		and not winded and not overloaded()
 
 	if sprinting:
 		Stamina.spend(self, P.stam_drain * dt)
@@ -727,6 +742,8 @@ func _dash_refusal(rooted: bool) -> String:
 		return "Your legs are not yours"
 	if rooted:
 		return "Not in the middle of that"
+	if overloaded():
+		return "Too heavy to dash — drop something"
 	if winded:
 		return "Too winded to dash"
 	if stam < float(Config.DASH.stam):

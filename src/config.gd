@@ -53,7 +53,10 @@ const PLAYER := {
 	"max_stam": 100.0,
 	"stam_drain": 26.0,
 	"stam_regen": 20.0,
-	"stam_regen_delay": 0.65,
+	# A beat with no recovery in it after anything is spent. One second, not
+	# the old 0.65 (owner, 2026-09-15): between two swings the bar should sit
+	# still rather than twitch up and back down again.
+	"stam_regen_delay": 1.0,
 	# Every swing costs, and a swing that hits nothing costs too: nothing is
 	# ever refused for want of puff. `stam_swing` is the fallback a weapon
 	# without its own cost falls back to — see `Stamina.swing_cost` and the
@@ -64,6 +67,12 @@ const PLAYER := {
 	"stam_chop_mul": 3.0,
 	"stam_chop_delay": 1.1,
 	"carry_cap": 200.0,
+	# The cap is soft (owner, 2026-09-15): you may load up to this much of it
+	# and walk home overburdened — winded, no sprint and no dash until the
+	# weight comes off — rather than being told a rifle will not fit. Past this
+	# ceiling everything is refused as it always was, so "soft" is still a
+	# limit and not a hole.
+	"overload_mul": 1.5,
 	"inv_slots": 30,
 	"hotbar_slots": 6,
 	"pickup_range": 46.0,
@@ -181,11 +190,14 @@ const BOSSES := {
 ## `recompute_stats` like a mutation band (invariant 4), so retuning the
 ## penalty is an edit to this dictionary and nothing else.
 ##
-## `dur` is a clock, not a lock: recovery runs at the normal rate throughout
-## (hidden on the HUD until the clock ends), and swinging or sprinting restarts
-## it and empties the bar. Standing still is the way out, and the only one.
+## `dur` is a clock, not a lock, but recovery crawls while it runs:
+## `regen_mul` of the normal rate, shown on the bar (owner, 2026-09-15 — the
+## refill used to run at full speed and be hidden). **Sprinting is refused
+## while winded**, so walking it off works; swinging through it still restarts
+## the clock and throws the refill away. Standing still is the way out.
 const WINDED := {
 	"dur": 3.0,
+	"regen_mul": 0.25,
 	"mul": {"swing_rate_mul": 1.6},
 }
 

@@ -260,6 +260,38 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### Winded is a crawl you can walk off, and the pack has a soft cap (2026-09-15)
+
+From the *Multiplayer Playing* playtest (cards DL-87 and the stamina bullets).
+Four notes, one system.
+
+- **Sprinting while winded is refused**, not charged for. It used to spend and
+  so restarted the clock every step, which is why the owner's countdown
+  "did not drop to 0 while walking": with the key held, it never could.
+- **The refill crawls while the clock runs** — `WINDED.regen_mul` (0.25) of
+  the normal rate — and the HUD shows it. The refill used to run at full speed
+  and be hidden, which was the honest way to draw something one swing would
+  take back; a slow, real refill says the same thing without lying about the
+  bar. Swinging through it still dumps what it has climbed to.
+- **`stam_regen_delay` is 1.0s** (was 0.65): a beat of stillness before
+  recovery starts, so the bar between two swings sits still instead of
+  twitching.
+- **The carry cap is soft.** `carry_cap` is what you carry comfortably;
+  `carry_limit()` (`overload_mul`, 1.5x) is the hard ceiling where pickups,
+  crafts and chest withdrawals are refused as they always were. Between the
+  two you are **overburdened**: winded until the weight comes off, no sprint
+  and no dash, and walking pace untouched. `Stamina.tick` holds the clock at
+  `dur` while `overloaded()`, so the debuff ends when the weight does.
+- **Co-op:** the host's `winded_t` rides the player record (`PL_WINDED_T`,
+  protocol 10). A guest used to estimate it from the flag, so an estimate that
+  ran out a round trip early was reset to `dur` by the next snapshot and the
+  countdown looped 3 → 0 → 3.
+- `player_test` pins all four (sprint refused, the clock running down while
+  walking with the key held, the crawl, overburdened, the ceiling);
+  `net_test` that the guest's countdown is the host's own clock. The smoke's
+  `winded_bar` now asserts the bar shows the refill and that the sprint key
+  does not restart the clock.
+
 ### Walls join, and a gate lies along its wall (2026-09-15)
 
 The owner's first look at the street art: walls stood as separate boxes with
@@ -1770,6 +1802,8 @@ Phases 1–4 respecting it.
 
 | Date | Decision | Why | Reversible? |
 | --- | --- | --- | --- |
+| 2026-09-15 | **The carry cap is soft**: `carry_cap` is comfort, `carry_limit()` (1.5x) is the refusal | Owner, from the *Multiplayer Playing* playtest: a find one unit too heavy simply would not go in, which reads as a bug rather than as a decision. Overburdened is now a state you can walk home in — winded, no sprint, no dash — instead of a wall. | Yes, one const (`PLAYER.overload_mul` 1.0 restores the hard cap) |
+| 2026-09-15 | **Sprinting while winded is refused rather than charged for** | It was the reason the countdown never finished: spending restarts the clock, and the key is usually still held. Swinging through it still restarts it, so "push through and stay sluggish" survives where it was actually a choice. | Yes |
 | 2026-09-08 | Rebuild in Godot rather than keep extending the browser prototype | Navigation, 2D lighting, distribution and entity scale all cost more to fake in Canvas2D than to get from an engine. The code only gets bigger, so now is the cheapest moment. | Not cheaply |
 | 2026-09-08 | GDScript, not C# | Fastest iteration, no build step, what the tooling and community assume. | Yes, per module |
 | 2026-09-08 | Rebuild, not translate | 18,800 lines of JS with browser-specific harnesses. Translating carries the prototype's compromises; rebuilding against the spec lets each system be finished properly (pillar 5). | n/a |
@@ -2568,6 +2602,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-15 | **The *Multiplayer Playing* playtest, group A: stamina, winded and weight** (Notion DL-87 and three page bullets). Sprinting while winded is refused instead of spent, so the clock runs down while you walk with the key held — the owner's "winded timer does not drop to 0 while walking", which was the sprint restarting it every step. The refill crawls at `WINDED.regen_mul` (0.25) while the clock runs and the HUD shows it rather than hiding a full-speed one; `stam_regen_delay` 0.65 → 1.0 so the bar sits still between swings. The carry cap went soft: `carry_cap` is comfort and `carry_limit()` (`overload_mul` 1.5) is where pickups, crafts and chest withdrawals are refused, and in between you are **overburdened** — winded, no sprint, no dash, until the weight comes off. Co-op ships the host's `winded_t` (`PL_WINDED_T`, protocol 10) instead of a guest estimating it from the flag and looping 3 → 0 → 3. `player_test` +4, `net_test` +1; the four capacity tests that encoded the hard cap now encode the ceiling. `tools/test`: 767 tests, 17562 asserts, 0 failures |
 | 2026-09-15 | **Winded throws away the refill, and the noise lens can be found.** Owner: the noise overlay "is not there", and winded should reset its timer *and* dump what the bar refilled. Stamina: the bar still refills during the 3s debuff, but `Stamina.spend` while winded now zeroes it as well as restarting the clock, and the HUD draws the bar empty until the clock runs out, so there is never a bar on screen that one swing would take back. Standing still three seconds comes out with the same bar as before, which is what keeps this clear of the regen-lock draft that flickered. Noise lens: it existed (F2, dev builds, only for swung/fired/built/driven noise), but the rings lived in `FxView` under the night's CanvasModulate and went black after dark. They are now `NoiseLensView` on a camera-following CanvasLayer, the F1 menu has a *Toggle the noise overlay* row sharing one `NoiseLensView.toggle` with F2, and switching off clears rings mid-fade. Tests: a winded swing and a winded sprint each dump the refill (both fail against the old `spend`). Smoke: `winded_bar` asserts the HUD hides a real refill; `noise_lens_night` presses F2 at midnight and photographs the ring. `tools/test`: 764 tests, 0 failures. Smoke: 98 checkpoints, 2 failures outside this change (the move-to-cursor focus flake; a meal cancelled by a hit) |
 | 2026-09-15 | **Walls join, and a gate lies along its wall.** Owner feedback on the street art: gaps between walls, a gate that looked wrong and faced the wrong way. Wall and gate pictures are re-cut to the whole tile (`slice_world.py`, walls without their post stubs), `StructureView` trims their outline on every side that meets another wall piece, and a gate in a wall running up and down is drawn turned; the ghost joins too. Drawing only. Smoke `structure_art` gains a corner and a turned gate, with asserts on the joins |
 | 2026-09-15 | **Built pieces look like themselves, and a bed two tiles long.** The owner's top-down pictures of every buildable are in `art/world/` (cut by `tools/slice_world.py`), drawn by `StructureView` fitted to the piece's tiles with damage, flash, crops, rings and labels over them; an open gate has its own picture and the turret's head turns on its mount; the build ghost shows the picture. Pieces can cover several tiles (`w`/`h`, `rot`, top-left anchor, every tile in `grid`), R turns one while placing, and the turn is in the intent, the wire, the save and the snapshot. New buildable: the Long Raised Bed (`longBed`), one planting over two tiles, harvest x2.5, Wood 30 · Sticks 12 · Fiber 10. Menu icons unchanged but for the new bed's. Tests in `building_test`, `farming_test`, `net_test`, `icons_test`; smoke `structure_art` and `long_bed_ghost`. **Codex pass (PR #50):** the fifth element went out under protocol 8, so an updated guest joining a host from the release before was let in and every placement, repair and demolition it sent was dropped; protocol 9 turns it away with the out-of-date message instead. Second finding: a guest applied a world diff's builds before its removals, so a bed built across a removed wall's tile was deleted by the wall's "gone" and stayed missing until a rejoin; removals now go first and only take the piece anchored there. `test_a_bed_built_over_a_removed_wall_survives_the_same_diff` fails without it |

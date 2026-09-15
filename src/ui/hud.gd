@@ -425,11 +425,16 @@ func refresh() -> void:
 	_hp.set_value(p.hp / maxf(1.0, p.max_hp), null, "HP %d" % roundi(p.hp))
 	# SHORT, not DANGER: DANGER is the health bar's own colour and the two
 	# meters sit next to each other, so a winded bar in it reads as a second
-	# health bar. The countdown is the debuff, not the bar — and the bar reads
-	# empty until it runs out, because any swing before then throws away what
-	# it has climbed back to (`Stamina.spend`).
-	_stam.set_value(0.0 if p.winded else p.stam / maxf(1.0, p.max_stam), Ui.SHORT if p.winded else Ui.ACCENT_HI,
-		"Stamina" + ("  —  winded %.1fs" % p.winded_t if p.winded else ""))
+	# health bar. The refill is slow while the clock runs and it is shown, so
+	# the bar is what it says it is; the countdown beside it is the debuff.
+	# Overburdened has no countdown to show — it ends when the weight does.
+	var winded_note := ""
+	if p.overloaded():
+		winded_note = "  —  overburdened"
+	elif p.winded:
+		winded_note = "  —  winded %.1fs" % p.winded_t
+	_stam.set_value(p.stam / maxf(1.0, p.max_stam), Ui.SHORT if p.winded else Ui.ACCENT_HI,
+		"Stamina" + winded_note)
 	var band := Mutation.band_of(p)
 	_mut.set_value(Mutation.fraction(p), Color(String(band.color)), "Mutation  ·  %s" % String(band.name),
 		"%d%%" % roundi(p.mutation))

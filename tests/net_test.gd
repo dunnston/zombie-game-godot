@@ -728,8 +728,8 @@ func test_enet_on_localhost() -> void:
 # ----------------------------------------------------------------- winded --
 
 func test_a_guest_learns_winded_from_the_flag_and_swings_slow() -> void:
-	# The snapshot ships `winded` as one flag bit and nothing else — not the
-	# clock, not the multiplier. So the guest has to rebuild the penalty on
+	# The snapshot ships `winded` as one flag bit and the host's clock beside
+	# it, but not the multiplier. So the guest has to rebuild the penalty on
 	# arrival: a bare assignment of the flag leaves its own predicted swing at
 	# full speed while the host's is stretched, and the two disagree for as
 	# long as the guest is tired.
@@ -750,3 +750,21 @@ func test_a_guest_learns_winded_from_the_flag_and_swings_slow() -> void:
 	ok(not gp.winded, "the host recovered")
 	ok(not g.me.winded, "so did the mirror")
 	near(g.me.swing_rate_mul, 1.0, 0.001, "and the penalty is gone with it")
+
+
+func test_a_guests_winded_countdown_is_the_hosts_own_clock() -> void:
+	# The owner's report: the countdown never reached zero. A guest used to
+	# estimate the clock from the flag, so whenever its estimate ran out first
+	# the next snapshot put it back to `dur` and it counted 3 -> 0 -> 3 for
+	# ever. The host's `winded_t` rides the player record now.
+	var t := _table()
+	var g: NetGuest = t.guest
+	var gp: PlayerSim = t.gp
+
+	Stamina.spend(gp, gp.stam)
+	_pump(t, 1.5)
+	ok(g.me.winded, "still winded on both")
+	near(g.me.winded_t, gp.winded_t, 0.25,
+		"the guest's clock says %.2f and the host's %.2f" % [g.me.winded_t, gp.winded_t])
+	ok(g.me.winded_t < float(Config.WINDED.dur) - 1.0,
+		"and it has actually come down: %.2f" % g.me.winded_t)

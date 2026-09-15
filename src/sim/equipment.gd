@@ -236,7 +236,7 @@ static func move_stack(sim: GameSim, p: PlayerSim, from_cont: String, from_index
 		if not s.is_empty():
 			var dest := to.at(to_index)
 			var per := Items.weight_of(s.id)
-			var spare := p.carry_cap - p.carried_weight()
+			var spare := p.carry_limit() - p.carried_weight()
 			if not dest.is_empty() and dest.id != s.id:
 				# A swap hands the other stack back, so it pays for itself.
 				spare += Items.weight_of(dest.id) * dest.n

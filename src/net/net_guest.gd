@@ -415,7 +415,7 @@ func _apply_player(pr: Dictionary) -> void:
 	# Through `Stamina`, not a bare assignment: the flag has to reach
 	# `recompute_stats` or the guest's own swing keeps full speed while the
 	# host's is stretched.
-	Stamina.sync(p, bool(f & NetProtocol.PF_WINDED))
+	Stamina.sync(p, bool(f & NetProtocol.PF_WINDED), n[NetProtocol.PL_WINDED_T])
 	p.lit = bool(f & NetProtocol.PF_LIT)
 	p.light_on = p.lit
 	p.down_t = n[NetProtocol.PL_DOWN_T]

@@ -1640,19 +1640,28 @@ func smoke_run(smoke: Node) -> void:
 		var carried := p.pos.x - before_dash.x
 		if p.dash_cd > 0.0 and carried < float(Config.DASH.dist) * 0.85:
 			smoke.fail("the dash was heard and carried only %.1f px of %.0f" % [carried, float(Config.DASH.dist)])
-	# Winded: the bar refills underneath, and the HUD keeps it empty until the
-	# clock runs out, because one swing before then would take it all back.
+	# Winded: the bar crawls back at a quarter rate and the HUD shows it
+	# (owner, 2026-09-15), with the countdown beside it. Sprinting is refused
+	# while it runs, so the key held down cannot restart the clock.
 	Stamina.spend(p, p.max_stam)
-	# Until there is something to hide, not a fixed count: at 144Hz ninety
+	# Until there is something to show, not a fixed count: at 144Hz ninety
 	# frames is still inside the regen delay.
 	for i in range(600):
-		if p.stam >= 10.0 or not p.winded:
+		if p.stam >= 2.0 or not p.winded:
 			break
 		await smoke.frames(1)
 	if not p.winded or p.stam <= 0.0:
-		smoke.fail("expected winded with a hidden refill (winded %s, stamina %.1f)" % [p.winded, p.stam])
-	if hud._stam.frac > 0.0:
-		smoke.fail("the winded bar shows %.0f%% of a refill it has not earned" % (hud._stam.frac * 100.0))
+		smoke.fail("expected a winded player with a crawling refill (winded %s, stamina %.1f)" % [p.winded, p.stam])
+	if hud._stam.frac <= 0.0:
+		smoke.fail("the winded bar shows nothing of the refill it has earned")
+	Input.action_press("sprint")
+	Input.action_press("move_right")
+	var was := p.winded_t
+	await smoke.frames(12)
+	Input.action_release("sprint")
+	Input.action_release("move_right")
+	if p.sprinting or p.winded_t > was:
+		smoke.fail("the sprint key restarted the winded clock: %.2f -> %.2f" % [was, p.winded_t])
 	await smoke.checkpoint("winded_bar")
 	Stamina.refill(p)
 	await _smoke_move_to_cursor(smoke)
