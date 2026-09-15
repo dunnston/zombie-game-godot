@@ -17,20 +17,25 @@ extends RefCounted
 ##
 ## The debuff is a **clock, not a lock**. Regen runs at the normal rate the
 ## moment you stop spending, so three seconds of standing still hands back a
-## usable bar; swinging or sprinting while winded restarts the clock, so
-## somebody who keeps working stays sluggish until they choose to stop.
+## usable bar; swinging or sprinting while winded restarts the clock *and
+## throws that refill away*, so somebody who keeps working stays sluggish and
+## empty until they choose to stop. The HUD keeps the refill out of sight
+## until the clock runs out, so there is never a bar on screen that one swing
+## would take back.
 
 
 ## Spends `amount` and stops recovery for a beat. `lock` overrides that beat —
 ## a harvest swing rests longer than a punch. Bottoming out here is the only
-## way to become winded, and spending while already winded restarts the clock:
-## the way out is to stop, not to push through.
+## way to become winded, and spending while already winded restarts the clock
+## and empties the bar: the way out is to stop, not to push through.
 static func spend(p: PlayerSim, amount: float, lock := -1.0) -> void:
-	p.stam = maxf(0.0, p.stam - amount)
 	p.stam_lock = Config.PLAYER.stam_regen_delay if lock < 0.0 else lock
 	if p.winded:
+		p.stam = 0.0
 		p.winded_t = float(Config.WINDED.dur)
-	elif p.stam <= 0.0:
+		return
+	p.stam = maxf(0.0, p.stam - amount)
+	if p.stam <= 0.0:
 		_set_winded(p, true)
 
 

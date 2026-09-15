@@ -434,6 +434,25 @@ func test_a_winded_swing_is_slower_and_hits_exactly_as_hard() -> void:
 	near(fresh.max_hp - tired.hp, per_swing, 0.001, "a winded swing hits for the same")
 
 
+func test_a_winded_swing_throws_away_the_refill_and_restarts_the_clock() -> void:
+	# Owner, 2026-09-15: the bar that climbs back during the debuff is not
+	# yours until the clock runs out. Swing before then and it is gone.
+	_hold("machete")
+	Stamina.spend(p, p.max_stam)
+	ok(p.winded, "winded")
+	run(sim, 2.0)
+	ok(p.stam > 20.0, "the bar climbed back while standing: %.1f" % p.stam)
+	ok(p.winded_t < 1.5, "and the clock ran down: %.2f" % p.winded_t)
+	sim.enemies.spawn("brute", plot + Vector2(30, 0))
+	p.attack_cd = 0.0
+	p.intent.fire = true
+	run(sim, 0.04)
+	p.intent.fire = false
+	ok(p.winded, "still winded")
+	near(p.stam, 0.0, 0.001, "the swing dumped the refill")
+	ok(p.winded_t > float(Config.WINDED.dur) - 0.1, "and restarted the clock: %.2f" % p.winded_t)
+
+
 func test_a_winded_harvest_pays_exactly_what_a_fresh_one_pays() -> void:
 	# There is no yield penalty anywhere in the system, by design.
 	var rule: Dictionary = Config.HARVEST.wood

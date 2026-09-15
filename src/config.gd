@@ -181,9 +181,9 @@ const BOSSES := {
 ## `recompute_stats` like a mutation band (invariant 4), so retuning the
 ## penalty is an edit to this dictionary and nothing else.
 ##
-## `dur` is a clock, not a lock: recovery runs at the normal rate throughout,
-## and swinging or sprinting restarts it. Standing still is the way out, and
-## the only one.
+## `dur` is a clock, not a lock: recovery runs at the normal rate throughout
+## (hidden on the HUD until the clock ends), and swinging or sprinting restarts
+## it and empties the bar. Standing still is the way out, and the only one.
 const WINDED := {
 	"dur": 3.0,
 	"mul": {"swing_rate_mul": 1.6},

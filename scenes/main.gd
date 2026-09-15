@@ -20,6 +20,7 @@ var structure_view: StructureView
 var instance_view: InstanceView
 var boss_view: BossView
 var fx: FxView
+var noise_lens: NoiseLensView
 ## The camera's ordinary zoom, from the viewport; a boss's arena pulls out
 ## from it and walking out puts it back.
 var _zoom := 1.0
@@ -123,6 +124,16 @@ func _ready() -> void:
 	# Half the screen's diagonal in world pixels: the spawn ring sits beyond it.
 	sim.view_radius = vp.length() / 2.0 / z
 
+	# The noise lens sits over the world on a layer of its own that follows the
+	# camera: the night's CanvasModulate tints only the canvas it is on, so a
+	# ring drawn down there went black with everything else. Added before the
+	# HUD's layer, which shares its index, so the HUD still draws on top.
+	var lens_layer := CanvasLayer.new()
+	lens_layer.follow_viewport_enabled = true
+	add_child(lens_layer)
+	noise_lens = NoiseLensView.new()
+	lens_layer.add_child(noise_lens)
+
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	hud = Hud.new(sim)
@@ -213,9 +224,7 @@ func _physics_process(dt: float) -> void:
 		# never reaches this line, so there is nothing to switch off before
 		# shipping. The sim emits nothing at all while it is false.
 		if Input.is_action_just_pressed("noise_debug"):
-			Sound.debug = not Sound.debug
-			sim.notify("Noise overlay %s" % ("on" if Sound.debug else "off"),
-				"#9ad0e8")
+			NoiseLensView.toggle(sim)
 		if dev.open:
 			# The world keeps running underneath, so you can watch what you
 			# just did. It only stops answering this keyboard.
@@ -505,6 +514,7 @@ func _process(dt: float) -> void:
 			# one is rebuilt, the way a load rebuilds them.
 			_rebuild_views(true)
 		fx.on_event(ev)
+		noise_lens.on_event(ev)
 		boss_view.on_event(ev)
 		lights.on_event(ev)
 		hud.on_event(ev)
@@ -516,6 +526,7 @@ func _process(dt: float) -> void:
 	_refresh_net_lines()
 	NetDoor.reap()
 	fx.tick(dt)
+	noise_lens.tick(dt)
 	boss_view.tick(dt)
 	lights.tick()
 	hud.tick(dt)
@@ -533,6 +544,7 @@ func _process(dt: float) -> void:
 	boss_view.queue_redraw()
 	player_view.queue_redraw()
 	fx.queue_redraw()
+	noise_lens.queue_redraw()
 	# A full screen covers the HUD rather than showing it through its scrim:
 	# the pack is not a place to read your health bar from, and two layers of
 	# text at 28% is how a screen becomes unreadable.
@@ -1628,6 +1640,21 @@ func smoke_run(smoke: Node) -> void:
 		var carried := p.pos.x - before_dash.x
 		if p.dash_cd > 0.0 and carried < float(Config.DASH.dist) * 0.85:
 			smoke.fail("the dash was heard and carried only %.1f px of %.0f" % [carried, float(Config.DASH.dist)])
+	# Winded: the bar refills underneath, and the HUD keeps it empty until the
+	# clock runs out, because one swing before then would take it all back.
+	Stamina.spend(p, p.max_stam)
+	# Until there is something to hide, not a fixed count: at 144Hz ninety
+	# frames is still inside the regen delay.
+	for i in range(600):
+		if p.stam >= 10.0 or not p.winded:
+			break
+		await smoke.frames(1)
+	if not p.winded or p.stam <= 0.0:
+		smoke.fail("expected winded with a hidden refill (winded %s, stamina %.1f)" % [p.winded, p.stam])
+	if hud._stam.frac > 0.0:
+		smoke.fail("the winded bar shows %.0f%% of a refill it has not earned" % (hud._stam.frac * 100.0))
+	await smoke.checkpoint("winded_bar")
+	Stamina.refill(p)
 	await _smoke_move_to_cursor(smoke)
 	for spot in [["suburbs", 118, 120], ["market_row", 200, 158], ["downtown", 262, 172],
 			["farms", 30, 140], ["lake_lodge", 190, 52], ["forest", 60, 30], ["junkyard", 190, 270]]:
@@ -2049,6 +2076,25 @@ func smoke_run(smoke: Node) -> void:
 	if night.density <= 1.5 or night.threat <= 1.5:
 		smoke.fail("night is not worth anything: %s" % str(night))
 	await smoke.checkpoint("night")
+
+	# The noise lens, at night on purpose: under the world's CanvasModulate the
+	# rings went black with everything else, so the owner turned it on and saw
+	# nothing. Through the real key, with a noise made where the camera is.
+	await smoke.tap("noise_debug")
+	await smoke.frames(2)
+	if not Sound.debug:
+		smoke.fail("F2 did not turn the noise overlay on")
+	Sound.make_noise(sim, p.pos.x, p.pos.y, 180.0, p, "gun")
+	await smoke.frames(3)
+	if noise_lens.rings.is_empty():
+		smoke.fail("a noise with the overlay on drew no ring")
+	if noise_lens.get_canvas_layer_node() == lights.get_canvas_layer_node():
+		smoke.fail("the noise lens shares the night's canvas and will be tinted black")
+	await smoke.checkpoint("noise_lens_night")
+	await smoke.tap("noise_debug")
+	await smoke.frames(2)
+	if Sound.debug or not noise_lens.rings.is_empty():
+		smoke.fail("F2 did not turn the noise overlay off (debug %s, %d rings)" % [Sound.debug, noise_lens.rings.size()])
 
 	# A torch in the off-hand. Worn, not struck: the dark strikes it, which is
 	# the behaviour the owner's second playtest asked for, and this is the only
