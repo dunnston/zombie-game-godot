@@ -8,6 +8,13 @@ class_name LocalInput
 ## selection there, so they must not also walk you across the street.
 const NAV_KEYS := [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]
 
+## Where Forward points while the move keys follow the cursor
+## (`KeyBinds.move_to_cursor`), as an angle. Kept between steps: a cursor
+## inside the deadzone, or one that belongs to an open panel, leaves you
+## walking the way you already were. Starts facing up the screen, so the first
+## step before the mouse has moved is the one the keys always gave.
+static var heading := -PI / 2.0
+
 
 ## `ui_capture` is true while a panel owns the mouse. Movement still answers
 ## the keyboard — you can back away from a horde with your pack open — but
@@ -17,7 +24,12 @@ const NAV_KEYS := [KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]
 ## selection, so movement comes from the other keys bound to it (WASD by
 ## default). `typing` is true while a search field has the caret: every
 ## letter is the field's, so nothing walks, sprints or dashes at all.
-static func gather(intent: Intent, node: Node2D, ui_capture := false, screen_nav := false, typing := false) -> void:
+##
+## `player` is who the keys walk, for turning them toward the cursor. The
+## intent that leaves here is always in world directions — the sim, the wire
+## and a guest's prediction never learn which scheme you play with — and a
+## car is steered by the keys as they are, so driving is never turned.
+static func gather(intent: Intent, node: Node2D, ui_capture := false, screen_nav := false, typing := false, player: PlayerSim = null) -> void:
 	var v := Vector2.ZERO
 	if typing:
 		v = Vector2.ZERO
@@ -25,6 +37,11 @@ static func gather(intent: Intent, node: Node2D, ui_capture := false, screen_nav
 		v = Vector2(_held("move_right") - _held("move_left"), _held("move_down") - _held("move_up")).limit_length(1.0)
 	else:
 		v = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+	if player != null and KeyBinds.move_to_cursor and player.driving_id <= 0:
+		# A panel's cursor is pointing at the panel, not at the street.
+		if not ui_capture:
+			heading = aim_heading(player.pos, node.get_global_mouse_position(), heading)
+		v = steer(v, heading)
 	intent.mx = v.x
 	intent.my = v.y
 	intent.sprint = Input.is_action_pressed("sprint") and not typing
@@ -61,6 +78,22 @@ static func gather(intent: Intent, node: Node2D, ui_capture := false, screen_nav
 		intent.wheel = 1
 	elif Input.is_action_just_pressed("wheel_up"):
 		intent.wheel = -1
+
+
+## The angle from you to the cursor, or `prev` when the cursor is within
+## `cursor_deadzone` of you: that close, a pixel of mouse is a half turn, and
+## walking over the cursor would spin you on the spot.
+static func aim_heading(from: Vector2, aim: Vector2, prev: float) -> float:
+	var d := aim - from
+	if d.length() < float(Config.PLAYER.cursor_deadzone):
+		return prev
+	return d.angle()
+
+
+## The keys as pressed (up is -y) turned so up points along `heading`: Forward
+## walks that way, Back the opposite, Right a quarter turn clockwise from it.
+static func steer(keys: Vector2, heading_angle: float) -> Vector2:
+	return keys.rotated(heading_angle + PI / 2.0)
 
 
 ## 1 when any key bound to `action` other than the arrows is held. A binding

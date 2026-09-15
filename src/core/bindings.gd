@@ -103,6 +103,18 @@ static var STORE := "user://binds.json"
 ## autoload, which a `-s` script run does not have.
 static var custom := {}
 
+## Whether the move keys are relative to where you are looking: Forward walks
+## toward the cursor, Back away from it, Left and Right strafe around it. Off,
+## they are the screen's up, down, left and right. Kept beside the bindings
+## because it is the same question — what the move keys do — and it is reset
+## and remembered with them.
+static var move_to_cursor := true
+
+
+static func set_move_to_cursor(on: bool) -> void:
+	move_to_cursor = on
+	save()
+
 
 ## What is actually bound to an action now.
 static func codes_for(id: String) -> Array:
@@ -146,6 +158,7 @@ static func is_default(id: String) -> bool:
 
 static func reset_all() -> void:
 	custom.clear()
+	move_to_cursor = true
 	for id in KEYS:
 		_apply(id)
 	save()
@@ -166,7 +179,12 @@ static func save() -> bool:
 	var f := FileAccess.open(STORE, FileAccess.WRITE)
 	if f == null:
 		return false
-	f.store_string(JSON.stringify(custom))
+	# The setting rides in the same file under a name no action has, which is
+	# what an old build reading it will skip.
+	var data := custom.duplicate()
+	if not move_to_cursor:
+		data["move_to_cursor"] = false
+	f.store_string(JSON.stringify(data))
 	f.close()
 	return true
 
@@ -175,6 +193,7 @@ static func save() -> bool:
 ## front of you, not to the world you are playing.
 static func load_binds() -> void:
 	custom.clear()
+	move_to_cursor = true
 	if not FileAccess.file_exists(STORE):
 		return
 	var f := FileAccess.open(STORE, FileAccess.READ)
@@ -185,6 +204,7 @@ static func load_binds() -> void:
 	var data = JSON.parse_string(text)
 	if typeof(data) != TYPE_DICTIONARY:
 		return
+	move_to_cursor = bool(data.get("move_to_cursor", true))
 	for id in data:
 		if not KEYS.has(id):
 			continue                 # an action that no longer exists
