@@ -346,7 +346,7 @@ static func fire_gun(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 		var b := spawn_bullet(sim, muzzle, a,
 			w.speed * (0.92 + sim.rng.next() * 0.16),
 			w.dmg * p.gun_mul * Upgrade.held_mul(p) * (mul if crit else 1.0),
-			w.life * p.range_mul, w.knock, w.get("pierce", 0), p, crit,
+			w.life * p.range_mul, w.get("knock", 0.0), w.get("pierce", 0), p, crit,
 			w.id if i == 0 else "", color)   # one sound per shot, not per pellet
 		# Written onto the round rather than passed in: `spawn_bullet` has
 		# twelve parameters already, and this way every other source of a
