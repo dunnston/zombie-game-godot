@@ -1723,8 +1723,24 @@ func smoke_run(smoke: Node) -> void:
 		smoke.fail("mending cost nothing")
 	await smoke.checkpoint("weapon_mended")
 
-	await smoke.tap("crafting")
+	# The C CLOSE keycap is a button as well as a key — clicked mid-search, so
+	# the field has to give the keyboard back when the screen goes.
+	var field := inventory._search
+	if field != null:
+		field.grab_focus()
+		await smoke.frames(1)
+	if inventory.button_centre("close") == Vector2.ZERO:
+		smoke.fail("the craft tab has no clickable CLOSE")
+		await smoke.tap("crafting")
+	else:
+		await smoke_click(inventory.button_centre("close"))
 	await smoke.frames(2)
+	if inventory.visible:
+		smoke.fail("clicking CLOSE left the craft tab open")
+	if field == null:
+		smoke.fail("the craft tab has no search field")
+	elif is_instance_valid(field) and field.has_focus():
+		smoke.fail("closing the craft tab mid-search left the search field holding the keyboard")
 
 	# Levelling: the sheet opens on K, an attribute takes a point, and the
 	# point moves a stat the rest of the game reads. Crafting the hatchet

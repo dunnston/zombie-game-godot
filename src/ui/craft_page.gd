@@ -180,7 +180,7 @@ func build(s: InventoryScreen, col: VBoxContainer) -> void:
 			up.custom_minimum_size.y = 40
 			s.reg_button("upgrade", up)
 			right.append(up)
-		right.append(Ui.keycap("ESC", "Close"))
+		right.append(s.close_cap("ESC"))
 		var chip: Control = null
 		if is_wb:
 			var pips := UiPips.new(3)

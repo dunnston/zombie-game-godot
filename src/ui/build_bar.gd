@@ -378,7 +378,7 @@ func _build_menu() -> void:
 	var when := Ui.vbox(3, [clock, phase])
 	for l in [tl, clock, phase]:
 		(l as Label).horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	col.add_child(Chrome.tab_bar("build", Chrome.TABS_BUILD, [threat, Ui.rule(true, 32), when, Ui.keycap(key, "Leave")],
+	col.add_child(Chrome.tab_bar("build", Chrome.TABS_BUILD, [threat, Ui.rule(true, 32), when, reg_button("close", Ui.keycap(key, "Leave", func() -> void: toggle()) as Button)],
 		func(id: String) -> void: navigate.emit(id)))
 
 	var base := Ui.label("", "Row14", Ui.TEXT_HIGH)

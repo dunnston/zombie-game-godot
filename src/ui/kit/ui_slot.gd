@@ -38,7 +38,9 @@ func _init(cell_info := {}, px := Ui.SLOT_SIZE) -> void:
 func show_stack(s: Dictionary, sel := false, w := -1.0, num := "", dimmed := false) -> void:
 	if s == stack and sel == selected and is_equal_approx(w, wear) and num == number and dimmed == dim:
 		return
-	stack = s
+	# A copy: the containers change `n` in place, and a kept reference would
+	# always compare equal to itself and never redraw the new count.
+	stack = s.duplicate()
 	selected = sel
 	wear = w
 	number = num
@@ -78,7 +80,11 @@ func _draw() -> void:
 	if lv > 1:
 		draw_string(mono, Vector2(0, 13), "L%d" % lv, HORIZONTAL_ALIGNMENT_RIGHT, size.x - 4, 12, Ui.WAIT)
 	if int(stack.get("n", 1)) > 1:
-		draw_string(mono, Vector2(0, size.y - 4), str(int(stack.n)), HORIZONTAL_ALIGNMENT_RIGHT, size.x - 4, 12, Ui.INK)
+		# Light with a dark outline, so it reads over pale and dark art alike.
+		var at := Vector2(0, size.y - 4)
+		var txt := str(int(stack.n))
+		draw_string_outline(mono, at, txt, HORIZONTAL_ALIGNMENT_RIGHT, size.x - 4, 12, 4, Ui.VOID)
+		draw_string(mono, at, txt, HORIZONTAL_ALIGNMENT_RIGHT, size.x - 4, 12, Ui.TEXT_HIGH)
 	if wear >= 0.0:
 		var bar := Rect2(5, size.y - 7, size.x - 10, 3)
 		draw_rect(bar, Ui.VOID)
