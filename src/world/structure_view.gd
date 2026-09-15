@@ -32,6 +32,16 @@ const DAMAGE_DARKEN := 0.55
 ## barrel always reached.
 const TURRET_HEAD := 1.4
 
+## The outline round a wall's picture, as a share of its side: trimmed off
+## wherever the wall meets another, so a row of walls is one wall and not a
+## row of boxes. The pictures' outlines are 4px of 128; one more keeps the
+## mipmaps from sampling the dark line back in.
+const JOIN_TRIM := 5.0 / 128.0
+
+## The sides of a tile in join-mask bit order, going round clockwise — so a
+## quarter turn is a shift of one bit.
+const SIDES: Array[Vector2i] = [Vector2i.LEFT, Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN]
+
 var sim: GameSim
 ## Whose reach the build ring shows.
 var player: PlayerSim = null
@@ -67,7 +77,10 @@ func _draw() -> void:
 			if s.flash > 0.0:
 				# Past white, so a hit lights the picture up the way it lights a slab.
 				tint = tint.lerp(Color(2.4, 2.4, 2.4), 0.6)
-			_draw_picture(pic, rect, int(s.get("rot", 0)), tint)
+			if joins(s.type):
+				_draw_joined(pic, rect, s.type, join_mask(sim.structs, s.tx, s.ty), tint)
+			else:
+				_draw_picture(pic, rect, int(s.get("rot", 0)), tint)
 		else:
 			var body := Color(COLORS.get(s.type, "#8a8f84")).lerp(DAMAGE_TINT, dark)
 			if s.flash > 0.0:
@@ -95,6 +108,50 @@ static func picture_of(s: Dictionary) -> Texture2D:
 	if s.type == "gate" and s.open:
 		return Structures.world_art_of("gate", "open")
 	return Structures.world_art_of(s.type)
+
+
+## Whether a piece is part of a wall: its picture fills its tile and joins
+## the walls either side of it. A gate is, open or shut.
+static func joins(type: String) -> bool:
+	var def: Dictionary = Config.STRUCTURES.get(type, {})
+	return def.get("wall", false) or def.get("gate", false)
+
+
+## Which sides of a tile meet a piece of wall, one bit per side of `SIDES`.
+static func join_mask(structs: Structures, tx: int, ty: int) -> int:
+	var mask := 0
+	for i in range(SIDES.size()):
+		var n := structs.at_tile(tx + SIDES[i].x, ty + SIDES[i].y)
+		if not n.is_empty() and joins(n.type):
+			mask |= 1 << i
+	return mask
+
+
+## Whether a gate is drawn a quarter turn round: when its wall runs up and
+## down, so it opens across the wall rather than along it. A wall's own
+## picture never turns — its boards run on from tile to tile either way.
+static func gate_turned(type: String, mask: int) -> bool:
+	return Config.STRUCTURES.get(type, {}).get("gate", false) and mask & 0b0101 == 0 and mask & 0b1010 != 0
+
+
+## A piece of wall: the whole tile, with its outline trimmed off every side
+## that meets another piece of wall.
+func _draw_joined(tex: Texture2D, rect: Rect2, type: String, mask: int, tint: Color) -> void:
+	var size := tex.get_size()
+	var turned := gate_turned(type, mask)
+	if turned:
+		# Turned a quarter clockwise, the picture's side i lies on the tile's side i + 1.
+		mask = ((mask >> 1) | (mask << 3)) & 0b1111
+	var t := size * JOIN_TRIM
+	var src := Rect2(Vector2.ZERO, size).grow_individual(
+		-t.x if mask & 1 else 0.0, -t.y if mask & 2 else 0.0,
+		-t.x if mask & 4 else 0.0, -t.y if mask & 8 else 0.0)
+	if not turned:
+		draw_texture_rect_region(tex, rect, src, tint)
+		return
+	draw_set_transform(rect.get_center(), PI / 2.0)
+	draw_texture_rect_region(tex, Rect2(-rect.size / 2.0, rect.size), src, tint)
+	draw_set_transform(Vector2.ZERO)
 
 
 ## A picture fitted inside its tiles without stretching. A turned piece's
@@ -243,7 +300,10 @@ func _draw_ghost() -> void:
 	var edge := Color("#9fd07a") if ok else Color("#c8423a")
 	draw_rect(area, Color(edge, 0.28))
 	var pic := Structures.world_art_of(card) if Config.STRUCTURES.has(card) else null
-	if pic != null:
+	if pic != null and joins(card):
+		# Joined to the wall it will stand in, so the gap it fills reads as filled.
+		_draw_joined(pic, area, card, join_mask(sim.structs, t.x, t.y), Color(1, 1, 1, 0.55))
+	elif pic != null:
 		_draw_picture(pic, area, rot, Color(1, 1, 1, 0.55))
 	draw_rect(area.grow(-1.0), edge, false, 2.0)
 	# The reach a piece may be placed within, so "Too far" is visible before
