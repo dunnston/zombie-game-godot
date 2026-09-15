@@ -414,21 +414,14 @@ func _build_centre(s: InventoryScreen, box: Container) -> void:
 		listing = list
 	else:
 		var g := GridContainer.new()
-		g.columns = 5
-		g.add_theme_constant_override("h_separation", Ui.GAP)
-		g.add_theme_constant_override("v_separation", Ui.GAP)
 		for row in rows:
 			g.add_child(_card(s, row, String(row.key) == String(sel.get("key", ""))))
 		_grid = g
 		s._nav_grid = g
 		listing = g
-	var sc := Ui.scroller(listing)
 	# Five across at the design width, fewer or more as the column changes: the
 	# cards stretch to fill it rather than leaving a ragged edge.
-	sc.resized.connect(func() -> void:
-		if is_instance_valid(listing) and listing is GridContainer:
-			(listing as GridContainer).columns = maxi(1, floori((sc.size.x + Ui.GAP) / (184.0 + Ui.GAP))))
-	box.add_child(sc)
+	box.add_child(Ui.card_grid(listing) if listing is GridContainer else Ui.scroller(listing))
 
 
 ## One recipe card: the icon tile, the name and class, the bill as chips, and
@@ -443,12 +436,14 @@ func _card(s: InventoryScreen, row: Dictionary, on: bool) -> Button:
 	var tile := UiSwatch.new(id, 56, true, 32)
 	tile.frame_color = Ui.LINE_STRONG if on else (Ui.LINE_SOFT if is_locked or short else Ui.LINE)
 	tile.alpha = 0.45 if is_locked or short else 1.0
-	var name_l := Ui.label(String(r.name), "ItemName", Ui.TEXT_OFF if is_locked else (Ui.TEXT_DIM if short else Ui.TEXT_HIGH))
-	var cls := Ui.label(Ui.kind_line(id), "Small", Ui.TEXT_FAINT if is_locked else Ui.TEXT_DIM)
+	# Nothing on a card may be wider than the card: a long name wraps onto a
+	# second line rather than widening its column (`Ui.card_grid`).
+	var name_l := Ui.para(String(r.name), "ItemName", Ui.TEXT_OFF if is_locked else (Ui.TEXT_DIM if short else Ui.TEXT_HIGH))
+	var cls := Ui.expand(Ui.label(Ui.kind_line(id), "Small", Ui.TEXT_FAINT if is_locked else Ui.TEXT_DIM))
 	var top := Ui.hbox(12, [tile, Ui.expand(Ui.vbox(5, [name_l, cls]))])
 	var bill: Control
 	if is_locked:
-		bill = Ui.label(Structures.cost_label(r.cost), "Mono12", Ui.TEXT_FAINT)
+		bill = Ui.para(Structures.cost_label(r.cost), "Mono12", Ui.TEXT_FAINT)
 	else:
 		bill = Ui.cost_chips(r.cost, _have(s) if short else Callable(), "Mono12", short)
 	var text := "Can craft"
