@@ -355,3 +355,18 @@ func test_a_brute_is_worth_walking_toward() -> void:
 		sim.pickups.clear()
 	gt(haul.walker, 0, "sixty walkers dropped no brain matter at all")
 	gt(haul.brute, haul.walker, "a Brute is worth no more than a Walker")
+
+
+func test_an_effect_says_what_it_does_to_you() -> void:
+	# Owner, 2026-09-15: "Nausea — what does it do?" The chip had a name, a
+	# colour and a line of flavour and nowhere said which numbers it moved.
+	var nausea := Mutation.effect_summary("nausea")
+	ok(nausea.contains("slower"), "nausea slows you and should say so: %s" % nausea)
+	ok(nausea.contains("worse aim"), "and spoils your aim: %s" % nausea)
+	ok(nausea.contains("slower recovery"), "and recovery: %s" % nausea)
+	var surge := Mutation.effect_summary("surge")
+	ok(surge.contains("faster"), "a Surge makes you faster: %s" % surge)
+	ok(surge.contains("harder hits"), "and hit harder: %s" % surge)
+	# Every effect in the table says something rather than nothing.
+	for id in Config.EFFECTS:
+		ok(not Mutation.effect_summary(String(id)).is_empty(), "%s says nothing at all" % id)

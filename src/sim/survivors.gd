@@ -488,7 +488,20 @@ func _tick_one(sim: GameSim, s: SurvivorSim, dt: float, post: Vector2, base: Dic
 	var dist := to.length()
 	if dist > 12.0:
 		var sp: float = float(S.speed) * (float(S.hungry_speed) if s.hungry else 1.0)
-		s.vel += (to / dist * sp - s.vel) * minf(1.0, 10.0 * dt)
+		var head := to / dist
+		# Something in the way: ask the field that goes round it. A straight
+		# line was all they had, so anybody rescued on the far side of a
+		# building walked into its wall and stayed there (owner, 2026-09-15).
+		if not Enemies.clear_ahead(sim.world, s.pos, head.angle(), minf(dist, 72.0), s.r, sim.structs):
+			var nf := sim.nav_to(want)
+			if nf != null and nf.covers(s.pos):
+				var step := nf.step_dir(s.pos)
+				if step != Vector2.ZERO:
+					head = step
+			# And whichever way they are facing, they still steer round what
+			# they are about to walk into.
+			head = Vector2.from_angle(Enemies.steer_pos(sim.world, s.pos, head.angle(), s.r, sim.structs))
+		s.vel += (head * sp - s.vel) * minf(1.0, 10.0 * dt)
 	else:
 		s.vel *= exp(-9.0 * dt)
 

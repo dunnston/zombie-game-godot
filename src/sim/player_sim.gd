@@ -48,6 +48,9 @@ var respawn_t := 0.0
 ## you always did. Alone there is no one to come, so alone you just die.
 var downed := false
 var down_t := 0.0
+## How long the interact key has been held while down. At
+## `PLAYER.give_up_hold` you stop waiting for a teammate and die (2026-09-15).
+var give_up_t := 0.0
 ## The teammate you are getting up: {seat, t, dur}. A held channel like
 ## searching — let go, or step away, and it stops.
 var reviving := {}
@@ -552,8 +555,21 @@ func tick(sim: GameSim, dt: float) -> void:
 		searching = {}
 		reviving = {}
 		car_hold = {}
+		# One thing you can still do: stop waiting. Holding the interact key
+		# gives up and dies now rather than in thirty seconds, so a teammate on
+		# the other side of the town is not two players standing still (owner,
+		# 2026-09-15). Held, not tapped: it is the last thing you do.
+		if it.interact_held:
+			give_up_t += dt
+			if give_up_t >= float(Config.PLAYER.give_up_hold):
+				give_up_t = 0.0
+				Damage.kill_player(sim, self)
+				return
+		else:
+			give_up_t = 0.0
 		Damage.tick_downed(sim, self, dt)
 		return
+	give_up_t = 0.0
 
 	# Adrenaline is a state, not a modifier: it comes and goes with the health
 	# bar, so it is read fresh each tick rather than baked into the recompute.

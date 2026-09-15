@@ -244,6 +244,50 @@ static func turn(sim: GameSim, p: PlayerSim) -> void:
 
 ## Whether an item is something you take for the meter. A `tool` never is:
 ## Neural Tissue is an ingredient, not a dose.
+## What an effect actually does to you, read off its own `add` and `mul` maps
+## rather than written out twice: "slower · worse aim · slower recovery".
+##
+## The owner, 2026-09-15: "Nausea — what does it do?" It had a name, a colour
+## and a line of flavour, and nowhere said which numbers it moved. Anything
+## with no readable stat in it falls back to its `desc`.
+static func effect_summary(id: String) -> String:
+	var e: Dictionary = Config.EFFECTS.get(id, {})
+	if e.is_empty():
+		return ""
+	var parts: Array[String] = []
+	for key in STAT_WORDS:
+		var word: Array = STAT_WORDS[key]
+		var up := word[0] as String                # what a number going up means
+		var down := word[1] as String
+		var add: float = float(e.get("add", {}).get(key, 0.0))
+		var mul: float = float(e.get("mul", {}).get(key, 1.0))
+		var delta := add + (mul - 1.0)
+		if absf(delta) < 0.0001:
+			continue
+		parts.append(up if delta > 0.0 else down)
+	if parts.is_empty():
+		return String(e.get("desc", ""))
+	return "  ·  ".join(parts)
+
+
+## Which way each stat reads to a player, as [what more of it means, what less
+## means]. Only the stats an effect in `Config.EFFECTS` actually moves.
+const STAT_WORDS := {
+	"speed_mul": ["faster", "slower"],
+	"spread_mul": ["worse aim", "steadier aim"],
+	"stam_regen": ["quicker recovery", "slower recovery"],
+	"max_stam": ["more stamina", "less stamina"],
+	"max_hp": ["more health", "less health"],
+	"melee_mul": ["harder hits", "weaker hits"],
+	"gun_mul": ["harder shots", "weaker shots"],
+	"crit_chance": ["more criticals", "fewer criticals"],
+	"crit_dmg": ["bigger criticals", "smaller criticals"],
+	"fire_rate_mul": ["slower fire", "faster fire"],
+	"stagger_mul": ["hit harder by blows", "shrugs off blows"],
+	"mut_rate_mul": ["turning faster", "turning slower"],
+}
+
+
 static func is_suppressant(id: String) -> bool:
 	var c: Dictionary = Config.CONSUMABLES.get(id, {})
 	return float(c.get("mut", 0.0)) > 0.0 and not c.get("tool", false)

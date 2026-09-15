@@ -520,3 +520,31 @@ func test_a_sniper_gives_up_on_a_tower_they_cannot_reach() -> void:
 	eq(s.job, "guard", "they went back to guarding rather than leaning on it")
 	ok(s.tower.is_empty(), "and the tower is free for somebody who can reach it")
 	eq(sim.crew.free_towers(sim).size(), 1)
+
+func test_somebody_rescued_behind_a_building_walks_round_it() -> void:
+	# Owner, 2026-09-15: "survivors not pathing to base — when a survivor is
+	# rescued they are stuck". They walked at their post in a straight line, so
+	# the first building between them and it held them against its wall.
+	_stock()
+	var bunk := _build("bunk", plot.x - 6, plot.y)
+	ok(not bunk.is_empty(), "there is a base to walk to")
+	# A house wall across the way home, and the shared world handed back after.
+	var was := {}
+	for dy in range(-4, 5):
+		var i := (plot.y + dy) * Config.WORLD_TILES + plot.x + 3
+		was[i] = [sim.world.tiles[i], sim.world.blocked[i]]
+		sim.world.tiles[i] = Config.T.WALL
+		sim.world.blocked[i] = 1
+	sim.world_version += 1
+	var s := sim.crew.make(sim, tile_centre(Vector2i(plot.x + 8, plot.y)))
+	s.job = "guard"
+	var start := s.pos.distance_to(bunk.pos)
+	run(sim, 8.0)
+	var now := s.pos.distance_to(bunk.pos)
+	var stuck_at := (plot.x + 3) * Config.TILE
+	for i in was:
+		sim.world.tiles[i] = was[i][0]
+		sim.world.blocked[i] = was[i][1]
+	sim.world_version += 1
+	ok(s.pos.x < stuck_at, "they are still on the far side of the wall at x=%.0f" % s.pos.x)
+	ok(now < start - 200.0, "they got no closer to home: %.0f px, from %.0f" % [now, start])

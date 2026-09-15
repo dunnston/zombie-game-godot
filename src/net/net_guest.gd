@@ -723,6 +723,11 @@ func tick(dt: float, idle := false) -> void:
 ## a snap past `snap_over`, a lerp inside it. Nothing here deals damage or
 ## spends anything.
 func _predict_self(dt: float) -> void:
+	if me.downed:
+		# The only thing a downed player can do is stop waiting, and the bar
+		# that shows it fills on the machine the key is held on. The host is
+		# still the one that decides you died (`PlayerSim.tick`).
+		me.give_up_t = me.give_up_t + dt if me.intent.interact_held else 0.0
 	if me.dead or me.downed or me.away:
 		return
 	if me.driving_id > 0:

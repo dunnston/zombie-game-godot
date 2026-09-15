@@ -19,8 +19,10 @@ const INDEX := "user://saves/index.json"
 ## out of the player's reach — the tests use that range, so a headless run can
 ## never overwrite a real save.
 const MAX_SLOTS := 6
-## How often a game with a slot writes itself down.
-const AUTOSAVE_EVERY := 120.0
+## How often a game with a slot writes itself down. Five minutes, the owner's
+## number (2026-09-15) — two was often enough to be a hitch in a fight and not
+## often enough to be the reason you stopped worrying about it.
+const AUTOSAVE_EVERY := 300.0
 
 
 static func _ensure_dir() -> void:

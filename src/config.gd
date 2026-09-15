@@ -92,6 +92,10 @@ const PLAYER := {
 	"invuln_after_hit": 0.32,
 	"respawn_time": 3.0,
 	"downed_time": 30.0,
+	# How long the interact key is held, while down, to give up and die rather
+	# than wait out `downed_time` for somebody who is not coming. Long enough
+	# that nobody does it by leaning on the key (owner, 2026-09-15).
+	"give_up_hold": 1.6,
 	"revive_time": 2.5,
 	"revive_hp_frac": 0.4,
 	# Ground-ring tints, one per seat.
@@ -126,7 +130,12 @@ const INSTANCES := {
 	"school": {
 		"name": "PINE HOLLOW HIGH",
 		"tier": 2,
-		"clock_t": 0.70,
+		# Broad daylight through the windows, whatever the town's clock says
+		# (owner, 2026-09-15: "night inside the school — leave it as its own
+		# daylight"). It was 0.70 — dusk, past `DARK_ENOUGH`, so a torch lit
+		# itself and the whole run played at night. The dark in here is the
+		# boss's doing and nothing else's, which is what `dark_t` is for.
+		"clock_t": 0.35,
 		# What the inside's clock is pushed to when the boss kills the lights.
 		"dark_t": 0.82,
 		"boss": "coach",

@@ -611,7 +611,12 @@ func item_facts(stack: Dictionary) -> Dictionary:
 		if Mutation.is_suppressant(id):
 			rows.append(["Mutation", "−%d  ·  %s" % [roundi(float(c.mut)), KeyBinds.primary_label("use_suppress")], Ui.MUTATION])
 		if c.has("effect"):
-			rows.append(["Effect", String(Config.EFFECTS[c.effect].name)])
+			var eff: Dictionary = Config.EFFECTS[c.effect]
+			rows.append(["Effect", "%s  ·  %ds" % [String(eff.name), roundi(float(eff.dur))],
+				Ui.OK if eff.get("good", false) else Ui.SHORT])
+			var what := Mutation.effect_summary(String(c.effect))
+			if not what.is_empty():
+				rows.append(["", what])
 		var verb := use_verb(id)
 		if not verb.is_empty():
 			badges.append([verb, Ui.OK])

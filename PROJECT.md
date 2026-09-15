@@ -264,6 +264,39 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### Other people, and the things that only show in co-op (2026-09-15)
+
+The rest of the *Multiplayer Playing* list: DL-90, DL-91, DL-92, DL-93, DL-95
+and the bullets about the red flash and the respawn timer.
+
+- **Only your own blood on your own screen.** `Hud.on_event` never read the
+  seat on `player_hit`, so every screen in the game flashed red whenever
+  anybody was hit.
+- **Give up rather than wait.** Holding the interact key while down for
+  `PLAYER.give_up_hold` (1.6s) kills you instead of running out the thirty
+  seconds — the owner's "add a button to force die to avoid the timer wait in
+  MP". The bar fills on the machine holding the key; the host still decides.
+- **Dead inside an instance says what is happening.** "Respawning in 0.0" and
+  then nothing was true — nobody comes back on their own in there, the run
+  ends when the party does — so the line now says so.
+- **Autosave every five minutes** (`Saves.AUTOSAVE_EVERY`, was two).
+- **The instance is its own daylight.** `clock_t` 0.70 → 0.35: it was dusk,
+  past `DARK_ENOUGH`, so a torch lit itself and the whole run played at
+  night. The only dark in there now is the boss's (`dark_t`).
+- **Your people path home.** `GameSim.nav_to(place)` is a flow field toward a
+  post rather than toward a player, cached per target tile and shared by the
+  crew; a survivor whose straight line is blocked follows it and steers with
+  `Enemies.steer_pos`. A post is usually a piece, so the field aims at the
+  open ground beside it — a field whose target tile is blocked comes back
+  empty, which reads exactly like "there is no way there".
+- **Every effect says what it does.** `Mutation.effect_summary` reads an
+  effect's own `add`/`mul` and prints "slower · worse aim · slower recovery",
+  on the HUD chip, the item detail and the craft page. "Nausea — what does it
+  do?" was a fair question about a chip that only had a name on it.
+- `coop_test` +1 (give up), `survivors_test` +1 (rescued behind a building,
+  and it fails without the field), `mutation_test` +1 (every effect says
+  something), `instance_test` rewritten for daylight.
+
 ### One control scheme, and the screens say what they do (2026-09-15)
 
 The storage half of the same playtest (DL-88, DL-89, DL-97, and the bullets
@@ -2687,6 +2720,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-15 | **The *Multiplayer Playing* playtest, group D: co-op, death and the crew.** The hurt flash is the hit seat's alone (every screen used to flash); holding the interact key while down gives up rather than waiting out thirty seconds (`PLAYER.give_up_hold`); dead inside an instance says the run has to end rather than counting to 0.0 and stopping; autosave every five minutes; the School is its own daylight (`clock_t` 0.35) and the only dark in it is the boss's; your people path home along `GameSim.nav_to` instead of walking into the first building; and every effect prints what it does to you (`Mutation.effect_summary`) on the HUD chip, the item detail and the craft page. `tools/test`: 780 tests, 17627 asserts, 0 failures |
 | 2026-09-15 | **The *Multiplayer Playing* playtest, groups B and C: walls, and the slot screens.** A shot or a swing stops at anything solid, terrain and built alike (`World.shot_blocks_px`), with height as the exemption — a turret's round and a posted sniper's carry `over`. Zombies cannot bite through a wall either, and nothing you built answers `E` through one: `Interact._in_sight` counts structures, and `reachable_store` asks it every frame. House walls have hit points (`BUILD.house_wall_hp` 620), break to rubble, and are carried by the save (**v12**) and the world diff as tile keys; the dead break them and only when the flow field cannot route them (`Enemies._cut_off`). Storage: one scheme on every screen (Shift sends across, Ctrl drops, Alt splits, RMB uses), DEPOSIT MATCHING, no dragging out of the haul, a repair bill that names only what is missing, Tab closes a screen (Shift+Tab steps the rail), and a workbench that turns four ways for the picture's sake. `tools/test`: 777 tests, 17602 asserts, 0 failures; `--all` 810 with the compound SIEGE at 296s, up from 124s — a defender walled in cannot shoot out any more, which is the decision showing up in the numbers |
 | 2026-09-15 | **The *Multiplayer Playing* playtest, group A: stamina, winded and weight** (Notion DL-87 and three page bullets). Sprinting while winded is refused instead of spent, so the clock runs down while you walk with the key held — the owner's "winded timer does not drop to 0 while walking", which was the sprint restarting it every step. The refill crawls at `WINDED.regen_mul` (0.25) while the clock runs and the HUD shows it rather than hiding a full-speed one; `stam_regen_delay` 0.65 → 1.0 so the bar sits still between swings. The carry cap went soft: `carry_cap` is comfort and `carry_limit()` (`overload_mul` 1.5) is where pickups, crafts and chest withdrawals are refused, and in between you are **overburdened** — winded, no sprint, no dash, until the weight comes off. Co-op ships the host's `winded_t` (`PL_WINDED_T`, protocol 10) instead of a guest estimating it from the flag and looping 3 → 0 → 3. `player_test` +4, `net_test` +1; the four capacity tests that encoded the hard cap now encode the ceiling. `tools/test`: 767 tests, 17562 asserts, 0 failures |
 | 2026-09-15 | **Winded throws away the refill, and the noise lens can be found.** Owner: the noise overlay "is not there", and winded should reset its timer *and* dump what the bar refilled. Stamina: the bar still refills during the 3s debuff, but `Stamina.spend` while winded now zeroes it as well as restarting the clock, and the HUD draws the bar empty until the clock runs out, so there is never a bar on screen that one swing would take back. Standing still three seconds comes out with the same bar as before, which is what keeps this clear of the regen-lock draft that flickered. Noise lens: it existed (F2, dev builds, only for swung/fired/built/driven noise), but the rings lived in `FxView` under the night's CanvasModulate and went black after dark. They are now `NoiseLensView` on a camera-following CanvasLayer, the F1 menu has a *Toggle the noise overlay* row sharing one `NoiseLensView.toggle` with F2, and switching off clears rings mid-fade. Tests: a winded swing and a winded sprint each dump the refill (both fail against the old `spend`). Smoke: `winded_bar` asserts the HUD hides a real refill; `noise_lens_night` presses F2 at midnight and photographs the ring. `tools/test`: 764 tests, 0 failures. Smoke: 98 checkpoints, 2 failures outside this change (the move-to-cursor focus flake; a meal cancelled by a hit) |

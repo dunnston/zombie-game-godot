@@ -92,10 +92,21 @@ func on_event(ev: Dictionary) -> void:
 			if notices.size() > 6:
 				notices.pop_front()
 		"player_hit":
-			hurt = clampf(ev.dmg / 45.0, 0.18, 0.7)
+			# Only your own blood on your own screen. The seat was never read,
+			# so in co-op every screen in the game flashed red whenever anybody
+			# was hit (owner, 2026-09-15).
+			if int(ev.get("seat", _seat())) == _seat():
+				hurt = clampf(ev.dmg / 45.0, 0.18, 0.7)
 		"player_died":
-			hurt = 0.9
-			death_cause = String(ev.get("cause", "died"))
+			if int(ev.get("seat", _seat())) == _seat():
+				hurt = 0.9
+				death_cause = String(ev.get("cause", "died"))
+
+
+## Whose screen this is. -1 before the scene has handed the HUD a player,
+## which is a seat no event carries, so nothing flashes.
+func _seat() -> int:
+	return player.seat if player != null else -1
 
 
 func tick(dt: float) -> void:
@@ -418,7 +429,11 @@ func refresh() -> void:
 	# What is working through you: a meal, a Surge, or a raw brain.
 	var chips := PackedStringArray()
 	for id in p.effects:
-		chips.append("%s %ds" % [String(Config.EFFECTS[id].name).to_upper(), ceili(float(p.effects[id]))])
+		# The name, the clock, and what it is doing to you — a chip that only
+		# said "NAUSEA 45s" was the owner's "what does it do?" (2026-09-15).
+		var what := Mutation.effect_summary(String(id))
+		chips.append("%s %ds%s" % [String(Config.EFFECTS[id].name).to_upper(), ceili(float(p.effects[id])),
+			"  (%s)" % what if not what.is_empty() else ""])
 	Ui.set_text(_effects, "  ·  ".join(chips))
 	_effects.visible = not chips.is_empty()
 
@@ -481,11 +496,20 @@ func refresh() -> void:
 		var turned := death_cause == "turned"
 		Ui.set_text(_dead_title, "You turned" if turned else "You died")
 		Ui.set_color(_dead_title, Ui.MUTATION if turned else Ui.DOWN)
-		Ui.set_text(_dead_line, "Respawning in %.1f" % maxf(0.0, p.respawn_t))
+		# Inside an instance nobody comes back on their own: the run ends when
+		# the party does. Counting down to 0.0 and then sitting there was the
+		# owner's "respawn counts to 0.0 and then takes some time".
+		if sim.instance != null:
+			Ui.set_text(_dead_line, "Waiting for the party — you wake outside when the run ends")
+		else:
+			Ui.set_text(_dead_line, "Respawning in %.1f" % maxf(0.0, p.respawn_t))
 	elif p.downed:
 		Ui.set_text(_dead_title, "You are down")
 		Ui.set_color(_dead_title, Ui.DOWN)
-		Ui.set_text(_dead_line, "A teammate can get you up  ·  %.0fs" % maxf(0.0, p.down_t))
+		var key := KeyBinds.primary_label("interact")
+		var giving := p.give_up_t > 0.0
+		Ui.set_text(_dead_line, "Giving up  ·  %.0f%%" % (p.give_up_t / float(Config.PLAYER.give_up_hold) * 100.0) if giving
+			else "A teammate can get you up  ·  %.0fs  ·  hold %s to give up" % [maxf(0.0, p.down_t), key])
 
 
 ## What the interact key is offering, or the channel in progress.

@@ -311,11 +311,17 @@ func test_nothing_that_runs_the_town_runs_in_here() -> void:
 	near(town_clock.t, t0, 1e-9, "and so is the town's day")
 
 
-func test_inside_is_dark_enough_for_a_torch_and_no_darker() -> void:
-	_enter()
-	var a := float(sim.clock.darkness().alpha)
-	gt(a, Config.DARK_ENOUGH, "a worn torch lights itself")
-	ok(a < 0.8, "and you can still see the room: %.2f" % a)
+func test_inside_is_its_own_daylight_until_the_boss_kills_the_lights() -> void:
+	# Owner, 2026-09-15: the inside played at dusk whatever the town's clock
+	# said, so the whole run was a night run. It is daylight in there now, and
+	# the only dark is the one the boss makes.
+	var inst := _enter()
+	var lit := float(sim.clock.darkness().alpha)
+	ok(lit < Config.DARK_ENOUGH, "the school is dark enough to need a torch: %.2f" % lit)
+	inst.lights_out(sim)
+	var dark := float(sim.clock.darkness().alpha)
+	gt(dark, lit, "the boss killing the lights changed nothing: %.2f" % dark)
+	gt(dark, Config.DARK_ENOUGH, "and it should be dark enough for a torch then")
 
 
 func test_a_run_is_a_fresh_roll_every_time() -> void:

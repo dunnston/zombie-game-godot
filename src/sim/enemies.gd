@@ -180,10 +180,16 @@ static func clear_ahead(world: World, pos: Vector2, angle: float, len: float, r:
 
 
 static func steer(world: World, e: EnemySim, want: float, structs: Structures = null) -> float:
-	var probe := 34.0 + e.r
+	return steer_pos(world, e.pos, want, e.r, structs)
+
+
+## The same probe, for anything with a position and a radius — a survivor
+## walking home uses it too, and one implementation means one behaviour.
+static func steer_pos(world: World, pos: Vector2, want: float, r: float, structs: Structures = null) -> float:
+	var probe := 34.0 + r
 	for off: float in PROBE_ANGLES:
 		var a := want + off
-		if clear_ahead(world, e.pos, a, probe, e.r, structs):
+		if clear_ahead(world, pos, a, probe, r, structs):
 			return a
 	return want
 

@@ -183,3 +183,24 @@ func test_parked_players_earn_nothing() -> void:
 	Damage.kill_enemy(sim, e, "turret")
 	eq(g.xp, xp_before, "a turret's kill paid nobody who is not here")
 	ok(sim.players[0].xp > 0.0, "and paid the host")
+
+func test_a_downed_player_can_give_up_rather_than_wait() -> void:
+	# Owner, 2026-09-15: thirty seconds on the floor with nobody coming is two
+	# players standing still. Holding the interact key ends it.
+	var sim := TestCase.new_sim()
+	var a := sim.players[0]
+	var b := _two(sim)
+	Damage.down_player(sim, a)
+	ok(a.downed and not a.dead, "down, not dead")
+	a.intent.interact_held = true
+	run(sim, float(Config.PLAYER.give_up_hold) * 0.5)
+	ok(a.downed and not a.dead, "half the hold is not enough")
+	gt(a.give_up_t, 0.0, "and the screen has something to show for it")
+	a.intent.interact_held = false
+	run(sim, 0.2)
+	near(a.give_up_t, 0.0, 1e-6, "letting go starts it again")
+	a.intent.interact_held = true
+	run(sim, float(Config.PLAYER.give_up_hold) + 0.2)
+	ok(a.dead, "holding it out did not kill them")
+	ok(not a.downed)
+	ok(not b.downed and not b.dead, "and it took nobody else with them")
