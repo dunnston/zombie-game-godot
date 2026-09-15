@@ -83,3 +83,21 @@ func test_a_worn_tool_shows_its_condition_on_the_hotbar() -> void:
 	p.hotbar.set_wear_at(0, maxi(1, Wear.max_of("axe") / 5))
 	ok(Wear.is_worn(p.hotbar, 0) and not Wear.is_broken(p.hotbar, 0), "a fifth left is worn, not broken")
 	ok(Hud.HotSlot.shows_sliver(p, 0), "the hotbar says how worn it is, as it did before the redesign")
+
+
+# ------------------------------------------------------------------- pack --
+
+func test_a_slot_follows_a_count_that_changed_in_place() -> void:
+	p.bag.clear_all()
+	p.bag.add("wood", 5)
+	var cell := UiSlot.new({"kind": "bag", "slot": "", "index": 0})
+	cell.show_stack(p.bag.at(0))
+	eq(int(cell.stack.n), 5)
+	p.bag.add("wood", 3)
+	eq(int(p.bag.at(0).n), 8, "the new wood merged onto the same stack")
+	# What the cell holds is what it last drew. Sharing the bag's dictionary
+	# made the two always equal, so the merged count never reached the screen.
+	eq(int(cell.stack.n), 5, "the cell still holds the five it drew")
+	cell.show_stack(p.bag.at(0))
+	eq(int(cell.stack.n), 8, "and the cell shows eight, not the five it drew first")
+	cell.free()
