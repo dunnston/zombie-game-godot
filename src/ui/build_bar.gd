@@ -522,8 +522,15 @@ func _build_centre(box: Container) -> void:
 	box.add_child(sc)
 
 
-func _swatch_color(id: String) -> Color:
-	return Color(String(StructureView.COLORS.get(id, "#8a8f84")))
+## A piece's tile: its art from `art/structures/`, or the colour the street
+## draws it in when it has none.
+## `inner` sizes the colour square; art has its own margin, so it takes most
+## of the tile rather than a colour square's share of it.
+func _tile(id: String, px: int, inner: float) -> UiSwatch:
+	var s := UiSwatch.of_structure(id, Color(String(StructureView.COLORS.get(id, "#8a8f84"))), px, true, inner)
+	if s.tex != null:
+		s.inner = px - 8.0
+	return s
 
 
 func _card(id: String) -> Button:
@@ -532,7 +539,7 @@ func _card(id: String) -> Button:
 	var on := selected_card() == id
 	var locked: bool = info.locked
 	var short: bool = not locked and not info.afford
-	var tile := UiSwatch.of_color(_swatch_color(id), 56, true, 34)
+	var tile := _tile(id, 56, 34)
 	tile.frame_color = Ui.LINE_STRONG if on else (Ui.LINE_SOFT if locked else Ui.LINE)
 	tile.alpha = 0.45 if locked else 1.0
 	var top := Ui.hbox(12, [tile, Ui.expand(Ui.vbox(5, [Ui.label(String(def.name), "ItemName", Ui.TEXT_OFF if locked else Ui.TEXT_HIGH),
@@ -598,7 +605,7 @@ func _build_detail(box: Container) -> void:
 		id = String(_in_cat(build_cat)[0]) if not _in_cat(build_cat).is_empty() else String(Config.BUILD_ORDER[0])
 	var info := card_info(id)
 	var def: Dictionary = Config.STRUCTURES[id]
-	var art := UiSwatch.of_color(_swatch_color(id), 96, true, 60)
+	var art := _tile(id, 96, 60)
 	art.frame_color = Ui.LINE_STRONG
 	var solid := bool(def.get("solid", true))
 	var badges := Ui.hbox(6, [Ui.badge("Workbench II" if info.locked else ("Can build" if info.afford else "Missing materials"),
@@ -681,7 +688,7 @@ func _build_bar_cells(box: Container) -> void:
 	var tool: bool = info.tool
 	var name_ := String(info.label) if tool else String(Config.STRUCTURES[id].name)
 	var where := "Tool" if tool else "%s  ·  %d of %d" % [category_of(id), _in_cat(category_of(id)).find(id) + 1, _in_cat(category_of(id)).size()]
-	var art: Control = UiSwatch.of_color(_swatch_color(id) if not tool else Ui.LINE_STRONG, 44, true, 28)
+	var art: Control = UiSwatch.of_color(Ui.LINE_STRONG, 44, true, 28) if tool else _tile(id, 44, 28)
 	var first := Ui.hbox(14, [art, Ui.vbox(3, [Ui.label(name_, "Name18"), Ui.label(where, "Caps")])])
 	box.add_child(_cell(first, 18))
 	if not tool:

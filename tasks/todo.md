@@ -2593,3 +2593,28 @@ the middle of the party test, and the one merge conflict (`_to_haul`, where
 both branches changed the same line). Both are in `tasks/lessons.md`.
 Numbers on `upgrades`, with everything merged: 685 / 13512 fast, 721 / 13660
 with `--all`, zero failures.
+
+## Review — the icon set (2026-09-14)
+
+Branch `claude/game-ui-icon-prompt-jvnzou`. All 143 ids have art: 124 in
+`art/items/`, 19 in `art/structures/`, cut from the twelve generated sheets
+by `tools/slice_icons.py` (the sheets themselves stay out of the repo).
+
+- [x] Map every picture to its id — by seed position per sheet, checked
+      against `data/` by the script and by eye on a labelled contact sheet
+- [x] Transparent 128x128 PNGs; structure captions removed
+- [x] Structures: `Structures.icon_of` + `UiSwatch.of_structure` on the build
+      menu's cards, detail and placement bar; colour fallback kept; the street
+      still draws pieces in code (menu art only — PROJECT.md §6)
+- [x] Art drawn linear with mipmaps (`Items.ART_FILTER`), imports generate
+      mipmaps — nearest-neighbour broke small silhouettes
+- [x] `icons_test`: the structure seam, and misnamed structure files
+- [x] Seen in the running game: pack, hotbar, craft cards, every build
+      category, placement bar; lookalike groups stocked in one pack
+
+Lookalikes the art does not separate at slot size (a regeneration job, not
+code): Hatchet / Camping Axe / Splitting Axe; Hunting Rifle / Scoped Hunting
+Rifle / Bolt-Action Rifle; Sledgehammer / Maul; Medical / Bandage.
+
+Numbers: 766 / 17521 with `--all`, zero failures; smoke 89/89 (a first run
+lost one mouse-driven click on the CREW tab and passed unchanged on re-run).

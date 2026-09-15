@@ -5,7 +5,7 @@ update it at the end of one. It says what we are building, where we are, why
 past decisions were made, what is next, and what we have learned. If the code
 contradicts it, the code is right — fix this file and say so.
 
-- **Last updated:** 2026-09-11, **the UI redesign** — every screen rebuilt to the design handoff (`tasks/ui-redesign-handoff/`) as Control nodes on one theme built from `src/ui/ui.gd`, at a 1920x1080 design resolution that fits any window without anything going off screen: the HUD, the pack, crafting and the bench as one three-column screen, the build menu and its slim placement bar, the character sheet, the crew, the town map, the title with its save slots, the pause menu and the settings. Before that, 2026-09-10, **weapon levels and the boss's drops** — weapons go from level 1 to 6 at the bench that makes them, more damage and more uses each level, and levels 4 to 6 cost Precision Parts, which only come out of the School past its boss; the boss drops a list of chances, two boss-only weapons among them (PR E). Before that, **the Coach, the School's phase boss** — a slam, a charge that stuns itself on a wall, a fan of dodgeballs and a whistle for the team, a second half that kills the gym lights and an overtime that speeds it up, every move telegraphed for at least 0.7s and drawn from events so a guest sees what the host does (PR C). Before that, **into the School together** — the whole party goes in at the door and comes out together, a guest's game follows the host's into the same building from its seed, and a friend who fell in there is brought out with everything (PR D). Before that, **Pine Hollow High, the first instanced dungeon** — a sealed, roofed building north of the suburbs whose door loads a map of its own, where the boss is the only way out with what you find (PR B of five; the design is `tasks/instanced-dungeons.md`). Before that, **a dash on Space** — a committed burst with i-frames, the first piece of the instanced dungeons (`tasks/instanced-dungeons.md`, recovered from the prototype, with the owner's decisions of the day in its §0 and the five-PR plan in `tasks/todo.md`). Before that, the owner's second playtest: night is genuinely black past your torch, and a torch in your off-hand lights itself when the dark comes and goes out at dawn. Before that, content out of `config.gd` into `data/*.json` with a local editor (`tools\edit`: views by bench and weapon class, item art, loot odds both ways), and the roadmap moved from Notion to Linear. Before that, the owner's first playtest: Mutation three times slower, near-black nights and a torch you can see, E opens a workbench (the upgrade is a button in it), C is the six basics, a Hatchet lasts about a hundred trees, click food to eat, and nothing is built on litter. Before that, on 2026-09-09, the Notion catalogue restructured to eleven categories with a tab each, and weapons split into six melee and eight ranged classes. Before that, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1. The HOST page also names your public address when UPnP will not
+- **Last updated:** 2026-09-14, **the icon set** — all 143 things you can hold or build have real art: 124 item icons in `art/items/`, 19 build-menu pictures in `art/structures/` (a new seam beside `Items.icon_of`), cut from twelve generated sheets by `tools/slice_icons.py`, drawn with mipmaps. Before that: 2026-09-11, **the UI redesign** — every screen rebuilt to the design handoff (`tasks/ui-redesign-handoff/`) as Control nodes on one theme built from `src/ui/ui.gd`, at a 1920x1080 design resolution that fits any window without anything going off screen: the HUD, the pack, crafting and the bench as one three-column screen, the build menu and its slim placement bar, the character sheet, the crew, the town map, the title with its save slots, the pause menu and the settings. Before that, 2026-09-10, **weapon levels and the boss's drops** — weapons go from level 1 to 6 at the bench that makes them, more damage and more uses each level, and levels 4 to 6 cost Precision Parts, which only come out of the School past its boss; the boss drops a list of chances, two boss-only weapons among them (PR E). Before that, **the Coach, the School's phase boss** — a slam, a charge that stuns itself on a wall, a fan of dodgeballs and a whistle for the team, a second half that kills the gym lights and an overtime that speeds it up, every move telegraphed for at least 0.7s and drawn from events so a guest sees what the host does (PR C). Before that, **into the School together** — the whole party goes in at the door and comes out together, a guest's game follows the host's into the same building from its seed, and a friend who fell in there is brought out with everything (PR D). Before that, **Pine Hollow High, the first instanced dungeon** — a sealed, roofed building north of the suburbs whose door loads a map of its own, where the boss is the only way out with what you find (PR B of five; the design is `tasks/instanced-dungeons.md`). Before that, **a dash on Space** — a committed burst with i-frames, the first piece of the instanced dungeons (`tasks/instanced-dungeons.md`, recovered from the prototype, with the owner's decisions of the day in its §0 and the five-PR plan in `tasks/todo.md`). Before that, the owner's second playtest: night is genuinely black past your torch, and a torch in your off-hand lights itself when the dark comes and goes out at dawn. Before that, content out of `config.gd` into `data/*.json` with a local editor (`tools\edit`: views by bench and weapon class, item art, loot odds both ways), and the roadmap moved from Notion to Linear. Before that, the owner's first playtest: Mutation three times slower, near-black nights and a torch you can see, E opens a workbench (the upgrade is a button in it), C is the six basics, a Hatchet lasts about a hundred trees, click food to eat, and nothing is built on litter. Before that, on 2026-09-09, the Notion catalogue restructured to eleven categories with a tab each, and weapons split into six melee and eight ranged classes. Before that, bugfix round one: the car key, sight through walls, litter on tarmac, zombies in the base, and a dev menu behind F1. The HOST page also names your public address when UPnP will not
 - **Repo:** https://github.com/dunnston/zombie-game-godot
 - **Owner:** dunnston
 - **Engine:** Godot 4.7.2, GDScript, 2D
@@ -259,6 +259,40 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 ---
 
 ## 4. What is built
+
+### The icon set (2026-09-14)
+
+Every item, weapon, piece of gear, consumable and buildable has a picture —
+143 of them, the whole of `RES`, `WEAPONS` (less `fists`), `GEAR`,
+`CONSUMABLES` and `STRUCTURES`. The prompt that generated them is
+`tasks/icon-generation-prompt.md`.
+
+- **Items need no code.** `art/items/<id>.png`, found by `Items.icon_of`, as
+  the seam was built to do: the pack, the hotbar, the drag ghost, the
+  bench's cards and the ground all pick it up.
+- **Structures got the same seam.** Buildables are not items, so their art is
+  `art/structures/<id>.png` through `Structures.icon_of`, and
+  `UiSwatch.of_structure` draws it on the build menu's cards, detail panel and
+  placement bar, falling back to the `StructureView.COLORS` square. The art
+  takes most of the tile, where a colour square took 60%.
+- **The street still draws structures in code.** The pictures are
+  three-quarter views; the world is top-down, and a built piece shows state
+  a picture cannot — damage darkening it, a gate standing open, a turret's
+  aim, a bed's crop growing, the power ring. Menu art only.
+- **Art is drawn with mipmaps.** The project filters nearest-neighbour, right
+  for the world's hard edges, but a 128px icon shown at ~30px that way keeps
+  an arbitrary third of its pixels and a stone knife turns to noise. Every
+  node that draws art sets `Items.ART_FILTER` (linear with mipmaps) and
+  `importer_defaults` in `project.godot` generates mipmaps for textures, so
+  art added later matches.
+- **How the files were made.** The generator returned twelve contact sheets
+  with transparent backgrounds, not a file per id. `tools/slice_icons.py`
+  (conda env `deadline-art`: pillow, numpy, scipy) gives every opaque blob to
+  the nearest of a hand-placed seed per id — so a diagonal rifle never keeps
+  a slice of its neighbour — clears the structure sheets' text captions, pads
+  each to a square and downscales to 128. Its seed table is the record of
+  which picture is which id, and it refuses an id that is not in `data/`.
+  The source sheets are not in the repo.
 
 ### The UI redesign (2026-09-11)
 
@@ -1670,6 +1704,9 @@ Phases 1–4 respecting it.
 | 2026-09-11 | A card selects; the panel's one primary button acts | The design's, and the old rows crafted on click — which is how you spend on the wrong thing while browsing. Enter and Shift+Enter (×5) act on the selection. | Yes |
 | 2026-09-11 | The arrow keys belong to a full screen while it is up; WASD still walks | The owner's call: backing away from a horde with the pack open stays possible, and a bench or chest screen still closes when you walk off. A rebinding that leaves a move only on an arrow key cannot walk with a screen up, and that is the price. | Yes |
 | 2026-09-11 | Full screens are opaque; the pause menu is a scrim | The mockups draw the pack, crafting and the rest over an opaque ground; the component note's 72% scrim is the pause menu's. The world still runs behind them. | Yes — `Chrome.root` |
+| 2026-09-14 | Structure art is menu art; the street keeps drawing pieces in code | The generated pictures are three-quarter views and the world is top-down, and a built piece carries state (damage, open, aim, growth, power) that a static picture would hide. A top-down world sprite set is its own piece of work. | Yes |
+| 2026-09-14 | Structure art gets its own folder, `art/structures/`, not `art/items/` | Buildables are not items: `icons_test` rightly fails a file in `art/items/` named after nothing in the item registry, and the two sets are drawn in different places. | Yes |
+| 2026-09-14 | Art is drawn linear with mipmaps, everywhere else stays nearest | Nearest-neighbour downscaling 128→30px broke the stone knife, the helmets and the four walls into noise in a side-by-side; a box-filtered version kept every silhouette. Set per drawing node, so the world's hard edges are untouched. | Yes |
 
 ---
 
@@ -2222,7 +2259,8 @@ categories and fourteen weapon classes, each with what it is for).
   Design comments are `notes` on the table or the row. A new or retyped
   field is a code change in a commit, not an editor change.
 - **Art:** `art/items/<id>.png` (and `<id>_ground.png`), uploaded from an
-  item's Look card. No file, the placeholder draws.
+  item's Look card; a buildable's menu picture is `art/structures/<id>.png`.
+  No file, the placeholder draws.
 
 ### Syncing content from Notion
 
@@ -2315,6 +2353,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-14 | **The icon set.** 124 item icons in `art/items/` and 19 build-menu pictures in `art/structures/`, cut from twelve generated sheets by `tools/slice_icons.py`. `Structures.icon_of` and `UiSwatch.of_structure` put structure art on the build menu (cards, detail, placement bar) with the colour as fallback; `Items.load_png` is shared by both. Art draws with `Items.ART_FILTER` (linear + mipmaps) and textures import with mipmaps. `icons_test` covers the structure seam and misnamed structure files |
 | 2026-09-14 | **Notion stays.** The owner works in Notion, not Linear, so the 2026-09-10 Linear move is abandoned at Phase 1: the board is *Ideas & Roadmap* under DEADLINE, and the session protocol reads its `Next up` column. The Notion pages were rewritten to describe the Godot project (they still described the browser prototype), the nine prototype-era `Next up` cards that Godot had already shipped were closed with their PR links, and the Items & Crafting and Graphics pages now name `data/*.json` and `art/items/` rather than `config.gd` and a generator that does not exist |
 | 2026-09-14 | Prototype-era cleanup, docs only: the UI design handoff moved from the repo root to `tasks/ui-redesign-handoff/`; `tasks/port-inventory.md` and the handoff relabelled as history rather than the spec; `config.gd`'s and `CLAUDE.md`'s headers no longer point at the prototype's `config.js` and `PROJECT.md` as the source of truth. No code or data changed |
 | 2026-09-11 | **A lens on the noise (F2).** Each noise draws as a dashed circle at its true radius — amber for a landed hit, grey for a whiff, green for a tool at work, red for a gunshot — fading over 1.1s with the number that heard it. Emission is gated on `Sound.debug` and the event is skipped in `_relay_events`, so a debug view that fires on every swing can never cost a co-op packet. While chasing a flake this surfaced, `Sfx` was rendering its white noise from the global unseeded `randf()`, so the cue bank differed every launch and `test_nothing_clips` was a coin flip on `boltActionRifle`, which peaks at 0.999; the noise RNG is now seeded per op, making the bank a build artifact. 721 tests |

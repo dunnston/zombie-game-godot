@@ -576,6 +576,7 @@ class HotSlot extends Control:
 		index = i
 		custom_minimum_size = Vector2(74, 66)
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		texture_filter = Items.ART_FILTER
 
 	func show_slot(p: PlayerSim, i: int) -> void:
 		var stack := p.hotbar.at(i)

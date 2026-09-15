@@ -8,6 +8,7 @@ var sim: GameSim
 
 func _init(sim_: GameSim) -> void:
 	sim = sim_
+	texture_filter = Items.ART_FILTER
 
 
 func _draw() -> void:
