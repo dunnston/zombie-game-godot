@@ -1,6 +1,12 @@
 class_name Crafting
 extends RefCounted
-## Crafting. Instant by design: the materials are the whole cost.
+## Crafting. The materials are the whole cost; the time is a beat you can see.
+##
+## `start` opens `PlayerSim.crafting` and `tick` fills it; `craft` is what
+## happens when it is full, and it is still the whole of the rules — it asks
+## `status` again and pays then. Nothing is spent at the start, so stopping
+## (a hit, walking off, CANCEL) loses the time and nothing else. It was instant
+## until the owner pressed CRAFT, saw nothing happen, and pressed it again.
 ##
 ## The one rule worth stating twice: the room check has to name the *same*
 ## container the craft will actually use, or the cost is spent and the output
@@ -152,6 +158,89 @@ static func _room_for(p: PlayerSim, id: String, n: int) -> bool:
 	return p.pack_allowance() - p.bag.weight() >= Items.weight_of(id) * n - 1e-9
 
 
+## A recipe row by id, or empty. The wire and the channel both carry the id.
+static func recipe(id: String) -> Dictionary:
+	for r in Config.RECIPES:
+		if String(r.id) == id:
+			return r
+	return {}
+
+
+## How long one of anything takes this player to make.
+static func duration(p: PlayerSim) -> float:
+	return maxf(0.05, float(Config.PLAYER.craft_time) * p.craft_time_mul)
+
+
+## Begin making `n` of a recipe, one after another. Refuses with the same
+## reason `status` gives, so the screen and this can never disagree.
+static func start(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int, n := 1) -> bool:
+	if p.dead or p.downed or p.away:
+		return false
+	if not p.crafting.is_empty():
+		# One thing at a time. The screen turns CRAFT into CANCEL while the bar
+		# fills, so this is a second press racing the first (or a guest's,
+		# arriving before the snapshot that shows the bar).
+		return false
+	var st := status(sim, p, r, bench)
+	if not st.ok:
+		sim.notify(st.reason, "#c96a5a")
+		return false
+	p.crafting = {"id": String(r.id), "t": 0.0, "dur": duration(p), "bench": bench, "left": maxi(1, n)}
+	return true
+
+
+## Fill the bar; at the top, make one and start the next. Called from
+## `PlayerSim.tick` whenever something is being made.
+static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
+	var c := p.crafting
+	# Parked, dead, downed or not in charge of your own legs: no reason on
+	# screen, because whatever did it has a louder one of its own.
+	if p.away or p.dead or p.downed or p.lurch_t > 0.0:
+		p.crafting = {}
+		return
+	var r := recipe(String(c.id))
+	if r.is_empty():
+		p.crafting = {}
+		return
+	# The bench is asked of the world every step, not only at the end: walking
+	# off should stop the bar where you left it, not fill it and then refuse.
+	# The claimed tier can only fall — the same `mini` a guest's command gets.
+	var bench := mini(int(c.bench), bench_tier_at(sim, p))
+	var st := status(sim, p, r, bench)
+	if not st.ok:
+		stop(sim, p, String(st.reason))
+		return
+	c.t = float(c.t) + dt
+	if float(c.t) < float(c.dur):
+		return
+	if not craft(sim, p, r, bench):
+		p.crafting = {}
+		return
+	c.left = int(c.left) - 1
+	if int(c.left) <= 0:
+		p.crafting = {}
+		return
+	c.t = 0.0
+	c.dur = duration(p)
+
+
+## Stop, and say why — to the HUD, and to the craft screen, which covers it.
+static func stop(sim: GameSim, p: PlayerSim, reason: String) -> void:
+	p.crafting = {}
+	sim.notify(reason, "#d9c46a")
+	sim.emit({"t": "craft_stopped", "by": p.seat, "text": reason})
+
+
+## The player's own CANCEL. Quiet on the HUD: you know why you pressed it.
+static func cancel(sim: GameSim, p: PlayerSim) -> bool:
+	if p.crafting.is_empty():
+		return false
+	p.crafting = {}
+	sim.emit({"t": "craft_stopped", "by": p.seat, "text": "Cancelled"})
+	return true
+
+
+## Make one, now: check again, pay, and hand it over. The end of the bar.
 static func craft(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> bool:
 	var st := status(sim, p, r, bench)
 	if not st.ok:
@@ -202,7 +291,11 @@ static func craft(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> bool
 	sim.stats.crafted = sim.stats.get("crafted", 0) + 1
 	Progression.add_xp(sim, p, r.xp, "CRAFT")
 	sim.threat.add(sim, Config.THREAT.per_craft, p)
-	sim.emit({"t": "crafted", "x": p.pos.x, "y": p.pos.y, "text": label})
+	# `by`, so the craft screen — which covers the HUD's notice — can say it
+	# too, on the maker's machine only. Not `seat`: the host relays a seated
+	# event to that guest alone, and the teammate beside you should still hear
+	# the bench.
+	sim.emit({"t": "crafted", "by": p.seat, "x": p.pos.x, "y": p.pos.y, "text": label})
 	sim.notify(label, "#b7e08a")
 	return true
 

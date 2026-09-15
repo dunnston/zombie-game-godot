@@ -500,3 +500,16 @@ thread is open and `mergeStateStatus` is CLEAN.
   Extract the old behaviour into the named function first, watch the test
   fail on it, then fix; a test that fails because the method is missing
   proves nothing about the rule.
+
+## 2026-09-15 — crafting feedback
+
+- A full screen hides the HUD, so a `sim.notify` is invisible from inside
+  one. "Nothing happened when I pressed it" about a screen button means the
+  result has to be said *on that screen* — check where the feedback is drawn
+  before assuming the action failed.
+- A button that changes meaning while busy must not change into its own
+  opposite: CRAFT turning into CANCEL would have made the owner's repeat
+  press cancel the craft. Busy = inert; the opposite action gets its own
+  button.
+- When a smoke leg now takes time in the world, protect it from the world
+  (god mode) and leave the interruption to a unit test.

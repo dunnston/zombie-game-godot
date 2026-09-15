@@ -23,7 +23,10 @@ extends RefCounted
 ## on the inventory record, and new ids in the sorted pickup index table. A
 ## build before it would take the command and do nothing, and read the new
 ## ids as other items.
-const PROTOCOL := 7
+## 8: crafting takes time — `craft` opens a channel rather than making the
+## thing, `cancel_craft`, and the player record's fifth string. A build before
+## it would craft instantly beside a host that thinks the bar is filling.
+const PROTOCOL := 8
 
 const RELIABLE := 1
 const STATE := 2
@@ -422,7 +425,13 @@ static func pack_player(p: PlayerSim) -> Dictionary:
 	# The fourth string is the effect clocks, "nausea:12.3" — a handful of
 	# short-lived ids that a guest needs for its own bars and its own stats,
 	# and far too few to be worth a stride of their own.
-	return {"n": n, "s": PackedStringArray([p.held_id(), String(p.equip.get("offhand", "")), ck, Mutation.pack_effects(p)])}
+	# The fifth is what is being made, "axe:3:0.42" (recipe, how many left,
+	# the bar). Not the channel slot: you can reload while a craft runs, and
+	# the two would take turns being true on a guest's screen.
+	var cr := ""
+	if not p.crafting.is_empty():
+		cr = "%s:%d:%.2f" % [p.crafting.id, int(p.crafting.left), clampf(float(p.crafting.t) / float(p.crafting.dur), 0.0, 1.0)]
+	return {"n": n, "s": PackedStringArray([p.held_id(), String(p.equip.get("offhand", "")), ck, Mutation.pack_effects(p), cr])}
 
 
 static func pack_enemies(sim: GameSim, centre: Vector2, radius: float) -> PackedFloat32Array:

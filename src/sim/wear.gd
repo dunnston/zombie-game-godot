@@ -270,7 +270,7 @@ static func repair(sim: GameSim, p: PlayerSim, cont_kind: String, i: int, bench:
 	mend(cont, i)
 	var label := "%s mended — %s" % [Config.WEAPONS[cont.id_at(i)].name, Structures.cost_label(cost)]
 	Progression.add_xp(sim, p, 3, "REPAIR")
-	sim.emit({"t": "crafted", "x": p.pos.x, "y": p.pos.y, "text": label})
+	sim.emit({"t": "crafted", "by": p.seat, "x": p.pos.x, "y": p.pos.y, "text": label})
 	sim.notify(label, "#7ce08a")
 	return true
 

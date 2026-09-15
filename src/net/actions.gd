@@ -23,10 +23,18 @@ static func _remote(name_: String, args: Dictionary) -> bool:
 	return true
 
 
-static func craft(sim: GameSim, p: PlayerSim, recipe: Dictionary, bench: int) -> bool:
-	if _remote("craft", {"id": String(recipe.id), "tier": bench}):
+## Start making `n` of a recipe: the bar fills in the sim, on the host, and
+## a guest sees it in its snapshot.
+static func craft(sim: GameSim, p: PlayerSim, recipe: Dictionary, bench: int, n := 1) -> bool:
+	if _remote("craft", {"id": String(recipe.id), "tier": bench, "n": n}):
 		return false
-	return Crafting.craft(sim, p, recipe, bench)
+	return Crafting.start(sim, p, recipe, bench, n)
+
+
+static func cancel_craft(sim: GameSim, p: PlayerSim) -> bool:
+	if _remote("cancel_craft", {}):
+		return false
+	return Crafting.cancel(sim, p)
 
 
 ## Mend a worn weapon at the bench that made it. The slot rather than the
@@ -246,13 +254,13 @@ static func execute(sim: GameSim, p: PlayerSim, name_: String, a: Dictionary) ->
 	var car := int(a.get("car", 0))
 	match name_:
 		"craft":
-			var r := {}
-			for rec in Config.RECIPES:
-				if String(rec.id) == String(a.get("id", "")):
-					r = rec
+			var r := Crafting.recipe(String(a.get("id", "")))
 			if r.is_empty():
 				return false
-			return Crafting.craft(sim, p, r, mini(int(a.get("tier", 0)), Crafting.bench_tier_at(sim, p)))
+			return Crafting.start(sim, p, r, mini(int(a.get("tier", 0)), Crafting.bench_tier_at(sim, p)),
+				clampi(int(a.get("n", 1)), 1, 99))
+		"cancel_craft":
+			return Crafting.cancel(sim, p)
 		"repair_weapon":
 			return Wear.repair(sim, p, String(a.get("c", "")), int(a.get("i", -1)),
 				mini(int(a.get("tier", 0)), Crafting.bench_tier_at(sim, p)))

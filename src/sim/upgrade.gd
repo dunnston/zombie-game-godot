@@ -113,7 +113,7 @@ static func upgrade(sim: GameSim, p: PlayerSim, cont_kind: String, i: int, bench
 	Wear.mend(cont, i)
 	var label := "%s — level %d  ·  %s" % [Config.WEAPONS[cont.id_at(i)].name, next, Structures.cost_label(c)]
 	Progression.add_xp(sim, p, int(U.xp), "UPGRADE")
-	sim.emit({"t": "crafted", "x": p.pos.x, "y": p.pos.y, "text": label})
+	sim.emit({"t": "crafted", "by": p.seat, "x": p.pos.x, "y": p.pos.y, "text": label})
 	sim.notify(label, "#ffe08a")
 	return true
 

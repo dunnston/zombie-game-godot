@@ -2618,3 +2618,56 @@ Rifle / Bolt-Action Rifle; Sledgehammer / Maul; Medical / Bandage.
 
 Numbers: 766 / 17521 with `--all`, zero failures; smoke 89/89 (a first run
 lost one mouse-driven click on the CREW tab and passed unchanged on re-run).
+
+## Crafting takes time, and you can see it (plan, 2026-09-15)
+
+Owner, playtest: pressing CRAFT gave no sign anything happened, so it got
+pressed several times. Root cause: the only feedback is a HUD notice and a
+sound, and the HUD is hidden while the craft screen is open. Ask: a craft
+timer (one speed for everything for now, tunable later / perk-able), and
+something visible after the button is pressed.
+
+Pillar 1 says "no *long* crafting timers" — a ~1.5s beat is not that; the
+owner's feel feedback outranks it anyway. PROJECT.md gets the amendment.
+
+Shape (the owner chose 1.5s, walking allowed with a hit stopping it, and mend/upgrade left instant) — a player channel, like `using` / `searching`, host-authoritative:
+
+- [x] `PLAYER.craft_time = 1.5` and a `craft_time_mul` player stat (1.0 in
+      STAT_BASE, through `recompute_stats`) so a perk can shorten it later
+- [x] `PlayerSim.crafting := {id, t, dur, bench, left}`; `Crafting.start()`
+      opens it after `status()` passes; `Crafting.tick()` advances it and at
+      the end calls the existing `Crafting.craft()` (still validates + pays),
+      then starts the next of the batch or clears
+- [x] Nothing is spent until an item finishes, so cancelling loses nothing
+- [x] Interrupts: taking damage, going down/dying, walking out of the
+      bench's reach (status re-asked each tick, reason shown), CANCEL
+- [x] `Actions.craft` starts the channel (guest command unchanged);
+      new `Actions.cancel_craft`
+- [x] Net: the channel slot carries `ck = "c:<recipe>:<left>"` so a guest's
+      screen shows the same bar
+- [x] Craft screen: while crafting, the primary button becomes a filling
+      progress bar "CRAFTING HATCHET · 2 of 5" and pressing it cancels; the
+      crafting card's bottom strip fills too; on each finish a green
+      "+1 Hatchet" confirmation flashes in the detail panel
+- [x] HUD (screen closed): the prompt bar shows "Crafting Hatchet" + progress
+- [x] Tests: timer completes after `dur` and not before; nothing spent on
+      cancel/interrupt; batch of 3 delivers 3; hit interrupts; guest sees
+      the channel; smoke waits for the bar and screenshots it mid-craft
+- [x] PROJECT.md: Crafting section, pillar note, decision log
+
+### Review
+
+- Built as planned. Two things the plan did not foresee: the host used to
+  send a guest's pack straight after the `craft` command, and a craft now
+  lands on a later tick, so `NetHost._relay_events` sends it on the
+  `crafted` event (the net test fails without it — checked); and the bar
+  rides a fifth snapshot string rather than the channel slot, because you
+  can reload while a craft runs.
+- CANCEL is its own button, not a second press of CRAFT: the owner's double
+  press would otherwise have become a lost craft.
+- The first smoke that failed on the craft leg was a camp walker hitting the
+  player mid-bar — "✕ CRAFTING INTERRUPTED" was on screen, doing its job. The
+  leg runs in god mode; the interrupt is `crafting_test`'s.
+- `tools/test --all`: 782 tests, 17590 asserts, 0 failures. Smoke: 93
+  checkpoints, 0 failures (two earlier runs lost unrelated legs to window
+  focus and a walker, and `main` itself failed its wall repair once).

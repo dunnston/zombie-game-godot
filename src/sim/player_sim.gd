@@ -128,6 +128,7 @@ var build_cost_mul := 0.97
 var struct_hp_mul := 1.0
 var turret_mul := 1.05
 var craft_yield_mul := 1.0
+var craft_time_mul := 1.0
 var xp_mul := 1.07
 var radar_mul := 1.0
 var armor_dr := 0.0
@@ -200,6 +201,9 @@ var car_keys: Array[String] = []
 
 var using := {}                  # {id, t, dur} or empty
 var searching := {}              # {container, t, dur} or empty
+## What is being made: {id, t, dur, bench, left}. Not a held channel — you can
+## walk, close the screen and carry on — but a hit stops it (`Crafting.tick`).
+var crafting := {}
 ## Tap E to drive, hold it for the boot. Both answer the same key, so the
 ## choice cannot be made on the press frame — `interact_held` is already true
 ## then, which is what made tap-to-drive unreachable. {car, t, dur} or empty.
@@ -491,6 +495,10 @@ func tick(sim: GameSim, dt: float) -> void:
 	# of those returns, so there is no branch that forgets.
 	if dash_t > 0.0 and (away or dead or downed or driving_id > 0):
 		dash_t = 0.0
+	# Above the same returns for the same reason: it is `Crafting.tick` that
+	# decides parked, dead and downed stop the work, in one place.
+	if not crafting.is_empty():
+		Crafting.tick(sim, self, dt)
 	if away:
 		return
 	last_hurt += dt

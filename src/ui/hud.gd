@@ -502,6 +502,11 @@ func _refresh_prompt(p: PlayerSim) -> void:
 		text = "Getting %s up" % (who.display_name if who != null else "them")
 		k = clampf(p.reviving.t / p.reviving.dur, 0.0, 1.0)
 		kc = Ui.XP
+	elif not p.crafting.is_empty():
+		# Close the screen and the work goes on; this is where it still shows.
+		var left := CraftPage.left_label(p)
+		text = "Crafting %s%s" % [String(Crafting.recipe(String(p.crafting.id)).get("name", "")), "  ·  " + left if not left.is_empty() else ""]
+		k = CraftPage.craft_frac(p)
 	else:
 		var target := Interact.best_target(sim, p)
 		if not target.is_empty():
