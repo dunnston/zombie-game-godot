@@ -207,6 +207,11 @@ func _rows() -> Array[Dictionary]:
 		Page.CONTROLS:
 			match settings_tab:
 				"controls":
+					var on := KeyBinds.move_to_cursor
+					out.append({"id": "move_mode", "label": "MOVE TOWARD CURSOR", "arg": 0, "enabled": true,
+						"note": "Forward walks where you aim, Back away from it, Left and Right strafe around it" if on
+							else "Forward, Back, Left and Right are up, down, left and right on the screen",
+						"tag": "ON" if on else "OFF", "tag_color": Ui.OK if on else Ui.TEXT_DIM})
 					for row in KeyBinds.ACTIONS:
 						out.append({"id": "bind", "label": String(row.name), "arg": 0,
 							"action": String(row.id), "group": String(row.group), "note": "", "enabled": true})
@@ -330,6 +335,8 @@ func _press(r: Dictionary) -> void:
 			Sfx.set_muted(not Sfx.muted())
 		"fullscreen":
 			DisplayPrefs.set_fullscreen(not DisplayPrefs.fullscreen())
+		"move_mode":
+			KeyBinds.set_move_to_cursor(not KeyBinds.move_to_cursor)
 		"controls_page":
 			came_from = page
 			open(Page.CONTROLS)
@@ -675,7 +682,9 @@ func _build_settings() -> void:
 					g.add_child(_bind_row(r))
 			g.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			grid.add_child(g)
-		content = grid
+		# How the move keys move you sits above what they are bound to.
+		var mode_row: Dictionary = rows.filter(func(r: Dictionary) -> bool: return String(r.id) == "move_mode")[0]
+		content = Ui.vbox(16, [_menu_row(mode_row), grid])
 	else:
 		var list := Ui.vbox(10)
 		for r in rows:

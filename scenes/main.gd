@@ -156,6 +156,11 @@ func _ready() -> void:
 	if Smoke.enabled:
 		NetPrefs.STORE = "user://smoke/net.json"
 		DisplayPrefs.STORE = "user://smoke/display.json"
+		# The script walks by compass — "hold Right, you went east" — and the
+		# real mouse is wherever it was left, so the keys are the screen's
+		# until the step that tests the other scheme turns it on. Set, never
+		# saved: the owner's choice stays in their binds file.
+		KeyBinds.move_to_cursor = false
 	else:
 		DisplayPrefs.apply()
 	prefs = NetPrefs.load()
@@ -298,7 +303,7 @@ func _physics_process(dt: float) -> void:
 	# An open panel owns the mouse: you can still walk, but a click belongs to
 	# the screen you are looking at rather than to the gun in your hand.
 	var screen_up := inventory.visible or map.open or (build_bar.open and build_bar.menu)
-	LocalInput.gather(intent, self, inventory.visible or build_bar.open or map.open, screen_up, typing)
+	LocalInput.gather(intent, self, inventory.visible or build_bar.open or map.open, screen_up, typing, me)
 	if build_bar.placing():
 		build_bar.update_hover(get_global_mouse_position())
 		# One click, one action — except REPAIR, which is meant to be swept
@@ -1387,6 +1392,43 @@ func _smoke_clear_lane(from: Vector2, length: float) -> Vector2:
 	return Vector2.INF
 
 
+## Move-toward-cursor, through the real mouse and the real keys: the cursor put
+## east of you turns Forward east and Back west, which in the compass scheme
+## would have been north and south. East because that is the way
+## `_smoke_clear_lane` measures open ground.
+func _smoke_move_to_cursor(smoke: Node) -> void:
+	var p := sim.players[0]
+	var lane := _smoke_clear_lane(p.pos, 260.0)
+	if lane == Vector2.INF:
+		smoke.fail("no open ground near the camp to walk toward the cursor")
+		return
+	_smoke_stand_at(lane + Vector2(130.0, 0.0))
+	await smoke.frames(20)
+	KeyBinds.move_to_cursor = true
+	var vp := get_viewport()
+	# The camera follows you, so a cursor held still on screen stays east of
+	# you in the world however far you walk.
+	var screen := vp.get_final_transform() * (vp.get_canvas_transform() * (p.pos + Vector2(260.0, 0.0)))
+	Input.warp_mouse(screen)
+	await smoke.frames(2)
+	var off := get_global_mouse_position() - p.pos
+	if off.x < 150.0 or absf(off.y) > 60.0:
+		smoke.fail("the mouse could not be put east of the player: offset %s" % off)
+	for step in [["move_up", 1.0], ["move_down", -1.0]]:
+		var before := p.pos
+		# Held for time, not frames: forty frames at 144Hz is a third of the
+		# walk they are at 60.
+		Input.action_press(String(step[0]))
+		await get_tree().create_timer(0.45).timeout
+		Input.action_release(String(step[0]))
+		await smoke.frames(4)
+		var d := p.pos - before
+		if d.x * float(step[1]) < 50.0 or absf(d.y) > absf(d.x) * 0.3:
+			smoke.fail("%s with the cursor east went %s, not %s" % [step[0], d, "east" if float(step[1]) > 0.0 else "west"])
+	await smoke.checkpoint("walked_to_cursor")
+	KeyBinds.move_to_cursor = false
+
+
 ## The scripted session: walk, sprint, photograph the districts, then fight.
 func smoke_run(smoke: Node) -> void:
 	var p := sim.players[0]
@@ -1439,6 +1481,7 @@ func smoke_run(smoke: Node) -> void:
 		var carried := p.pos.x - before_dash.x
 		if p.dash_cd > 0.0 and carried < float(Config.DASH.dist) * 0.85:
 			smoke.fail("the dash was heard and carried only %.1f px of %.0f" % [carried, float(Config.DASH.dist)])
+	await _smoke_move_to_cursor(smoke)
 	for spot in [["suburbs", 118, 120], ["market_row", 200, 158], ["downtown", 262, 172],
 			["farms", 30, 140], ["lake_lodge", 190, 52], ["forest", 60, 30], ["junkyard", 190, 270]]:
 		smoke_teleport(spot[1], spot[2])

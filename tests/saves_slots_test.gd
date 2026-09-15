@@ -304,6 +304,19 @@ func test_a_binding_for_an_action_that_no_longer_exists_is_dropped() -> void:
 	eq(KeyBinds.codes_for("map"), [KEY_N], "and the real one still took")
 
 
+func test_move_to_cursor_is_on_by_default_and_remembered_when_off() -> void:
+	KeyBinds.load_binds()
+	ok(KeyBinds.move_to_cursor, "a machine that never chose gets the cursor scheme")
+	KeyBinds.rebind("map", KEY_N)
+	KeyBinds.set_move_to_cursor(false)
+	KeyBinds.load_binds()
+	ok(not KeyBinds.move_to_cursor, "off survives a reload")
+	eq(KeyBinds.codes_for("map"), [KEY_N], "and riding in the binds file costs the binds nothing")
+	ok(not KeyBinds.custom.has("move_to_cursor"), "nor is it mistaken for an action")
+	KeyBinds.reset_all()
+	ok(KeyBinds.move_to_cursor, "Reset to defaults turns it back on")
+
+
 func test_prompts_are_built_from_the_bindings() -> void:
 	# Every on-screen hint reads the binding rather than a hardcoded letter,
 	# so rebinding changes what the game tells you to press.

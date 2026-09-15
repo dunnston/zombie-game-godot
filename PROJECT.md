@@ -260,6 +260,34 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### Move toward the cursor (2026-09-15)
+
+The owner: the mouse chose where you looked and had no say in where you
+went. Now it does.
+
+- **Forward walks toward the cursor, Back away from it, Left and Right
+  strafe around it** — the usual top-down shooter scheme, so circling a
+  zombie while you hit it is one key held. On by default; **Settings >
+  Controls > MOVE TOWARD CURSOR** turns it off, and the keys are the
+  screen's up, down, left and right again. It lives in `binds.json` beside
+  the bindings (`KeyBinds.move_to_cursor`), and Reset to defaults turns it
+  back on.
+- **It is the input layer's, not the sim's.** `LocalInput.gather` turns the
+  keys by `LocalInput.heading` and hands the sim a world direction, as it
+  always did. So the wire, a guest's prediction, the dash ("the way you are
+  moving"), and the Lurch that rewrites your intent all needed nothing, and a
+  friend on the other scheme is the same packet.
+- **A car is steered by the keys as pressed** — throttle and steering are
+  not directions — so nothing turns while you drive.
+- **A cursor within `PLAYER.cursor_deadzone` (24px) of you keeps the heading
+  you had**: that close, a pixel of mouse is a half turn. With a panel open
+  the cursor is pointing at the panel, so the heading holds there too.
+- `local_input_test.gd` pins the turn (Forward, Back, strafe, speed, the
+  deadzone); `saves_slots_test` the setting's default, reload and reset. The
+  smoke puts the real cursor east of you and asserts Forward walks east and
+  Back west (`04_walked_to_cursor`); the rest of the script walks by compass
+  with the setting off, set rather than saved.
+
 ### The icon set (2026-09-14)
 
 Every item, weapon, piece of gear, consumable and buildable has a picture —
@@ -1719,6 +1747,7 @@ Phases 1–4 respecting it.
 | 2026-09-14 | Structure art is menu art; the street keeps drawing pieces in code | The generated pictures are three-quarter views and the world is top-down, and a built piece carries state (damage, open, aim, growth, power) that a static picture would hide. A top-down world sprite set is its own piece of work. | Yes |
 | 2026-09-14 | Structure art gets its own folder, `art/structures/`, not `art/items/` | Buildables are not items: `icons_test` rightly fails a file in `art/items/` named after nothing in the item registry, and the two sets are drawn in different places. | Yes |
 | 2026-09-14 | Art is drawn linear with mipmaps, everywhere else stays nearest | Nearest-neighbour downscaling 128→30px broke the stone knife, the helmets and the four walls into noise in a side-by-side; a box-filtered version kept every silhouette. Set per drawing node, so the world's hard edges are untouched. | Yes |
+| 2026-09-15 | The move keys follow the cursor by default — all four, not just Forward — with a setting to go back | The owner asked for Forward toward the look direction and chose all-relative with a toggle over Forward-only or no option: a mixed scheme feels wrong the moment W and D are held together. Turned in `LocalInput` rather than `PlayerSim`, because cars read the same `mx`/`my` as throttle and steering, and a world-space intent keeps the wire, guest prediction and the Lurch untouched. | Yes, one setting |
 
 ---
 
@@ -2376,6 +2405,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-15 | **Move toward the cursor.** Forward walks where you aim, Back away, Left and Right strafe — on by default, with an ON/OFF row at the top of Settings > Controls, remembered in `binds.json` and reset with the keys. `LocalInput` turns the keys and hands the sim a world direction, so the sim, the wire and a guest's prediction are unchanged, and driving is never turned. A 24px deadzone (`PLAYER.cursor_deadzone`) and an open panel both hold the heading. `local_input_test.gd`, a setting test in `saves_slots_test`, and a smoke checkpoint through the real mouse (91) |
 | 2026-09-14 | **A friend stays in the game.** The owner's first internet game: the friend joined, appeared, and was gone five seconds later. Once a guest was in the world the scene never called `hub.poll()` for it (only the dial did), so its ENet peer went silent and the host timed it out. `_guest_step` now pumps the hub on every guest step, menu up or not. Same class on the host: with a menu up the links were read only for admitted guests, so a friend dialling then had their `hello` sit unread until their game gave up — now `_host_read` answers handshakes behind the menu, and the world still runs only for an admitted guest (Codex on #43: a connection that never says hello must not unpause the host). The smoke gains `_smoke_coop_over_udp` (a dial behind the pause menu, then the scene as a guest over real UDP, menu down and up); it fails three ways without the fix. Protocol unchanged — **but the fix is on the guest's side, so a friend needs the new build** |
 | 2026-09-14 | **Eating from the click menu no longer throws.** EAT, DRINK or USE on the pack's click menu freed the menu, but its `pop_use`/`pop_drop` buttons stayed in `_buttons`, and the next section rebuild (the pack changing when the item was used) read one into a `var b: Node` — which is itself a script error on a freed instance, so the debugger stopped the game. `_close_pop` now forgets the menu's buttons, and `UiScreen._forget`, `button_centre` and `_centre` check validity before any typed read. `playtest_test.gd` covers both, and fails against the old code with the playtest's own error |
 | 2026-09-14 | **The icon set.** 124 item icons in `art/items/` and 19 build-menu pictures in `art/structures/`, cut from twelve generated sheets by `tools/slice_icons.py`. `Structures.icon_of` and `UiSwatch.of_structure` put structure art on the build menu (cards, detail, placement bar) with the colour as fallback; `Items.load_png` is shared by both. Art draws with `Items.ART_FILTER` (linear + mipmaps) and textures import with mipmaps. `icons_test` covers the structure seam and misnamed structure files |
