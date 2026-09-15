@@ -938,16 +938,22 @@ func smoke_structure_art(smoke: Node) -> void:
 		smoke.fail("the long bed ghost cannot go down: %s" % build_bar.check.reason)
 	await smoke.checkpoint("long_bed_ghost")
 	await smoke_click(get_viewport().get_canvas_transform() * spot)
-	for i in range(30):
-		if not sim.structs.at_tile(tile.x, tile.y).is_empty():
+	# Wherever it landed: the camera leans toward the cursor, so the tile under
+	# a warped click can be one over from the tile aimed at. Which way it lies
+	# is the question here, not which tile.
+	var placed := {}
+	for i in range(60):
+		for s in sim.structs.list:
+			if s.type == "longBed" and not s.destroyed:
+				placed = s
+		if not placed.is_empty():
 			break
 		await smoke.frames(1)
-	var placed := sim.structs.at_tile(tile.x, tile.y + 1)
-	if placed.get("type", "") != "longBed" or int(placed.get("rot", 0)) != 1:
-		smoke.fail("the click did not put down a turned long bed: %s" % str(placed.get("type", "nothing")))
-	elif not sim.structs.at_tile(tile.x + 1, tile.y).is_empty():
-		smoke.fail("the turned long bed went across instead of down")
-	else:
+	if placed.is_empty():
+		smoke.fail("the click did not put down a long bed (aimed at %s, hovering %s)" % [tile, build_bar.hover_tile])
+	elif int(placed.rot) != 1 or sim.structs.at_tile(placed.tx, placed.ty + 1) != placed 			or not sim.structs.at_tile(placed.tx + 1, placed.ty).is_empty():
+		smoke.fail("the long bed went down across, not turned")
+	if not placed.is_empty():
 		sim.structs.demolish(sim, placed, p)
 	build_bar.rot = 0
 	build_bar.toggle()
