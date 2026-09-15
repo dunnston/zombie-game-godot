@@ -1583,7 +1583,7 @@ static var RECIPES: Array = DataTable.load_table("recipes")
 
 const BUILD_ORDER := [
 	"woodWall", "stoneWall", "barricade", "reinforcedWall", "metalWall", "gate", "spike",
-	"workbench", "chemStation", "stash", "chest", "locker", "bedroll", "bunk", "raisedBed", "watchtower",
+	"workbench", "chemStation", "stash", "chest", "locker", "bedroll", "bunk", "raisedBed", "longBed", "watchtower",
 	"generator", "turret", "floodlight",
 ]
 

@@ -2671,3 +2671,48 @@ Shape (the owner chose 1.5s, walking allowed with a hit stopping it, and mend/up
 - `tools/test --all`: 782 tests, 17590 asserts, 0 failures. Smoke: 93
   checkpoints, 0 failures (two earlier runs lost unrelated legs to window
   focus and a walker, and `main` itself failed its wall repair once).
+
+## World art for buildables (`claude/building-assets-folder-fe487c`, 2026-09-15)
+
+The owner's `building/` folder (main checkout, untracked): two captioned
+sheets of top-down pieces (all 19 structures plus `gate_open`),
+`barrelsprite.png` (a turret head aiming right) and `raisedbedlarge.png` (a
+2:1 bed). Menu icons in `art/structures/` stay as they are. Owner's calls:
+the turret is the sheet's mount with the barrel sprite turning on top; the
+long bed is a new two-tile buildable, one planting with a bigger harvest,
+turned with R, Wood 30 · Sticks 12 · Fiber 10, 240 HP, x2.5; one PR.
+
+- [x] `tools/slice_world.py`: sheets -> `art/world/<id>.png` (captions dropped
+      by height, tight crop, shape kept), `gate_open`, `turret_head` square
+      round its pivot, `longBed` + its menu icon
+- [x] `Structures.world_art_of` + `WORLD_STATES`; `StructureView` draws the
+      picture fitted to the footprint, damage/flash as modulate, state over it
+      (gate, turret head on `aim`, wet soil, crops, rings, labels, bar); the
+      build ghost shows the picture
+- [x] Footprint: `w`/`h` fields, `rot`, top-left anchor, every tile in `grid`;
+      `can_place`/`make`/`_unlink` walk every tile
+- [x] R turns while placing (reload's key); `Intent.build_rot`, wire tuple,
+      save record, snapshot `ro`; guest clears under a new footprint
+- [x] `longBed` row through `DataTable.encode`; `BUILD_ORDER`;
+      `Farming.yield_mul` read by harvest and panel
+- [x] Notion: Long Raised Bed row in Items (Building), In game
+- [x] Tests: building (footprint), farming (yield, beats two beds), net
+      (turned bed over the wire), icons (art seam, states, folder names)
+- [x] Smoke: `structure_art`, `long_bed_ghost` (R and the mouse, real path)
+- [x] PROJECT.md §4, §6, §11; `art/world/README.md`
+
+### Review
+
+- Every "which piece is on this tile" and "how far is that piece" worked
+  unchanged because the anchor stayed top-left and `pos` became the
+  footprint's middle — no enemy, interact, farming or save code needed more
+  than passing `rot` through.
+- The first smoke failed its own new leg twice, both timing: a one-frame tap
+  of R and a three-frame wait after the click were read before the physics
+  step saw them. The bed *was* placed, turned — and the save/load leg right
+  after carried it through a reload, which is a check I had not written. The
+  leg now holds R until `rot` flips and waits for the tile to fill.
+- The turned bed's ripe shoots stood out of its frame; the row is shortened
+  by a shoot's height down a turned bed.
+- `tools/test --all`: 798 tests, 17682 asserts, 0 failures. Smoke: 96
+  checkpoints; one run lost two move-to-cursor legs to window focus (§8).

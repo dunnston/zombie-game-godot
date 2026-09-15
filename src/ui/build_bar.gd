@@ -26,6 +26,9 @@ var open := false
 var menu := false
 var selected := 0
 var hover_tile := Vector2i.ZERO
+## A quarter turn for a piece longer than it is wide, kept across pieces so
+## a row of long beds all go down the same way.
+var rot := 0
 var check := {"ok": false, "reason": ""}
 var pending := {}
 var mouse := Vector2.ZERO
@@ -159,7 +162,18 @@ func update_hover(world_pos: Vector2) -> void:
 		else:
 			check = {"ok": true, "reason": "Salvage %s" % s.def.name}
 	else:
-		check = sim.structs.can_place(sim, card, hover_tile.x, hover_tile.y, player)
+		check = sim.structs.can_place(sim, card, hover_tile.x, hover_tile.y, player, rot_for(card))
+
+
+## The turn a piece would be placed with: the bar's, for a piece that turns.
+func rot_for(card: String) -> int:
+	return rot if Structures.turns(card) else 0
+
+
+## R while placing. Only a piece that turns takes it.
+func rotate() -> void:
+	if placing() and Structures.turns(selected_card()):
+		rot = 1 - rot
 
 
 ## Drains whatever the last click asked for into the intent. Edges only: one
@@ -170,6 +184,7 @@ func fill_intent(intent: Intent) -> void:
 	intent.build_action = pending.action
 	intent.build_type = pending.get("type", "")
 	intent.build_tile = pending.get("tile", Vector2i.ZERO)
+	intent.build_rot = int(pending.get("rot", 0))
 	pending = {}
 
 
@@ -196,7 +211,7 @@ func click(at: Vector2) -> bool:
 	elif card == "demolish":
 		pending = {"action": "demolish", "tile": hover_tile}
 	else:
-		pending = {"action": "place", "type": card, "tile": hover_tile}
+		pending = {"action": "place", "type": card, "tile": hover_tile, "rot": rot_for(card)}
 	return true
 
 
@@ -719,8 +734,11 @@ func _build_bar_cells(box: Container) -> void:
 		Ui.set_text(head, verb if ok else ("Nothing to do here" if tool else "Cannot place here"))
 		Ui.set_color(head, Ui.OK if ok else Ui.SHORT)
 		Ui.set_text(why, String(check.reason) if not String(check.reason).is_empty() else "Within reach of where you stand"))
-	var keys := Ui.hbox(18, [Ui.hint("LMB", "Hold to sweep" if id == "repair" else "Place" if not tool else "Use"), Ui.hint("WHEEL", "Change piece"),
-		Ui.hint("TAB", "Full menu"), Ui.hint(KeyBinds.primary_label("build"), "Leave")])
+	var hints: Array = [Ui.hint("LMB", "Hold to sweep" if id == "repair" else "Place" if not tool else "Use")]
+	if not tool and Structures.turns(id):
+		hints.append(Ui.hint(KeyBinds.primary_label("reload"), "Turn"))
+	hints.append_array([Ui.hint("WHEEL", "Change piece"), Ui.hint("TAB", "Full menu"), Ui.hint(KeyBinds.primary_label("build"), "Leave")])
+	var keys := Ui.hbox(18, hints)
 	box.add_child(_cell(keys, 20, false))
 
 

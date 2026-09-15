@@ -81,6 +81,7 @@ func test_intent_survives_the_wire() -> void:
 	it.build_action = "place"
 	it.build_type = "woodWall"
 	it.build_tile = Vector2i(150, 151)
+	it.build_rot = 1
 	var back := NetProtocol.unpack_intent(NetProtocol.decode(NetProtocol.encode(NetProtocol.msg_intent(7, it))).i, Intent.new())
 	eq(back.mx, -1.0)
 	eq(back.my, 0.5)
@@ -92,6 +93,7 @@ func test_intent_survives_the_wire() -> void:
 	eq(back.build_action, "place")
 	eq(back.build_type, "woodWall")
 	eq(back.build_tile, Vector2i(150, 151))
+	eq(back.build_rot, 1)
 
 
 func test_merge_keeps_an_edge_until_a_step_sees_it() -> void:
@@ -468,6 +470,35 @@ func test_building_travels_as_intent_and_comes_back_as_the_world() -> void:
 	t.sim.structs.demolish(t.sim, s, gp)
 	_pump(t, 0.6)
 	ok(guest.sim.structs.at_tile(plot.x + 2, plot.y).is_empty(), "gone from the mirror")
+
+
+func test_a_guest_builds_a_turned_long_bed_and_sees_it_turned() -> void:
+	var t := _table()
+	var guest: NetGuest = t.guest
+	var gp: PlayerSim = t.gp
+	var plot := TestCase.clear_plot(6)
+	gp.pos = TestCase.tile_centre(plot)
+	guest.me.pos = gp.pos
+	for id in ["wood", "sticks", "fiber"]:
+		gp.bag.add(id, 40)
+	guest.me.intent.build_action = "place"
+	guest.me.intent.build_type = "longBed"
+	guest.me.intent.build_tile = plot + Vector2i(2, 0)
+	guest.me.intent.build_rot = 1
+	_step(t)
+	var s: Dictionary = t.sim.structs.at_tile(plot.x + 2, plot.y + 1)
+	eq(s.get("type", ""), "longBed", "the host built it down, not across")
+	_pump(t, 0.6)
+	var mirror := guest.sim.structs.at_tile(plot.x + 2, plot.y + 1)
+	eq(mirror.get("rot", -1), 1, "and the mirror has it turned")
+	ok(guest.sim.structs.at_tile(plot.x + 3, plot.y).is_empty(), "not across")
+	# A wall where the bed was, in one diff: the mirror loses the whole bed.
+	t.sim.structs.demolish(t.sim, s, gp)
+	gp.bag.add("wood", 40)
+	t.sim.structs.place(t.sim, "woodWall", plot.x + 2, plot.y + 1, gp)
+	_pump(t, 0.6)
+	eq(guest.sim.structs.at_tile(plot.x + 2, plot.y + 1).get("type", ""), "woodWall")
+	ok(guest.sim.structs.at_tile(plot.x + 2, plot.y).is_empty(), "no half a bed left on the mirror")
 
 
 func test_the_stash_and_a_searched_container_are_shared() -> void:

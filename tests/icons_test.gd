@@ -93,3 +93,46 @@ func test_every_file_in_the_structure_art_folder_is_named_after_a_structure() ->
 	for f: String in DirAccess.get_files_at(Structures.ART_DIR):
 		if f.ends_with(".png"):
 			ok(Config.STRUCTURES.has(f.get_basename()), "art/structures/%s is named after no structure" % f)
+
+
+# ------------------------------------------------------------ the street --
+# How a piece looks built, `art/world/`: the same seam again, plus a second
+# look for a piece that has one (an open gate, a turret's head).
+
+func test_a_piece_with_no_picture_is_drawn_in_code() -> void:
+	var was := Structures.WORLD_ART_DIR
+	Structures.WORLD_ART_DIR = DIR
+	Structures.clear_art_cache()
+	var gate := {"type": "gate", "open": false}
+	eq(StructureView.picture_of(gate), null, "no file, no picture")
+	_png("gate", 8, 8)
+	Structures.clear_art_cache()
+	ok(StructureView.picture_of(gate) != null, "found by name")
+	gate.open = true
+	eq(StructureView.picture_of(gate), null, "an open gate is never drawn shut")
+	_png("gate_open", 8, 8)
+	Structures.clear_art_cache()
+	ok(StructureView.picture_of(gate) != null, "and has its own picture")
+	ne(StructureView.picture_of(gate), Structures.world_art_of("gate"))
+	Structures.WORLD_ART_DIR = was
+	Structures.clear_art_cache()
+
+
+func test_a_picture_covers_its_whole_footprint() -> void:
+	eq(StructureView.footprint_rect({"type": "longBed", "tx": 3, "ty": 4, "rot": 0}), Rect2(96, 128, 64, 32))
+	eq(StructureView.footprint_rect({"type": "longBed", "tx": 3, "ty": 4, "rot": 1}), Rect2(96, 128, 32, 64))
+	eq(StructureView.footprint_rect({"type": "woodWall", "tx": 3, "ty": 4}), Rect2(96, 128, 32, 32))
+
+
+func test_every_file_in_the_street_art_folder_is_named_after_a_structure() -> void:
+	var found := 0
+	for f: String in DirAccess.get_files_at(Structures.WORLD_ART_DIR):
+		if not f.ends_with(".png"):
+			continue
+		found += 1
+		var name := f.get_basename()
+		var parts := name.split("_")
+		var named: bool = Config.STRUCTURES.has(name) or (parts.size() == 2 and Config.STRUCTURES.has(parts[0])
+			and parts[1] in Structures.WORLD_STATES.get(parts[0], []))
+		ok(named, "art/world/%s is named after no structure or state" % f)
+	gt(found, 0, "the folder the game reads is where this looked")

@@ -21,6 +21,9 @@
     "gate": {
       "type": "bool"
     },
+    "h": {
+      "type": "int"
+    },
     "houses": {
       "type": "int"
     },
@@ -87,8 +90,14 @@
     "trap_dmg": {
       "type": "float"
     },
+    "w": {
+      "type": "int"
+    },
     "wall": {
       "type": "bool"
+    },
+    "yield_mul": {
+      "type": "float"
     }
   },
   "notes": "Build anywhere: a \"base\" is wherever your structures happen to be.\n\n`solid` blocks feet but never bullets (invariant 3) — a base you cannot shoot out of is a base that punishes you for building it. `protect` marks the pieces a raider inside the perimeter should prefer, so a horde that is already through heads for the workbench rather than back out. `threat` scales what putting one up costs you in attention. `store` is a slot count; `tier` 2 needs the upgraded workbench.",
@@ -136,6 +145,25 @@
       "solid": false,
       "threat": 0.5,
       "tier": 1
+    },
+    {
+      "cost": {
+        "fiber": 10,
+        "sticks": 12,
+        "wood": 30
+      },
+      "desc": "Two tiles of soil under one planting. One seed, one watering, a bigger harvest.",
+      "h": 1,
+      "hp": 240.0,
+      "id": "longBed",
+      "name": "Long Raised Bed",
+      "notes": "A Raised Bed two tiles long, and cheaper than two (36/16/12 for 2x): one seed, one water meter, 2.5x the harvest. `w`/`h` is its footprint lying flat; R turns it while placing. Not solid and not `protect`, for the Raised Bed's reasons.",
+      "plot": true,
+      "solid": false,
+      "threat": 0.8,
+      "tier": 1,
+      "w": 2,
+      "yield_mul": 2.5
     },
     {
       "cost": {

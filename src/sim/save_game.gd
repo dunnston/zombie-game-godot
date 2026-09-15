@@ -54,7 +54,7 @@ static func _town_dict(sim: GameSim, inst: Instance) -> Dictionary:
 	for s in sim.structs.list:
 		if s.destroyed:
 			continue
-		var rec := {"type": s.type, "tx": s.tx, "ty": s.ty}
+		var rec := {"type": s.type, "tx": s.tx, "ty": s.ty, "rot": s.rot}
 		for f in STRUCT_FIELDS:
 			rec[f] = s[f]
 		# A Supply Stash aliases the shared pile, which is saved once below.
@@ -244,7 +244,7 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 	for rec in data.get("structures", []):
 		if not Config.STRUCTURES.has(rec.type):
 			continue
-		var s := sim.structs.make(sim, rec.type, int(rec.tx), int(rec.ty))
+		var s := sim.structs.make(sim, rec.type, int(rec.tx), int(rec.ty), 1.0, int(rec.get("rot", 0)))
 		for f in STRUCT_FIELDS:
 			if rec.has(f):
 				s[f] = rec[f]

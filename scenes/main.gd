@@ -305,6 +305,11 @@ func _physics_process(dt: float) -> void:
 	var screen_up := inventory.visible or map.open or (build_bar.open and build_bar.menu)
 	LocalInput.gather(intent, self, inventory.visible or build_bar.open or map.open, screen_up, typing, me)
 	if build_bar.placing():
+		# Reload has nothing to do while a hammer is out, so its key turns the
+		# piece — one key the player already knows, rather than a second
+		# binding on R that the controls screen would call a conflict.
+		if Input.is_action_just_pressed("reload"):
+			build_bar.rotate()
 		build_bar.update_hover(get_global_mouse_position())
 		# One click, one action — except REPAIR, which is meant to be swept
 		# along a wall. It only fires on a piece that is actually damaged, so
@@ -853,6 +858,127 @@ func smoke_farm(smoke: Node) -> void:
 	if not String(ripe.seed).is_empty():
 		smoke.fail("the harvested bed still has a crop in it")
 	await smoke.checkpoint("harvested")
+
+
+## Every piece in the street at once, as its picture: the gate both ways, a
+## hurt wall, a turret on a running generator, and the long bed lying flat
+## and turned with a crop in each — one photograph of whether the art lands on
+## its tiles. Then a long bed turned with the real key and placed with the
+## real mouse, because that is the one path the picture cannot vouch for.
+## Everything is taken away again, so the legs after this see the ground
+## they always saw.
+func smoke_structure_art(smoke: Node) -> void:
+	var p := sim.players[0]
+	var layout := [
+		["woodWall", 0, 0], ["stoneWall", 1, 0], ["barricade", 2, 0], ["reinforcedWall", 3, 0], ["metalWall", 4, 0],
+		["gate", 5, 0], ["gate", 6, 0], ["spike", 7, 0], ["woodWall", 8, 0],
+		["workbench", 0, 2], ["chemStation", 1, 2], ["stash", 2, 2], ["chest", 3, 2], ["locker", 4, 2],
+		["bedroll", 5, 2], ["bunk", 6, 2], ["raisedBed", 7, 2], ["watchtower", 8, 2],
+		["generator", 0, 4], ["turret", 1, 4], ["floodlight", 2, 4], ["longBed", 4, 4], ["longBed", 7, 3],
+	]
+	var size := Vector2i(10, 6)
+	var origin := _smoke_open_block(Vector2i(int(p.pos.x / 32), int(p.pos.y / 32)), size)
+	if origin.x < 0:
+		smoke.fail("no open %dx%d block to lay every piece out on" % [size.x, size.y])
+		return
+	var stash_was := sim.stash
+	var made: Array[Dictionary] = []
+	for i in layout.size():
+		var e: Array = layout[i]
+		var rot := 1 if i == layout.size() - 1 else 0
+		made.append(sim.structs.make(sim, e[0], origin.x + int(e[1]), origin.y + int(e[2]), 1.0, rot))
+	made[6].open = true
+	made[8].hp = made[8].max_hp * 0.35
+	made[9].tier = 2
+	made[14].active = true
+	made[18].fuel = made[18].def.fuel_max
+	made[19].ammo = int(made[19].def.mag)
+	for i in [16, 21, 22]:
+		var bed: Dictionary = made[i]
+		bed.water = Config.FARM.water_max * (0.3 if i == 21 else 1.0)
+		bed.seed = ["seedHerb", "seedCorn", "seedPotato"][[16, 21, 22].find(i)]
+		bed.grow = Farming.grow_time(bed) * (1.0 if i == 22 else 0.5)
+	for s in made:
+		if s.is_empty():
+			smoke.fail("a piece of the art layout would not go down")
+	_smoke_stand_at(Vector2(origin.x + size.x / 2.0, origin.y + size.y + 1.5) * 32)
+	camera.position = Vector2(origin.x + size.x / 2.0, origin.y + size.y / 2.0) * 32
+	sim.world_version += 1
+	await smoke.frames(20)
+	if not made[19].powered:
+		smoke.fail("the turret beside a fuelled generator has no power")
+	if Structures.world_art_of("longBed") == null or Structures.world_art_of("turret", "head") == null:
+		smoke.fail("the street art did not load")
+	await smoke.checkpoint("structure_art")
+	for s in made:
+		s.destroyed = true
+		sim.structs._unlink(s)
+	sim.stash = stash_was
+	sim.world_version += 1
+
+	# The long bed through the build bar: R turns it, the click puts it down.
+	for entry in [["wood", 40], ["sticks", 20], ["fiber", 20]]:
+		p.bag.add(entry[0], entry[1])
+	if not build_bar.open:
+		build_bar.toggle()
+	build_bar.select_card("longBed")
+	build_bar.place_mode()
+	await smoke.frames(2)
+	# Held until the physics step has seen it, as every held key here is.
+	if not await _smoke_press_until(smoke, "reload", func() -> bool: return build_bar.rot == 1, 60):
+		smoke.fail("R while placing a long bed did not turn it")
+	var tile := origin + Vector2i(5, 2)
+	var spot := Vector2(tile.x * 32 + 16, tile.y * 32 + 16)
+	for i in range(12):
+		smoke_aim(spot)
+		await smoke.frames(2)
+		if build_bar.check.ok and build_bar.hover_tile == tile:
+			break
+	if not build_bar.check.ok:
+		smoke.fail("the long bed ghost cannot go down: %s" % build_bar.check.reason)
+	await smoke.checkpoint("long_bed_ghost")
+	await smoke_click(get_viewport().get_canvas_transform() * spot)
+	# Wherever it landed: the camera leans toward the cursor, so the tile under
+	# a warped click can be one over from the tile aimed at. Which way it lies
+	# is the question here, not which tile.
+	var placed := {}
+	for i in range(60):
+		for s in sim.structs.list:
+			if s.type == "longBed" and not s.destroyed:
+				placed = s
+		if not placed.is_empty():
+			break
+		await smoke.frames(1)
+	if placed.is_empty():
+		smoke.fail("the click did not put down a long bed (aimed at %s, hovering %s)" % [tile, build_bar.hover_tile])
+	elif int(placed.rot) != 1 or sim.structs.at_tile(placed.tx, placed.ty + 1) != placed 			or not sim.structs.at_tile(placed.tx + 1, placed.ty).is_empty():
+		smoke.fail("the long bed went down across, not turned")
+	if not placed.is_empty():
+		sim.structs.demolish(sim, placed, p)
+	build_bar.rot = 0
+	build_bar.toggle()
+
+
+## The top-left of a `size` block of tiles near `from` with nothing on it —
+## no terrain, no piece, no prop — or (-1, -1).
+func _smoke_open_block(from: Vector2i, size: Vector2i) -> Vector2i:
+	for r in range(2, 40, 2):
+		for dy in range(-r, r + 1, 2):
+			for dx in range(-r, r + 1, 2):
+				var o := from + Vector2i(dx, dy)
+				var open := true
+				for j in range(-1, size.y + 2):
+					for i in range(-1, size.x + 1):
+						var t := o + Vector2i(i, j)
+						if sim.world.is_blocked_tile(t.x, t.y) or not sim.structs.at_tile(t.x, t.y).is_empty() \
+								or not sim.world.prop_at_tile(t.x, t.y).is_empty():
+							open = false
+							break
+					if not open:
+						break
+				if open:
+					return o
+	return Vector2i(-1, -1)
 
 
 ## Chop a tree down and gather a stick, photographing each before and after.
@@ -1840,6 +1966,7 @@ func smoke_run(smoke: Node) -> void:
 	# read at a glance" is a drawing question and one bed cannot answer it —
 	# then the panel, then a harvest through the real key.
 	await smoke_farm(smoke)
+	await smoke_structure_art(smoke)
 
 	# Save, break something, load it back.
 	await smoke.tap("quick_save")

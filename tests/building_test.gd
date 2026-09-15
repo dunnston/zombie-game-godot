@@ -103,6 +103,75 @@ func test_the_upgraded_bench_unlocks_steel() -> void:
 	ok(sim.structs.is_unlocked("metalWall"), "and now it is not")
 
 
+# -------------------------------------------------------------- footprint --
+# The Long Raised Bed is the first piece bigger than a tile. Every tile it
+# covers is the piece, and a quarter turn stands it the other way.
+
+func test_a_long_piece_is_every_tile_it_covers() -> void:
+	_stock()
+	p.bag.add("fiber", 40)
+	var s := _build("longBed", plot.x + 1, plot.y + 1)
+	ok(not s.is_empty(), "the bed went down")
+	eq(sim.structs.at_tile(plot.x + 1, plot.y + 1), s, "its first tile")
+	eq(sim.structs.at_tile(plot.x + 2, plot.y + 1), s, "and its second")
+	ok(sim.structs.at_tile(plot.x + 1, plot.y + 2).is_empty(), "and nothing below it")
+	eq(s.pos, Vector2(plot.x + 2, plot.y + 1.5) * Config.TILE, "its middle is the middle of both tiles")
+	eq(sim.structs.count(), 1, "one piece, not two")
+
+
+func test_a_turned_piece_stands_the_other_way() -> void:
+	_stock()
+	p.bag.add("fiber", 40)
+	var s := sim.structs.place(sim, "longBed", plot.x + 1, plot.y + 1, p, 1)
+	eq(s.rot, 1)
+	eq(sim.structs.at_tile(plot.x + 1, plot.y + 2), s, "down, not across")
+	ok(sim.structs.at_tile(plot.x + 2, plot.y + 1).is_empty())
+	eq(s.pos, Vector2(plot.x + 1.5, plot.y + 2) * Config.TILE)
+
+
+func test_a_square_piece_ignores_the_turn() -> void:
+	_stock()
+	ok(not Structures.turns("woodWall"))
+	var s := sim.structs.place(sim, "woodWall", plot.x + 2, plot.y, p, 1)
+	eq(s.rot, 0, "stored as not turned, so a save never carries it")
+	eq(Structures.footprint("woodWall", 1), Vector2i.ONE)
+
+
+func test_every_tile_of_a_long_piece_has_to_be_free() -> void:
+	_stock()
+	p.bag.add("fiber", 40)
+	_build("woodWall", plot.x + 3, plot.y)
+	# The first tile is clear; the second is the wall.
+	eq(sim.structs.can_place(sim, "longBed", plot.x + 2, plot.y, p).reason, "Occupied")
+	ok(sim.structs.can_place(sim, "longBed", plot.x + 2, plot.y, p, 1).ok, "turned, it fits beside the wall")
+	# A wall on the second tile of a bed is refused too, from either side.
+	_build("longBed", plot.x + 1, plot.y + 2)
+	eq(sim.structs.can_place(sim, "woodWall", plot.x + 2, plot.y + 2, p).reason, "Occupied")
+
+
+func test_taking_a_long_piece_away_frees_every_tile() -> void:
+	_stock()
+	p.bag.add("fiber", 40)
+	var s := _build("longBed", plot.x + 1, plot.y + 1)
+	ok(sim.structs.demolish(sim, s, p))
+	ok(sim.structs.at_tile(plot.x + 1, plot.y + 1).is_empty())
+	ok(sim.structs.at_tile(plot.x + 2, plot.y + 1).is_empty(), "the second tile went with it")
+	ok(sim.structs.grid.is_empty(), "nothing left pointing at it")
+
+
+func test_a_turned_piece_survives_being_written_down() -> void:
+	_stock()
+	p.bag.add("fiber", 40)
+	_build("longBed", plot.x + 1, plot.y - 1)
+	sim.structs.place(sim, "longBed", plot.x + 3, plot.y - 1, p, 1)
+	var out := GameSim.new()
+	var r := SaveGame.apply(out, SaveGame.to_dict(sim), world())
+	ok(r.ok, r.reason)
+	eq(out.structs.at_tile(plot.x + 2, plot.y - 1).get("type", ""), "longBed", "the flat one, by its second tile")
+	eq(out.structs.at_tile(plot.x + 3, plot.y).get("rot", -1), 1, "the turned one, still turned")
+	ok(out.structs.at_tile(plot.x + 4, plot.y - 1).is_empty())
+
+
 # --------------------------------------------------------------- collision --
 
 func test_a_wall_stops_a_player_walking_into_it() -> void:

@@ -769,7 +769,7 @@ func _build_bed(col: VBoxContainer) -> void:
 			gm.set_value(p, Ui.OK if p >= 1.0 else Color("#7a9a52"))
 			# What this bed will actually pay, fertilizer included, so feeding
 			# it visibly moves the number you are about to be paid.
-			var ym: float = float(Farming.fert_of(s).get("yield_mul", 1.0))
+			var ym := Farming.yield_mul(s)
 			Ui.set_text(band, "%d–%d %s" % [maxi(1, floori(int(crop.min) * ym)), maxi(1, floori(int(crop.max) * ym)),
 				Items.name_of(String(crop.crop))])
 			var days := maxf(0.0, Farming.grow_time(s) - float(s.grow)) / Config.DAY_LENGTH

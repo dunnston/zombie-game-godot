@@ -259,7 +259,7 @@ static func pack_intent(it: Intent, with_edges := true) -> Dictionary:
 		"ax": roundi(it.aim.x), "ay": roundi(it.aim.y), "f": f,
 		"s": it.slot if with_edges else -1, "w": it.wheel if with_edges else 0}
 	if with_edges and not it.build_action.is_empty():
-		out["b"] = [it.build_action, it.build_type, it.build_tile.x, it.build_tile.y]
+		out["b"] = [it.build_action, it.build_type, it.build_tile.x, it.build_tile.y, it.build_rot]
 	return out
 
 
@@ -286,10 +286,11 @@ static func unpack_intent(p: Dictionary, into: Intent) -> Intent:
 	into.build_action = ""
 	into.build_type = ""
 	var b = p.get("b", null)
-	if b is Array and b.size() == 4:
+	if b is Array and b.size() >= 4:
 		into.build_action = String(b[0])
 		into.build_type = String(b[1])
 		into.build_tile = Vector2i(int(b[2]), int(b[3]))
+		into.build_rot = int(b[4]) if b.size() > 4 else 0
 	return into
 
 
@@ -309,6 +310,7 @@ static func merge_intent(into: Intent, fresh: Dictionary) -> void:
 	var ba := into.build_action
 	var bt := into.build_type
 	var bl := into.build_tile
+	var br := into.build_rot
 	unpack_intent(fresh, into)
 	for e in Intent.EDGES:
 		into.set(e, into.get(e) or held[e])
@@ -320,6 +322,7 @@ static func merge_intent(into: Intent, fresh: Dictionary) -> void:
 		into.build_action = ba
 		into.build_type = bt
 		into.build_tile = bl
+		into.build_rot = br
 
 
 ## An older packet arriving after a newer one — the state channel is
@@ -337,6 +340,7 @@ static func merge_late_intent(into: Intent, fresh: Dictionary) -> void:
 		into.build_action = late.build_action
 		into.build_type = late.build_type
 		into.build_tile = late.build_tile
+		into.build_rot = late.build_rot
 
 
 ## "Holding nothing": what a silent guest is taken to mean, and what a paused
@@ -568,7 +572,7 @@ static func pack_snapshot(sim: GameSim, for_player: PlayerSim, seq: int) -> Dict
 ## A structure as the wire describes it: the save's fields plus the ones
 ## that change on their own (a generator running, a turret aiming).
 static func pack_structure(s: Dictionary) -> Dictionary:
-	return {"tp": s.type, "tx": s.tx, "ty": s.ty, "hp": r1(s.hp), "mh": s.max_hp, "op": s.open,
+	return {"tp": s.type, "tx": s.tx, "ty": s.ty, "ro": s.rot, "hp": r1(s.hp), "mh": s.max_hp, "op": s.open,
 		"tr": s.tier, "fu": r1(s.fuel), "am": s.ammo, "on": s.on, "ac": s.active, "rn": s.running,
 		"pw": s.powered, "st": s.starved, "aim": snappedf(s.aim, 0.05), "arm": s.arm, "fl": s.flash > 0.0,
 		# A Raised Bed. The stage is not sent: a guest derives it from `gr` the
