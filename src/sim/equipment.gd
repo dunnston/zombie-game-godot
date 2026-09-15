@@ -207,6 +207,15 @@ static func move_stack(sim: GameSim, p: PlayerSim, from_cont: String, from_index
 	var to := container(p, to_cont, store)
 	if from == null or to == null:
 		return false
+	# Nothing comes back out of the haul into your pockets (owner, 2026-09-15).
+	# It could, and it looked like a way to keep a find that the run was about
+	# to forfeit — but `Instance.haul_load` counts what you moved across, and
+	# `Instance.leave` takes it either way, so the move only ever moved the
+	# disappointment to the end of the run.
+	if from_cont == "haul" and (to_cont == "bag" or to_cont == "hotbar"):
+		if sim != null:
+			sim.notify("What you find in here stays in the haul until you are out", "#c96a5a")
+		return false
 	# The haul is for carrying *out* of an instance, and it is only open inside
 	# one: anywhere else it would be a second backpack that weighs nothing.
 	# Inside, it holds what its own budget allows and not a gram more.

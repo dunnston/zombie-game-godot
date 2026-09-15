@@ -155,13 +155,17 @@ func _draw_joined(tex: Texture2D, rect: Rect2, type: String, mask: int, tint: Co
 
 
 ## A picture fitted inside its tiles without stretching. A turned piece's
-## picture is the lying-flat one, drawn a quarter turn round.
+## picture is the lying-flat one, drawn round by quarter turns: a long piece
+## has two positions and a square one with a front has four, and a half turn
+## keeps the footprint's shape while facing the other way.
 func _draw_picture(tex: Texture2D, rect: Rect2, rot: int, tint: Color) -> void:
-	if rot % 2 == 0:
+	if rot == 0:
 		draw_texture_rect(tex, Items.art_rect(tex, rect), false, tint)
 		return
-	var flat := Rect2(-Vector2(rect.size.y, rect.size.x) / 2.0, Vector2(rect.size.y, rect.size.x))
-	draw_set_transform(rect.get_center(), PI / 2.0)
+	# A quarter or three quarters swaps the picture's sides; a half does not.
+	var size := Vector2(rect.size.y, rect.size.x) if rot % 2 == 1 else rect.size
+	var flat := Rect2(-size / 2.0, size)
+	draw_set_transform(rect.get_center(), PI / 2.0 * rot)
 	draw_texture_rect(tex, Items.art_rect(tex, flat), false, tint)
 	draw_set_transform(Vector2.ZERO)
 

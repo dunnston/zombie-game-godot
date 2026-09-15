@@ -251,13 +251,18 @@ func _physics_process(dt: float) -> void:
 		if Input.is_action_just_pressed("pause"):
 			if not inventory.back():
 				build_bar.back()
-	elif Input.is_action_just_pressed("inventory") and inventory.takes_tab():
-		# On a screen with a rail, Tab steps the rail rather than closing it:
-		# C, K and Escape close those.
-		inventory.next_category(Input.is_key_pressed(KEY_SHIFT))
-	elif Input.is_action_just_pressed("inventory") and build_bar.takes_tab() and not inventory.visible:
-		# In the build menu, the next category; while placing, the menu back.
-		build_bar.tab(Input.is_key_pressed(KEY_SHIFT))
+	elif Input.is_action_just_pressed("inventory") and Input.is_key_pressed(KEY_SHIFT) \
+		and (inventory.takes_tab() or (build_bar.takes_tab() and not inventory.visible)):
+		# Shift+Tab still steps the rail on a screen that has one. Tab on its
+		# own closes the screen (owner, 2026-09-15): the key that opened it is
+		# the key that shuts it, from any tab, and the rail has its own keys.
+		if inventory.takes_tab():
+			inventory.next_category(false)
+		else:
+			build_bar.tab(false)
+	elif Input.is_action_just_pressed("inventory") and build_bar.open and not inventory.visible:
+		# The build menu closes on it too — placing or browsing, one press out.
+		build_bar.toggle()
 	elif Input.is_action_just_pressed("inventory"):
 		if inventory.visible:
 			inventory.toggle()
@@ -669,7 +674,7 @@ func smoke_aim(world_pos: Vector2) -> void:
 ## The button is held for several frames so a physics step is guaranteed to
 ## see the press — process and physics both run at 60Hz, and a one-frame tap
 ## lands between them about half the time.
-func smoke_click(at: Vector2, ctrl := false) -> void:
+func smoke_click(at: Vector2, ctrl := false, shift := false) -> void:
 	var win := get_viewport().get_screen_transform() * at
 	Input.warp_mouse(win)
 	await get_tree().process_frame
@@ -679,6 +684,7 @@ func smoke_click(at: Vector2, ctrl := false) -> void:
 		ev.position = win
 		ev.global_position = win
 		ev.ctrl_pressed = ctrl
+		ev.shift_pressed = shift
 		ev.pressed = pressed
 		Input.parse_input_event(ev)
 		for i in range(3):
@@ -2002,6 +2008,16 @@ func smoke_run(smoke: Node) -> void:
 		var stored := p.count_res("stone")
 		await smoke_click(inventory.cell_centre("bag", _smoke_bag_index("stone")), false)
 		await smoke.frames(2)
+		# Shift+click sends a stack across (the owner's scheme, 2026-09-15).
+		# Wood, so the stone is still here for DEPOSIT ALL below.
+		var wood_before := p.count_res("wood")
+		await smoke_click(inventory.cell_centre("bag", _smoke_bag_index("wood")), false, true)
+		await smoke.frames(3)
+		var chest_now := sim.structs.at_tile(chest_tile.x, chest_tile.y)
+		if chest_now.store.count("wood") <= 0 or p.count_res("wood") >= wood_before:
+			smoke.fail("shift+click did not send the wood across (chest %d, pack %d of %d)"
+				% [chest_now.store.count("wood"), p.count_res("wood"), wood_before])
+		await smoke.checkpoint("chest_shift_moved")
 		# DEPOSIT ALL is the button the haul is actually for.
 		if inventory.button_centre("deposit") == Vector2.ZERO:
 			smoke.fail("the chest screen has no DEPOSIT ALL button")

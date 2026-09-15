@@ -119,6 +119,14 @@ static func deposit_all(sim: GameSim, p: PlayerSim, at: Vector2i, car: int) -> i
 	return sim.structs.deposit_all(sim, p, store_for(sim, p, at, car))
 
 
+## Everything the container already holds more of. Same shape as
+## `deposit_all`, and the host resolves the container the same way.
+static func deposit_matching(sim: GameSim, p: PlayerSim, at: Vector2i, car: int) -> int:
+	if _remote("deposit_matching", {"tx": at.x, "ty": at.y, "car": car}):
+		return 0
+	return sim.structs.deposit_matching(sim, p, store_for(sim, p, at, car))
+
+
 static func withdraw_supplies(sim: GameSim, p: PlayerSim, at: Vector2i, car: int) -> int:
 	if _remote("withdraw", {"tx": at.x, "ty": at.y, "car": car}):
 		return 0
@@ -286,6 +294,9 @@ static func execute(sim: GameSim, p: PlayerSim, name_: String, a: Dictionary) ->
 		"deposit":
 			var st := store_for(sim, p, at, car)
 			return st != null and sim.structs.deposit_all(sim, p, st) > 0
+		"deposit_matching":
+			var stm := store_for(sim, p, at, car)
+			return stm != null and sim.structs.deposit_matching(sim, p, stm) > 0
 		"withdraw":
 			var st := store_for(sim, p, at, car)
 			return st != null and sim.structs.withdraw_supplies(sim, p, st) > 0

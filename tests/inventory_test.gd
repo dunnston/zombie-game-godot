@@ -301,3 +301,27 @@ func test_putting_things_into_a_chest_is_never_refused_for_weight() -> void:
 	ok(Equipment.move_stack(sim, p, "bag", 0, "store", 0, Vector2i(chest.tx, chest.ty)))
 	ok(p.carried_weight() < before, "the weight left you")
 	eq(chest.store.count("stone"), 40)
+
+
+# -------------------------------------------------------- deposit matching --
+
+func test_deposit_matching_tops_up_only_what_is_already_in_there() -> void:
+	# The owner's "deposit like materials": sorting a base is putting the wood
+	# with the wood, which DEPOSIT ALL cannot do — it empties your pack into
+	# whatever you are standing at.
+	var chest := _chest_beside()
+	ok(not chest.is_empty(), "there is a chest to sort into")
+	chest.store.add("wood", 5)
+	p.bag.clear_all()
+	p.bag.add("wood", 20)
+	p.bag.add("stone", 20)
+	p.bag.add("pipe", 1)
+	eq(sim.structs.deposit_matching(sim, p, chest.store), 20, "the wood went in")
+	eq(chest.store.count("wood"), 25)
+	eq(p.bag.count("wood"), 0)
+	eq(p.bag.count("stone"), 20, "and the stone stayed on you")
+	eq(p.bag.count("pipe"), 1, "as did the pipe")
+	# Anything the chest holds counts, weapons included.
+	chest.store.add("stone", 1)
+	eq(sim.structs.deposit_matching(sim, p, chest.store), 20, "now the stone matches")
+	eq(p.bag.count("stone"), 0)

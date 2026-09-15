@@ -264,6 +264,42 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### One control scheme, and the screens say what they do (2026-09-15)
+
+The storage half of the same playtest (DL-88, DL-89, DL-97, and the bullets
+about the control scheme, the repair tooltip and Tab).
+
+- **The scheme, on every slot screen** (`InventoryScreen.CONTROLS_HINT`):
+  drag to move · **Shift+click** sends it to the other panel · right-click
+  uses, equips or stows · **Ctrl+click** drops · **Alt+click** splits.
+  Splitting moved off Shift to make room for the quick move, which is the
+  habit every survival game builds.
+- **DEPOSIT MATCHING** ("Top up what is here") puts in everything the
+  container already holds a stack of, and nothing else —
+  `Structures.deposit_matching`, through `Actions` like DEPOSIT ALL, so a
+  guest's press runs on the host. Sorting a base is putting the wood with the
+  wood, and DEPOSIT ALL cannot do that job.
+- **Nothing comes back out of the haul.** It never kept anything —
+  `Instance.haul_load` counted a find wherever it sat — so the drag only ever
+  looked like a way to cheat a run. (It also means a found medkit cannot be
+  used on the way through, which is a change in what a run feels like.)
+- **A repair names what is missing**, not the whole bill:
+  `Structures.shortfall` nets the cost off the pack and the stash, and the
+  build bar, the `E` prompt and the refusal all print that.
+- **Tab closes.** The key that opens the pack, crafting or the build menu
+  closes it from any tab; **Shift+Tab** steps the rail, which is what Tab
+  used to do.
+- **A workbench turns.** `Structures.quarters` is 2 for a piece longer than
+  it is wide, 4 for a square piece with a front (`FACING`) and 1 for a wall
+  or a gate, which follows the wall it stands in. Drawing only:
+  `_draw_picture` turns the picture by quarter turns and nothing about the
+  footprint, the collision or the reach changes. `rot` was already on the
+  wire and in the save.
+- `inventory_test` +1 (matching), `building_test` +2 (the shortfall, the
+  workbench turned and reloaded), `instance_test` rewritten where it moved
+  finds into the pack. The smoke shift+clicks a stack into a chest
+  (`chest_shift_moved`).
+
 ### A wall is a wall, and the town can be broken open (2026-09-15)
 
 From the same playtest: DL-83 ("can still attack zombies through existing
@@ -2651,6 +2687,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-15 | **The *Multiplayer Playing* playtest, groups B and C: walls, and the slot screens.** A shot or a swing stops at anything solid, terrain and built alike (`World.shot_blocks_px`), with height as the exemption — a turret's round and a posted sniper's carry `over`. Zombies cannot bite through a wall either, and nothing you built answers `E` through one: `Interact._in_sight` counts structures, and `reachable_store` asks it every frame. House walls have hit points (`BUILD.house_wall_hp` 620), break to rubble, and are carried by the save (**v12**) and the world diff as tile keys; the dead break them and only when the flow field cannot route them (`Enemies._cut_off`). Storage: one scheme on every screen (Shift sends across, Ctrl drops, Alt splits, RMB uses), DEPOSIT MATCHING, no dragging out of the haul, a repair bill that names only what is missing, Tab closes a screen (Shift+Tab steps the rail), and a workbench that turns four ways for the picture's sake. `tools/test`: 777 tests, 17602 asserts, 0 failures; `--all` 810 with the compound SIEGE at 296s, up from 124s — a defender walled in cannot shoot out any more, which is the decision showing up in the numbers |
 | 2026-09-15 | **The *Multiplayer Playing* playtest, group A: stamina, winded and weight** (Notion DL-87 and three page bullets). Sprinting while winded is refused instead of spent, so the clock runs down while you walk with the key held — the owner's "winded timer does not drop to 0 while walking", which was the sprint restarting it every step. The refill crawls at `WINDED.regen_mul` (0.25) while the clock runs and the HUD shows it rather than hiding a full-speed one; `stam_regen_delay` 0.65 → 1.0 so the bar sits still between swings. The carry cap went soft: `carry_cap` is comfort and `carry_limit()` (`overload_mul` 1.5) is where pickups, crafts and chest withdrawals are refused, and in between you are **overburdened** — winded, no sprint, no dash, until the weight comes off. Co-op ships the host's `winded_t` (`PL_WINDED_T`, protocol 10) instead of a guest estimating it from the flag and looping 3 → 0 → 3. `player_test` +4, `net_test` +1; the four capacity tests that encoded the hard cap now encode the ceiling. `tools/test`: 767 tests, 17562 asserts, 0 failures |
 | 2026-09-15 | **Winded throws away the refill, and the noise lens can be found.** Owner: the noise overlay "is not there", and winded should reset its timer *and* dump what the bar refilled. Stamina: the bar still refills during the 3s debuff, but `Stamina.spend` while winded now zeroes it as well as restarting the clock, and the HUD draws the bar empty until the clock runs out, so there is never a bar on screen that one swing would take back. Standing still three seconds comes out with the same bar as before, which is what keeps this clear of the regen-lock draft that flickered. Noise lens: it existed (F2, dev builds, only for swung/fired/built/driven noise), but the rings lived in `FxView` under the night's CanvasModulate and went black after dark. They are now `NoiseLensView` on a camera-following CanvasLayer, the F1 menu has a *Toggle the noise overlay* row sharing one `NoiseLensView.toggle` with F2, and switching off clears rings mid-fade. Tests: a winded swing and a winded sprint each dump the refill (both fail against the old `spend`). Smoke: `winded_bar` asserts the HUD hides a real refill; `noise_lens_night` presses F2 at midnight and photographs the ring. `tools/test`: 764 tests, 0 failures. Smoke: 98 checkpoints, 2 failures outside this change (the move-to-cursor focus flake; a meal cancelled by a hit) |
 | 2026-09-15 | **Walls join, and a gate lies along its wall.** Owner feedback on the street art: gaps between walls, a gate that looked wrong and faced the wrong way. Wall and gate pictures are re-cut to the whole tile (`slice_world.py`, walls without their post stubs), `StructureView` trims their outline on every side that meets another wall piece, and a gate in a wall running up and down is drawn turned; the ghost joins too. Drawing only. Smoke `structure_art` gains a corner and a turned gate, with asserts on the joins |

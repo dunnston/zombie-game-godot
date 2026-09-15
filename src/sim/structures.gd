@@ -35,11 +35,34 @@ static func footprint(type: String, rot := 0) -> Vector2i:
 	return Vector2i(f.y, f.x) if rot % 2 == 1 else f
 
 
-## Whether turning a piece changes anything. A square one ignores R, and its
-## `rot` is always stored as 0, so a save or a snapshot never carries noise.
+## Whether turning a piece changes anything, and how far round it goes.
+##
+## A piece longer than it is wide has two positions (lying flat, or a quarter
+## turn). A square piece with a *front* — a workbench, a bench-like station,
+## a bunk, a bedroll — has four, and the turn is drawing only: nothing about
+## its footprint, its collision or its reach changes (owner, 2026-09-15:
+## "rotate workbenches"). A wall or a gate never turns on the key: it follows
+## the wall it stands in.
 static func turns(type: String) -> bool:
+	return quarters(type) > 1
+
+
+## How many positions R cycles through: 2 for a long piece, 4 for a square one
+## with a front, 1 for everything else.
+static func quarters(type: String) -> int:
 	var f := footprint(type)
-	return f.x != f.y
+	if f.x != f.y:
+		return 2
+	var def: Dictionary = Config.STRUCTURES.get(type, {})
+	if def.get("wall", false) or def.get("gate", false):
+		return 1
+	return 4 if FACING.has(type) else 1
+
+
+## The square pieces that look like something from one side. Kept here rather
+## than as a field on the table: it is a fact about the picture, not about the
+## piece, and a new field in `data/` is a code change either way (§10).
+const FACING := ["workbench", "chemStation", "bunk", "bedroll", "stash", "locker", "chest", "generator", "watchtower"]
 
 
 static func tiles_of(type: String, tx: int, ty: int, rot := 0) -> Array[Vector2i]:
@@ -300,7 +323,7 @@ func can_place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim, rot :
 
 func make(sim: GameSim, type: String, tx: int, ty: int, hp_mul := 1.0, rot := 0) -> Dictionary:
 	var def: Dictionary = Config.STRUCTURES[type]
-	rot = posmod(rot, 2) if turns(type) else 0
+	rot = posmod(rot, quarters(type))
 	var max_hp := roundf(def.hp * hp_mul)
 	var store: Slots = null
 	if def.has("store"):
@@ -514,7 +537,7 @@ func repair(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
 		sim.notify("Already intact", "#8a8f84")
 		return false
 	if not p.can_afford(sim, cost):
-		sim.notify("Not enough materials to repair — needs %s" % cost_label(cost), "#c96a5a")
+		sim.notify("Not enough materials to repair — missing %s" % cost_label(shortfall(sim, p, cost)), "#c96a5a")
 		return false
 	p.spend(sim, cost)
 	_restore(sim, s, p)
@@ -526,6 +549,22 @@ func _restore(sim: GameSim, s: Dictionary, p: PlayerSim) -> void:
 	s.hp = s.max_hp
 	sim.emit({"t": "repaired", "x": s.pos.x, "y": s.pos.y})
 	Progression.add_xp(sim, p, 3, "REPAIR")
+
+
+## What is *missing* from a bill, given what this player can reach (pack plus
+## the shared stash), or an empty Dictionary when it is all there.
+##
+## The owner, 2026-09-15: a repair that cannot be paid for listed the whole
+## bill, so "needs WOOD 12 · SCRP 6" with eleven wood in the pack told you
+## nothing about the one thing you had to go and find.
+static func shortfall(sim: GameSim, p: PlayerSim, cost: Dictionary) -> Dictionary:
+	var out := {}
+	for id in cost:
+		var need: int = ceili(cost[id])
+		var short := need - p.total_res(sim, String(id))
+		if short > 0:
+			out[id] = short
+	return out
 
 
 ## "WOOD 4 · SCRP 2" — one way to print a bill, used by every prompt.
@@ -869,6 +908,39 @@ func _tick_traps(sim: GameSim, dt: float) -> void:
 ## consumables above a working supply of four. Weapons, gear and the
 ## bandages in your pocket stay on you — a deposit-all that stripped your
 ## rifle would be a trap rather than a convenience.
+## Everything in your pack that this container **already holds**, and nothing
+## else: the owner's "deposit like materials" (2026-09-15). Sorting a base is
+## putting the wood with the wood, and DEPOSIT ALL cannot do that job — it
+## empties your pack into whatever you are standing at.
+##
+## Weapons, gear, ammunition and food all move if a stack of the same thing is
+## in there, because "the same thing" is the whole rule; what is *not* in
+## there stays on you.
+func deposit_matching(sim: GameSim, p: PlayerSim, store: Slots) -> int:
+	if store == null:
+		return 0
+	var moved := 0
+	var left := 0
+	var entries: Dictionary = p.bag.entries()
+	for id in entries:
+		if store.count(id) <= 0:
+			continue
+		var want: int = entries[id]
+		var got := store.add(id, want)
+		if got > 0:
+			p.bag.take(id, got)
+		moved += got
+		left += want - got
+	if moved > 0:
+		sim.notify("Topped up %d — no room for %d more" % [moved, left] if left > 0
+			else "Topped up %d items" % moved, "#d9c46a" if left > 0 else "#b7e08a")
+	elif left > 0:
+		sim.notify("That container is full", "#c96a5a")
+	else:
+		sim.notify("Nothing here matches what is in it", "#8a8f84")
+	return moved
+
+
 func deposit_all(sim: GameSim, p: PlayerSim, store: Slots) -> int:
 	if store == null:
 		return 0

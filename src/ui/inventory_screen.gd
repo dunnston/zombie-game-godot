@@ -26,6 +26,12 @@ const STORE_COLS := 8
 const SIDE_COLS := 6
 const HAUL_COLS := 5
 
+## One scheme, written once and shown on every screen that has slots in it
+## (owner, 2026-09-15: "figure out the control schema … and UI features for
+## it"). Shift is the quick move because that is the habit every survival game
+## builds; splitting moved to Alt to make room for it.
+const CONTROLS_HINT := "Drag to move  ·  SHIFT+click sends it across  ·  right-click to equip, stow or use  ·  CTRL+click drops  ·  ALT+click splits"
+
 var sim: GameSim
 var player: PlayerSim
 
@@ -486,8 +492,7 @@ func _build_pack(col: VBoxContainer) -> void:
 	var pack_head := Ui.panel("PanelHead", Ui.hbox(12, [Ui.expand(Ui.label("Pack", "SectionHead")), count]))
 	var bag := grid("bag", player.bag.size(), PACK_COLS)
 	_nav_grid = bag
-	var hint := Ui.para("Drag to move  ·  click food to eat  ·  right-click to equip, stow or use  ·  ctrl+click to drop  ·  shift+click to split",
-		"Small", Color(1, 1, 1, 0.4))
+	var hint := Ui.para(CONTROLS_HINT, "Small", Color(1, 1, 1, 0.4))
 	var pack_panel := drop_zone(Ui.panel("Pane", Ui.vbox(0, [pack_head, Ui.pad(bag, 16), Ui.pad(hint, 16, 0, 16, 14)])))
 	var hot := drop_zone(Ui.panel("Pane", Ui.vbox(0, [Ui.head("Hotbar"), Ui.pad(grid("hotbar", player.hotbar.size(), player.hotbar.size()), 16)])))
 	var centre := Ui.vbox(16, [pack_panel, hot])
@@ -673,7 +678,8 @@ func _build_store(col: VBoxContainer) -> void:
 				txt = "BOOT %d / %d  ·  FUEL %d / %d" % [Vehicles.trunk_load(v), int(Config.CAR.trunk_cap),
 					roundi(v.fuel), int(Config.CAR.fuel_max)]
 		Ui.set_text(count, txt))
-	var buttons := Ui.hbox(12, [btn("deposit", "Deposit all materials"), btn("withdraw", "Take supplies")])
+	var buttons := Ui.hbox(12, [btn("deposit", "Deposit all materials"),
+		btn("deposit_matching", "Top up what is here"), btn("withdraw", "Take supplies")])
 	# Refuelling belongs on the boot screen: it is the other thing you stopped
 	# the car to do, and it needs somewhere to live.
 	if store_car > 0:
@@ -681,6 +687,7 @@ func _build_store(col: VBoxContainer) -> void:
 	for b in buttons.get_children():
 		(b as Control).custom_minimum_size.y = 44
 	buttons.add_child(Ui.spacer())
+	buttons.add_child(Ui.hint("SHIFT", "send a stack across"))
 	buttons.add_child(Ui.hint("RMB", "move one across"))
 	var store_grid := grid("store", s.size() if s != null else 0, STORE_COLS)
 	var left := drop_zone(Ui.panel("Pane", Ui.vbox(0, [
@@ -1146,6 +1153,8 @@ func _press_button(id: String) -> void:
 	match id:
 		"deposit":
 			Actions.deposit_all(sim, player, store_tile, store_car)
+		"deposit_matching":
+			Actions.deposit_matching(sim, player, store_tile, store_car)
 		"withdraw":
 			Actions.withdraw_supplies(sim, player, store_tile, store_car)
 		"refuel":
@@ -1187,15 +1196,21 @@ func _press(cell: Dictionary, mb: InputEventMouseButton) -> void:
 	var stack := _stack_in(cell)
 	if stack.is_empty():
 		return
-	# Ctrl+click drops, shift+click splits: both are decisions about the stack
-	# you already clicked, so neither starts a drag.
+	# Shift, Ctrl and Alt are decisions about the stack you already clicked, so
+	# none of them starts a drag. The scheme is the owner's (2026-09-15):
+	# **Shift** sends it to the other panel — the habit every survival game
+	# builds — **Ctrl** drops it, and **Alt** splits it. Splitting moved off
+	# Shift for exactly that reason.
+	if mb.shift_pressed:
+		_quick_move(cell)
+		return
 	if mb.ctrl_pressed:
 		if cell.kind == "equip":
 			Actions.drop_equipped(sim, player, cell.slot)
 		else:
 			Actions.drop_stack(sim, player, cell.kind, cell.index, true, store_tile, store_car)
 		return
-	if mb.shift_pressed and cell.kind != "equip":
+	if mb.alt_pressed and cell.kind != "equip":
 		var cont := Equipment.container(player, cell.kind, store())
 		var free := cont.first_empty() if cont != null else -1
 		if free >= 0:

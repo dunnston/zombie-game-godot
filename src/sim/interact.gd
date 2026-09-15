@@ -124,8 +124,12 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 			entry = {"kind": "bedroll", "ref": s,
 				"label": "Respawn point (active)" if p.spawn_tile == Vector2i(s.tx, s.ty) else "Set as respawn point"}
 		elif Structures.is_damaged(s):
+			var bill := Structures.repair_cost(s, p.build_cost_mul)
+			var missing := Structures.shortfall(sim, p, bill)
 			entry = {"kind": "repair", "ref": s,
-				"label": "Repair %s  (%d%%)  ·  %s" % [s.def.name, roundi(s.hp / s.max_hp * 100.0), Structures.cost_label(Structures.repair_cost(s, p.build_cost_mul))]}
+				"label": "Repair %s  (%d%%)  ·  %s" % [s.def.name, roundi(s.hp / s.max_hp * 100.0),
+					Structures.cost_label(bill) if missing.is_empty()
+						else "missing %s" % Structures.cost_label(missing)]}
 		if entry.is_empty():
 			continue
 		# A piece that answers E for something else still says it is hurt.

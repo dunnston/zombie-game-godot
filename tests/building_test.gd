@@ -684,3 +684,40 @@ func test_a_zombie_with_no_way_in_starts_on_the_house() -> void:
 	sim.world_version += 1
 	ok(hit, "walled in with nothing to swing at, it never touched the house")
 	ok(e.pos.distance_to(p.pos) < 120.0, "it wandered off instead of working at the wall")
+
+
+# ------------------------------------------------------- bills and turning --
+
+func test_a_repair_bill_names_only_what_is_missing() -> void:
+	# Owner, 2026-09-15: a repair you cannot pay for listed the whole bill, so
+	# eleven of the twelve wood looked the same as none of it.
+	_stock()
+	var wall := _build("metalWall", plot.x + 2, plot.y) if sim.structs.is_unlocked("metalWall") else _build("woodWall", plot.x + 2, plot.y)
+	sim.structs.damage(sim, wall, wall.max_hp * 0.8)
+	var bill := Structures.repair_cost(wall, p.build_cost_mul)
+	ok(not bill.is_empty(), "a damaged wall costs something to fix")
+	eq(Structures.shortfall(sim, p, bill), {}, "with a full pack nothing is missing")
+	# Empty the pack of the main material and the shortfall names it, and only
+	# by what is actually short.
+	var id := String(bill.keys()[0])
+	var need: int = bill[id]
+	p.bag.take(id, p.bag.count(id))
+	p.hotbar.take(id, p.hotbar.count(id))
+	p.bag.add(id, need - 1)
+	eq(Structures.shortfall(sim, p, bill), {id: 1}, "one short, and the bill should say one")
+
+
+func test_a_workbench_turns_four_ways_and_a_wall_does_not() -> void:
+	# Drawing only (owner: "rotate workbenches"): the footprint, the tiles and
+	# the reach are the same whichever way it faces.
+	_stock()
+	eq(Structures.quarters("workbench"), 4)
+	eq(Structures.quarters("woodWall"), 1, "a wall follows the wall it is in")
+	eq(Structures.quarters("longBed"), 2, "a long piece has two positions")
+	var bench := sim.structs.place(sim, "workbench", plot.x + 2, plot.y, p, 3)
+	eq(bench.rot, 3, "the turn was stored")
+	eq(bench.pos, Structures.centre_of("workbench", plot.x + 2, plot.y, 3), "and it stands where it stood")
+	eq(sim.structs.at_tile(plot.x + 2, plot.y), bench, "on the same tile")
+	var out := GameSim.new()
+	ok(SaveGame.apply(out, SaveGame.to_dict(sim), world()).ok)
+	eq(out.structs.at_tile(plot.x + 2, plot.y).get("rot", -1), 3, "and it came back facing the same way")
