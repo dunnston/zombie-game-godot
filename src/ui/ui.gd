@@ -290,6 +290,11 @@ static func build_theme() -> Theme:
 		[box(TAB, LINE_SOFT, 1, 2, 16, 0), box(RAISED, SHORT, 1, 2, 16, 0),
 		box(SHORT_FILL, SHORT, 1, 2, 16, 0), box(PANEL, LINE_SOFT, 1, 2, 16, 0)],
 		Color("#8a6a5a"), SHORT, TEXT_OFF)
+	# The Keycap panel's box, pointable: its padding is on the face instead.
+	_button(t, "KeycapButton", "ui", 600, 13, 0.1,
+		[box(RAISED, LINE, 1, 2), box(HOVER, LINE_STRONG, 1, 2),
+		box(SELECTED, ACCENT, 1, 2), box(PANEL, LINE_SOFT, 1, 2)],
+		TEXT_BODY, TEXT_HIGH, TEXT_OFF)
 
 	# Containers. Content margins live here so every panel pads the same.
 	_panel(t, "Pane", box(PANEL, LINE, 1, 3))
@@ -532,9 +537,13 @@ static func hint(key: String, text: String) -> HBoxContainer:
 	return hbox(8, [label(key, "Mono12", TEXT_OFF), label(text, "Small")])
 
 
-## The boxed version for a top bar's right-hand end.
-static func keycap(key: String, text: String) -> PanelContainer:
-	return panel("Keycap", hbox(8, [label(key, "Mono12", TEXT_DIM), label(text, "Caps", TEXT_BODY)]))
+## The boxed version for a top bar's right-hand end. Given `pressed` it is a
+## button as well: the close key you can also click.
+static func keycap(key: String, text: String, pressed: Callable = Callable()) -> Control:
+	var face := hbox(8, [label(key, "Mono12", TEXT_DIM), label(text, "Caps", TEXT_BODY)])
+	if not pressed.is_valid():
+		return panel("Keycap", face)
+	return face_button("KeycapButton", pad(face, 12, 7, 12, 7), pressed)
 
 
 ## A small state label: fill at ~14% of the colour, border at ~55%.
