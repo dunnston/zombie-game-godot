@@ -193,9 +193,11 @@ static func start(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int, n := 1)
 ## `PlayerSim.tick` whenever something is being made.
 static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 	var c := p.crafting
-	# Parked, dead, downed or not in charge of your own legs: no reason on
-	# screen, because whatever did it has a louder one of its own.
-	if p.away or p.dead or p.downed or p.lurch_t > 0.0:
+	# Parked, dead, downed, behind a wheel or not in charge of your own legs:
+	# no reason on screen, because whatever did it has a louder one of its
+	# own. Driving is here because behind the wheel "what can you do" is
+	# "drive" (`PlayerSim.tick`) — and this runs above that return (Codex, #49).
+	if p.away or p.dead or p.downed or p.driving_id > 0 or p.lurch_t > 0.0:
 		p.crafting = {}
 		return
 	var r := recipe(String(c.id))

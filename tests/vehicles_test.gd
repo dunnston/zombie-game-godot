@@ -635,3 +635,20 @@ func test_the_static_car_markers_are_not_drawn_twice() -> void:
 		"one real car per marker, and only one thing draws them")
 	var src := FileAccess.get_file_as_string("res://src/world/prop_renderer.gd")
 	ok(not src.contains("_add(v)"), "the prop renderer no longer buckets the markers")
+
+
+## A by-hand craft does not finish behind the wheel: driving is all there is
+## (Codex, PR #49). `Crafting.tick` runs above the tick's driving return.
+func test_getting_in_a_car_stops_a_craft() -> void:
+	var v := _open_car()
+	p.pos = v.pos
+	for id in ["sticks", "stone", "fiber"]:
+		p.bag.add(id, 10)
+	var r := Crafting.recipe("axe")
+	ok(Crafting.start(sim, p, r, 0))
+	ok(sim.cars.enter(sim, p, v))
+	for i in range(int(round((Config.PLAYER.craft_time + 0.2) * 60.0))):
+		p.tick(sim, 1.0 / 60.0)
+	ok(p.crafting.is_empty(), "the craft stopped")
+	eq(p.count_carried("axe"), 0, "and nothing was made at the wheel")
+	eq(p.count_res("sticks"), 10, "or spent")
