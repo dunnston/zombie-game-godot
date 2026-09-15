@@ -173,7 +173,7 @@ func _build_page(found: int) -> void:
 	_refreshers.append(func() -> void:
 		Ui.set_text(clock, "DAY %d  ·  %s" % [sim.clock.day, sim.clock.clock_string()])
 		Ui.set_text(phase, sim.clock.phase_name()))
-	col.add_child(Chrome.tab_bar("map", Chrome.TABS, [readout, Ui.keycap(key, "Close")],
+	col.add_child(Chrome.tab_bar("map", Chrome.TABS, [readout, Ui.keycap(key, "Close", func() -> void: toggle())],
 		func(id: String) -> void: navigate.emit(id)))
 
 	var body := Chrome.body(24)

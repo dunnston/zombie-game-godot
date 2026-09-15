@@ -393,9 +393,15 @@ func close_key() -> String:
 	return "ESC"
 
 
+## The close keycap, clickable: a click is the key, so it closes whatever the
+## screen is showing the same way.
+func close_cap(key: String, text := "Close") -> Button:
+	return reg_button("close", Ui.keycap(key, text, func() -> void: toggle()) as Button)
+
+
 func tab_bar(right: Array) -> PanelContainer:
 	var items := right.duplicate()
-	items.append(Ui.keycap(close_key(), "Close"))
+	items.append(close_cap(close_key()))
 	return Chrome.tab_bar(mode, Chrome.TABS, items, func(id: String) -> void: navigate.emit(id))
 
 
@@ -650,7 +656,7 @@ func _build_store(col: VBoxContainer) -> void:
 	var is_stash := store_car == 0 and sim.stash != null and store() == sim.stash
 	if is_stash:
 		chip = Ui.boxed(Ui.box(Color("#1a2028"), Ui.LINE, 1, 0, 10, 4), Ui.label("SHARED  ·  CREW FEEDS FROM THIS", "Mono12", Ui.TEXT_BODY))
-	col.add_child(Chrome.title_bar(_store_title(), chip, [w[0], Ui.keycap("ESC", "Close")]))
+	col.add_child(Chrome.title_bar(_store_title(), chip, [w[0], close_cap("ESC")]))
 	var body := Chrome.body()
 	col.add_child(Chrome.body_margin(body))
 
@@ -707,7 +713,7 @@ func _build_store(col: VBoxContainer) -> void:
 # ------------------------------------------------------------------- bed --
 
 func _build_bed(col: VBoxContainer) -> void:
-	col.add_child(Chrome.title_bar("Raised bed", null, [Ui.keycap("ESC", "Close")]))
+	col.add_child(Chrome.title_bar("Raised bed", null, [close_cap("ESC")]))
 	var body := Chrome.body()
 	col.add_child(Chrome.body_margin(body))
 	var cells := Ui.vbox(8)
@@ -797,7 +803,7 @@ func _build_bed(col: VBoxContainer) -> void:
 # ------------------------------------------------------------- the School --
 
 func _build_door(col: VBoxContainer) -> void:
-	col.add_child(Chrome.title_bar(Instance.title(door_kind), Ui.badge("Instance", Ui.XP), [Ui.keycap("ESC", "Not yet")]))
+	col.add_child(Chrome.title_bar(Instance.title(door_kind), Ui.badge("Instance", Ui.XP), [close_cap("ESC", "Not yet")]))
 	var body := Chrome.body()
 	col.add_child(Chrome.body_margin(body))
 	var rules := Ui.vbox(14)
@@ -831,7 +837,7 @@ func _build_door(col: VBoxContainer) -> void:
 
 
 func _build_leave(col: VBoxContainer) -> void:
-	col.add_child(Chrome.title_bar("Walk out", null, [Ui.keycap("ESC", "Stay")]))
+	col.add_child(Chrome.title_bar("Walk out", null, [close_cap("ESC", "Stay")]))
 	var body := Chrome.body()
 	col.add_child(Chrome.body_margin(body))
 	var lines := Ui.vbox(16)
