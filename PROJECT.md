@@ -82,8 +82,12 @@ These settle arguments. When a decision is close, the pillar wins.
 2. **Danger is the only gate.** Nothing is level-locked. The map shades
    districts by danger so you can *see* where you want to go before you can
    survive it.
-3. **Fun over realism.** Bullets pass over your own walls because a base you
-   cannot shoot out of punishes you for building it.
+3. **Fun over realism.** A base you cannot shoot out of punishes you for
+   building it — so a turret on its mount and a survivor up a Watchtower shoot
+   over your walls. **Your own shots and swings do not** (owner, 2026-09-15):
+   a wall is a wall in both directions, because "I can stab it and it cannot
+   reach me" was the exploit the owner found first. Water and fences still go
+   the other way: solid to feet, open to shots.
 4. **Readability over fidelity.** If a thing cannot be identified at a glance
    in a crowd, fix that before adding detail.
 5. **Every system has to be finished.** Cut breadth, not quality.
@@ -259,6 +263,45 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 ---
 
 ## 4. What is built
+
+### A wall is a wall, and the town can be broken open (2026-09-15)
+
+From the same playtest: DL-83 ("can still attack zombies through existing
+walls"), DL-94 ("can access chests through walls"), DL-85 ("existing house
+can't be destroyed — this is OP") and the two page bullets beside them.
+
+- **`World.shot_blocks_px` / `has_shot_line` is the one question**: terrain
+  that stops a bullet, plus anything solid the player has built. Melee
+  (`Combat.melee_targets`), bullets (`tick_bullets`), a raider's target
+  choice and a ground survivor's all ask it.
+- **Height is the exemption.** A turret's round and a posted sniper's carry
+  `over` and take the old terrain-only rule, so a compound still shoots out
+  of the pieces built to shoot out of. Nothing needs to exempt the tile a
+  shot started on: the only shooters standing on a solid piece are those two.
+- **A zombie cannot bite through a wall either.** `player_in_reach` was
+  distance alone, so a walker on the far side of a one-tile wall was hitting
+  you through it — the half of the report that was costing health.
+- **Nothing you built answers `E` through a wall.** `Interact._in_sight` now
+  counts solid structures as well as terrain (the piece being reached for is
+  never in its own way), `best_target` asks it for every piece, and
+  `Structures.reachable_store` asks it every frame the panel is open, so a
+  chest cannot be emptied from the other side of its wall.
+- **House walls have hit points** (`BUILD.house_wall_hp`, 620 — between a
+  Reinforced Wall and a Steel one). `World.damage_wall` counts down in
+  `wall_hp`, `break_wall` turns the tile to rubble and files it in
+  `breached`, which the save carries (**v12**) and the world diff sends the
+  way it sends `chopped`. `world_version` bumps, so every flow field is
+  rebuilt around the new hole, and `TerrainRenderer.repaint` redraws the one
+  tile rather than the hundred thousand.
+- **Who breaks them:** the dead, and only when they have no way round.
+  `Enemies._cut_off` is a raider (walking at your base, a house in the way is
+  in the way) or a chaser the flow field covers and cannot give a step to —
+  sealed in a building is exactly that. The stuck rescue keeps its own
+  fallback. **Players cannot**: knocking a doorway in the town is a tool and
+  a card of its own.
+- `building_test` +5 (swing, bite, round vs the same round `over`, the chest,
+  a wall broken and the key written down, and a walker sealed out that starts
+  on the house); `net_test` +1 (the mirror gets the hole).
 
 ### Winded is a crawl you can walk off, and the pack has a soft cap (2026-09-15)
 
@@ -1770,9 +1813,13 @@ Phases 1–4 respecting it.
 2. **All static collision is one tile bitmap** (`PackedByteArray`). Player
    structures live in a *separate* destructible map. Collision, bullets,
    build validation and AI steering read the same two sources.
-3. **Bullets collide with terrain only** and pass over player structures
-   (pillar 3). Water and fences go the other way: solid to feet, transparent
-   to shots.
+3. **A shot or a swing stops at anything solid** — terrain and player
+   structures both (`World.shot_blocks_px`; changed 2026-09-15, see §6).
+   Height is the one exemption: a bullet carrying `over` — a turret's, a
+   posted sniper's — takes the old terrain-only rule. Water and fences go the
+   other way: solid to feet, transparent to shots.
+   *(Until 2026-09-15 bullets collided with terrain only and passed over
+   everything the player built.)*
 4. **`recompute_stats()` is the only source of player stat modifiers.**
    Base → attributes → perks → gear → Mutation band → effects, rebuilt from
    scratch. Never mutate a stat on purchase, and never on a band change
@@ -1802,6 +1849,8 @@ Phases 1–4 respecting it.
 
 | Date | Decision | Why | Reversible? |
 | --- | --- | --- | --- |
+| 2026-09-15 | **A shot stops at a wall you built** — pillar 3 reversed, with height as the exemption (a turret's rounds and a posted sniper's carry `over`) | Owner's call on the *Multiplayer Playing* playtest: a wall you can stab and shoot through is a wall that only works for the horde. The compound still shoots back, from the pieces that are *supposed* to — which is also a reason to build a Watchtower. | Yes, one branch in `tick_bullets` (drop `structs`), but the raid balance moves with it |
+| 2026-09-15 | **House walls take damage — from the dead, not from you** (`BUILD.house_wall_hp`, 620) | Owner: a base inside a house was unbreakable, so the only way in was whatever you had built across the doorways. A chaser only starts on the town when the flow field cannot route it to its target at all; a raider treats a house wall like any other wall in its way. Players cannot knock holes in the town — that is a separate tool, and a separate card. | Yes; `break_wall` and the `breached` list are the only writers |
 | 2026-09-15 | **The carry cap is soft**: `carry_cap` is comfort, `carry_limit()` (1.5x) is the refusal | Owner, from the *Multiplayer Playing* playtest: a find one unit too heavy simply would not go in, which reads as a bug rather than as a decision. Overburdened is now a state you can walk home in — winded, no sprint, no dash — instead of a wall. | Yes, one const (`PLAYER.overload_mul` 1.0 restores the hard cap) |
 | 2026-09-15 | **Sprinting while winded is refused rather than charged for** | It was the reason the countdown never finished: spending restarts the clock, and the key is usually still held. Swinging through it still restarts it, so "push through and stay sluggish" survives where it was actually a choice. | Yes |
 | 2026-09-08 | Rebuild in Godot rather than keep extending the browser prototype | Navigation, 2D lighting, distribution and entity scale all cost more to fake in Canvas2D than to get from an engine. The code only gets bigger, so now is the cheapest moment. | Not cheaply |

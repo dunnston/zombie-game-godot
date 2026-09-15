@@ -96,6 +96,10 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 		var d: float = p.pos.distance_squared_to(s.pos)
 		if d >= best_d:
 			continue
+		# Nothing you built answers the key through a wall — yours or the
+		# town's (2026-09-15).
+		if not _in_sight(sim, p, s.pos, s):
+			continue
 		var entry := {}
 		if s.store != null:
 			entry = {"kind": "store", "ref": s, "label": "Open %s  (%d/%d)" % [s.def.name, s.store.used(), s.store.size()]}
@@ -183,7 +187,16 @@ static func _door_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 ##
 ## Sight uses the rule bullets use, so a fence you can shoot over is a fence you
 ## can lean across, and a river is not a wall (invariant 3).
-static func _in_sight(sim: GameSim, p: PlayerSim, at: Vector2) -> bool:
+##
+## Since 2026-09-15 that includes **what the player has built**: a chest
+## standing against the inside of a wall could be opened from the street
+## (owner: "can access chests through walls"). `piece` is the thing being
+## reached for, so its own tiles never block the line to it.
+static func in_sight_of(sim: GameSim, p: PlayerSim, at: Vector2, piece := {}) -> bool:
+	return _in_sight(sim, p, at, piece)
+
+
+static func _in_sight(sim: GameSim, p: PlayerSim, at: Vector2, piece := {}) -> bool:
 	var from_t := Vector2i(floori(p.pos.x / Config.TILE), floori(p.pos.y / Config.TILE))
 	var to_t := Vector2i(floori(at.x / Config.TILE), floori(at.y / Config.TILE))
 	# Anything on the next tile is simply within arm's reach: there is no room
@@ -201,6 +214,11 @@ static func _in_sight(sim: GameSim, p: PlayerSim, at: Vector2) -> bool:
 		if t == from_t or t == to_t:
 			continue
 		if sim.world.bullet_blocks_px(s.x, s.y):
+			return false
+		# A piece bigger than a tile is not in its own way, and neither is a
+		# gate standing open.
+		if sim.structs != null and sim.structs.solid_at(t.x, t.y) \
+			and sim.structs.at_tile(t.x, t.y) != piece:
 			return false
 	return true
 

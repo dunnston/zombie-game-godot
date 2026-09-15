@@ -209,14 +209,22 @@ func near_station(at: Vector2, station: String) -> Dictionary:
 
 
 ## The store of the structure on a tile, if this player is close enough to
-## be using it. Range-checked here rather than in the screen: the rule has
-## to hold for a guest's command too.
-func reachable_store(p: PlayerSim, tx: int, ty: int) -> Slots:
+## be using it and there is nothing between them. Checked here rather than in
+## the screen: the rule has to hold for a guest's command too, and it is asked
+## every frame the panel is open.
+##
+## `sim` is optional only so a test can ask the cheap question; the game always
+## passes it, and without it the wall rule cannot be applied.
+func reachable_store(p: PlayerSim, tx: int, ty: int, sim: GameSim = null) -> Slots:
 	var s := at_tile(tx, ty)
 	if s.is_empty() or s.store == null:
 		return null
 	var r: float = Config.PLAYER.interact_range + B.store_reach_bonus
-	return s.store if p.pos.distance_squared_to(s.pos) <= r * r else null
+	if p.pos.distance_squared_to(s.pos) > r * r:
+		return null
+	if sim != null and not Interact.in_sight_of(sim, p, s.pos, s):
+		return null
+	return s.store
 
 
 # -------------------------------------------------------------- placement --
@@ -811,7 +819,11 @@ func _tick_turrets(sim: GameSim, dt: float) -> void:
 			s.cd = def.fire_cd
 			s.ammo -= 1
 			var a: float = s.aim + sim.rng.frange(-0.035, 0.035)
-			Combat.spawn_bullet(sim, s.pos + Vector2.from_angle(a) * 18.0, a, 1300.0, def.dmg * turret_mul, 0.5, 45.0, 0, null, false, "turret", "#9fe0ff")
+			var shot := Combat.spawn_bullet(sim, s.pos + Vector2.from_angle(a) * 18.0, a, 1300.0, def.dmg * turret_mul, 0.5, 45.0, 0, null, false, "turret", "#9fe0ff")
+			# A turret is on a mount, so its rounds carry over a wall — the one
+			# exemption from "a shot stops at a wall" (2026-09-15), and what
+			# keeps a turret behind a perimeter worth building.
+			shot["over"] = true
 			sim.emit({"t": "muzzle", "x": s.pos.x + cos(a) * 20.0, "y": s.pos.y + sin(a) * 20.0, "a": a, "w": "turret"})
 			sim.threat.add(sim, Config.THREAT.turret_per_shot)
 			# A machine gun on a post pulls the horde onto itself, which is

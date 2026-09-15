@@ -225,7 +225,7 @@ func store() -> Slots:
 		return v.trunk if player.pos.distance_squared_to(v.pos) <= r * r else null
 	if store_tile.x < 0:
 		return null
-	return sim.structs.reachable_store(player, store_tile.x, store_tile.y)
+	return sim.structs.reachable_store(player, store_tile.x, store_tile.y, sim)
 
 
 ## The bench this screen crafts at: by hand on the C tab wherever you are

@@ -1,9 +1,17 @@
 class_name Combat
 ## Projectiles, melee swings, guns and reloads.
 ##
-## Bullets are blocked by terrain and pass over player structures (Phase 3):
-## top-down, your barricades are chest height, and a base you cannot shoot
-## out of punishes you for building it. Water and fences go the other way.
+## Bullets are blocked by terrain **and by anything solid the player has
+## built** (owner, 2026-09-15; §6). They used to pass over a wall — "your
+## barricades are chest height" — which also meant a spear through the wall
+## you were sheltering behind, and the owner's report was exactly that. Water
+## and fences still go the other way: solid to feet, open to shots.
+##
+## Height is the exception, and it is what keeps a compound worth building: a
+## round fired from a turret's mount or from a Watchtower carries `over` and
+## takes the old terrain-only rule. That is also why nothing needs to exempt
+## the tile a shot started on — the only shooters standing on a solid piece
+## are the two that are firing from above it.
 
 const P := Config.PLAYER
 const HARVEST := Config.HARVEST
@@ -49,7 +57,10 @@ static func tick_bullets(sim: GameSim, dt: float) -> void:
 		for s in range(steps):
 			b.pos += step
 			var pos: Vector2 = b.pos
-			if world.bullet_blocks_px(pos.x, pos.y):
+			# `over` is a round fired from a height — a turret on its mount, a
+			# sniper up a Watchtower — and only that takes the terrain-only rule.
+			var block: Structures = null if b.get("over", false) else sim.structs
+			if world.shot_blocks_px(pos.x, pos.y, block):
 				sim.emit({"t": "bullet_wall", "x": pos.x, "y": pos.y, "dx": -vel.x, "dy": -vel.y})
 				done = true
 				break
@@ -157,8 +168,10 @@ static func melee_targets(sim: GameSim, p: PlayerSim, w: Dictionary) -> Array[En
 		# A swing has to reach it. Collision keeps two bodies 32px apart
 		# across a one-tile wall, which a scythe's 73px of reach clears
 		# comfortably. Same rule bullets use, so water and fences are swung
-		# over and only what stops a round stops a blade.
-		if not sim.world.has_terrain_line_of_sight(p.pos, e.pos):
+		# over and only what stops a round stops a blade — and since
+		# 2026-09-15 that includes your own walls, which is the owner's
+		# "can still attack zombies through existing walls".
+		if not sim.world.has_shot_line(p.pos, e.pos, sim.structs):
 			continue
 		out.append(e)
 	out.sort_custom(func(a: EnemySim, b: EnemySim) -> bool:

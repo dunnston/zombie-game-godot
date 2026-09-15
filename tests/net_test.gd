@@ -768,3 +768,34 @@ func test_a_guests_winded_countdown_is_the_hosts_own_clock() -> void:
 		"the guest's clock says %.2f and the host's %.2f" % [g.me.winded_t, gp.winded_t])
 	ok(g.me.winded_t < float(Config.WINDED.dur) - 1.0,
 		"and it has actually come down: %.2f" % g.me.winded_t)
+
+
+func test_a_guest_sees_a_house_wall_the_host_had_punched_through() -> void:
+	# House walls break now, and the hole has to reach the mirror or a guest
+	# walks into a wall its host can walk through (and its flow fields
+	# disagree with the host's about the way in).
+	var t := _table()
+	var sim: GameSim = t.sim
+	var guest: NetGuest = t.guest
+	var tile := Vector2i(-1, -1)
+	for y in range(100, 220):
+		for x in range(100, 220):
+			if sim.world.tile(x, y) == Config.T.WALL:
+				tile = Vector2i(x, y)
+				break
+		if tile.x >= 0:
+			break
+	ok(tile.x >= 0, "no house wall in the town")
+	if tile.x < 0:
+		return
+	ok(guest.sim.world.is_blocked_tile(tile.x, tile.y), "the mirror should start with the wall standing")
+	sim.world.break_wall(tile.x, tile.y)
+	_pump(t, 0.6)
+	ok(not guest.sim.world.is_blocked_tile(tile.x, tile.y), "the mirror still has the wall")
+	eq(guest.broken_tiles.size(), 1, "and the scene was not told which tile to repaint")
+	# Put the town back: both worlds are shared by every test in the file.
+	for w: World in [sim.world, guest.sim.world]:
+		var i := tile.y * Config.WORLD_TILES + tile.x
+		w.tiles[i] = Config.T.WALL
+		w.blocked[i] = 1
+		w.breached.erase(i)

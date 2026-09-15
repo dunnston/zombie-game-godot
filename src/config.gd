@@ -1576,6 +1576,12 @@ const BUILD := {
 	# here.)
 	"raid_pull_protect": 0.55,
 	"raid_pull_plot": 1.6,
+	# What one tile of a *house* wall takes before it breaks open (owner,
+	# 2026-09-15: "existing house walls should take damage like built walls,
+	# maybe a little stronger"). A Steel Wall is 900 and a Reinforced Wall 520,
+	# so a brick house sits between the two: worth walling a doorway rather
+	# than trusting the brick, and still the long way in for a horde.
+	"house_wall_hp": 620.0,
 }
 
 ## The STRUCTURES table is data: `data/structures.json`, loaded here at boot. Its design

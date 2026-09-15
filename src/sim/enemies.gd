@@ -200,7 +200,8 @@ static func _survivor_in_reach(sim: GameSim, e: EnemySim) -> SurvivorSim:
 		if s.dead or s.downed:
 			continue
 		var d := e.pos.distance_squared_to(s.pos)
-		if d < bd:
+		# Through a wall is not within reach, for your people as for you.
+		if d < bd and sim.world.has_shot_line(e.pos, s.pos, sim.structs):
 			bd = d
 			best = s
 	return best
@@ -216,6 +217,74 @@ static func _blocker_ahead(structs: Structures, e: EnemySim, angle: float) -> Di
 	if s.is_empty() or not s.solid or (s.def.get("gate", false) and s.open):
 		return {}
 	return s
+
+
+## Whether this thing has no way to walk to its target: a raider is always
+## treated as cut off (it walks at what you built, and a house in the way is
+## in the way), and a chaser only when the flow field covers it and still
+## cannot give it a step. Outside the field's window nothing is cut off —
+## "I cannot see a route from here" is not "there is no route".
+static func _cut_off(sim: GameSim, e: EnemySim, p: PlayerSim) -> bool:
+	if e.raid:
+		return true
+	if p == null:
+		return false
+	var nf := sim.nav_for(p)
+	return nf != null and nf.covers(e.pos) and nf.step_dir(e.pos) == Vector2.ZERO
+
+
+## The house wall tile straight ahead, or (-1, -1). The same question
+## `_blocker_ahead` asks of what the player built.
+static func _wall_ahead(world: World, e: EnemySim, angle: float) -> Vector2i:
+	var at := e.pos + Vector2.from_angle(angle) * (e.r + 16.0)
+	var tx := floori(at.x / Config.TILE)
+	var ty := floori(at.y / Config.TILE)
+	if World.in_bounds(tx, ty) and world.tiles[ty * Config.WORLD_TILES + tx] == Config.T.WALL:
+		return Vector2i(tx, ty)
+	return Vector2i(-1, -1)
+
+
+## The house wall within arm's reach nearest to the way this thing wants to
+## go, or (-1, -1). Only ever asked when it is stuck with nothing player-built
+## to hit, so a walker that can simply come round the building never touches
+## one: "cannot get there" is the whole gate (invariant 6's other half).
+##
+## A base built inside a house used to be a fortress with one door, because the
+## house itself could not be hurt (owner, 2026-09-15).
+static func _adjacent_wall(world: World, e: EnemySim, want: float) -> Vector2i:
+	var best := Vector2i(-1, -1)
+	var best_d := INF
+	for i in range(8):
+		var a := (i / 8.0) * TAU
+		var at := e.pos + Vector2.from_angle(a) * (e.r + 14.0)
+		var tx := floori(at.x / Config.TILE)
+		var ty := floori(at.y / Config.TILE)
+		if not World.in_bounds(tx, ty) or world.tiles[ty * Config.WORLD_TILES + tx] != Config.T.WALL:
+			continue
+		var d := absf(angle_delta(want, a))
+		if d < best_d:
+			best_d = d
+			best = Vector2i(tx, ty)
+	return best
+
+
+## One blow against the house wall this enemy committed to. The tile is
+## checked again on landing — somebody else may have broken it during the
+## wind-up — and breaking it bumps `world_version`, because a hole in a house
+## is a new way through for every flow field in the game.
+static func _hit_wall(sim: GameSim, e: EnemySim) -> void:
+	var t := e.pending_wall
+	var centre := Vector2(t.x * Config.TILE + Config.TILE * 0.5, t.y * Config.TILE + Config.TILE * 0.5)
+	var reach: float = e.atk_range + Config.TILE
+	if e.pos.distance_squared_to(centre) > reach * reach:
+		return
+	var broke := sim.world.damage_wall(t.x, t.y, e.dmg * e.def.struct_mul)
+	sim.emit({"t": "struct_hit", "x": centre.x, "y": centre.y, "wall": true})
+	if broke:
+		sim.world_version += 1
+		sim.emit({"t": "wall_broken", "x": centre.x, "y": centre.y, "tx": t.x, "ty": t.y})
+		sim.emit({"t": "struct_down", "x": centre.x, "y": centre.y, "wall": true})
+		sim.emit({"t": "shake", "amount": 4.0})
 
 
 ## Anything player-built within arm's reach, in any direction. What a stuck
@@ -292,13 +361,16 @@ static func _gun_tick(sim: GameSim, e: EnemySim, p: PlayerSim, dt: float) -> boo
 ## the way — the same order the melee code uses, and for the same reason.
 static func _gun_target(sim: GameSim, e: EnemySim, p: PlayerSim, range_: float) -> Vector2:
 	var r2 := range_ * range_
+	# A raider's rounds stop at your wall too (2026-09-15), so what it can see
+	# has to be what it can hit — otherwise it stands in the open emptying a
+	# magazine into a barricade.
 	if p != null and e.pos.distance_squared_to(p.pos) < r2 \
-		and sim.world.has_terrain_line_of_sight(e.pos, p.pos):
+		and sim.world.has_shot_line(e.pos, p.pos, sim.structs):
 		return p.pos
 	for s in sim.crew.list:
 		if s.dead:
 			continue
-		if e.pos.distance_squared_to(s.pos) < r2 and sim.world.has_terrain_line_of_sight(e.pos, s.pos):
+		if e.pos.distance_squared_to(s.pos) < r2 and sim.world.has_shot_line(e.pos, s.pos, sim.structs):
 			return s.pos
 	return Vector2.INF
 
@@ -549,6 +621,8 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 					var reach: float = e.atk_range + Config.TILE
 					if not s.destroyed and e.pos.distance_squared_to(s.pos) < reach * reach:
 						structs.damage(sim, s, e.dmg * e.def.struct_mul, e.pos)
+				elif e.pending_wall.x >= 0:
+					_hit_wall(sim, e)
 				elif e.pending_survivor != null:
 					var reach2: float = e.atk_range + Config.SURVIVOR.r + 6.0
 					if not e.pending_survivor.dead and e.pos.distance_squared_to(e.pending_survivor.pos) < reach2 * reach2:
@@ -561,17 +635,26 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 					Damage.damage_player(sim, p, e.dmg, e.pos, e.def.name, not e.def.get("human", false))
 				e.pending_struct = {}
 				e.pending_survivor = null
+				e.pending_wall = Vector2i(-1, -1)
 			e.last_pos = e.pos
 			continue                                 # committed to the swing
 
 		# Flesh first. A reachable person outranks scenery — otherwise a
 		# zombie standing next to you punches the wall behind you and ignores
 		# you entirely, which is both wrong and trivially exploitable.
-		var player_in_reach := p != null and d_player2 < (e.atk_range + p.r) * (e.atk_range + p.r)
+		#
+		# "Reachable" means with nothing between the two of you. It used to
+		# mean distance alone, so a walker on the far side of a one-tile wall
+		# bit you through it — the other half of the owner's report about
+		# fighting through walls (2026-09-15), and the half that was costing
+		# the player health rather than saving them the trouble.
+		var player_in_reach := p != null and d_player2 < (e.atk_range + p.r) * (e.atk_range + p.r) \
+			and world.has_shot_line(e.pos, p.pos, structs)
 		if player_in_reach and e.atk_cd <= 0.0:
 			e.atk_cd = e.atk_cd_base
 			e.windup = 0.24
 			e.pending_struct = {}
+			e.pending_wall = Vector2i(-1, -1)
 			e.blocker = {}
 			e.angle = (p.pos - e.pos).angle()
 			continue
@@ -586,6 +669,7 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 				e.atk_cd = e.atk_cd_base
 				e.windup = 0.24
 				e.pending_struct = {}
+				e.pending_wall = Vector2i(-1, -1)
 				e.pending_survivor = who
 				e.blocker = {}
 				e.angle = (who.pos - e.pos).angle()
@@ -601,10 +685,31 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 				e.atk_cd = e.atk_cd_base
 				e.windup = 0.22
 				e.pending_struct = blocker
+				e.pending_wall = Vector2i(-1, -1)
 				e.angle = (blocker.pos - e.pos).angle()
 			e.last_pos = e.pos
 			continue
 		e.blocker = {}
+
+		# A house wall in the way, when there is no way round it. A chaser only
+		# starts on the town itself once the flow field cannot route it to you
+		# at all — sealed inside a building is exactly that — and a raider
+		# walking at your base treats a house wall like any other wall, which
+		# is what it already does with yours.
+		#
+		# Without this a base built inside a house had one door and no other
+		# way in, whatever you brought (owner, 2026-09-15).
+		if not player_in_reach and (e.aggro or e.raid) and e.atk_cd <= 0.0 and _cut_off(sim, e, p):
+			var wall_t := _wall_ahead(world, e, want_angle)
+			if wall_t.x >= 0:
+				e.atk_cd = e.atk_cd_base
+				e.windup = 0.22
+				e.pending_struct = {}
+				e.pending_wall = wall_t
+				e.angle = (Vector2(wall_t.x * Config.TILE + Config.TILE * 0.5,
+					wall_t.y * Config.TILE + Config.TILE * 0.5) - e.pos).angle()
+				e.last_pos = e.pos
+				continue
 
 		if not target_struct.is_empty() and e.atk_cd <= 0.0:
 			var d_target := e.pos.distance_to(tgt)
@@ -612,6 +717,7 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 				e.atk_cd = e.atk_cd_base
 				e.windup = 0.22
 				e.pending_struct = target_struct
+				e.pending_wall = Vector2i(-1, -1)
 				e.angle = want_angle
 				continue
 
@@ -676,11 +782,20 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 				# sidestep. A horde wedged against a wall it cannot see the
 				# way round has to be able to make its own way through.
 				var adjacent := _adjacent_structure(structs, e)
+				var wall_tile := Vector2i(-1, -1) if not adjacent.is_empty() \
+					else _adjacent_wall(world, e, want_angle)
 				if not adjacent.is_empty() and e.atk_cd <= 0.0:
 					e.atk_cd = e.atk_cd_base
 					e.windup = 0.22
 					e.pending_struct = adjacent
 					e.angle = (adjacent.pos - e.pos).angle()
+				elif wall_tile.x >= 0 and e.atk_cd <= 0.0:
+					# Nothing built in the way and nowhere to go: it starts on
+					# the house.
+					e.atk_cd = e.atk_cd_base
+					e.windup = 0.22
+					e.pending_wall = wall_tile
+					e.angle = (Vector2(wall_tile.x * Config.TILE + 16, wall_tile.y * Config.TILE + 16) - e.pos).angle()
 				else:
 					e.pos = world.unstick(e.pos, e.r, structs)
 					e.wander_a = want_angle + (1.4 if rng.chance(0.5) else -1.4)

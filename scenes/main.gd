@@ -387,6 +387,11 @@ func _after_guest_step() -> void:
 		net_guest.world_dirty = false
 		props_below.rebuild()
 		props_above.rebuild()
+	# A house wall the host had punched through arrives as a tile change, so
+	# the terrain layers have to be told too — one tile each, where it stands.
+	for t in net_guest.broken_tiles:
+		terrain.repaint(sim.world, t.x, t.y)
+	net_guest.broken_tiles.clear()
 	if net_guest.status != "joined":
 		# The mirror is a stale copy of somebody else's world: back to the
 		# title, with the reason on the JOIN page and the address still there.
@@ -513,6 +518,10 @@ func _process(dt: float) -> void:
 			# The map under everybody changed: every view that cached the old
 			# one is rebuilt, the way a load rebuilds them.
 			_rebuild_views(true)
+		elif ev.t == "wall_broken":
+			# One tile of the town is rubble now. Repainted where it stands —
+			# rebuilding the terrain layers is 80ms and a horde breaks several.
+			terrain.repaint(sim.world, int(ev.tx), int(ev.ty))
 		fx.on_event(ev)
 		noise_lens.on_event(ev)
 		boss_view.on_event(ev)

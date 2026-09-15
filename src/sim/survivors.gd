@@ -418,12 +418,16 @@ func _tick_one(sim: GameSim, s: SurvivorSim, dt: float, post: Vector2, base: Dic
 	# ---------------------------------------------------------- targeting --
 	var best: EnemySim = null
 	var best_d := range_ * range_
+	# Posted up a tower they shoot over the wall; on the ground their rounds
+	# stop at it like everyone else's, so their sight test has to agree with
+	# their bullets or they fire into their own perimeter (2026-09-15).
+	var walls: Structures = null if s.posted else sim.structs
 	sim.enemies.hash.query(s.pos.x, s.pos.y, range_, _scratch)
 	for e: EnemySim in _scratch:
 		if e.dead:
 			continue
 		var d := s.pos.distance_squared_to(e.pos)
-		if d < best_d and sim.world.has_terrain_line_of_sight(s.pos, e.pos):
+		if d < best_d and sim.world.has_shot_line(s.pos, e.pos, walls):
 			best_d = d
 			best = e
 	s.target = best
@@ -532,7 +536,7 @@ func _shoot(sim: GameSim, s: SurvivorSim, arm: Dictionary, best: EnemySim) -> vo
 		return
 	s.out_of_ammo = false
 
-	Combat.spawn_bullet(sim, s.pos + Vector2.from_angle(a) * 16.0, a,
+	var shot := Combat.spawn_bullet(sim, s.pos + Vector2.from_angle(a) * 16.0, a,
 		float(arm.speed) if not arm.is_empty() else 1150.0,
 		s.dmg * s.shot_dmg_mul,
 		float(arm.life) if not arm.is_empty() else 0.5,
@@ -544,6 +548,11 @@ func _shoot(sim: GameSim, s: SurvivorSim, arm: Dictionary, best: EnemySim) -> vo
 		# source and nobody was ever credited for one.
 		"survivor:%d" % s.id, false, "survivor",
 		String(arm.color) if not arm.is_empty() else "#cfe8b0")
+	# Up a Watchtower you are shooting down into the street, so the round
+	# carries over your own wall (2026-09-15). On the ground it does not, and
+	# a guard behind a wall has to come round it like anybody else.
+	if s.posted:
+		shot["over"] = true
 	sim.emit({"t": "muzzle", "x": s.pos.x + cos(a) * 18.0, "y": s.pos.y + sin(a) * 18.0,
 		"a": a, "w": "survivor"})
 	# The whole trade: a tower of arrows is a secret, a cannon is an

@@ -534,3 +534,153 @@ func test_a_repair_sweep_bills_each_piece_once() -> void:
 	for w in walls:
 		eq(w.hp, w.max_hp)
 	eq(p.count_res("wood"), before - 9, "three walls at three wood, billed once each")
+
+
+# ------------------------------------------------------------ through walls --
+#
+# The owner's Multiplayer Playing playtest: "can still attack zombies through
+# existing walls", "built walls should prevent attacking through", and "can
+# access chests through walls". A wall is a wall now, both ways — the one
+# exemption is a shot fired from a height (a turret's mount, a Watchtower).
+
+func _house_wall() -> Vector2i:
+	# A wall tile of the town with open ground on both sides of it, so a test
+	# can stand somebody on each side.
+	var w := world()
+	for y in range(100, 220):
+		for x in range(100, 220):
+			if w.tile(x, y) != Config.T.WALL:
+				continue
+			if w.blocked[y * Config.WORLD_TILES + x - 1] or w.blocked[y * Config.WORLD_TILES + x + 1]:
+				continue
+			if w.tile(x, y - 1) != Config.T.WALL or w.tile(x, y + 1) != Config.T.WALL:
+				continue
+			return Vector2i(x, y)
+	return Vector2i(-1, -1)
+
+
+## Puts a house wall tile back the way the generator made it. The world is
+## shared between every test in the run, so a test that breaks one has to
+## build it again or the next test measures a hole.
+func _restore_wall(t: Vector2i) -> void:
+	var i := t.y * Config.WORLD_TILES + t.x
+	sim.world.tiles[i] = Config.T.WALL
+	sim.world.blocked[i] = 1
+	sim.world.wall_hp.erase(i)
+	sim.world.breached.erase(i)
+
+
+func test_a_swing_does_not_reach_through_a_wall_you_built() -> void:
+	_stock()
+	var wall := _build("woodWall", plot.x + 1, plot.y)
+	ok(not wall.is_empty(), "the wall went up")
+	var e := sim.enemies.spawn("walker", tile_centre(Vector2i(plot.x + 2, plot.y)))
+	p.hotbar.clear_all()
+	p.hotbar.add("machete", 1)
+	p.slot = 0
+	p.intent.aim = e.pos
+	run(sim, 0.05)                 # the spatial hash is filled by the step
+	p.angle = 0.0
+	e.pos = tile_centre(Vector2i(plot.x + 2, plot.y))
+	eq(Combat.melee_targets(sim, p, p.weapon()).size(), 0, "the swing reached through the wall")
+	Combat.melee_attack(sim, p, p.weapon())
+	eq(e.hp, e.max_hp, "and it landed")
+	# Take the wall down and the same swing connects, so the test is about the
+	# wall and not about the reach.
+	sim.structs.demolish(sim, wall, p)
+	p.attack_cd = 0.0
+	eq(Combat.melee_targets(sim, p, p.weapon()).size(), 1, "with the wall gone it should connect")
+
+
+func test_a_zombie_cannot_bite_through_a_wall_either() -> void:
+	_stock()
+	_build("woodWall", plot.x + 1, plot.y)
+	var e := sim.enemies.spawn("walker", tile_centre(Vector2i(plot.x + 2, plot.y)), true)
+	e.aggro = true
+	var hp := p.hp
+	run(sim, 3.0)
+	eq(p.hp, hp, "it bit through the wall")
+
+
+func test_a_round_stops_at_a_wall_but_a_turret_shoots_over_it() -> void:
+	_stock()
+	_build("woodWall", plot.x + 1, plot.y)
+	var e := sim.enemies.spawn("walker", tile_centre(Vector2i(plot.x + 3, plot.y)))
+	var line := tile_centre(Vector2i(plot.x + 3, plot.y))
+	var b := Combat.spawn_bullet(sim, p.pos + Vector2(20, 0), 0.0, 900.0, 40.0, 0.6)
+	e.pos = line                   # a wanderer must not step off the line
+	run(sim, 0.3)
+	eq(e.hp, e.max_hp, "the round went through your own wall")
+	ok(not sim.bullets.has(b), "and it should have stopped on it")
+	# A turret is on a mount: its rounds carry over.
+	var over := Combat.spawn_bullet(sim, p.pos + Vector2(20, 0), 0.0, 900.0, 40.0, 0.6)
+	over["over"] = true
+	e.pos = line
+	run(sim, 0.3)
+	ok(e.hp < e.max_hp, "a shot from a height should clear the wall")
+
+
+func test_a_chest_cannot_be_opened_through_a_wall() -> void:
+	_stock()
+	var chest := _build("chest", plot.x + 2, plot.y)
+	ok(not chest.is_empty(), "there is a chest")
+	ok(sim.structs.reachable_store(p, chest.tx, chest.ty, sim) != null, "and it opens from here")
+	_build("woodWall", plot.x + 1, plot.y)
+	ok(sim.structs.reachable_store(p, chest.tx, chest.ty, sim) == null,
+		"the chest opened through the wall in front of it")
+	var offer := String(Interact.best_target(sim, p).get("kind", ""))
+	ok(offer != "store", "and the key still offered it: %s" % offer)
+
+
+func test_a_house_wall_breaks_open_and_the_save_remembers() -> void:
+	var t := _house_wall()
+	ok(t.x >= 0, "no usable house wall found in the town")
+	if t.x < 0:
+		return
+	var hp: float = Config.BUILD.house_wall_hp
+	ok(not sim.world.damage_wall(t.x, t.y, hp * 0.5), "half a wall is not a hole")
+	ok(sim.world.is_blocked_tile(t.x, t.y), "and it still stops you")
+	ok(sim.world.damage_wall(t.x, t.y, hp), "the second blow should break it")
+	ok(not sim.world.is_blocked_tile(t.x, t.y), "a broken wall still blocks the tile")
+	eq(sim.world.breached_keys(), ["%d,%d" % [t.x, t.y]], "and the save has nothing to write down")
+	_restore_wall(t)
+	ok(sim.world.is_blocked_tile(t.x, t.y), "the fixture did not put the wall back")
+
+
+func test_a_zombie_with_no_way_in_starts_on_the_house() -> void:
+	# Sealed inside a building, the flow field can give a chaser no step at
+	# all — and that, not "stuck for a moment", is what lets it start on the
+	# town itself. The owner's case: a base inside a house with the doorways
+	# walled had exactly one way in.
+	var ring: Array[Vector2i] = []
+	var was := {}
+	for j in range(-1, 2):
+		for i in range(-1, 2):
+			if i == 0 and j == 0:
+				continue
+			ring.append(Vector2i(plot.x + i, plot.y + j))
+	for t in ring:
+		var i := t.y * Config.WORLD_TILES + t.x
+		# What was there, so the shared world is handed back as it was found:
+		# every other test in the run is looking at these tiles too.
+		was[i] = [sim.world.tiles[i], sim.world.blocked[i]]
+		sim.world.tiles[i] = Config.T.WALL
+		sim.world.blocked[i] = 1
+	sim.world_version += 1
+	p.pos = tile_centre(plot)
+	var e := sim.enemies.spawn("walker", tile_centre(Vector2i(plot.x + 2, plot.y)), true)
+	e.aggro = true
+	run(sim, 4.0)
+	var hit := false
+	for t in ring:
+		if sim.world.wall_hp.has(t.y * Config.WORLD_TILES + t.x):
+			hit = true
+	for t in ring:
+		var i := t.y * Config.WORLD_TILES + t.x
+		sim.world.tiles[i] = was[i][0]
+		sim.world.blocked[i] = was[i][1]
+		sim.world.wall_hp.erase(i)
+		sim.world.breached.erase(i)
+	sim.world_version += 1
+	ok(hit, "walled in with nothing to swing at, it never touched the house")
+	ok(e.pos.distance_to(p.pos) < 120.0, "it wandered off instead of working at the wall")

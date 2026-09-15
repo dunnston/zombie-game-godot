@@ -239,7 +239,7 @@ static func store_for(sim: GameSim, p: PlayerSim, at: Vector2i, car: int) -> Slo
 		return v.trunk if p.pos.distance_squared_to(v.pos) <= r * r else null
 	if at.x < 0:
 		return null
-	return sim.structs.reachable_store(p, at.x, at.y)
+	return sim.structs.reachable_store(p, at.x, at.y, sim)
 
 
 # --------------------------------------------------------------- host side --
