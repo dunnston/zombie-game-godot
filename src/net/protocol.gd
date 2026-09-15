@@ -26,7 +26,11 @@ extends RefCounted
 ## 8: crafting takes time — `craft` opens a channel rather than making the
 ## thing, `cancel_craft`, and the player record's fifth string. A build before
 ## it would craft instantly beside a host that thinks the bar is filling.
-const PROTOCOL := 8
+## 9: a piece turns (Codex, PR #50) — the intent's build tuple has a fifth
+## element and the structure record an `ro`. A protocol-8 host wants exactly
+## four and would drop every placement, repair and demolition a guest sends;
+## a protocol-8 guest would draw a turned bed the wrong way round.
+const PROTOCOL := 9
 
 const RELIABLE := 1
 const STATE := 2
