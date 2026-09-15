@@ -113,6 +113,7 @@ func test_sprinting_while_winded_restarts_the_clock() -> void:
 	p.intent.sprint = true
 	_run(p, 0.2)
 	ok(p.winded_t > 2.5, "sprinting restarted the clock: %.2f" % p.winded_t)
+	near(p.stam, 0.0, 0.001, "and threw away the two seconds of refill")
 	p.intent.mx = 0.0
 	p.intent.sprint = false
 	_run(p, 1.5)

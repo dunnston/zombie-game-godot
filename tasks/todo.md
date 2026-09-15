@@ -2716,3 +2716,34 @@ turned with R, Wood 30 · Sticks 12 · Fiber 10, 240 HP, x2.5; one PR.
   by a shoot's height down a turned bed.
 - `tools/test --all`: 798 tests, 17682 asserts, 0 failures. Smoke: 96
   checkpoints; one run lost two move-to-cursor legs to window focus (§8).
+
+## Winded dumps the refill; the noise lens you can find (2026-09-15)
+
+Owner: the noise overlay "is not there", and winded should reset its timer
+*and* throw away what the bar refilled, ideally without showing that refill.
+Owner's calls: hidden refill, dumped on use (standing still three seconds
+still comes out with the same bar as today); a toggle in the F1 menu and
+rings that survive the night.
+
+- [x] `Stamina.spend` while winded zeroes the bar as well as restarting the clock
+- [x] HUD draws the stamina bar empty while winded (the countdown is the bar)
+- [x] Doc comments: `stamina.gd` header, `Config.WINDED`
+- [x] Tests: a swing while winded dumps the refill; sprinting while winded dumps it
+- [x] F1 dev menu row toggles the noise overlay, one function shared with F2
+- [x] Noise rings move to their own view on a world-following CanvasLayer, so
+      the night's CanvasModulate cannot swallow them
+- [x] PROJECT.md (stamina + noise sections, changelog); `tools/test.cmd`
+- [x] Smoke: `winded_bar` and `noise_lens_night` checkpoints
+
+### Review
+
+- The lens was never missing. It was F2-only, dev-build-only, fed only by
+  swings, shots, building and vehicles, and drawn under the night's
+  CanvasModulate. At midnight its ring came out black. Its own
+  CanvasLayer fixes that; the midnight smoke picture shows a clear red ring.
+- The dump fits in `Stamina.spend`, and hiding the bar is one line in the
+  HUD. Both new unit asserts fail against the old `spend` (checked by
+  reverting it).
+- `tools/test`: 764 tests, 0 failures. Smoke: 98 checkpoints, 2 failures that
+  do not touch this change: the move-to-cursor focus flake, and a meal cut
+  short when the player was hit (HP 98 -> 72 over the meal).

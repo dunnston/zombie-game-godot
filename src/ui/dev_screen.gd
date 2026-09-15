@@ -105,6 +105,9 @@ func _build_catalogue() -> void:
 		# play and useless at a keyboard trying to see what a harvest feels
 		# like — or whether a row of beds reads at a glance.
 		["ripen", "Ripen and fill every raised bed", "world"],
+		# Also F2. A row here because a debug key nobody remembers is a
+		# feature nobody can find.
+		["noise", "Toggle the noise overlay (F2)", "view"],
 		["day", "Set the clock to noon", "world"],
 		["night", "Set the clock to midnight", "world"],
 		["clear", "Kill every enemy loaded", "world"],
@@ -256,6 +259,8 @@ func _verb(id: String) -> void:
 			for rid in Config.RES:
 				Loot.give_res_or_drop(sim, player, rid, 50, player.pos)
 			sim.notify("DEV  resources — check your feet for the overflow", "#b7e08a")
+		"noise":
+			NoiseLensView.toggle(sim)
 		"day":
 			sim.clock.t = 0.5
 			sim.notify("DEV  noon", "#d9c46a")
