@@ -13,6 +13,8 @@ extends RefCounted
 
 ## The owner's categories, in the order the design lists them.
 const CATS := ["Weapons", "Tools", "Clothing/Armor", "Ammo", "Medical", "Food", "Consumables", "Materials", "Special", "Misc"]
+## How long "✓ Hatchet crafted" stays under the button.
+const FLASH_MS := 2500
 
 var _grid: GridContainer = null
 
@@ -124,6 +126,19 @@ func _default_cat(s: InventoryScreen, all: Array) -> void:
 			s.craft_cat = c
 			return
 	s.craft_cat = "Weapons"
+
+
+## How full the bar of whatever is being made is, 0 to 1.
+static func craft_frac(p: PlayerSim) -> float:
+	if p.crafting.is_empty():
+		return 0.0
+	return clampf(float(p.crafting.t) / float(p.crafting.dur), 0.0, 1.0)
+
+
+## "3 left" under a batch, nothing under the last one.
+static func left_label(p: PlayerSim) -> String:
+	var n := int(p.crafting.get("left", 0))
+	return "%d left" % n if n > 1 else ""
 
 
 func _have(s: InventoryScreen) -> Callable:
@@ -345,7 +360,7 @@ func _on_hand_ids(s: InventoryScreen) -> Array:
 
 func _centre_sig(s: InventoryScreen) -> String:
 	var rows := visible_rows(s)
-	var sig := "%s|%s|%s|%s|" % [s.craft_cat, s.craft_search, str(s.craft_filter), s.craft_sel]
+	var sig := "%s|%s|%s|%s|%s|" % [s.craft_cat, s.craft_search, str(s.craft_filter), s.craft_sel, s.player.crafting.get("id", "")]
 	for row in rows:
 		var st := status_of(s, row)
 		sig += "%s:%s:%s:%s," % [row.key, str(st.ok), String(st.reason), str(_cost_of(s, row))]
@@ -454,9 +469,20 @@ func _card(s: InventoryScreen, row: Dictionary, on: bool) -> Button:
 				if have < int(r.cost[m]):
 					text = "Short %d %s" % [int(r.cost[m]) - have, Items.name_of(m).to_lower()]
 					break
-	var strip := Ui.boxed(Ui.edge(fill, Ui.LINE_SOFT if (is_locked or short) else Ui.LINE, 0, 1, 0, 0, 12, 0),
-		Ui.hbox(8, [Ui.expand(Ui.label(text, "Caps", col)), Ui.label("+%d XP" % int(r.xp), "Mono12", xp_col)]))
-	strip.custom_minimum_size.y = 26
+	var strip: Control
+	if String(s.player.crafting.get("id", "")) == String(r.id):
+		# The card being made fills its own strip, so the bar is on the thing
+		# you clicked as well as on the button you pressed.
+		var m := UiMeter.new(26, Ui.ACCENT_PRESS)
+		m.text_color = Ui.TEXT_HIGH
+		s.refresher(func() -> void:
+			if is_instance_valid(m):
+				m.set_value(craft_frac(s.player), null, "Crafting", left_label(s.player)))
+		strip = m
+	else:
+		strip = Ui.boxed(Ui.edge(fill, Ui.LINE_SOFT if (is_locked or short) else Ui.LINE, 0, 1, 0, 0, 12, 0),
+			Ui.hbox(8, [Ui.expand(Ui.label(text, "Caps", col)), Ui.label("+%d XP" % int(r.xp), "Mono12", xp_col)]))
+		strip.custom_minimum_size.y = 26
 	var face := Ui.vbox(0, [Ui.pad(top, 13, 13, 13, 8), Ui.pad(bill, 13, 0, 13, 10), Ui.spacer(), strip])
 	var variation := "CardOn" if on else ("CardLocked" if is_locked else ("CardDim" if short else "Card"))
 	var key := String(row.key)
@@ -544,7 +570,8 @@ func _detail_sig(s: InventoryScreen) -> String:
 	var have := ""
 	for id in _cost_of(s, sel):
 		have += str(s.player.total_res(s.sim, id)) + ","
-	return "%s|%s|%s|%d|%s|%s" % [sel.key, str(st.ok), String(st.reason), s.craft_qty, have, str(_cost_of(s, sel))]
+	return "%s|%s|%s|%d|%s|%s|%s" % [sel.key, str(st.ok), String(st.reason), s.craft_qty, have, str(_cost_of(s, sel)),
+		s.player.crafting.get("id", "")]
 
 
 func _build_detail(s: InventoryScreen, box: Container) -> void:
@@ -715,6 +742,32 @@ func _action_block(s: InventoryScreen, sel: Dictionary, st: Dictionary) -> Panel
 	elif sel.has("upgrade"):
 		verb = "Upgrade"
 	var col := Ui.vbox(12)
+	var row := Ui.hbox(12)
+	var cost := _cost_of(s, sel)
+	var most := max_qty(s, cost)
+	if sel.has("recipe") and not s.player.crafting.is_empty():
+		# While something is being made the button *is* the bar, and it takes
+		# no presses: a second press on CRAFT is exactly what the owner did
+		# when nothing seemed to happen, so it must not cancel either. CANCEL
+		# is its own button, where the stepper was.
+		var making := Crafting.recipe(String(s.player.crafting.id))
+		var bar := UiMeter.new(56, Ui.ACCENT_PRESS)
+		bar.text_color = Ui.TEXT_HIGH
+		bar.right_color = Ui.TEXT_BODY
+		Ui.expand(bar)
+		var what := String(making.get("name", ""))
+		s.refresher(func() -> void:
+			if is_instance_valid(bar):
+				bar.set_value(craft_frac(s.player), null, "Crafting " + what, left_label(s.player)))
+		s.reg_row("crafting", bar)
+		var stop := Ui.button("Cancel", "Secondary", func() -> void: s._press_button("cancel_craft"))
+		stop.custom_minimum_size = Vector2(144, 56)
+		s.reg_button("cancel_craft", stop)
+		row.add_child(stop)
+		row.add_child(bar)
+		col.add_child(row)
+		col.add_child(_note_line(s, sel, most))
+		return Ui.boxed(Ui.edge(Ui.BASE, Ui.LINE, 0, 1, 0, 0, 20, 20), col)
 	var face := Ui.hbox(12, [Ui.label(verb.to_upper(), "MenuItem", Ui.INK if st.ok else Ui.TEXT_OFF)])
 	if st.ok:
 		face.add_child(Ui.label("ENTER", "Mono", Color(Ui.INK, 0.7)))
@@ -728,9 +781,6 @@ func _action_block(s: InventoryScreen, sel: Dictionary, st: Dictionary) -> Panel
 	primary.disabled = not st.ok
 	Ui.expand(primary)
 	s.reg_button("craft", primary)
-	var row := Ui.hbox(12)
-	var cost := _cost_of(s, sel)
-	var most := max_qty(s, cost)
 	if sel.has("recipe"):
 		s.craft_qty = clampi(s.craft_qty, 1, maxi(1, most))
 		var minus := Ui.button("−", "Secondary", func() -> void: s.craft_qty = maxi(1, s.craft_qty - 1))
@@ -744,15 +794,36 @@ func _action_block(s: InventoryScreen, sel: Dictionary, st: Dictionary) -> Panel
 		row.add_child(Ui.boxed(Ui.box(Ui.RAISED, Ui.LINE, 1, 2), Ui.hbox(0, [minus, q, plus])))
 	row.add_child(primary)
 	col.add_child(row)
+	col.add_child(_note_line(s, sel, most))
+	return Ui.boxed(Ui.edge(Ui.BASE, Ui.LINE, 0, 1, 0, 0, 20, 20), col)
+
+
+## The line under the button: what the action costs besides materials — or,
+## for a moment after something is made, mended or stopped, that it was.
+## The screen covers the HUD, so its notices are never seen from in here.
+func _note_line(s: InventoryScreen, sel: Dictionary, most := 0) -> Control:
 	var note := "Instant  ·  materials are the whole cost"
 	var right := ""
 	if sel.has("recipe"):
+		note = "%.1fs each  ·  nothing is spent until it is made" % Crafting.duration(s.player)
 		right = "+%d XP  ·  %d max" % [int(sel.recipe.xp) * s.craft_qty, most]
 	elif sel.has("repair"):
 		note = "Instant  ·  condition is the whole cost"
 		right = "MEND ALL  ·  SHIFT+ENTER"
-	col.add_child(Ui.hbox(8, [Ui.expand(Ui.label(note, "Small")), Ui.label(right, "Mono", Ui.TEXT_BODY)]))
-	return Ui.boxed(Ui.edge(Ui.BASE, Ui.LINE, 0, 1, 0, 0, 20, 20), col)
+	var l := Ui.label(note, "Small")
+	s.refresher(func() -> void:
+		if not is_instance_valid(l):
+			return
+		var f := s.craft_flash
+		var fresh := not f.is_empty() and Time.get_ticks_msec() - int(f.at) < CraftPage.FLASH_MS
+		var style := "Caps13" if fresh else "Small"
+		if l.theme_type_variation != style:
+			l.theme_type_variation = style
+			l.uppercase = fresh
+		Ui.set_text(l, (("✓  " if f.ok else "✕  ") + String(f.text)) if fresh else note)
+		Ui.set_color(l, (Ui.OK if f.ok else Ui.SHORT) if fresh else Ui.TEXT_DIM))
+	s.reg_row("craft_note", l)
+	return Ui.hbox(8, [Ui.expand(l), Ui.label(right, "Mono", Ui.TEXT_BODY)])
 
 
 # ------------------------------------------------------------------- acting --
@@ -762,18 +833,17 @@ func _do(s: InventoryScreen, row: Dictionary, times := 1) -> void:
 		Actions.repair_weapon(s.sim, s.player, String(row.repair.c), int(row.repair.i), s.bench())
 	elif row.has("upgrade"):
 		Actions.upgrade_weapon(s.sim, s.player, String(row.upgrade.c), int(row.upgrade.i), s.bench())
-	else:
-		# One at a time, asking again before each: the bill, the room and the
-		# weight all move as the batch comes out.
-		for i in range(times):
-			if not Crafting.status(s.sim, s.player, row.recipe, s.bench()).ok and i > 0:
-				break
-			if not Actions.craft(s.sim, s.player, row.recipe, s.bench()):
-				break
+	elif s.player.crafting.is_empty():
+		# The batch is the sim's: it asks again before each one, because the
+		# bill, the room and the weight all move as the batch comes out. Never
+		# more than can be paid for, so ×5 on a bill for three makes three.
+		Actions.craft(s.sim, s.player, row.recipe, s.bench(), mini(times, maxi(1, max_qty(s, row.recipe.cost))))
 
 
 func press(s: InventoryScreen, id: String) -> void:
-	if id == "craft":
+	if id == "cancel_craft":
+		Actions.cancel_craft(s.sim, s.player)
+	elif id == "craft":
 		var sel := _selected(s, visible_rows(s))
 		if not sel.is_empty():
 			_do(s, sel, s.craft_qty)

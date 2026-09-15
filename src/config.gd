@@ -69,6 +69,11 @@ const PLAYER := {
 	"pickup_range": 46.0,
 	"interact_range": 76.0,
 	"search_time": 1.05,
+	# How long one of anything takes to make. One number for every recipe on
+	# purpose (owner, 2026-09-15): long enough to see the bar fill, short
+	# enough that it is never a chore (pillar 1). `craft_time_mul` is where a
+	# perk shortens it.
+	"craft_time": 1.5,
 	# How long E must stay down beside a car before it opens the boot instead
 	# of driving. Long enough that an ordinary tap is never read as a hold.
 	"boot_hold": 0.35,
@@ -391,6 +396,8 @@ const STAT_BASE := {
 	"crit_chance": 0.06, "crit_dmg": 0.0, "free_shot_chance": 0.0, "speed_mul": 1.0,
 	"loot_mul": 1.0, "rare_loot_mul": 1.0, "double_drop_chance": 0.0, "search_mul": 1.0,
 	"build_cost_mul": 1.0, "struct_hp_mul": 1.0, "turret_mul": 1.0, "craft_yield_mul": 1.0,
+	# Below 1.0 is faster, like `search_mul`: it multiplies the time.
+	"craft_time_mul": 1.0,
 	"heal_mul": 1.0, "heal_speed_mul": 1.0,
 	"threat_mul": 1.0, "noise_mul": 1.0, "xp_mul": 1.0, "radar_mul": 1.0,
 

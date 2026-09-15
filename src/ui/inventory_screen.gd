@@ -61,6 +61,9 @@ var craft_sel := ""              # the selected row's key
 var craft_search := ""
 var craft_filter := false
 var craft_qty := 1
+## The last thing this player made, mended or stopped making: {text, ok, at}.
+## The screen covers the HUD, so it says so itself (`CraftPage._note_line`).
+var craft_flash := {}
 # The character sheet.
 var char_attr := "str"
 var char_perk := -1
@@ -112,6 +115,15 @@ func toggle() -> void:
 		bench_tile = Vector2i(-1, -1)
 	else:
 		_cancel_drag()
+
+
+## The sim's events, from the scene. Only the ones this screen has to say
+## because it is covering the HUD that would otherwise say them.
+func on_event(ev: Dictionary) -> void:
+	if player == null or int(ev.get("by", -1)) != player.seat:
+		return
+	if ev.t == "crafted" or ev.t == "craft_stopped":
+		craft_flash = {"text": String(ev.text), "ok": ev.t == "crafted", "at": Time.get_ticks_msec()}
 
 
 ## Walking up to a chest and pressing E opens it here.

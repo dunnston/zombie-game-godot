@@ -503,6 +503,7 @@ func _process(dt: float) -> void:
 		boss_view.on_event(ev)
 		lights.on_event(ev)
 		hud.on_event(ev)
+		inventory.on_event(ev)
 		ears.on_event(ev)
 	sim.events.clear()
 	if net_host != null:
@@ -1693,8 +1694,33 @@ func smoke_run(smoke: Node) -> void:
 		await smoke.frames(3)
 		if p.count_carried("axe") != axes:
 			smoke.fail("clicking the Hatchet card crafted it — a card should only select")
+		# A hit stops a craft, and the camp has walkers in it: one arriving
+		# during the bar was a failure of this leg rather than of crafting.
+		# The interrupt is `crafting_test`'s to assert.
+		p.god_mode = true
 		await smoke_click(inventory.button_centre("craft"))
+		await smoke.frames(20)
+		# It takes time now, and the time is on screen: CRAFT becomes the bar
+		# and a second press has nothing to land on (the owner, 2026-09-15).
+		if p.crafting.is_empty():
+			smoke.fail("CRAFT on the Hatchet started nothing")
+		if inventory.button_centre("craft") != Vector2.ZERO:
+			smoke.fail("CRAFT is still a button while the Hatchet is being made")
+		if inventory._centre("crafting") == Vector2.ZERO:
+			smoke.fail("no progress bar where CRAFT was")
+		if inventory.button_centre("cancel_craft") == Vector2.ZERO:
+			smoke.fail("no CANCEL while the Hatchet is being made")
+		await smoke.checkpoint("craft_in_progress")
+		var waited := 0
+		while p.count_carried("axe") <= axes and waited < 300:
+			await smoke.frames(1)
+			waited += 1
 		await smoke.frames(3)
+		var note: Label = inventory._named.get("craft_note", null)
+		if note == null or not note.text.to_lower().contains("hatchet"):
+			smoke.fail("nothing under the button says the Hatchet was made: '%s'" % (note.text if note != null else "<none>"))
+		await smoke.checkpoint("craft_done")
+		p.god_mode = false
 	if p.count_carried("axe") <= axes:
 		smoke.fail("CRAFT on the Hatchet crafted nothing")
 

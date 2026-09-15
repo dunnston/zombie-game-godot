@@ -178,6 +178,113 @@ func test_crafting_raises_threat_and_counts() -> void:
 	eq(p.count_carried("bandage"), bandages + 2, "the two you started with, plus two")
 
 
+# ------------------------------------------------------------------- time --
+
+## Ticks the player as the game would, `seconds` at 60Hz.
+func _run(seconds: float) -> void:
+	for i in range(int(round(seconds / (1.0 / 60.0)))):
+		p.tick(sim, 1.0 / 60.0)
+
+
+func test_a_craft_takes_time_and_nothing_is_spent_until_it_is_done() -> void:
+	_stock(10)
+	ok(Crafting.start(sim, p, _recipe("axe"), 0))
+	eq(String(p.crafting.id), "axe")
+	_run(Config.PLAYER.craft_time * 0.5)
+	eq(p.count_carried("axe"), 0, "not yet")
+	eq(p.count_res("sticks"), 10, "and not paid for yet")
+	gt(float(p.crafting.t), 0.0, "the bar is filling")
+	_run(Config.PLAYER.craft_time * 0.5 + 0.05)
+	eq(p.count_carried("axe"), 1, "made")
+	eq(p.count_res("sticks"), 7, "and paid for")
+	ok(p.crafting.is_empty(), "and the bar is gone")
+
+
+func test_one_thing_at_a_time() -> void:
+	_stock()
+	ok(Crafting.start(sim, p, _recipe("axe"), 0))
+	ok(not Crafting.start(sim, p, _recipe("axe"), 0), "a second press does not start a second")
+	_run(Config.PLAYER.craft_time + 0.05)
+	eq(p.count_carried("axe"), 1, "and does not make two")
+
+
+func test_a_batch_makes_each_in_turn() -> void:
+	_stock()
+	ok(Crafting.start(sim, p, _recipe("bandage"), 0, 3))
+	var before := p.count_carried("bandage")
+	_run(Config.PLAYER.craft_time + 0.05)
+	eq(p.count_carried("bandage"), before + 2, "one bill's worth")
+	eq(int(p.crafting.left), 2)
+	_run(Config.PLAYER.craft_time * 2.0 + 0.05)
+	eq(p.count_carried("bandage"), before + 6, "all three")
+	ok(p.crafting.is_empty())
+
+
+func test_a_batch_stops_when_the_materials_run_out() -> void:
+	p.bag.add("sticks", 6)
+	p.bag.add("stone", 7)
+	p.bag.add("fiber", 8)
+	ok(Crafting.start(sim, p, _recipe("axe"), 0, 5))
+	_run(Config.PLAYER.craft_time * 5.0)
+	eq(p.count_carried("axe"), 2, "two bills' worth, and no more")
+	ok(p.crafting.is_empty(), "stopped, not stuck")
+
+
+func test_a_hit_stops_it_and_costs_nothing() -> void:
+	_stock(10)
+	ok(Crafting.start(sim, p, _recipe("axe"), 0))
+	_run(Config.PLAYER.craft_time * 0.5)
+	Damage.damage_player(sim, p, 5.0, p.pos + Vector2(30, 0))
+	ok(p.crafting.is_empty(), "interrupted")
+	var said := false
+	for ev in sim.events:
+		if ev.t == "craft_stopped" and int(ev.by) == p.seat:
+			said = true
+	ok(said, "and the craft screen is told why")
+	_run(Config.PLAYER.craft_time)
+	eq(p.count_carried("axe"), 0)
+	eq(p.count_res("sticks"), 10, "nothing spent")
+
+
+func test_cancel_costs_nothing() -> void:
+	_stock(10)
+	ok(Crafting.start(sim, p, _recipe("axe"), 0))
+	_run(0.5)
+	ok(Crafting.cancel(sim, p))
+	_run(Config.PLAYER.craft_time)
+	eq(p.count_carried("axe"), 0)
+	eq(p.count_res("sticks"), 10)
+
+
+func test_walking_away_from_the_bench_stops_bench_work() -> void:
+	_stock()
+	p.bag.add("knife", 1)
+	sim.structs.place(sim, "workbench", plot.x + 2, plot.y, p)
+	eq(Crafting.bench_tier_at(sim, p), 1, "beside the bench")
+	var fiber := p.count_res("fiber")
+	ok(Crafting.start(sim, p, _recipe("cordage"), 1))
+	_run(0.3)
+	p.pos = tile_centre(Vector2i(plot.x + 7, plot.y))
+	_run(0.1)
+	ok(p.crafting.is_empty(), "walked off, stopped")
+	_run(Config.PLAYER.craft_time)
+	eq(p.count_res("fiber"), fiber, "and nothing was spent")
+
+
+func test_by_hand_work_carries_on_while_you_walk() -> void:
+	_stock(10)
+	ok(Crafting.start(sim, p, _recipe("axe"), 0))
+	p.intent.mx = 1.0
+	_run(Config.PLAYER.craft_time + 0.05)
+	eq(p.count_carried("axe"), 1, "made on the move")
+
+
+func test_craft_time_is_one_number_and_a_stat_shortens_it() -> void:
+	near(Crafting.duration(p), Config.PLAYER.craft_time, 0.001)
+	p.craft_time_mul = 0.5
+	near(Crafting.duration(p), Config.PLAYER.craft_time * 0.5, 0.001)
+
+
 # ------------------------------------------------ the Codex review, PR #5 --
 
 func test_you_cannot_craft_a_rifle_you_cannot_lift() -> void:

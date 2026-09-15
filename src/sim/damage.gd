@@ -206,8 +206,11 @@ static func damage_player(sim: GameSim, p: PlayerSim, amount: float, from: Vecto
 	# come off `stagger_mul`, which is 1.0 until the change takes hold.
 	p.hurt_flash = 0.35 * p.stagger_mul
 	p.last_hurt = 0.0
-	# Being hit interrupts healing: no free patching mid-fight.
+	# Being hit interrupts healing: no free patching mid-fight. And making
+	# things — though nothing was spent, so all it costs is the time.
 	p.using = {}
+	if not p.crafting.is_empty():
+		Crafting.stop(sim, p, "Crafting interrupted")
 	sim.stats.damage_taken += dealt
 
 	var dv := p.pos - from

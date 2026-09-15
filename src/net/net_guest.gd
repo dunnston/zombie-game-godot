@@ -433,6 +433,9 @@ func _apply_player(pr: Dictionary) -> void:
 	p.using = {"id": "bandage", "t": ch, "dur": 1.0} if ck == "u" else {}
 	p.reviving = {"seat": -1, "t": ch, "dur": 1.0} if ck == "r" else {}
 	p.reloading = {"w": held, "t": ch, "dur": 1.0, "shell": false} if ck == "l" else {}
+	# Read by the craft screen and the HUD, never ticked: the host fills it.
+	var cr := (strs[4] if strs.size() > 4 else "").split(":")
+	p.crafting = {"id": cr[0], "t": float(cr[2]), "dur": 1.0, "bench": 0, "left": int(cr[1])} if cr.size() == 3 else {}
 	var at := Vector2(n[NetProtocol.PL_X], n[NetProtocol.PL_Y])
 	var angle := n[NetProtocol.PL_ANGLE]
 	var slot := int(n[NetProtocol.PL_SLOT])

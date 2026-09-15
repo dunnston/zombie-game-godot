@@ -318,9 +318,18 @@ func _relay_events() -> void:
 		return
 	var R: float = Config.NET.interest_radius
 	var r2 := R * R
+	var made := false
 	for i in range(_ev_mark, sim.events.size()):
 		var ev: Dictionary = sim.events[i]
 		var t := String(ev.t)
+		# A craft finishes on a tick, not inside the command that started it,
+		# so the pack goes back when it lands — for the reason the command
+		# path sends it at once — ahead of the event that says so.
+		if t == "crafted":
+			for g in guests:
+				if g.player != null and int(ev.get("by", -1)) == (g.player as PlayerSim).seat:
+					_send_inventory(g, false)
+					made = true
 		# A guest hears about the map changing from `map`, which carries what
 		# it needs to follow; its mirror raises its own event when it has.
 		if t == "instance_enter" or t == "instance_leave":
@@ -340,6 +349,8 @@ func _relay_events() -> void:
 			if ev.has("x") and p.pos.distance_squared_to(Vector2(ev.x, ev.y)) > r2:
 				continue
 			_send(g, NetProtocol.RELIABLE, {"t": "ev", "e": ev})
+	if made:
+		_sync_stores()                   # the stash may have paid for it
 	_ev_mark = sim.events.size()
 
 

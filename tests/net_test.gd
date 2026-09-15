@@ -427,9 +427,20 @@ func test_a_command_runs_on_the_host_and_the_pack_comes_back() -> void:
 	Actions.guest = guest
 	Actions.craft(guest.sim, guest.me, recipe, 0)
 	Actions.guest = null
-	_pump(t, 0.1)
+	_pump(t, 0.3)
+	ok(not gp.carries("axe"), "a craft takes time, on the host too")
+	eq(String(guest.me.crafting.get("id", "")), "axe", "and the guest's screen can see the bar: %s" % str(guest.me.crafting))
+	gt(float(guest.me.crafting.get("t", 0.0)), 0.0, "filling")
+	var steps := 0
+	while not gp.carries("axe") and steps < 200:
+		_step(t)
+		steps += 1
 	ok(gp.carries("axe"), "the host crafted it for the guest")
-	ok(guest.me.carries("axe"), "and the guest's pack shows it: %s" % str(guest.me.bag.entries()))
+	# Not the next sync tick: the step it lands, the pack goes back.
+	_pump(t, 0.05)
+	ok(guest.me.carries("axe"), "the guest's pack shows it at once: %s" % str(guest.me.bag.entries()))
+	_pump(t, 0.1)
+	ok(guest.me.crafting.is_empty(), "and the bar is gone")
 
 
 func test_building_travels_as_intent_and_comes_back_as_the_world() -> void:
