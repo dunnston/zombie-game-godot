@@ -874,7 +874,9 @@ func smoke_structure_art(smoke: Node) -> void:
 		["gate", 5, 0], ["gate", 6, 0], ["spike", 7, 0], ["woodWall", 8, 0],
 		["workbench", 0, 2], ["chemStation", 1, 2], ["stash", 2, 2], ["chest", 3, 2], ["locker", 4, 2],
 		["bedroll", 5, 2], ["bunk", 6, 2], ["raisedBed", 7, 2], ["watchtower", 8, 2],
-		["generator", 0, 4], ["turret", 1, 4], ["floodlight", 2, 4], ["longBed", 4, 4], ["longBed", 7, 3],
+		["generator", 0, 4], ["turret", 1, 4], ["floodlight", 2, 4], ["longBed", 4, 4], ["longBed", 7, 3, 1],
+		# The row turns a corner and runs down, with a gate in it.
+		["woodWall", 9, 0], ["gate", 9, 1], ["woodWall", 9, 2],
 	]
 	var size := Vector2i(10, 6)
 	var origin := _smoke_open_block(Vector2i(int(p.pos.x / 32), int(p.pos.y / 32)), size)
@@ -885,7 +887,7 @@ func smoke_structure_art(smoke: Node) -> void:
 	var made: Array[Dictionary] = []
 	for i in layout.size():
 		var e: Array = layout[i]
-		var rot := 1 if i == layout.size() - 1 else 0
+		var rot: int = e[3] if e.size() > 3 else 0
 		made.append(sim.structs.make(sim, e[0], origin.x + int(e[1]), origin.y + int(e[2]), 1.0, rot))
 	made[6].open = true
 	made[8].hp = made[8].max_hp * 0.35
@@ -909,6 +911,13 @@ func smoke_structure_art(smoke: Node) -> void:
 		smoke.fail("the turret beside a fuelled generator has no power")
 	if Structures.world_art_of("longBed") == null or Structures.world_art_of("turret", "head") == null:
 		smoke.fail("the street art did not load")
+	# The row is one wall: the stone wall meets a piece either side, the first
+	# wood wall only on its right, and each gate lies the way its wall runs.
+	var mask := func(i: int) -> int: return StructureView.join_mask(sim.structs, made[i].tx, made[i].ty)
+	if mask.call(1) != 0b0101 or mask.call(0) != 0b0100:
+		smoke.fail("the wall row does not join: stone %d, end %d" % [mask.call(1), mask.call(0)])
+	if StructureView.gate_turned("gate", mask.call(5)) or not StructureView.gate_turned("gate", mask.call(24)):
+		smoke.fail("a gate does not lie along its wall: row %d, column %d" % [mask.call(5), mask.call(24)])
 	await smoke.checkpoint("structure_art")
 	for s in made:
 		s.destroyed = true
