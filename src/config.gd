@@ -75,6 +75,9 @@ const PLAYER := {
 	"overload_mul": 1.5,
 	"inv_slots": 30,
 	"hotbar_slots": 6,
+	# What Sleight of Hand can grow the hotbar to, and what the keys and the
+	# HUD are built for. Eight is where the number row stops being a row.
+	"hotbar_max": 8,
 	"pickup_range": 46.0,
 	"interact_range": 76.0,
 	"search_time": 1.05,
@@ -343,6 +346,11 @@ const PERKS := [
 		"desc": "-22% weapon spread and +12% bullet range per rank."},
 	{"id": "sixthSense", "attr": "per", "req": 6, "max": 1, "name": "Sixth Sense",
 		"desc": "Enemies show on the minimap much further out, even unaware ones."},
+	# The owner asked whether the hotbar could grow, "possibly an agility
+	# perk" (2026-09-15). There is no Agility: Perception is the one that is
+	# about your hands, and it already holds Quick Hands.
+	{"id": "sleightOfHand", "attr": "per", "req": 5, "max": 2, "name": "Sleight of Hand",
+		"desc": "+1 hotbar slot per rank, up to eight."},
 
 	# --------------------------------------------------------- constitution --
 	{"id": "thickSkin", "attr": "con", "req": 2, "max": 4, "name": "Thick Skin",
@@ -437,6 +445,10 @@ const STAT_BASE := {
 
 	"adrenaline": false, "second_wind": false,
 	"hotwire": false, "hotwire_speed_mul": 1.0,
+	# How many things you can have to hand. A stat like any other, so Sleight
+	# of Hand writes it in the recompute and nowhere else (invariant 4); the
+	# container is grown to match it by `PlayerSim.sync_hotbar`.
+	"hotbar_slots": 6,
 
 	# Summed from worn gear by the recompute and capped. Nothing else may write
 	# it: damage.gd reads this rather than inspecting what is worn, so gear,

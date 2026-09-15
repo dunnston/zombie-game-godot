@@ -14,6 +14,10 @@ extends RefCounted
 ## path calls, so there is still exactly one door.
 static func recompute_stats(p: PlayerSim) -> void:
 	Perks.recompute_stats(p)
+	# The one consequence of a stat that is not itself a number: Sleight of
+	# Hand writes `hotbar_slots`, and the hotbar grows to match it here rather
+	# than in the three places a perk can be bought, loaded or joined into.
+	p.sync_hotbar()
 
 
 ## Reconciles the off-hand after anything changes what is worn, then rebuilds

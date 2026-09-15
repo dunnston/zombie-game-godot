@@ -105,6 +105,9 @@ var fire_rate_mul := 1.0
 ## Guns use fire_rate_mul; melee and tools use this. Above 1.0 is slower, and
 ## the only thing that raises it is being winded.
 var swing_rate_mul := 1.0
+## How many things you can have to hand: six, or up to `PLAYER.hotbar_max`
+## with Sleight of Hand. Written by the recompute like any other stat.
+var hotbar_slots := int(Config.PLAYER.hotbar_slots)
 var reload_mul := 1.0
 var crit_chance := 0.08
 ## Added to the weapon's own `crit_mul`, so what a critical costs the thing it
@@ -268,6 +271,17 @@ func take_carried(id: String, n: int) -> int:
 
 func carries(id: String) -> bool:
 	return count_carried(id) > 0
+
+
+## Grows the hotbar to what the build says it holds (Sleight of Hand). Called
+## from `Equipment.recompute_stats`, which is the one door every change to a
+## build comes through, so nothing has to remember to do it.
+##
+## It never shrinks. A slot is not a stat: taking one away would have to decide
+## what happens to whatever is in it, and nothing in the game takes a perk back.
+func sync_hotbar() -> void:
+	while hotbar.size() < hotbar_slots:
+		hotbar.slots.append({})
 
 
 func carried_weight() -> float:

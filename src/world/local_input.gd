@@ -71,7 +71,7 @@ static func gather(intent: Intent, node: Node2D, ui_capture := false, screen_nav
 		intent.eat = true
 	if Input.is_action_just_pressed("light"):
 		intent.light = true
-	for i in range(6):
+	for i in range(int(Config.PLAYER.hotbar_max)):
 		if Input.is_action_just_pressed("slot%d" % (i + 1)):
 			intent.slot = i
 	if Input.is_action_just_pressed("wheel_down"):

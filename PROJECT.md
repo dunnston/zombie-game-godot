@@ -264,6 +264,23 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### Eight slots, if you buy them (2026-09-15)
+
+The owner: "can players increase hotbar size? possibly an agility perk?"
+There is no Agility — Perception is the attribute about your hands, and it
+already holds Quick Hands — so **Sleight of Hand** (PER 5, two ranks) is
++1 hotbar slot a rank, to `PLAYER.hotbar_max` (8).
+
+`hotbar_slots` is a stat like any other, written by the recompute
+(invariant 4); the container is grown to match it by `PlayerSim.sync_hotbar`,
+called from `Equipment.recompute_stats` — the one door every build change
+comes through — rather than from the three places a perk can be bought,
+loaded or joined into. It never shrinks: a slot is not a stat, and taking one
+away would have to decide what happens to what is in it. `slot7` and `slot8`
+are bound to 7 and 8 always, because a key that appears with a perk is a
+controls screen that changes shape under the player, and the HUD is built for
+eight and hides down to what this build has.
+
 ### The Recycler (2026-09-15)
 
 DL-86, and the fifth bench on Notion's Workbenches table: *"Breaks bigger

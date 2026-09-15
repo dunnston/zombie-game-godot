@@ -274,8 +274,10 @@ func _build() -> void:
 	_carry_bar = UiMeter.new(10)
 	var carry := Ui.vbox(5, [Ui.hbox(8, [Ui.expand(Ui.label("Carry", "Caps")), _carry]), _carry_bar])
 	carry.custom_minimum_size.x = 150
+	# Built for the ceiling and hidden down to what this build actually has, so
+	# buying Sleight of Hand mid-run does not need the HUD rebuilt under it.
 	var slots := Ui.hbox(4)
-	for i in range(sim.players[0].hotbar.size()):
+	for i in range(int(Config.PLAYER.hotbar_max)):
 		var s := HotSlot.new(i)
 		_slots.append(s)
 		slots.add_child(s)
@@ -462,7 +464,9 @@ func refresh() -> void:
 	_reloading.visible = not p.reloading.is_empty() and alive
 
 	for i in range(_slots.size()):
-		_slots[i].show_slot(p, i)
+		_slots[i].visible = i < p.hotbar.size()
+		if _slots[i].visible:
+			_slots[i].show_slot(p, i)
 	var carried := p.carried_weight()
 	var frac := clampf(carried / maxf(1.0, p.carry_cap), 0.0, 1.0)
 	var wcol := Ui.TEXT_DIM

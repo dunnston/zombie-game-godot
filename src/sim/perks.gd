@@ -144,6 +144,8 @@ static func _apply_perk(p: PlayerSim, id: String, rank: int) -> void:
 		"quickHands":
 			p.search_mul *= pow(0.7, r)
 			p.pickup_range += 18.0 * r
+		"sleightOfHand":
+			p.hotbar_slots = mini(int(Config.PLAYER.hotbar_max), p.hotbar_slots + r)
 		"eagleEye":
 			p.spread_mul *= pow(0.78, r)
 			p.range_mul += 0.12 * r
