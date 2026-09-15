@@ -119,6 +119,15 @@ static func deposit_all(sim: GameSim, p: PlayerSim, at: Vector2i, car: int) -> i
 	return sim.structs.deposit_all(sim, p, store_for(sim, p, at, car))
 
 
+## One thing out of the pack or the hotbar, broken down at the Recycler the
+## player is standing at. The host finds the bench itself, as it does for a
+## workbench's tier: a guest naming a slot is all the wire carries.
+static func recycle(sim: GameSim, p: PlayerSim, cont_kind: String, index: int) -> bool:
+	if _remote("recycle", {"cont": cont_kind, "i": index}):
+		return false
+	return not Recycle.recycle(sim, p, cont_kind, index).is_empty()
+
+
 ## Everything the container already holds more of. Same shape as
 ## `deposit_all`, and the host resolves the container the same way.
 static func deposit_matching(sim: GameSim, p: PlayerSim, at: Vector2i, car: int) -> int:
@@ -269,6 +278,8 @@ static func execute(sim: GameSim, p: PlayerSim, name_: String, a: Dictionary) ->
 				clampi(int(a.get("n", 1)), 1, 99))
 		"cancel_craft":
 			return Crafting.cancel(sim, p)
+		"recycle":
+			return not Recycle.recycle(sim, p, String(a.get("cont", "")), int(a.get("i", -1))).is_empty()
 		"repair_weapon":
 			return Wear.repair(sim, p, String(a.get("c", "")), int(a.get("i", -1)),
 				mini(int(a.get("tier", 0)), Crafting.bench_tier_at(sim, p)))

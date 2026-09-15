@@ -309,3 +309,67 @@ func test_you_cannot_craft_a_rifle_you_cannot_lift() -> void:
 	ok(Crafting.craft(sim, p, r, 2))
 	eq(p.count_carried("rifle"), 1)
 	ok(p.carried_weight() <= p.carry_limit(), "carrying %.1f" % p.carried_weight())
+
+
+# ------------------------------------------------------------- the Recycler --
+
+func _recycler() -> Dictionary:
+	# A bench to stand at. Placed through the sim so the tile and the reach are
+	# the real ones.
+	p.bag.add("scrap", 200)
+	p.bag.add("wood", 200)
+	p.bag.add("parts", 20)
+	sim.structs.bench_tier = 2
+	var t := Vector2i(floori(p.pos.x / Config.TILE) + 1, floori(p.pos.y / Config.TILE))
+	clear_ground(sim, t.x, t.y)
+	return sim.structs.place(sim, "recycler", t.x, t.y, p)
+
+
+func test_a_recycler_gives_back_what_notion_says_it_breaks_into() -> void:
+	var bench := _recycler()
+	ok(not bench.is_empty(), "the Recycler went down")
+	ok(not Recycle.bench_near(sim, p).is_empty(), "and you are standing at it")
+	p.bag.clear_all()
+	p.bag.add("machete", 1)
+	var before := p.count_res("scrap")
+	var gave := Recycle.recycle(sim, p, "bag", 0)
+	eq(gave, {"scrap": 12}, "a Machete is twelve scrap on the Items table")
+	eq(p.count_res("scrap"), before + 12, "and that is what landed in the pack")
+	eq(p.bag.count("machete"), 0, "the machete is gone")
+
+
+func test_a_worn_tool_gives_back_what_is_left_of_it() -> void:
+	_recycler()
+	p.bag.clear_all()
+	p.bag.add("machete", 1)
+	# Half worn: half the steel, and never nothing.
+	p.bag.set_wear_at(0, maxi(1, Wear.max_at(p.bag, 0) / 2))
+	var gave := Recycle.recycle(sim, p, "bag", 0)
+	eq(gave, {"scrap": 6}, "half a Machete is half the scrap, got %s" % str(gave))
+	var at := p.bag.first_empty()
+	p.bag.add("knife", 1)
+	p.bag.set_wear_at(at, 0)
+	var broken := Recycle.recycle(sim, p, "bag", at)
+	eq(broken, {"stone": 1}, "a broken thing is still worth its biggest material once")
+
+
+func test_the_recycler_refuses_what_it_cannot_break_and_where_it_is_not() -> void:
+	p.bag.clear_all()
+	p.bag.add("machete", 1)
+	eq(Recycle.recycle(sim, p, "bag", 0), {}, "recycled with no bench in sight")
+	eq(p.bag.count("machete"), 1, "and it was taken anyway")
+	_recycler()
+	p.bag.clear_all()
+	p.bag.add("wood", 20)
+	eq(Recycle.recycle(sim, p, "bag", 0), {}, "wood is already a material")
+	eq(p.bag.count("wood"), 20)
+
+
+func test_every_recycle_row_names_something_in_the_game() -> void:
+	for id: String in Config.RECYCLE:
+		ok(Items.has(id), "%s is in the recycle table and nowhere else" % id)
+		var gives: Dictionary = Config.RECYCLE[id].gives
+		ok(not gives.is_empty(), "%s breaks down into nothing" % id)
+		for res_id: String in gives:
+			ok(Config.RES.has(res_id), "%s gives '%s', which is not a material" % [id, res_id])
+			gt(int(gives[res_id]), 0, "%s gives %s of %s" % [id, gives[res_id], res_id])

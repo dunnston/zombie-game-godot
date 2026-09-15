@@ -397,6 +397,23 @@
     },
     {
       "cost": {
+        "parts": 3,
+        "scrap": 34,
+        "wood": 20
+      },
+      "desc": "Breaks weapons, tools and armour back down into materials. Stand near it.",
+      "hp": 280.0,
+      "id": "recycler",
+      "name": "Recycler",
+      "notes": "Notion's fifth bench (Workbenches, \"Recycle\"): nothing is crafted here. What each item gives back is the item's own Breaks down into, in data/recycle.json. Tier 2 because a gun you no longer want is worth more than the scrap it holds until you have somewhere better to be.",
+      "protect": true,
+      "solid": true,
+      "station": "recycle",
+      "threat": 2.0,
+      "tier": 2
+    },
+    {
+      "cost": {
         "elec": 16,
         "scrap": 38
       },

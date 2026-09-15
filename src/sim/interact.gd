@@ -103,6 +103,8 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 		var entry := {}
 		if s.store != null:
 			entry = {"kind": "store", "ref": s, "label": "Open %s  (%d/%d)" % [s.def.name, s.store.used(), s.store.size()]}
+		elif String(s.def.get("station", "")) == "recycle":
+			entry = {"kind": "recycler", "ref": s, "label": "Use the Recycler"}
 		elif s.type == "workbench" or s.def.has("station"):
 			# E opens the bench; it never spends anything. Upgrading is a button
 			# inside, with its price on it, rather than the key you press to look.
@@ -350,6 +352,9 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 			# and the presentation decides what that looks like.
 			var s: Dictionary = target.ref
 			sim.emit({"t": "open_bench", "seat": p.seat, "tx": s.tx, "ty": s.ty})
+		"recycler":
+			var r: Dictionary = target.ref
+			sim.emit({"t": "open_recycler", "seat": p.seat, "tx": r.tx, "ty": r.ty})
 		"repair":
 			sim.structs.repair(sim, target.ref, p)
 		"bedroll":

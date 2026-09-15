@@ -1610,9 +1610,20 @@ static var RECIPES: Array = DataTable.load_table("recipes")
 
 const BUILD_ORDER := [
 	"woodWall", "stoneWall", "barricade", "reinforcedWall", "metalWall", "gate", "spike",
-	"workbench", "chemStation", "stash", "chest", "locker", "bedroll", "bunk", "raisedBed", "longBed", "watchtower",
+	"workbench", "chemStation", "recycler", "stash", "chest", "locker", "bedroll", "bunk", "raisedBed", "longBed", "watchtower",
 	"generator", "turret", "floodlight",
 ]
+
+## What one of a thing gives back at a Recycler: `data/recycle.json`, written
+## from the owner's **Breaks down into** column on Notion's Items table
+## (DL-86). Buildings are not in it — salvaging one already pays you back.
+static var RECYCLE: Dictionary = DataTable.load_table("recycle")
+
+## The share of that a Recycler actually returns. One, for now, because the
+## owner's column is already "what it breaks down into" rather than "what it
+## cost"; the knob exists so a run through the bench can be made lossy without
+## touching sixty-five rows.
+const RECYCLE_SHARE := 1.0
 
 ## What the survivor on a Watchtower is shooting. Bought once for the whole
 ## base, then chosen per tower, so two towers can answer the same approach

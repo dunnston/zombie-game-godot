@@ -511,6 +511,11 @@ func _process(dt: float) -> void:
 				inventory.open_bench(Vector2i(ev.tx, ev.ty))
 				if build_bar.open:
 					build_bar.toggle()
+		elif ev.t == "open_recycler":
+			if int(ev.get("seat", me.seat)) == me.seat:
+				inventory.open_recycler(Vector2i(ev.tx, ev.ty))
+				if build_bar.open:
+					build_bar.toggle()
 		elif ev.t == "open_instance":
 			if int(ev.get("seat", me.seat)) == me.seat:
 				inventory.open_door(String(ev.kind))
@@ -701,6 +706,29 @@ func _smoke_bag_index(id: String) -> int:
 
 
 ## The nearest container to a point that still has something in it.
+## Every scrap in the run: the pack, the stash and anything on the ground.
+## What a bench pays out goes wherever there is room, and a leg that only
+## counted the pack would fail on the overflow rule rather than on the bench.
+func _smoke_scrap_anywhere() -> int:
+	var p := sim.players[0]
+	var n := p.count_res("scrap")
+	if sim.stash != null:
+		n += sim.stash.count("scrap")
+	for pile in sim.pickups:
+		if String(pile.get("id", "")) == "scrap":
+			n += int(pile.get("n", 0))
+	return n
+
+
+## Litter off a tile the smoke wants to build on, the way a player clears it.
+## Solid scenery is left alone: that is a real "Blocked" and the leg should
+## look somewhere else rather than hide it.
+func smoke_clear_tile(t: Vector2i) -> void:
+	var prop := sim.world.prop_at_tile(t.x, t.y)
+	if not prop.is_empty() and not prop.solid:
+		sim.world.remove_prop(prop)
+
+
 func smoke_nearest_container(at: Vector2) -> Dictionary:
 	var best := {}
 	var bd := INF
@@ -1282,6 +1310,56 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 	await smoke.checkpoint("chem_station")
 	await smoke.tap("inventory")
 	await smoke.frames(2)
+
+	# The Recycler: a machete in, twelve scrap out, on the real key and the
+	# real button (Notion DL-86).
+	for id in ["scrap", "wood", "parts"]:
+		p.bag.add(id, 60)
+	# Somewhere clear within reach, rather than a fixed tile: the ground beside
+	# the Chemistry Station is whatever the generator put there.
+	var rec_tile := Vector2i(-1, -1)
+	for off: Vector2i in [Vector2i(2, 0), Vector2i(-2, 0), Vector2i(0, 2), Vector2i(0, -2),
+			Vector2i(2, 2), Vector2i(-2, -2), Vector2i(2, -2), Vector2i(-2, 2)]:
+		var t := Vector2i(int(p.pos.x / 32), int(p.pos.y / 32)) + off
+		smoke_clear_tile(t)
+		if sim.structs.can_place(sim, "recycler", t.x, t.y, p).ok:
+			rec_tile = t
+			break
+	if rec_tile.x < 0:
+		smoke.fail("nowhere to put a Recycler near the station")
+	else:
+		sim.structs.place(sim, "recycler", rec_tile.x, rec_tile.y, p)
+		_smoke_stand_at(Vector2(rec_tile.x * 32 + 16, rec_tile.y * 32 + 48))
+		await smoke.frames(3)
+		# Straight into the pack: by now the smoke's player is carrying far more
+		# than the ceiling, so the pickup path would refuse it and the leg would
+		# fail for a reason that has nothing to do with the Recycler.
+		if p.bag.add("machete", 1) < 1:
+			smoke.fail("no room in the pack for the machete to recycle")
+		await smoke.tap("interact")
+		await smoke.frames(3)
+		if not inventory.visible or inventory.mode != "recycle":
+			smoke.fail("E at the Recycler did not open it (the key offered: %s)"
+				% str(Interact.best_target(sim, p).get("label", "nothing")))
+		var mach := _smoke_bag_index("machete")
+		var in_bag := p.bag.id_at(mach) == "machete"
+		await smoke_click(inventory.cell_centre("bag" if in_bag else "hotbar",
+			mach if in_bag else p.hotbar_index("machete")))
+		await smoke.frames(3)
+		await smoke.checkpoint("recycler")
+		# Counted wherever it lands: this player is carrying far more than the
+		# ceiling by now, so the scrap may well go to the stash or the ground
+		# rather than into the pack, and that is the overflow rule working.
+		var scrap_before := _smoke_scrap_anywhere()
+		if inventory.button_centre("recycle") == Vector2.ZERO:
+			smoke.fail("the Recycler screen has no BREAK IT DOWN button")
+		await smoke_click(inventory.button_centre("recycle"))
+		await smoke.frames(3)
+		if p.count_carried("machete") > 0 or _smoke_scrap_anywhere() <= scrap_before:
+			smoke.fail("the machete did not break down (scrap %d -> %d)" % [scrap_before, _smoke_scrap_anywhere()])
+		await smoke.checkpoint("recycled")
+		await smoke.tap("inventory")
+		await smoke.frames(2)
 
 	# A Lurch: the intent comes off the player and the screen says so.
 	Mutation.add(sim, p, 90.0 - p.mutation)

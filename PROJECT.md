@@ -264,6 +264,37 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### The Recycler (2026-09-15)
+
+DL-86, and the fifth bench on Notion's Workbenches table: *"Breaks bigger
+things down into base materials. Nothing is crafted here. What each item gives
+back is on the item, under Breaks down into."*
+
+- **`data/recycle.json`** is that column, sixty-five rows, written through
+  `DataTable.encode` by `tools/add_recycle.gd` (the script is the paste, the
+  encoder is the writer — §10). Buildings are deliberately absent: taking one
+  down already pays through `demolish`, and a second refund for the same wall
+  is a loop.
+- **The bench** is `recycler` in `STRUCTURES`: Scrap 34 · Wood 20 · Weapon
+  Parts 3, 280 HP, `station: "recycle"`, tier 2.
+- **`Recycle.yield_of(id, wear)`** is the whole rule: the row, times
+  `Config.RECYCLE_SHARE` (1.0 — the knob exists so a run through the bench can
+  be made lossy without touching sixty-five rows), times a worn tool's
+  condition. **Nothing ever goes in and comes out as nothing**: a row that
+  gives anything gives at least one of its biggest material, so a broken
+  Stone Knife is still a stone.
+- **The screen** is the pack beside one panel: click a thing, see exactly what
+  it is worth, press BREAK IT DOWN. One at a time, so a stack of twelve is
+  twelve decisions. `E` opens it (`open_recycler`), and it closes itself when
+  you walk away, like every other bench.
+- **Co-op:** `Actions.recycle` names a slot and the host finds the bench
+  itself, the same shape as a workbench's tier.
+- `crafting_test` +4: the Machete's twelve scrap, a half-worn one giving six,
+  a broken one still giving its stone, the refusals, and that every row in the
+  table names a real item and real materials. The smoke builds one, opens it
+  on the key, clicks the Machete and presses the button (`recycler`,
+  `recycled`).
+
 ### Other people, and the things that only show in co-op (2026-09-15)
 
 The rest of the *Multiplayer Playing* list: DL-90, DL-91, DL-92, DL-93, DL-95

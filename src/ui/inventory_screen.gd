@@ -20,7 +20,7 @@ extends UiScreen
 signal navigate(to: String)
 
 ## Modes that are one panel opened on one thing, rather than tabs of the pack.
-const SINGLE := ["store", "bed", "bench", "door", "leave"]
+const SINGLE := ["store", "bed", "bench", "recycle", "door", "leave"]
 const PACK_COLS := 10
 const STORE_COLS := 8
 const SIDE_COLS := 6
@@ -51,6 +51,8 @@ var store_car := 0
 var bed_tile := Vector2i(-1, -1)
 ## The tile of the workbench or station being used, or (-1, -1).
 var bench_tile := Vector2i(-1, -1)
+## At a Recycler: which pack or hotbar cell is about to be broken down.
+var recycle_cell := {}
 
 var drag := {}                   # {from: cell, id, n} while held
 var hover := {}                  # the cell under the mouse
@@ -172,6 +174,19 @@ func open_bench(tile: Vector2i) -> void:
 	visible = true
 
 
+## The Recycler: nothing is crafted here, so it is the pack beside a panel
+## that says what the thing you have picked breaks down into.
+func open_recycler(tile: Vector2i) -> void:
+	bench_tile = tile
+	store_tile = Vector2i(-1, -1)
+	store_car = 0
+	bed_tile = Vector2i(-1, -1)
+	pop = {}
+	recycle_cell = {}
+	mode = "recycle"
+	visible = true
+
+
 ## An instance's door: the rules, what you are carrying, and ENTER. The pack is
 ## on screen on purpose — what you bring is the whole of the decision (§6.6).
 func open_door(kind: String) -> void:
@@ -272,6 +287,7 @@ func tick() -> void:
 		"store": gone = store() == null
 		"bed": gone = bed().is_empty()
 		"bench": gone = bench_struct().is_empty()
+		"recycle": gone = Recycle.bench_near(sim, player).is_empty()
 		# A door panel belongs to the door: step away from it, or through it,
 		# and the question is no longer being asked.
 		"door": gone = sim.instance != null or Instance.feature_near(sim, player, ["instance_door"]).is_empty()
@@ -336,6 +352,7 @@ func _build_frame() -> void:
 		"crew": _crew.build(self, col)
 		"store": _build_store(col)
 		"bed": _build_bed(col)
+		"recycle": _build_recycler(col)
 		"door": _build_door(col)
 		"leave": _build_leave(col)
 	_float = Control.new()
@@ -812,6 +829,61 @@ func _build_bed(col: VBoxContainer) -> void:
 	body.add_child(_pack_side())
 
 
+# ------------------------------------------------------------ the Recycler --
+
+## Nothing is made here, so there is no recipe list: the pack on the right,
+## and on the left whatever you have clicked and exactly what it gives back.
+func _build_recycler(col: VBoxContainer) -> void:
+	col.add_child(Chrome.title_bar("Recycler", Ui.badge("Station", Ui.ACCENT), [close_cap("ESC")]))
+	var body := Chrome.body()
+	col.add_child(Chrome.body_margin(body))
+
+	var name_l := Ui.label("Nothing selected", "PanelTitle")
+	var cond := Ui.label("", "Row14", Ui.WORN)
+	var gives := Ui.vbox(6)
+	var why := Ui.para("", "Small", Ui.SHORT)
+	var go := btn("recycle", "Break it down", "Primary")
+	go.custom_minimum_size.y = 44
+	section(gives, func() -> String:
+		var st := _stack_in(recycle_cell)
+		return "%s|%s|%d" % [String(st.get("id", "")), str(recycle_cell.get("index", -1)),
+			roundi(_recycle_frac() * 100.0)],
+		func(box: Container) -> void:
+			var st := _stack_in(recycle_cell)
+			var id := String(st.get("id", ""))
+			Ui.set_text(name_l, Items.name_of(id) if not id.is_empty() else "Nothing selected")
+			var worn := Wear.wears(id) and _recycle_frac() < 1.0
+			cond.visible = worn
+			Ui.set_text(cond, "%d%% condition — it gives back that much" % roundi(_recycle_frac() * 100.0))
+			var out := Recycle.yield_of(id, _recycle_frac()) if not id.is_empty() else {}
+			for res_id: String in out:
+				var res: Dictionary = Config.RES.get(res_id, {})
+				box.add_child(Ui.hbox(10, [
+					Ui.expand(Ui.label(String(res.get("name", res_id)), "Row")),
+					Ui.label("+%d" % int(out[res_id]), "Mono", Ui.OK)]))
+			go.visible = not out.is_empty()
+			why.visible = out.is_empty()
+			Ui.set_text(why, "" if id.is_empty() else "%s does not break down into anything." % Items.name_of(id)))
+
+	var note := Ui.para("Click something in your pack to see what it is worth  ·  one at a time  ·  a worn tool gives back what is left of it",
+		"Small", Color(1, 1, 1, 0.4))
+	var panel := Ui.panel("Pane", Ui.vbox(0, [Ui.head("Break it down"),
+		Ui.pad(Ui.vbox(18, [name_l, cond, gives, why, go, note]), 20)]))
+	panel.custom_minimum_size.x = 460
+	body.add_child(Ui.scroller(panel))
+	body.add_child(_pack_side())
+
+
+## How much of the selected thing is left, as a fraction: a worn tool gives
+## back what is left of it, and everything else gives all of it.
+func _recycle_frac() -> float:
+	var kind := String(recycle_cell.get("kind", ""))
+	if kind != "bag" and kind != "hotbar":
+		return 1.0
+	var cont := Equipment.container(player, kind)
+	return Wear.frac(cont, int(recycle_cell.get("index", -1))) if cont != null else 1.0
+
+
 # ------------------------------------------------------------- the School --
 
 func _build_door(col: VBoxContainer) -> void:
@@ -1160,6 +1232,9 @@ func _press_button(id: String) -> void:
 			Actions.deposit_all(sim, player, store_tile, store_car)
 		"deposit_matching":
 			Actions.deposit_matching(sim, player, store_tile, store_car)
+		"recycle":
+			if not recycle_cell.is_empty():
+				Actions.recycle(sim, player, String(recycle_cell.kind), int(recycle_cell.index))
 		"withdraw":
 			Actions.withdraw_supplies(sim, player, store_tile, store_car)
 		"refuel":
@@ -1193,6 +1268,10 @@ func _press(cell: Dictionary, mb: InputEventMouseButton) -> void:
 	if cell.is_empty():
 		return
 	sel_cell = cell
+	# At a Recycler, clicking something is choosing it: the panel on the left
+	# is what this thing is worth, and the button under it is the decision.
+	if mode == "recycle" and (cell.kind == "bag" or cell.kind == "hotbar"):
+		recycle_cell = cell
 	# What is in the ground stays in the ground. Nothing is dragged, dropped or
 	# split out of a bed's two slots: the seed comes back at harvest and the
 	# fertilizer is spent on the crop.
