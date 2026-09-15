@@ -398,19 +398,25 @@ static func update_pickups(sim: GameSim, dt: float) -> void:
 
 ## Moves a pile by its velocity, stopping it against anything solid to feet —
 ## one axis at a time, so a pile pulled along a wall slides instead of
-## sticking. A pile already inside something (a wall built on top of it) is
-## let move freely, or it would be stuck there for good.
+## sticking.
+##
+## A pile already inside something is put out beside it first. Nothing stops
+## a wall going up on top of one, and from inside a wall there is never a line
+## of sight to anyone, so it would get no pull to move it and lie there,
+## unreachable, until it expired. (Codex review, PR #48.)
 static func _slide_pickup(sim: GameSim, it: Dictionary, dt: float) -> void:
 	var w := sim.world
 	var at: Vector2 = it.pos
+	if w.is_blocked_px(at.x, at.y, sim.structs):
+		at = w.unstick(at, 1.0, sim.structs)
+		it.vel = Vector2.ZERO
 	var to: Vector2 = at + it.vel * dt
-	if not w.is_blocked_px(at.x, at.y, sim.structs):
-		if w.is_blocked_px(to.x, at.y, sim.structs):
-			to.x = at.x
-			it.vel.x = 0.0
-		if w.is_blocked_px(to.x, to.y, sim.structs):
-			to.y = at.y
-			it.vel.y = 0.0
+	if w.is_blocked_px(to.x, at.y, sim.structs):
+		to.x = at.x
+		it.vel.x = 0.0
+	if w.is_blocked_px(to.x, to.y, sim.structs):
+		to.y = at.y
+		it.vel.y = 0.0
 	it.pos = to
 
 

@@ -203,6 +203,23 @@ func test_loot_does_not_come_to_you_through_a_wall() -> void:
 	eq(p.bag.count("wood"), before + 5, "with the wall gone it comes: pile at %s, you at %s" % [pile.pos, p.pos])
 
 
+func test_a_wall_built_on_a_pile_puts_it_out_beside_the_wall() -> void:
+	# Codex review, PR #48. From inside a wall there is no line of sight to
+	# anyone, so without being put out the pile lay there until it expired.
+	var here := Vector2i(floori(p.pos.x / Config.TILE), floori(p.pos.y / Config.TILE))
+	var pile := Loot.spawn_pickup(sim, tile_centre(here + Vector2i(2, 0)), "res", "wood", 5)
+	pile.vel = Vector2.ZERO
+	sim.structs.make(sim, "woodWall", here.x + 2, here.y)
+	ok(sim.world.is_blocked_px(pile.pos.x, pile.pos.y, sim.structs), "the wall went up on top of it")
+	Loot.update_pickups(sim, 1.0 / 60.0)
+	ok(not sim.world.is_blocked_px(pile.pos.x, pile.pos.y, sim.structs), "and it is out: %s" % pile.pos)
+
+	var before := p.bag.count("wood")
+	p.pos = pile.pos
+	Loot.update_pickups(sim, 1.0 / 60.0)
+	eq(p.bag.count("wood"), before + 5, "where you can pick it up")
+
+
 # --------------------------------------------------------------- backpacks --
 
 func test_dying_leaves_a_pack_you_can_walk_back_to() -> void:
