@@ -85,6 +85,9 @@ const GAP := 20
 const ROW_GAP := 8
 const RAIL_W := 272
 const DETAIL_W := 460
+## The width a recipe or build card is designed at; a card grid fits as many
+## across as its column holds.
+const CARD_W := 184
 const SLOT_SIZE := 56
 const SLOT_GAP := 4
 
@@ -626,6 +629,30 @@ static func scroller(child: Control) -> ScrollContainer:
 	s.follow_focus = false
 	child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.add_child(child)
+	return s
+
+
+## A grid of cards in a vertical scroller, as many across as the column holds
+## and the rest wrapped onto the rows below. Its width is the column's, never
+## the grid's: a plain `scroller` reports its child's width as its own
+## minimum, so a card wider than CARD_W widened the grid, the grid widened the
+## scroller, the wider scroller fit another column, and the screen ran off the
+## window with the CRAFT button on it. Horizontal scrolling is left on with no
+## bar, which is what stops that report, and the count allows for the widest
+## card, so there is never anything to scroll to.
+static func card_grid(g: GridContainer) -> ScrollContainer:
+	g.columns = 5
+	g.add_theme_constant_override("h_separation", GAP)
+	g.add_theme_constant_override("v_separation", GAP)
+	var s := scroller(g)
+	s.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_SHOW_NEVER
+	s.resized.connect(func() -> void:
+		if not is_instance_valid(g):
+			return
+		var w := float(CARD_W)
+		for c in g.get_children():
+			w = maxf(w, (c as Control).get_combined_minimum_size().x)
+		g.columns = maxi(1, floori((s.size.x + GAP) / (w + GAP))))
 	return s
 
 

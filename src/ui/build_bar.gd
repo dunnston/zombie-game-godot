@@ -509,17 +509,10 @@ func _build_centre(box: Container) -> void:
 		box.add_child(Ui.panel("Inset", Ui.para("Nothing here.", "Body14", Ui.TEXT_DIM)))
 		return
 	var g := GridContainer.new()
-	g.columns = 5
-	g.add_theme_constant_override("h_separation", Ui.GAP)
-	g.add_theme_constant_override("v_separation", Ui.GAP)
 	for id in list:
 		g.add_child(_card(String(id)))
 	_nav_grid = g
-	var sc := Ui.scroller(g)
-	sc.resized.connect(func() -> void:
-		if is_instance_valid(g):
-			g.columns = maxi(1, floori((sc.size.x + Ui.GAP) / (184.0 + Ui.GAP))))
-	box.add_child(sc)
+	box.add_child(Ui.card_grid(g))
 
 
 ## A piece's tile: its art from `art/structures/`, or the colour the street
@@ -542,12 +535,13 @@ func _card(id: String) -> Button:
 	var tile := _tile(id, 56, 34)
 	tile.frame_color = Ui.LINE_STRONG if on else (Ui.LINE_SOFT if locked else Ui.LINE)
 	tile.alpha = 0.45 if locked else 1.0
-	var top := Ui.hbox(12, [tile, Ui.expand(Ui.vbox(5, [Ui.label(String(def.name), "ItemName", Ui.TEXT_OFF if locked else Ui.TEXT_HIGH),
-		Ui.label(category_of(id).trim_suffix("s") if category_of(id) != "Crafting stations" else "Station", "Small",
-			Ui.TEXT_FAINT if locked else Ui.TEXT_DIM)]))])
+	# As on a recipe card: the text wraps, so no card is wider than its column.
+	var top := Ui.hbox(12, [tile, Ui.expand(Ui.vbox(5, [Ui.para(String(def.name), "ItemName", Ui.TEXT_OFF if locked else Ui.TEXT_HIGH),
+		Ui.expand(Ui.label(category_of(id).trim_suffix("s") if category_of(id) != "Crafting stations" else "Station", "Small",
+			Ui.TEXT_FAINT if locked else Ui.TEXT_DIM))]))])
 	var bill: Control
 	if locked:
-		bill = Ui.label("%s  ·  %d HP" % [Structures.cost_label(info.cost), int(info.hp)], "Mono12", Ui.TEXT_FAINT)
+		bill = Ui.para("%s  ·  %d HP" % [Structures.cost_label(info.cost), int(info.hp)], "Mono12", Ui.TEXT_FAINT)
 	else:
 		var chips := Ui.cost_chips(info.cost, _have() if short else Callable(), "Mono12")
 		chips.add_child(Ui.label("·  %d HP" % int(info.hp), "Mono12", Ui.TEXT_DIM))

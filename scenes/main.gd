@@ -1051,6 +1051,17 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 			if Upgrade.level(p.hotbar, pi) != 2:
 				smoke.fail("UPGRADE left the Pipe at level %d (%s)" % [Upgrade.level(p.hotbar, pi), why])
 		await smoke.checkpoint("weapon_upgraded")
+		# The bench's biggest page, on a card with a long name. A card wider
+		# than its column once widened the grid until the detail panel and its
+		# CRAFT button were thousands of pixels past the window; the checkpoint's
+		# off-screen check is the assertion.
+		inventory.craft_cat = "Weapons"
+		inventory.craft_sel = "recipe:compoundBow"
+		await smoke.frames(6)
+		var craft_at := inventory.button_centre("craft")
+		if not get_viewport().get_visible_rect().has_point(craft_at):
+			smoke.fail("the bench's CRAFT button is off the window, at %s" % craft_at)
+		await smoke.checkpoint("workbench_weapons")
 		await smoke.tap("inventory")
 		await smoke.frames(2)
 	_smoke_stand_at(wb_origin)
