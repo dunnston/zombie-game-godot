@@ -350,7 +350,7 @@ static func update_pickups(sim: GameSim, dt: float) -> void:
 		var it: Dictionary = sim.pickups[i]
 		it.t += dt
 		it.life -= dt
-		it.pos += it.vel * dt
+		_slide_pickup(sim, it, dt)
 		it.vel *= exp(-6.0 * dt)
 		if it.life <= 0.0:
 			sim.pickups.remove_at(i)
@@ -372,10 +372,13 @@ static func update_pickups(sim: GameSim, dt: float) -> void:
 					it.inert_for = null
 				continue
 
-		if d2 < range_ * range_ * 5.5:
-			var d := maxf(sqrt(d2), 1.0)
-			var pull := clampf(700.0 / d, 40.0, 620.0)
-			it.vel += (p.pos - it.pos) / d * pull * dt
+		# A wall between you and the pile cuts the pull and the pickup both:
+		# loot is a thing on the floor, and it does not come through brick.
+		if d2 >= range_ * range_ * 5.5 or not sim.world.has_line_of_sight(it.pos, p.pos, 8.0, sim.structs):
+			continue
+		var d := maxf(sqrt(d2), 1.0)
+		var pull := clampf(700.0 / d, 40.0, 620.0)
+		it.vel += (p.pos - it.pos) / d * pull * dt
 		if d2 < pow(range_ * 0.45, 2.0):
 			var entry := pickup_entry_id(it)
 			var r := give_entry(sim, p, {"id": entry, "n": it.n, "w": int(it.get("w", -1)), "lv": int(it.get("lv", 0))}, not it.get("yours", false))
@@ -391,6 +394,30 @@ static func update_pickups(sim: GameSim, dt: float) -> void:
 				sim.emit({"t": "float", "x": it.pos.x, "y": it.pos.y - 8.0, "text": r.text, "color": r.color})
 			sim.emit({"t": "picked_up", "x": it.pos.x, "y": it.pos.y})
 			sim.pickups.remove_at(i)
+
+
+## Moves a pile by its velocity, stopping it against anything solid to feet —
+## one axis at a time, so a pile pulled along a wall slides instead of
+## sticking.
+##
+## A pile already inside something is put out beside it first. Nothing stops
+## a wall going up on top of one, and from inside a wall there is never a line
+## of sight to anyone, so it would get no pull to move it and lie there,
+## unreachable, until it expired. (Codex review, PR #48.)
+static func _slide_pickup(sim: GameSim, it: Dictionary, dt: float) -> void:
+	var w := sim.world
+	var at: Vector2 = it.pos
+	if w.is_blocked_px(at.x, at.y, sim.structs):
+		at = w.unstick(at, 1.0, sim.structs)
+		it.vel = Vector2.ZERO
+	var to: Vector2 = at + it.vel * dt
+	if w.is_blocked_px(to.x, at.y, sim.structs):
+		to.x = at.x
+		it.vel.x = 0.0
+	if w.is_blocked_px(to.x, to.y, sim.structs):
+		to.y = at.y
+		it.vel.y = 0.0
+	it.pos = to
 
 
 ## Into the shared stash if it fits, onto the ground beside `at` if it does
