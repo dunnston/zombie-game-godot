@@ -1712,8 +1712,15 @@ func smoke_run(smoke: Node) -> void:
 		smoke.fail("mending cost nothing")
 	await smoke.checkpoint("weapon_mended")
 
-	await smoke.tap("crafting")
+	# The C CLOSE keycap is a button as well as a key.
+	if inventory.button_centre("close") == Vector2.ZERO:
+		smoke.fail("the craft tab has no clickable CLOSE")
+		await smoke.tap("crafting")
+	else:
+		await smoke_click(inventory.button_centre("close"))
 	await smoke.frames(2)
+	if inventory.visible:
+		smoke.fail("clicking CLOSE left the craft tab open")
 
 	# Levelling: the sheet opens on K, an attribute takes a point, and the
 	# point moves a stat the rest of the game reads. Crafting the hatchet

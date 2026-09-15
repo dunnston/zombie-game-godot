@@ -1145,6 +1145,9 @@ is the one meter the player manages, and it is not food.
   menu once there is nothing left to close. The menu owns input while it is
   visible and the world does not step behind it: the smoke asserts the sim
   clock has not moved after a second of paused frames.
+- **The close keycap is a button too.** `C CLOSE`, `K CLOSE`, `ESC CLOSE`,
+  `B LEAVE` in a screen's top bar close it on a click exactly as the key does
+  (`Ui.keycap` with a callback). The smoke closes the craft tab by clicking it.
 - **SAVE AND QUIT TO TITLE writes the game down before it leaves.** Quitting
   is the moment a player is least able to notice they lost an hour.
 - **Every key is rebindable, and the binds belong to the machine.** They are
