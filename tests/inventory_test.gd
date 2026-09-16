@@ -325,3 +325,27 @@ func test_deposit_matching_tops_up_only_what_is_already_in_there() -> void:
 	chest.store.add("stone", 1)
 	eq(sim.structs.deposit_matching(sim, p, chest.store), 20, "now the stone matches")
 	eq(p.bag.count("stone"), 0)
+
+
+func test_deposit_matching_keeps_a_weapon_its_level_and_its_condition() -> void:
+	# Codex on PR #56: it counted what to move (`store.add(id, n)` then
+	# `bag.take(id, n)`), and a count carries neither the condition nor the
+	# level — so an upgraded, half-worn Machete came back out of the chest as a
+	# level-1 one in perfect condition.
+	var chest := _chest_beside()
+	chest.store.add("machete", 1)              # the chest already holds one
+	p.bag.clear_all()
+	var mine := p.bag.first_empty()
+	p.bag.add("machete", 1)
+	eq(p.bag.id_at(mine), "machete", "the fixture did not put the machete where it thinks")
+	p.bag.set_wear_at(mine, 40)
+	p.bag.set_level_at(mine, 3)
+	eq(sim.structs.deposit_matching(sim, p, chest.store), 1, "the machete went across")
+	eq(p.bag.count("machete"), 0)
+	var at := -1
+	for i in range(chest.store.size()):
+		if chest.store.id_at(i) == "machete" and chest.store.level_at(i) == 3:
+			at = i
+	ok(at >= 0, "the levelled machete is not in the chest at all")
+	eq(chest.store.wear_at(at), 40, "and it arrived mended")
+	eq(chest.store.count("machete"), 2, "both are in there")

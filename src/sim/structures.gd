@@ -921,14 +921,19 @@ func deposit_matching(sim: GameSim, p: PlayerSim, store: Slots) -> int:
 		return 0
 	var moved := 0
 	var left := 0
-	var entries: Dictionary = p.bag.entries()
-	for id in entries:
-		if store.count(id) <= 0:
+	# Which ids it already holds, asked once before anything moves: topping a
+	# container up must not start matching against what this very call put in.
+	var wanted: Dictionary = store.entries()
+	# Slot by slot, and by *moving* the slot rather than counting it. Counting
+	# it (`store.add(id, n)` then `bag.take(id, n)`) rebuilt every weapon as a
+	# level-1, undamaged copy, because a count carries neither the condition
+	# nor the level (Codex, PR #56).
+	for i in range(p.bag.size()):
+		var s := p.bag.at(i)
+		if s.is_empty() or not wanted.has(String(s.id)):
 			continue
-		var want: int = entries[id]
-		var got := store.add(id, want)
-		if got > 0:
-			p.bag.take(id, got)
+		var want: int = s.n
+		var got := _move_slot_into(p.bag, i, store)
 		moved += got
 		left += want - got
 	if moved > 0:
@@ -939,6 +944,31 @@ func deposit_matching(sim: GameSim, p: PlayerSim, store: Slots) -> int:
 	else:
 		sim.notify("Nothing here matches what is in it", "#8a8f84")
 	return moved
+
+
+## Moves the stack in `from_cont[i]` into `store`: part-used stacks of the same
+## thing first, then an empty slot. Returns how many units made it.
+##
+## The slot's own dictionary travels, so a levelled or half-worn weapon arrives
+## as itself. Never onto a slot holding something else — `Slots.move` would
+## swap, and a deposit that handed you back somebody else's stack is not a
+## deposit.
+static func _move_slot_into(from_cont: Slots, i: int, store: Slots) -> int:
+	var before: int = from_cont.at(i).n
+	var id := from_cont.id_at(i)
+	var limit := Items.stack_limit(id)
+	for j in range(store.size()):
+		if from_cont.at(i).is_empty():
+			break
+		var d := store.at(j)
+		if not d.is_empty() and d.id == id and d.n < limit:
+			from_cont.move(i, j, store)
+	if not from_cont.at(i).is_empty():
+		var free := store.first_empty()
+		if free >= 0:
+			from_cont.move(i, free, store)
+	var after := from_cont.at(i)
+	return before - (0 if after.is_empty() else int(after.n))
 
 
 func deposit_all(sim: GameSim, p: PlayerSim, store: Slots) -> int:
