@@ -27,6 +27,7 @@ var _store_hash := ""
 var _trunks_sent := {}
 var _looted_seen := {}
 var _chopped_sent := 0
+var _breached_sent := 0
 var _discovered_seen := {}
 var _rescues_hash := ""
 var _roster_hash := ""
@@ -65,6 +66,7 @@ func _reset_world_baseline() -> void:
 	_trunks_sent.clear()
 	_looted_seen.clear()
 	_chopped_sent = 0
+	_breached_sent = 0
 	_discovered_seen.clear()
 	_rescues_hash = ""
 
@@ -453,6 +455,14 @@ func _send_world_diff(g: Dictionary, force: bool) -> void:
 	elif chopped.size() > _chopped_sent:
 		d["chopped"] = chopped.slice(_chopped_sent)
 
+	# House walls punched through, the same way and for the same reason: a
+	# tile key, once, and a guest that joins late gets the whole list.
+	var breached := sim.world.breached_keys()
+	if force:
+		d["breached"] = breached
+	elif breached.size() > _breached_sent:
+		d["breached"] = breached.slice(_breached_sent)
+
 	var found: Array = []
 	for l in sim.world.locations:
 		if l.discovered and (force or not _discovered_seen.has(String(l.id))):
@@ -489,6 +499,7 @@ func _send_world_diff(g: Dictionary, force: bool) -> void:
 		for key in looted:
 			_looted_seen[key] = true
 		_chopped_sent = chopped.size()
+		_breached_sent = breached.size()
 		for id in found:
 			_discovered_seen[id] = true
 		_rescues_hash = rtext

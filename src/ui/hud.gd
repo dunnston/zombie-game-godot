@@ -92,10 +92,21 @@ func on_event(ev: Dictionary) -> void:
 			if notices.size() > 6:
 				notices.pop_front()
 		"player_hit":
-			hurt = clampf(ev.dmg / 45.0, 0.18, 0.7)
+			# Only your own blood on your own screen. The seat was never read,
+			# so in co-op every screen in the game flashed red whenever anybody
+			# was hit (owner, 2026-09-15).
+			if int(ev.get("seat", _seat())) == _seat():
+				hurt = clampf(ev.dmg / 45.0, 0.18, 0.7)
 		"player_died":
-			hurt = 0.9
-			death_cause = String(ev.get("cause", "died"))
+			if int(ev.get("seat", _seat())) == _seat():
+				hurt = 0.9
+				death_cause = String(ev.get("cause", "died"))
+
+
+## Whose screen this is. -1 before the scene has handed the HUD a player,
+## which is a seat no event carries, so nothing flashes.
+func _seat() -> int:
+	return player.seat if player != null else -1
 
 
 func tick(dt: float) -> void:
@@ -263,8 +274,10 @@ func _build() -> void:
 	_carry_bar = UiMeter.new(10)
 	var carry := Ui.vbox(5, [Ui.hbox(8, [Ui.expand(Ui.label("Carry", "Caps")), _carry]), _carry_bar])
 	carry.custom_minimum_size.x = 150
+	# Built for the ceiling and hidden down to what this build actually has, so
+	# buying Sleight of Hand mid-run does not need the HUD rebuilt under it.
 	var slots := Ui.hbox(4)
-	for i in range(sim.players[0].hotbar.size()):
+	for i in range(int(Config.PLAYER.hotbar_max)):
 		var s := HotSlot.new(i)
 		_slots.append(s)
 		slots.add_child(s)
@@ -418,18 +431,27 @@ func refresh() -> void:
 	# What is working through you: a meal, a Surge, or a raw brain.
 	var chips := PackedStringArray()
 	for id in p.effects:
-		chips.append("%s %ds" % [String(Config.EFFECTS[id].name).to_upper(), ceili(float(p.effects[id]))])
+		# The name, the clock, and what it is doing to you — a chip that only
+		# said "NAUSEA 45s" was the owner's "what does it do?" (2026-09-15).
+		var what := Mutation.effect_summary(String(id))
+		chips.append("%s %ds%s" % [String(Config.EFFECTS[id].name).to_upper(), ceili(float(p.effects[id])),
+			"  (%s)" % what if not what.is_empty() else ""])
 	Ui.set_text(_effects, "  ·  ".join(chips))
 	_effects.visible = not chips.is_empty()
 
 	_hp.set_value(p.hp / maxf(1.0, p.max_hp), null, "HP %d" % roundi(p.hp))
 	# SHORT, not DANGER: DANGER is the health bar's own colour and the two
 	# meters sit next to each other, so a winded bar in it reads as a second
-	# health bar. The countdown is the debuff, not the bar — and the bar reads
-	# empty until it runs out, because any swing before then throws away what
-	# it has climbed back to (`Stamina.spend`).
-	_stam.set_value(0.0 if p.winded else p.stam / maxf(1.0, p.max_stam), Ui.SHORT if p.winded else Ui.ACCENT_HI,
-		"Stamina" + ("  —  winded %.1fs" % p.winded_t if p.winded else ""))
+	# health bar. The refill is slow while the clock runs and it is shown, so
+	# the bar is what it says it is; the countdown beside it is the debuff.
+	# Overburdened has no countdown to show — it ends when the weight does.
+	var winded_note := ""
+	if p.overloaded():
+		winded_note = "  —  overburdened"
+	elif p.winded:
+		winded_note = "  —  winded %.1fs" % p.winded_t
+	_stam.set_value(p.stam / maxf(1.0, p.max_stam), Ui.SHORT if p.winded else Ui.ACCENT_HI,
+		"Stamina" + winded_note)
 	var band := Mutation.band_of(p)
 	_mut.set_value(Mutation.fraction(p), Color(String(band.color)), "Mutation  ·  %s" % String(band.name),
 		"%d%%" % roundi(p.mutation))
@@ -442,7 +464,9 @@ func refresh() -> void:
 	_reloading.visible = not p.reloading.is_empty() and alive
 
 	for i in range(_slots.size()):
-		_slots[i].show_slot(p, i)
+		_slots[i].visible = i < p.hotbar.size()
+		if _slots[i].visible:
+			_slots[i].show_slot(p, i)
 	var carried := p.carried_weight()
 	var frac := clampf(carried / maxf(1.0, p.carry_cap), 0.0, 1.0)
 	var wcol := Ui.TEXT_DIM
@@ -476,11 +500,20 @@ func refresh() -> void:
 		var turned := death_cause == "turned"
 		Ui.set_text(_dead_title, "You turned" if turned else "You died")
 		Ui.set_color(_dead_title, Ui.MUTATION if turned else Ui.DOWN)
-		Ui.set_text(_dead_line, "Respawning in %.1f" % maxf(0.0, p.respawn_t))
+		# Inside an instance nobody comes back on their own: the run ends when
+		# the party does. Counting down to 0.0 and then sitting there was the
+		# owner's "respawn counts to 0.0 and then takes some time".
+		if sim.instance != null:
+			Ui.set_text(_dead_line, "Waiting for the party — you wake outside when the run ends")
+		else:
+			Ui.set_text(_dead_line, "Respawning in %.1f" % maxf(0.0, p.respawn_t))
 	elif p.downed:
 		Ui.set_text(_dead_title, "You are down")
 		Ui.set_color(_dead_title, Ui.DOWN)
-		Ui.set_text(_dead_line, "A teammate can get you up  ·  %.0fs" % maxf(0.0, p.down_t))
+		var key := KeyBinds.primary_label("interact")
+		var giving := p.give_up_t > 0.0
+		Ui.set_text(_dead_line, "Giving up  ·  %.0f%%" % (p.give_up_t / float(Config.PLAYER.give_up_hold) * 100.0) if giving
+			else "A teammate can get you up  ·  %.0fs  ·  hold %s to give up" % [maxf(0.0, p.down_t), key])
 
 
 ## What the interact key is offering, or the channel in progress.

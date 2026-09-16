@@ -96,9 +96,15 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 		var d: float = p.pos.distance_squared_to(s.pos)
 		if d >= best_d:
 			continue
+		# Nothing you built answers the key through a wall — yours or the
+		# town's (2026-09-15).
+		if not _in_sight(sim, p, s.pos, s):
+			continue
 		var entry := {}
 		if s.store != null:
 			entry = {"kind": "store", "ref": s, "label": "Open %s  (%d/%d)" % [s.def.name, s.store.used(), s.store.size()]}
+		elif String(s.def.get("station", "")) == "recycle":
+			entry = {"kind": "recycler", "ref": s, "label": "Use the Recycler"}
 		elif s.type == "workbench" or s.def.has("station"):
 			# E opens the bench; it never spends anything. Upgrading is a button
 			# inside, with its price on it, rather than the key you press to look.
@@ -120,8 +126,12 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 			entry = {"kind": "bedroll", "ref": s,
 				"label": "Respawn point (active)" if p.spawn_tile == Vector2i(s.tx, s.ty) else "Set as respawn point"}
 		elif Structures.is_damaged(s):
+			var bill := Structures.repair_cost(s, p.build_cost_mul)
+			var missing := Structures.shortfall(sim, p, bill)
 			entry = {"kind": "repair", "ref": s,
-				"label": "Repair %s  (%d%%)  ·  %s" % [s.def.name, roundi(s.hp / s.max_hp * 100.0), Structures.cost_label(Structures.repair_cost(s, p.build_cost_mul))]}
+				"label": "Repair %s  (%d%%)  ·  %s" % [s.def.name, roundi(s.hp / s.max_hp * 100.0),
+					Structures.cost_label(bill) if missing.is_empty()
+						else "missing %s" % Structures.cost_label(missing)]}
 		if entry.is_empty():
 			continue
 		# A piece that answers E for something else still says it is hurt.
@@ -183,7 +193,16 @@ static func _door_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 ##
 ## Sight uses the rule bullets use, so a fence you can shoot over is a fence you
 ## can lean across, and a river is not a wall (invariant 3).
-static func _in_sight(sim: GameSim, p: PlayerSim, at: Vector2) -> bool:
+##
+## Since 2026-09-15 that includes **what the player has built**: a chest
+## standing against the inside of a wall could be opened from the street
+## (owner: "can access chests through walls"). `piece` is the thing being
+## reached for, so its own tiles never block the line to it.
+static func in_sight_of(sim: GameSim, p: PlayerSim, at: Vector2, piece := {}) -> bool:
+	return _in_sight(sim, p, at, piece)
+
+
+static func _in_sight(sim: GameSim, p: PlayerSim, at: Vector2, piece := {}) -> bool:
 	var from_t := Vector2i(floori(p.pos.x / Config.TILE), floori(p.pos.y / Config.TILE))
 	var to_t := Vector2i(floori(at.x / Config.TILE), floori(at.y / Config.TILE))
 	# Anything on the next tile is simply within arm's reach: there is no room
@@ -201,6 +220,11 @@ static func _in_sight(sim: GameSim, p: PlayerSim, at: Vector2) -> bool:
 		if t == from_t or t == to_t:
 			continue
 		if sim.world.bullet_blocks_px(s.x, s.y):
+			return false
+		# A piece bigger than a tile is not in its own way, and neither is a
+		# gate standing open.
+		if sim.structs != null and sim.structs.solid_at(t.x, t.y) \
+			and sim.structs.at_tile(t.x, t.y) != piece:
 			return false
 	return true
 
@@ -328,6 +352,9 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 			# and the presentation decides what that looks like.
 			var s: Dictionary = target.ref
 			sim.emit({"t": "open_bench", "seat": p.seat, "tx": s.tx, "ty": s.ty})
+		"recycler":
+			var r: Dictionary = target.ref
+			sim.emit({"t": "open_recycler", "seat": p.seat, "tx": r.tx, "ty": r.ty})
 		"repair":
 			sim.structs.repair(sim, target.ref, p)
 		"bedroll":

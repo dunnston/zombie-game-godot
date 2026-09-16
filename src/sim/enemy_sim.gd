@@ -88,6 +88,10 @@ var blocker := {}
 var pending_struct := {}
 ## The survivor this swing is committed to, if it is not a structure.
 var pending_survivor: SurvivorSim = null
+## The *house* wall tile this swing is committed to, or (-1, -1). Only a stuck
+## enemy with nothing player-built in reach ever starts on the town itself
+## (2026-09-15); everything else goes through `pending_struct`.
+var pending_wall := Vector2i(-1, -1)
 
 ## A boss's script (`Boss`), or null for everything else. It claims the step
 ## while a move or a phase change is running.

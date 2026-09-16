@@ -35,6 +35,13 @@ var danger := PackedByteArray()      # 1..4 per tile
 var props: Array[Dictionary] = []
 var prop_grid := {}                  # tile index -> harvestable prop
 var chopped: Array[int] = []         # tile indices harvested this run, for the save
+## House walls that have been punched through this run, and what is left of
+## the ones still standing. Kept by tile index, saved and sent the way
+## `chopped` is (invariant 7): a tile key, never an ordinal. `wall_hp` is
+## runtime only — a wall that has been hit but not broken stands again on load,
+## which is the same forgiveness a save already gives a damaged prop.
+var breached: Array[int] = []
+var wall_hp := {}
 var gen_fingerprint := 0             # checksum of what the generator produced
 var containers: Array[Dictionary] = []
 var vehicle_spawns: Array[Dictionary] = []
@@ -1572,6 +1579,90 @@ func bullet_blocks_px(px: float, py: float) -> bool:
 	if tx < 0 or ty < 0 or tx >= W or ty >= W:
 		return true
 	return Config.SHOOT_OVER_BY_TILE[tiles[ty * W + tx]] == 0
+
+
+## What stops a shot or a swing: terrain that stops a bullet, **and anything
+## solid the player has built** (owner, 2026-09-15 — pillar 3 reversed; see §6).
+## `skip` is the tile the shot started in, so a turret standing on its own
+## solid tile is not shooting itself, and anything fired from a height
+## (`over`) passes over a wall as it always did.
+func shot_blocks_px(px: float, py: float, structs: Structures, skip := Vector2i(-1, -1)) -> bool:
+	if bullet_blocks_px(px, py):
+		return true
+	if structs == null:
+		return false
+	var tx := floori(px / TILE)
+	var ty := floori(py / TILE)
+	if tx == skip.x and ty == skip.y:
+		return false
+	return structs.solid_at(tx, ty)
+
+
+## Sight along the line a shot would take: the same question `shot_blocks_px`
+## asks, sampled. `structs` null is the old terrain-only rule, which is what
+## a turret on its mount and a sniper up a tower still use.
+func has_shot_line(a: Vector2, b: Vector2, structs: Structures = null, step := 14.0, skip := Vector2i(-1, -1)) -> bool:
+	var d := b - a
+	var len := d.length()
+	if len < 1e-4:
+		return true
+	var n := ceili(len / step)
+	for i in range(1, n + 1):
+		var t := float(i) / n
+		if shot_blocks_px(a.x + d.x * t, a.y + d.y * t, structs, skip):
+			return false
+	return true
+
+
+# ------------------------------------------------------------ house walls --
+
+## What a `WALL` tile has left, filled in the first time anything hits one.
+func wall_hp_at(ti: int) -> float:
+	return float(wall_hp.get(ti, float(Config.BUILD.house_wall_hp)))
+
+
+## A blow against the house wall on this tile. Returns true on the blow that
+## breaks it: the tile becomes rubble, stops blocking, and goes into `breached`
+## for the save and the wire. Anything that is not a standing wall is a miss.
+##
+## A base built inside a house used to be unbreakable — the only way in was
+## whatever the player had built across the doorways — which is the owner's
+## "existing house can't be destroyed, this is OP" (2026-09-15).
+func damage_wall(tx: int, ty: int, amount: float) -> bool:
+	if not in_bounds(tx, ty) or amount <= 0.0:
+		return false
+	var ti := ty * W + tx
+	if tiles[ti] != T.WALL:
+		return false
+	var left := wall_hp_at(ti) - amount
+	if left > 0.0:
+		wall_hp[ti] = left
+		return false
+	break_wall(tx, ty)
+	return true
+
+
+## The tile after the last blow — and the one place a save, a snapshot and a
+## swing all come through, so a guest's map and the host's agree.
+func break_wall(tx: int, ty: int) -> void:
+	if not in_bounds(tx, ty):
+		return
+	var ti := ty * W + tx
+	if tiles[ti] != T.WALL:
+		return
+	tiles[ti] = T.RUBBLE
+	blocked[ti] = Config.SOLID_BY_TILE[T.RUBBLE]
+	wall_hp.erase(ti)
+	if not breached.has(ti):
+		breached.append(ti)
+
+
+## Tile keys of every house wall broken this run, for the save and the diff.
+func breached_keys() -> Array:
+	var out: Array = []
+	for i in breached:
+		out.append("%d,%d" % [i % W, i / W])
+	return out
 
 
 ## Sight: nothing solid to feet between the two points. Trees and boulders

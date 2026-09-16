@@ -15,13 +15,16 @@ extends RefCounted
 ## flip has to be somewhere that can recompute — and a guest has to agree with
 ## the host about when it happened.
 ##
-## The debuff is a **clock, not a lock**. Regen runs at the normal rate the
-## moment you stop spending, so three seconds of standing still hands back a
-## usable bar; swinging or sprinting while winded restarts the clock *and
-## throws that refill away*, so somebody who keeps working stays sluggish and
-## empty until they choose to stop. The HUD keeps the refill out of sight
-## until the clock runs out, so there is never a bar on screen that one swing
-## would take back.
+## The debuff is a **clock, not a lock**, and recovery crawls while it runs:
+## `WINDED.regen_mul` of the normal rate, on the bar where you can see it
+## (owner, 2026-09-15). Swinging through it restarts the clock *and throws the
+## refill away*, so somebody who keeps working stays sluggish and empty until
+## they choose to stop. **Sprinting while winded is refused** rather than
+## charged for — `PlayerSim.move` never spends it — so the clock runs down
+## while you walk, with the key held or not.
+##
+## Carrying more than `carry_cap` — the cap is soft now — winds you and keeps
+## you winded: `overloaded` holds the clock at `dur` until the weight is off.
 
 
 ## Spends `amount` and stops recovery for a beat. `lock` overrides that beat —
@@ -48,10 +51,16 @@ static func tick(p: PlayerSim, dt: float) -> void:
 	# sitting at zero still counts down.
 	if p.stam <= 0.0 and not p.winded:
 		_set_winded(p, true)
+	# Carrying too much is a second way in, and it is a state rather than a
+	# clock: the countdown cannot start until the weight is off.
+	if p.overloaded():
+		_set_winded(p, true)
+		p.winded_t = maxf(p.winded_t, float(Config.WINDED.dur))
 	p.stam_lock = maxf(0.0, p.stam_lock - dt)
 	if p.stam_lock <= 0.0:
-		p.stam = minf(p.max_stam, p.stam + p.stam_regen * dt)
-	if p.winded:
+		var rate := p.stam_regen * (float(Config.WINDED.regen_mul) if p.winded else 1.0)
+		p.stam = minf(p.max_stam, p.stam + rate * dt)
+	if p.winded and not p.overloaded():
 		p.winded_t = maxf(0.0, p.winded_t - dt)
 		if p.winded_t <= 0.0:
 			_set_winded(p, false)
@@ -82,12 +91,16 @@ static func grant(p: PlayerSim, amount: float) -> void:
 ## A guest's mirror learns `winded` from the host's flag bit, not from its own
 ## bar: the host is the one spending on its swings. Routed through the edge
 ## so the penalty is rebuilt on arrival (the flag alone is just a bool, and
-## `recompute_stats` is what turns it into a slower swing). The clock is not
-## shipped, so a guest's countdown starts at `dur` whenever the host says
-## winded and its own clock has run out — an estimate, right whenever the
-## host restarted it by spending, which is the only way it restarts.
-static func sync(p: PlayerSim, on: bool) -> void:
+## `recompute_stats` is what turns it into a slower swing).
+##
+## `left` is the host's own clock, shipped since protocol 10. It used to be
+## estimated — a guest that reached zero a round trip before the host said so
+## reset itself to `dur` on the next snapshot, and the countdown on its HUD
+## never finished (the owner's report: "the winded timer does not drop to 0").
+static func sync(p: PlayerSim, on: bool, left := -1.0) -> void:
 	_set_winded(p, on)
+	if on and left >= 0.0:
+		p.winded_t = left
 
 
 static func restore(p: PlayerSim, value: float) -> void:

@@ -96,26 +96,31 @@ func test_a_stack_moves_between_containers() -> void:
 # ------------------------------------------------------------------ weight --
 
 func test_capacity_is_weight_and_it_counts_the_hotbar_too() -> void:
-	# 225 units of budget: the 200 base plus the 25 that Strength 2 is worth,
-	# because every survivor starts one rank above the tables' baseline.
+	# 225 units of comfortable budget: the 200 base plus the 25 that Strength 2
+	# is worth, because every survivor starts one rank above the tables'
+	# baseline — and 337.5 of ceiling, since the cap went soft (2026-09-15).
 	# A rifle on the hotbar weighs 6 of it, and the pack has to know that or
 	# the weight bar and the loot rules disagree.
 	near(p.carry_cap, 225.0, 0.01)
+	near(p.carry_limit(), 337.5, 0.01, "the ceiling is the cap times overload_mul")
 	p.hotbar.clear_all()
 	p.hotbar.add("rifle", 1)
-	near(p.pack_allowance(), 219.0, 0.01, "the rifle is off the pack's budget")
-	var took := p.bag.add_capped("stone", 200, p.pack_allowance())
-	eq(took, 146, "stone is 1.5 each: 146 fits under 219")
+	near(p.pack_allowance(), 331.5, 0.01, "the rifle is off the pack's budget")
+	var took := p.bag.add_capped("stone", 146, p.pack_allowance())
+	eq(took, 146, "stone is 1.5 each: 146 is 219 units, inside the comfortable cap")
 	ok(not p.overloaded(), "and the bar has not passed full")
 	ok(p.carried_weight() <= p.carry_cap)
 
 
 func test_a_pack_that_is_full_by_weight_takes_nothing_more() -> void:
+	# Past the cap you are overburdened, not refused; the ceiling is what
+	# refuses. 225 x 1.5 = 337.5 of ceiling, and stone is 1.5 each.
 	p.bag.clear_all()
 	p.hotbar.clear_all()
-	eq(p.bag.add_capped("stone", 400, p.pack_allowance()), 150, "150 x 1.5 is 225.0 of 225")
-	eq(p.bag.add_capped("wood", 10, p.pack_allowance()), 0, "half a unit of room takes nothing")
-	ok(p.carried_weight() <= p.carry_cap)
+	eq(p.bag.add_capped("stone", 400, p.pack_allowance()), 225, "225 x 1.5 is 337.5 of 337.5")
+	ok(p.overloaded(), "and that is well past the comfortable cap")
+	eq(p.bag.add_capped("wood", 10, p.pack_allowance()), 0, "nothing fits under the ceiling")
+	ok(p.carried_weight() <= p.carry_limit())
 
 
 # ------------------------------------------------------------------- worn --
@@ -269,23 +274,21 @@ func test_a_chest_cannot_hand_you_more_than_you_can_lift() -> void:
 	ok(not chest.is_empty(), "there is a chest to take from")
 	chest.store.add("stone", 50)
 	p.hotbar.clear_all()
-	p.carry_cap = 200.0
-	p.bag.add_capped("stone", 400, p.pack_allowance())   # 133 units, 199.5
-	var carried := p.carried_weight()
+	p.carry_cap = 200.0                                  # ceiling 300
+	p.bag.add_capped("stone", 400, p.pack_allowance())   # 200 stone, 300 units
 	var free := p.bag.first_empty()
 	ok(free >= 0)
 	# Dragging the chest's fifty stone into an empty pack slot must not put
-	# 75 units of weight on someone with half a unit of room.
+	# 75 units of weight on somebody already at the ceiling.
 	Equipment.move_stack(sim, p, "store", 0, "bag", free, Vector2i(chest.tx, chest.ty))
-	ok(p.carried_weight() <= p.carry_cap + 0.01,
-		"carrying %.1f of %.0f" % [p.carried_weight(), p.carry_cap])
-	ok(not p.overloaded())
+	ok(p.carried_weight() <= p.carry_limit() + 0.01,
+		"carrying %.1f of %.0f" % [p.carried_weight(), p.carry_limit()])
 	eq(chest.store.count("stone"), 50, "nothing moved: there was no room for even one")
 
 	# With room for a few, it takes a few and leaves the rest in the chest.
 	p.bag.take("stone", 10)
 	Equipment.move_stack(sim, p, "store", 0, "bag", p.bag.first_empty(), Vector2i(chest.tx, chest.ty))
-	ok(not p.overloaded(), "carrying %.1f" % p.carried_weight())
+	ok(p.carried_weight() <= p.carry_limit() + 0.01, "carrying %.1f" % p.carried_weight())
 	gt(50, chest.store.count("stone"), "some came out")
 	gt(chest.store.count("stone"), 0, "and the rest stayed put")
 
@@ -298,3 +301,51 @@ func test_putting_things_into_a_chest_is_never_refused_for_weight() -> void:
 	ok(Equipment.move_stack(sim, p, "bag", 0, "store", 0, Vector2i(chest.tx, chest.ty)))
 	ok(p.carried_weight() < before, "the weight left you")
 	eq(chest.store.count("stone"), 40)
+
+
+# -------------------------------------------------------- deposit matching --
+
+func test_deposit_matching_tops_up_only_what_is_already_in_there() -> void:
+	# The owner's "deposit like materials": sorting a base is putting the wood
+	# with the wood, which DEPOSIT ALL cannot do — it empties your pack into
+	# whatever you are standing at.
+	var chest := _chest_beside()
+	ok(not chest.is_empty(), "there is a chest to sort into")
+	chest.store.add("wood", 5)
+	p.bag.clear_all()
+	p.bag.add("wood", 20)
+	p.bag.add("stone", 20)
+	p.bag.add("pipe", 1)
+	eq(sim.structs.deposit_matching(sim, p, chest.store), 20, "the wood went in")
+	eq(chest.store.count("wood"), 25)
+	eq(p.bag.count("wood"), 0)
+	eq(p.bag.count("stone"), 20, "and the stone stayed on you")
+	eq(p.bag.count("pipe"), 1, "as did the pipe")
+	# Anything the chest holds counts, weapons included.
+	chest.store.add("stone", 1)
+	eq(sim.structs.deposit_matching(sim, p, chest.store), 20, "now the stone matches")
+	eq(p.bag.count("stone"), 0)
+
+
+func test_deposit_matching_keeps_a_weapon_its_level_and_its_condition() -> void:
+	# Codex on PR #56: it counted what to move (`store.add(id, n)` then
+	# `bag.take(id, n)`), and a count carries neither the condition nor the
+	# level — so an upgraded, half-worn Machete came back out of the chest as a
+	# level-1 one in perfect condition.
+	var chest := _chest_beside()
+	chest.store.add("machete", 1)              # the chest already holds one
+	p.bag.clear_all()
+	var mine := p.bag.first_empty()
+	p.bag.add("machete", 1)
+	eq(p.bag.id_at(mine), "machete", "the fixture did not put the machete where it thinks")
+	p.bag.set_wear_at(mine, 40)
+	p.bag.set_level_at(mine, 3)
+	eq(sim.structs.deposit_matching(sim, p, chest.store), 1, "the machete went across")
+	eq(p.bag.count("machete"), 0)
+	var at := -1
+	for i in range(chest.store.size()):
+		if chest.store.id_at(i) == "machete" and chest.store.level_at(i) == 3:
+			at = i
+	ok(at >= 0, "the levelled machete is not in the chest at all")
+	eq(chest.store.wear_at(at), 40, "and it arrived mended")
+	eq(chest.store.count("machete"), 2, "both are in there")

@@ -51,10 +51,12 @@ func test_every_perk_is_well_formed_and_does_something() -> void:
 		q.perks[k.id] = 1
 		Perks.recompute_stats(q)
 		ok(_snapshot(q) != before, "%s changes no stat — is there a branch for it in _apply_perk?" % k.id)
-	# Four Strength, four Perception, five Constitution, four Charisma, six
+	# Four Strength, five Perception, five Constitution, four Charisma, six
 	# Intelligence, five Luck. (port-inventory.md says "27" in its prose and
-	# then lists 28; the prototype's table is the authority and has 28.)
-	eq(ids.size(), 28, "the whole tree")
+	# then lists 28; the prototype's table is the authority and had 28.
+	# Sleight of Hand is the twenty-ninth, added 2026-09-15 for the owner's
+	# "can players increase hotbar size?")
+	eq(ids.size(), 29, "the whole tree")
 
 
 func test_the_xp_curve_matches_the_prototype() -> void:
@@ -581,3 +583,26 @@ func test_a_build_survives_a_save_and_is_re_derived_not_stored() -> void:
 	Equipment.recompute_stats(q)
 	eq(str(_snapshot(q)), str(built), "the same build produces the same survivor")
 
+
+
+func test_sleight_of_hand_grows_the_hotbar() -> void:
+	# The owner asked whether the hotbar could grow ("possibly an agility
+	# perk"). Perception is the attribute about your hands.
+	eq(p.hotbar.size(), 6, "six to start with")
+	p.attrs["per"] = 5
+	Perks.recompute_stats(p)
+	eq(p.hotbar.size(), 6, "and Perception alone changes nothing")
+	p.perks["sleightOfHand"] = 1
+	Equipment.recompute_stats(p)
+	eq(p.hotbar_slots, 7, "rank 1 is a seventh slot")
+	eq(p.hotbar.size(), 7, "and the hotbar grew to match")
+	p.hotbar.add("pipe", 1)
+	p.perks["sleightOfHand"] = 2
+	Equipment.recompute_stats(p)
+	eq(p.hotbar.size(), 8, "rank 2 is the eighth")
+	eq(p.hotbar_slots, int(Config.PLAYER.hotbar_max), "and that is the ceiling")
+	# Nothing is ever taken back out of it.
+	p.perks.erase("sleightOfHand")
+	Equipment.recompute_stats(p)
+	eq(p.hotbar.size(), 8, "the slots stayed, because what is in them is not a stat")
+	eq(p.hotbar_slots, 6, "even though the build no longer asks for them")

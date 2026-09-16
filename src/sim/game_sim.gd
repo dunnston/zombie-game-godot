@@ -68,6 +68,7 @@ var world_version := 0
 var nav_enabled := true
 
 var _nav := {}                    # seat -> NavField
+var _nav_places := {}             # tile index -> NavField, for the crew's walk home
 
 
 func _init() -> void:
@@ -121,6 +122,7 @@ func start(world_: World, run_seed: int = 1) -> void:
 	cars.plant_keys(self)
 	world_version += 1                # any cached flow field is about a dead world
 	_nav.clear()
+	_nav_places.clear()
 	events.clear()
 	for k in stats:
 		stats[k] = 0 if stats[k] is int else 0.0
@@ -392,6 +394,54 @@ func nav_for(p: PlayerSim) -> NavField:
 		_nav[p.seat] = nf
 	nf.build(world, tile, Config.NAV.radius_tiles, time, world_version, structs)
 	return nf
+
+
+## A flow field toward a *place* rather than toward a player: what your people
+## walk home along. One field per target tile, rebuilt when the world changes
+## or it goes stale, and shared by everyone heading for the same post — a crew
+## of six walking to one base centre is one field.
+##
+## Rescued survivors used to walk at the base in a straight line and wedge
+## themselves on the first building between them and it (owner, 2026-09-15:
+## "survivors not pathing to base — when a survivor is rescued they are
+## stuck"). Invariant 6: nothing walks at a target without a way round.
+func nav_to(target: Vector2) -> NavField:
+	if not nav_enabled:
+		return null
+	# A post is usually a *piece* — a bunk, a stash — and a field whose target
+	# tile is blocked comes back empty, which is indistinguishable from "no way
+	# there". Aim at the open ground beside it instead.
+	var tile := _open_tile_near(Vector2i(floori(target.x / Config.TILE), floori(target.y / Config.TILE)))
+	var key := tile.y * Config.WORLD_TILES + tile.x
+	var nf: NavField = _nav_places.get(key)
+	if nf != null and nf.version == world_version and time - nf.built_at < Config.NAV.max_age:
+		return nf
+	if nf == null:
+		# One field per post is the common case; a stale one is dropped rather
+		# than kept, so a base that moves does not leak a field a run.
+		if _nav_places.size() > 3:
+			_nav_places.clear()
+		nf = NavField.new()
+		_nav_places[key] = nf
+	nf.build(world, tile, Config.NAV.radius_tiles, time, world_version, structs)
+	return nf
+
+
+## `tile` if anything can stand on it, or the nearest tile that can, searched
+## outward by rings. Two rings is enough for the middle of a base: past that
+## the caller is asking for somewhere nothing can reach anyway.
+func _open_tile_near(tile: Vector2i) -> Vector2i:
+	if not world.is_blocked_tile(tile.x, tile.y, structs):
+		return tile
+	for r in range(1, 3):
+		for j in range(-r, r + 1):
+			for i in range(-r, r + 1):
+				if absi(i) != r and absi(j) != r:
+					continue
+				var t := tile + Vector2i(i, j)
+				if not world.is_blocked_tile(t.x, t.y, structs):
+					return t
+	return tile
 
 
 ## The base belongs to one player. Wall strength, turret reach, upkeep and

@@ -144,11 +144,11 @@ static func status(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> Dic
 	return {"ok": true, "reason": ""}
 
 
-## Whether one more of `id` fits inside the carry cap. Weapons and gear go
+## Whether one more of `id` fits under the hard ceiling. Weapons and gear go
 ## into a slot rather than a stack, so they never meet `add_capped` and have
 ## to be weighed here.
 static func _can_lift(p: PlayerSim, id: String) -> bool:
-	return p.carried_weight() + Items.weight_of(id) <= p.carry_cap + 1e-9
+	return p.carried_weight() + Items.weight_of(id) <= p.carry_limit() + 1e-9
 
 
 ## Whether the pack can take `n` of `id`, by slot space and by weight.

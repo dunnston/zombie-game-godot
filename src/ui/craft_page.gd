@@ -696,6 +696,9 @@ func _stats_for(id: String) -> Array:
 				out.append(["Mutation", "−%d" % roundi(float(c.mut)), Ui.MUTATION])
 			if c.has("effect"):
 				out.append(["Effect", String(Config.EFFECTS[c.effect].name)])
+				var what := Mutation.effect_summary(String(c.effect))
+				if not what.is_empty():
+					out.append(["", what])
 			out.append(["Weight", "%.1f" % Items.weight_of(id)])
 			return out
 	return [["Stack", str(Items.stack_limit(id))], ["Weight", "%.1f" % Items.weight_of(id)]]

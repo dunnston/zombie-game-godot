@@ -21,6 +21,10 @@ const KEYS := {
 	"light": [KEY_T],
 	"slot1": [KEY_1], "slot2": [KEY_2], "slot3": [KEY_3],
 	"slot4": [KEY_4], "slot5": [KEY_5], "slot6": [KEY_6],
+	# Seven and eight are only reachable with Sleight of Hand, and bound
+	# anyway: a key that appears with a perk is a controls screen that changes
+	# shape under the player.
+	"slot7": [KEY_7], "slot8": [KEY_8],
 	"inventory": [KEY_TAB],
 	"crafting": [KEY_C],
 	"character": [KEY_K],
@@ -71,6 +75,11 @@ const ACTIONS := [
 	{"id": "slot4", "name": "Slot 4", "group": "Fight"},
 	{"id": "slot5", "name": "Slot 5", "group": "Fight"},
 	{"id": "slot6", "name": "Slot 6", "group": "Fight"},
+	# Seven and eight exist only with Sleight of Hand, but a binding that
+	# appears and disappears with a perk would be a controls screen that
+	# changes shape: they are always bound and do nothing until the slot does.
+	{"id": "slot7", "name": "Slot 7", "group": "Fight"},
+	{"id": "slot8", "name": "Slot 8", "group": "Fight"},
 	{"id": "interact", "name": "Use / search", "group": "Use"},
 	{"id": "use_heal", "name": "Heal", "group": "Use"},
 	{"id": "use_suppress", "name": "Suppress mutation", "group": "Use"},

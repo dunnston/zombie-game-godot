@@ -82,8 +82,12 @@ These settle arguments. When a decision is close, the pillar wins.
 2. **Danger is the only gate.** Nothing is level-locked. The map shades
    districts by danger so you can *see* where you want to go before you can
    survive it.
-3. **Fun over realism.** Bullets pass over your own walls because a base you
-   cannot shoot out of punishes you for building it.
+3. **Fun over realism.** A base you cannot shoot out of punishes you for
+   building it — so a turret on its mount and a survivor up a Watchtower shoot
+   over your walls. **Your own shots and swings do not** (owner, 2026-09-15):
+   a wall is a wall in both directions, because "I can stab it and it cannot
+   reach me" was the exploit the owner found first. Water and fences still go
+   the other way: solid to feet, open to shots.
 4. **Readability over fidelity.** If a thing cannot be identified at a glance
    in a crowd, fix that before adding detail.
 5. **Every system has to be finished.** Cut breadth, not quality.
@@ -259,6 +263,194 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 ---
 
 ## 4. What is built
+
+### Eight slots, if you buy them (2026-09-15)
+
+The owner: "can players increase hotbar size? possibly an agility perk?"
+There is no Agility — Perception is the attribute about your hands, and it
+already holds Quick Hands — so **Sleight of Hand** (PER 5, two ranks) is
++1 hotbar slot a rank, to `PLAYER.hotbar_max` (8).
+
+`hotbar_slots` is a stat like any other, written by the recompute
+(invariant 4); the container is grown to match it by `PlayerSim.sync_hotbar`,
+called from `Equipment.recompute_stats` — the one door every build change
+comes through — rather than from the three places a perk can be bought,
+loaded or joined into. It never shrinks: a slot is not a stat, and taking one
+away would have to decide what happens to what is in it. `slot7` and `slot8`
+are bound to 7 and 8 always, because a key that appears with a perk is a
+controls screen that changes shape under the player, and the HUD is built for
+eight and hides down to what this build has.
+
+### The Recycler (2026-09-15)
+
+DL-86, and the fifth bench on Notion's Workbenches table: *"Breaks bigger
+things down into base materials. Nothing is crafted here. What each item gives
+back is on the item, under Breaks down into."*
+
+- **`data/recycle.json`** is that column, sixty-five rows, written through
+  `DataTable.encode` by `tools/add_recycle.gd` (the script is the paste, the
+  encoder is the writer — §10). Buildings are deliberately absent: taking one
+  down already pays through `demolish`, and a second refund for the same wall
+  is a loop.
+- **The bench** is `recycler` in `STRUCTURES`: Scrap 34 · Wood 20 · Weapon
+  Parts 3, 280 HP, `station: "recycle"`, tier 2.
+- **`Recycle.yield_of(id, wear)`** is the whole rule: the row, times
+  `Config.RECYCLE_SHARE` (1.0 — the knob exists so a run through the bench can
+  be made lossy without touching sixty-five rows), times a worn tool's
+  condition. **Nothing ever goes in and comes out as nothing**: a row that
+  gives anything gives at least one of its biggest material, so a broken
+  Stone Knife is still a stone.
+- **The screen** is the pack beside one panel: click a thing, see exactly what
+  it is worth, press BREAK IT DOWN. One at a time, so a stack of twelve is
+  twelve decisions. `E` opens it (`open_recycler`), and it closes itself when
+  you walk away, like every other bench.
+- **Co-op:** `Actions.recycle` names a slot and the host finds the bench
+  itself, the same shape as a workbench's tier.
+- `crafting_test` +4: the Machete's twelve scrap, a half-worn one giving six,
+  a broken one still giving its stone, the refusals, and that every row in the
+  table names a real item and real materials. The smoke builds one, opens it
+  on the key, clicks the Machete and presses the button (`recycler`,
+  `recycled`).
+
+### Other people, and the things that only show in co-op (2026-09-15)
+
+The rest of the *Multiplayer Playing* list: DL-90, DL-91, DL-92, DL-93, DL-95
+and the bullets about the red flash and the respawn timer.
+
+- **Only your own blood on your own screen.** `Hud.on_event` never read the
+  seat on `player_hit`, so every screen in the game flashed red whenever
+  anybody was hit.
+- **Give up rather than wait.** Holding the interact key while down for
+  `PLAYER.give_up_hold` (1.6s) kills you instead of running out the thirty
+  seconds — the owner's "add a button to force die to avoid the timer wait in
+  MP". The bar fills on the machine holding the key; the host still decides.
+- **Dead inside an instance says what is happening.** "Respawning in 0.0" and
+  then nothing was true — nobody comes back on their own in there, the run
+  ends when the party does — so the line now says so.
+- **Autosave every five minutes** (`Saves.AUTOSAVE_EVERY`, was two).
+- **The instance is its own daylight.** `clock_t` 0.70 → 0.35: it was dusk,
+  past `DARK_ENOUGH`, so a torch lit itself and the whole run played at
+  night. The only dark in there now is the boss's (`dark_t`).
+- **Your people path home.** `GameSim.nav_to(place)` is a flow field toward a
+  post rather than toward a player, cached per target tile and shared by the
+  crew; a survivor whose straight line is blocked follows it and steers with
+  `Enemies.steer_pos`. A post is usually a piece, so the field aims at the
+  open ground beside it — a field whose target tile is blocked comes back
+  empty, which reads exactly like "there is no way there".
+- **Every effect says what it does.** `Mutation.effect_summary` reads an
+  effect's own `add`/`mul` and prints "slower · worse aim · slower recovery",
+  on the HUD chip, the item detail and the craft page. "Nausea — what does it
+  do?" was a fair question about a chip that only had a name on it.
+- `coop_test` +1 (give up), `survivors_test` +1 (rescued behind a building,
+  and it fails without the field), `mutation_test` +1 (every effect says
+  something), `instance_test` rewritten for daylight.
+
+### One control scheme, and the screens say what they do (2026-09-15)
+
+The storage half of the same playtest (DL-88, DL-89, DL-97, and the bullets
+about the control scheme, the repair tooltip and Tab).
+
+- **The scheme, on every slot screen** (`InventoryScreen.CONTROLS_HINT`):
+  drag to move · **Shift+click** sends it to the other panel · right-click
+  uses, equips or stows · **Ctrl+click** drops · **Alt+click** splits.
+  Splitting moved off Shift to make room for the quick move, which is the
+  habit every survival game builds.
+- **DEPOSIT MATCHING** ("Top up what is here") puts in everything the
+  container already holds a stack of, and nothing else —
+  `Structures.deposit_matching`, through `Actions` like DEPOSIT ALL, so a
+  guest's press runs on the host. Sorting a base is putting the wood with the
+  wood, and DEPOSIT ALL cannot do that job.
+- **Nothing comes back out of the haul.** It never kept anything —
+  `Instance.haul_load` counted a find wherever it sat — so the drag only ever
+  looked like a way to cheat a run. (It also means a found medkit cannot be
+  used on the way through, which is a change in what a run feels like.)
+- **A repair names what is missing**, not the whole bill:
+  `Structures.shortfall` nets the cost off the pack and the stash, and the
+  build bar, the `E` prompt and the refusal all print that.
+- **Tab closes.** The key that opens the pack, crafting or the build menu
+  closes it from any tab; **Shift+Tab** steps the rail, which is what Tab
+  used to do.
+- **A workbench turns.** `Structures.quarters` is 2 for a piece longer than
+  it is wide, 4 for a square piece with a front (`FACING`) and 1 for a wall
+  or a gate, which follows the wall it stands in. Drawing only:
+  `_draw_picture` turns the picture by quarter turns and nothing about the
+  footprint, the collision or the reach changes. `rot` was already on the
+  wire and in the save.
+- `inventory_test` +1 (matching), `building_test` +2 (the shortfall, the
+  workbench turned and reloaded), `instance_test` rewritten where it moved
+  finds into the pack. The smoke shift+clicks a stack into a chest
+  (`chest_shift_moved`).
+
+### A wall is a wall, and the town can be broken open (2026-09-15)
+
+From the same playtest: DL-83 ("can still attack zombies through existing
+walls"), DL-94 ("can access chests through walls"), DL-85 ("existing house
+can't be destroyed — this is OP") and the two page bullets beside them.
+
+- **`World.shot_blocks_px` / `has_shot_line` is the one question**: terrain
+  that stops a bullet, plus anything solid the player has built. Melee
+  (`Combat.melee_targets`), bullets (`tick_bullets`), a raider's target
+  choice and a ground survivor's all ask it.
+- **Height is the exemption.** A turret's round and a posted sniper's carry
+  `over` and take the old terrain-only rule, so a compound still shoots out
+  of the pieces built to shoot out of. Nothing needs to exempt the tile a
+  shot started on: the only shooters standing on a solid piece are those two.
+- **A zombie cannot bite through a wall either.** `player_in_reach` was
+  distance alone, so a walker on the far side of a one-tile wall was hitting
+  you through it — the half of the report that was costing health.
+- **Nothing you built answers `E` through a wall.** `Interact._in_sight` now
+  counts solid structures as well as terrain (the piece being reached for is
+  never in its own way), `best_target` asks it for every piece, and
+  `Structures.reachable_store` asks it every frame the panel is open, so a
+  chest cannot be emptied from the other side of its wall.
+- **House walls have hit points** (`BUILD.house_wall_hp`, 620 — between a
+  Reinforced Wall and a Steel one). `World.damage_wall` counts down in
+  `wall_hp`, `break_wall` turns the tile to rubble and files it in
+  `breached`, which the save carries (**v12**) and the world diff sends the
+  way it sends `chopped`. `world_version` bumps, so every flow field is
+  rebuilt around the new hole, and `TerrainRenderer.repaint` redraws the one
+  tile rather than the hundred thousand.
+- **Who breaks them:** the dead, and only when they have no way round.
+  `Enemies._cut_off` is a raider (walking at your base, a house in the way is
+  in the way) or a chaser the flow field covers and cannot give a step to —
+  sealed in a building is exactly that. The stuck rescue keeps its own
+  fallback. **Players cannot**: knocking a doorway in the town is a tool and
+  a card of its own.
+- `building_test` +5 (swing, bite, round vs the same round `over`, the chest,
+  a wall broken and the key written down, and a walker sealed out that starts
+  on the house); `net_test` +1 (the mirror gets the hole).
+
+### Winded is a crawl you can walk off, and the pack has a soft cap (2026-09-15)
+
+From the *Multiplayer Playing* playtest (cards DL-87 and the stamina bullets).
+Four notes, one system.
+
+- **Sprinting while winded is refused**, not charged for. It used to spend and
+  so restarted the clock every step, which is why the owner's countdown
+  "did not drop to 0 while walking": with the key held, it never could.
+- **The refill crawls while the clock runs** — `WINDED.regen_mul` (0.25) of
+  the normal rate — and the HUD shows it. The refill used to run at full speed
+  and be hidden, which was the honest way to draw something one swing would
+  take back; a slow, real refill says the same thing without lying about the
+  bar. Swinging through it still dumps what it has climbed to.
+- **`stam_regen_delay` is 1.0s** (was 0.65): a beat of stillness before
+  recovery starts, so the bar between two swings sits still instead of
+  twitching.
+- **The carry cap is soft.** `carry_cap` is what you carry comfortably;
+  `carry_limit()` (`overload_mul`, 1.5x) is the hard ceiling where pickups,
+  crafts and chest withdrawals are refused as they always were. Between the
+  two you are **overburdened**: winded until the weight comes off, no sprint
+  and no dash, and walking pace untouched. `Stamina.tick` holds the clock at
+  `dur` while `overloaded()`, so the debuff ends when the weight does.
+- **Co-op:** the host's `winded_t` rides the player record (`PL_WINDED_T`,
+  protocol 10). A guest used to estimate it from the flag, so an estimate that
+  ran out a round trip early was reset to `dur` by the next snapshot and the
+  countdown looped 3 → 0 → 3.
+- `player_test` pins all four (sprint refused, the clock running down while
+  walking with the key held, the crawl, overburdened, the ceiling);
+  `net_test` that the guest's countdown is the host's own clock. The smoke's
+  `winded_bar` now asserts the bar shows the refill and that the sprint key
+  does not restart the clock.
 
 ### Walls join, and a gate lies along its wall (2026-09-15)
 
@@ -1738,9 +1930,13 @@ Phases 1–4 respecting it.
 2. **All static collision is one tile bitmap** (`PackedByteArray`). Player
    structures live in a *separate* destructible map. Collision, bullets,
    build validation and AI steering read the same two sources.
-3. **Bullets collide with terrain only** and pass over player structures
-   (pillar 3). Water and fences go the other way: solid to feet, transparent
-   to shots.
+3. **A shot or a swing stops at anything solid** — terrain and player
+   structures both (`World.shot_blocks_px`; changed 2026-09-15, see §6).
+   Height is the one exemption: a bullet carrying `over` — a turret's, a
+   posted sniper's — takes the old terrain-only rule. Water and fences go the
+   other way: solid to feet, transparent to shots.
+   *(Until 2026-09-15 bullets collided with terrain only and passed over
+   everything the player built.)*
 4. **`recompute_stats()` is the only source of player stat modifiers.**
    Base → attributes → perks → gear → Mutation band → effects, rebuilt from
    scratch. Never mutate a stat on purchase, and never on a band change
@@ -1770,6 +1966,10 @@ Phases 1–4 respecting it.
 
 | Date | Decision | Why | Reversible? |
 | --- | --- | --- | --- |
+| 2026-09-15 | **A shot stops at a wall you built** — pillar 3 reversed, with height as the exemption (a turret's rounds and a posted sniper's carry `over`) | Owner's call on the *Multiplayer Playing* playtest: a wall you can stab and shoot through is a wall that only works for the horde. The compound still shoots back, from the pieces that are *supposed* to — which is also a reason to build a Watchtower. | Yes, one branch in `tick_bullets` (drop `structs`), but the raid balance moves with it |
+| 2026-09-15 | **House walls take damage — from the dead, not from you** (`BUILD.house_wall_hp`, 620) | Owner: a base inside a house was unbreakable, so the only way in was whatever you had built across the doorways. A chaser only starts on the town when the flow field cannot route it to its target at all; a raider treats a house wall like any other wall in its way. Players cannot knock holes in the town — that is a separate tool, and a separate card. | Yes; `break_wall` and the `breached` list are the only writers |
+| 2026-09-15 | **The carry cap is soft**: `carry_cap` is comfort, `carry_limit()` (1.5x) is the refusal | Owner, from the *Multiplayer Playing* playtest: a find one unit too heavy simply would not go in, which reads as a bug rather than as a decision. Overburdened is now a state you can walk home in — winded, no sprint, no dash — instead of a wall. | Yes, one const (`PLAYER.overload_mul` 1.0 restores the hard cap) |
+| 2026-09-15 | **Sprinting while winded is refused rather than charged for** | It was the reason the countdown never finished: spending restarts the clock, and the key is usually still held. Swinging through it still restarts it, so "push through and stay sluggish" survives where it was actually a choice. | Yes |
 | 2026-09-08 | Rebuild in Godot rather than keep extending the browser prototype | Navigation, 2D lighting, distribution and entity scale all cost more to fake in Canvas2D than to get from an engine. The code only gets bigger, so now is the cheapest moment. | Not cheaply |
 | 2026-09-08 | GDScript, not C# | Fastest iteration, no build step, what the tooling and community assume. | Yes, per module |
 | 2026-09-08 | Rebuild, not translate | 18,800 lines of JS with browser-specific harnesses. Translating carries the prototype's compromises; rebuilding against the spec lets each system be finished properly (pillar 5). | n/a |
@@ -2568,6 +2768,9 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-15 | **The *Multiplayer Playing* playtest, group D: co-op, death and the crew.** The hurt flash is the hit seat's alone (every screen used to flash); holding the interact key while down gives up rather than waiting out thirty seconds (`PLAYER.give_up_hold`); dead inside an instance says the run has to end rather than counting to 0.0 and stopping; autosave every five minutes; the School is its own daylight (`clock_t` 0.35) and the only dark in it is the boss's; your people path home along `GameSim.nav_to` instead of walking into the first building; and every effect prints what it does to you (`Mutation.effect_summary`) on the HUD chip, the item detail and the craft page. `tools/test`: 780 tests, 17627 asserts, 0 failures |
+| 2026-09-15 | **The *Multiplayer Playing* playtest, groups B and C: walls, and the slot screens.** A shot or a swing stops at anything solid, terrain and built alike (`World.shot_blocks_px`), with height as the exemption — a turret's round and a posted sniper's carry `over`. Zombies cannot bite through a wall either, and nothing you built answers `E` through one: `Interact._in_sight` counts structures, and `reachable_store` asks it every frame. House walls have hit points (`BUILD.house_wall_hp` 620), break to rubble, and are carried by the save (**v12**) and the world diff as tile keys; the dead break them and only when the flow field cannot route them (`Enemies._cut_off`). Storage: one scheme on every screen (Shift sends across, Ctrl drops, Alt splits, RMB uses), DEPOSIT MATCHING, no dragging out of the haul, a repair bill that names only what is missing, Tab closes a screen (Shift+Tab steps the rail), and a workbench that turns four ways for the picture's sake. `tools/test`: 777 tests, 17602 asserts, 0 failures; `--all` 810 with the compound SIEGE at 296s, up from 124s — a defender walled in cannot shoot out any more, which is the decision showing up in the numbers |
+| 2026-09-15 | **The *Multiplayer Playing* playtest, group A: stamina, winded and weight** (Notion DL-87 and three page bullets). Sprinting while winded is refused instead of spent, so the clock runs down while you walk with the key held — the owner's "winded timer does not drop to 0 while walking", which was the sprint restarting it every step. The refill crawls at `WINDED.regen_mul` (0.25) while the clock runs and the HUD shows it rather than hiding a full-speed one; `stam_regen_delay` 0.65 → 1.0 so the bar sits still between swings. The carry cap went soft: `carry_cap` is comfort and `carry_limit()` (`overload_mul` 1.5) is where pickups, crafts and chest withdrawals are refused, and in between you are **overburdened** — winded, no sprint, no dash, until the weight comes off. Co-op ships the host's `winded_t` (`PL_WINDED_T`, protocol 10) instead of a guest estimating it from the flag and looping 3 → 0 → 3. `player_test` +4, `net_test` +1; the four capacity tests that encoded the hard cap now encode the ceiling. `tools/test`: 767 tests, 17562 asserts, 0 failures |
 | 2026-09-15 | **Winded throws away the refill, and the noise lens can be found.** Owner: the noise overlay "is not there", and winded should reset its timer *and* dump what the bar refilled. Stamina: the bar still refills during the 3s debuff, but `Stamina.spend` while winded now zeroes it as well as restarting the clock, and the HUD draws the bar empty until the clock runs out, so there is never a bar on screen that one swing would take back. Standing still three seconds comes out with the same bar as before, which is what keeps this clear of the regen-lock draft that flickered. Noise lens: it existed (F2, dev builds, only for swung/fired/built/driven noise), but the rings lived in `FxView` under the night's CanvasModulate and went black after dark. They are now `NoiseLensView` on a camera-following CanvasLayer, the F1 menu has a *Toggle the noise overlay* row sharing one `NoiseLensView.toggle` with F2, and switching off clears rings mid-fade. Tests: a winded swing and a winded sprint each dump the refill (both fail against the old `spend`). Smoke: `winded_bar` asserts the HUD hides a real refill; `noise_lens_night` presses F2 at midnight and photographs the ring. `tools/test`: 764 tests, 0 failures. Smoke: 98 checkpoints, 2 failures outside this change (the move-to-cursor focus flake; a meal cancelled by a hit) |
 | 2026-09-15 | **Walls join, and a gate lies along its wall.** Owner feedback on the street art: gaps between walls, a gate that looked wrong and faced the wrong way. Wall and gate pictures are re-cut to the whole tile (`slice_world.py`, walls without their post stubs), `StructureView` trims their outline on every side that meets another wall piece, and a gate in a wall running up and down is drawn turned; the ghost joins too. Drawing only. Smoke `structure_art` gains a corner and a turned gate, with asserts on the joins |
 | 2026-09-15 | **Built pieces look like themselves, and a bed two tiles long.** The owner's top-down pictures of every buildable are in `art/world/` (cut by `tools/slice_world.py`), drawn by `StructureView` fitted to the piece's tiles with damage, flash, crops, rings and labels over them; an open gate has its own picture and the turret's head turns on its mount; the build ghost shows the picture. Pieces can cover several tiles (`w`/`h`, `rot`, top-left anchor, every tile in `grid`), R turns one while placing, and the turn is in the intent, the wire, the save and the snapshot. New buildable: the Long Raised Bed (`longBed`), one planting over two tiles, harvest x2.5, Wood 30 · Sticks 12 · Fiber 10. Menu icons unchanged but for the new bed's. Tests in `building_test`, `farming_test`, `net_test`, `icons_test`; smoke `structure_art` and `long_bed_ghost`. **Codex pass (PR #50):** the fifth element went out under protocol 8, so an updated guest joining a host from the release before was let in and every placement, repair and demolition it sent was dropped; protocol 9 turns it away with the out-of-date message instead. Second finding: a guest applied a world diff's builds before its removals, so a bed built across a removed wall's tile was deleted by the wall's "gone" and stayed missing until a rejoin; removals now go first and only take the piece anchored there. `test_a_bed_built_over_a_removed_wall_survives_the_same_diff` fails without it |

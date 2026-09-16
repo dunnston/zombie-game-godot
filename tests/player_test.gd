@@ -84,40 +84,79 @@ func test_sprinting_to_zero_winds_you() -> void:
 	ok(p.swing_rate_mul > 1.0, "and a winded swing is slower: %.2f" % p.swing_rate_mul)
 
 
-func test_the_winded_clock_runs_out_while_the_bar_refills() -> void:
-	# The debuff is a clock, not a lock: recovery runs at the normal rate
-	# throughout, so three seconds of standing still hands back a usable bar
-	# and the swing is quick again.
+func test_the_winded_clock_runs_out_and_the_bar_crawls_while_it_does() -> void:
+	# The debuff is a clock, not a lock — but recovery crawls while it runs
+	# (owner, 2026-09-15), so the three seconds end with a little back rather
+	# than most of the bar, and the rest comes at the normal rate afterwards.
 	var p := _player_at_tile(6, 133)
 	p.stam = 0.0
 	_run(p, DT)
 	ok(p.winded, "empty stamina should latch winded")
 	near(p.winded_t, Config.WINDED.dur, 0.05, "the clock starts at dur")
-	_run(p, 1.0)
-	ok(p.stam > 5.0, "recovery runs during the debuff: %.1f" % p.stam)
+	_run(p, 2.0)
 	ok(p.winded, "still winded at %.1f" % p.stam)
-	_run(p, 2.2)
+	var slow := p.stam_regen * float(Config.WINDED.regen_mul)
+	ok(p.stam > 0.0 and p.stam < slow * 2.0 + 1.0,
+		"the refill crawls while winded: %.1f after two seconds" % p.stam)
+	_run(p, 1.2)
 	ok(not p.winded, "three seconds of standing still clears it")
 	near(p.swing_rate_mul, 1.0, 0.001, "and the swing is quick again")
-	ok(p.stam > 40.0, "with a usable bar: %.1f" % p.stam)
+	var after := p.stam
+	_run(p, 1.0)
+	ok(p.stam - after > slow * 2.0, "and recovery is back to full speed: +%.1f in a second" % (p.stam - after))
 
 
-func test_sprinting_while_winded_restarts_the_clock() -> void:
-	# Pushing through is what keeps you slow. Stopping is the way out.
+func test_sprinting_while_winded_is_refused_so_walking_it_off_works() -> void:
+	# It used to be charged for, which restarted the clock every step: anyone
+	# walking home with the key held stayed winded for ever (owner, 2026-09-15).
 	var p := _player_at_tile(6, 133)
 	p.stam = 0.0
 	_run(p, DT)
 	ok(p.winded, "winded")
-	_run(p, 2.0)
+	var was := p.pos.x
 	p.intent.mx = 1.0
 	p.intent.sprint = true
-	_run(p, 0.2)
-	ok(p.winded_t > 2.5, "sprinting restarted the clock: %.2f" % p.winded_t)
-	near(p.stam, 0.0, 0.001, "and threw away the two seconds of refill")
-	p.intent.mx = 0.0
+	_run(p, 1.0)
+	ok(not p.sprinting, "the sprint key did something while winded")
+	ok(p.winded_t < float(Config.WINDED.dur) - 0.5, "the clock did not run down: %.2f" % p.winded_t)
+	ok(p.stam > 0.0, "and the walk threw the refill away: %.2f" % p.stam)
+	var walked := p.pos.x - was
+	ok(walked > 150.0 and walked < 190.0, "walked %.0f px — that is not a walking pace" % walked)
+	_run(p, 2.5)
+	ok(not p.winded, "the debuff never ended while walking with the key held")
+
+
+func test_overburdened_winds_you_until_the_weight_comes_off() -> void:
+	# The cap is soft: you can pick it all up, and carrying it is the cost.
+	var p := _player_at_tile(6, 133)
+	Stamina.refill(p)
+	p.bag.add("stone", 400)
+	ok(p.overloaded(), "400 stone is not over the cap: %.0f / %.0f" % [p.carried_weight(), p.carry_cap])
+	_run(p, DT)
+	ok(p.winded, "carrying too much did not wind you")
+	p.intent.mx = 1.0
+	p.intent.sprint = true
+	_run(p, 2.0)
+	ok(not p.sprinting, "sprinted while overburdened")
+	ok(p.winded, "the debuff ended while the weight was still on")
+	eq(p._dash_refusal(false), "Too heavy to dash — drop something", "the dash said something else")
+	p.bag.take("stone", 400)
+	ok(not p.overloaded(), "the stone is still on the bill")
 	p.intent.sprint = false
-	_run(p, 1.5)
-	ok(p.winded, "still winded 1.5s later, because the clock restarted")
+	_run(p, float(Config.WINDED.dur) + 0.2)
+	ok(not p.winded, "dropping the weight did not start the clock")
+
+
+func test_the_soft_cap_lets_you_load_past_it_and_stops_at_the_ceiling() -> void:
+	# Through the pickup path, which is what the cap is really about: a find
+	# one unit over the cap used to stay on the ground.
+	var p := _player_at_tile(6, 133)
+	near(p.carry_limit(), p.carry_cap * float(Config.PLAYER.overload_mul), 0.001, "the ceiling is the cap times overload_mul")
+	for i in range(40):
+		Loot.give_entry(sim, p, {"id": "stone", "n": 50})
+	ok(p.overloaded(), "the pickup path refused everything past the cap: %.0f" % p.carried_weight())
+	ok(p.carried_weight() <= p.carry_limit() + 1e-6,
+		"loaded past the ceiling: %.0f of %.0f" % [p.carried_weight(), p.carry_limit()])
 
 
 func test_sneak_halves_speed() -> void:

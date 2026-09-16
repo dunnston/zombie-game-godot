@@ -48,6 +48,9 @@ var respawn_t := 0.0
 ## you always did. Alone there is no one to come, so alone you just die.
 var downed := false
 var down_t := 0.0
+## How long the interact key has been held while down. At
+## `PLAYER.give_up_hold` you stop waiting for a teammate and die (2026-09-15).
+var give_up_t := 0.0
 ## The teammate you are getting up: {seat, t, dur}. A held channel like
 ## searching — let go, or step away, and it stops.
 var reviving := {}
@@ -102,6 +105,9 @@ var fire_rate_mul := 1.0
 ## Guns use fire_rate_mul; melee and tools use this. Above 1.0 is slower, and
 ## the only thing that raises it is being winded.
 var swing_rate_mul := 1.0
+## How many things you can have to hand: six, or up to `PLAYER.hotbar_max`
+## with Sleight of Hand. Written by the recompute like any other stat.
+var hotbar_slots := int(Config.PLAYER.hotbar_slots)
 var reload_mul := 1.0
 var crit_chance := 0.08
 ## Added to the weapon's own `crit_mul`, so what a critical costs the thing it
@@ -267,19 +273,38 @@ func carries(id: String) -> bool:
 	return count_carried(id) > 0
 
 
+## Grows the hotbar to what the build says it holds (Sleight of Hand). Called
+## from `Equipment.recompute_stats`, which is the one door every change to a
+## build comes through, so nothing has to remember to do it.
+##
+## It never shrinks. A slot is not a stat: taking one away would have to decide
+## what happens to whatever is in it, and nothing in the game takes a perk back.
+func sync_hotbar() -> void:
+	while hotbar.size() < hotbar_slots:
+		hotbar.slots.append({})
+
+
 func carried_weight() -> float:
 	return bag.weight() + hotbar.weight()
+
+
+## The hard ceiling. `carry_cap` is what you can carry *comfortably*; past it
+## you are overburdened (winded, no sprint, no dash) and this is where the
+## refusals start (owner, 2026-09-15 — the cap used to be the refusal itself,
+## so a find one unit too heavy simply would not go in).
+func carry_limit() -> float:
+	return carry_cap * float(Config.PLAYER.overload_mul)
 
 
 ## How much weight the pack may still take. The budget covers pack and hotbar
 ## together, because that is what the weight bar shows — check against
 ## anything narrower and loot keeps fitting after the bar has passed 100%.
 func pack_allowance() -> float:
-	return carry_cap - hotbar.weight()
+	return carry_limit() - hotbar.weight()
 
 
 func overloaded() -> bool:
-	return carried_weight() > carry_cap
+	return carried_weight() > carry_cap + 1e-9
 
 
 ## What a bill costs after this player's building or crafting perks
@@ -544,8 +569,21 @@ func tick(sim: GameSim, dt: float) -> void:
 		searching = {}
 		reviving = {}
 		car_hold = {}
+		# One thing you can still do: stop waiting. Holding the interact key
+		# gives up and dies now rather than in thirty seconds, so a teammate on
+		# the other side of the town is not two players standing still (owner,
+		# 2026-09-15). Held, not tapped: it is the last thing you do.
+		if it.interact_held:
+			give_up_t += dt
+			if give_up_t >= float(Config.PLAYER.give_up_hold):
+				give_up_t = 0.0
+				Damage.kill_player(sim, self)
+				return
+		else:
+			give_up_t = 0.0
 		Damage.tick_downed(sim, self, dt)
 		return
+	give_up_t = 0.0
 
 	# Adrenaline is a state, not a modifier: it comes and goes with the health
 	# bar, so it is read fresh each tick rather than baked into the recompute.
@@ -694,7 +732,14 @@ func move(world: World, dt: float, rooted := false, structs: Structures = null) 
 	sneaking = it.sneak
 	# Sprinting runs the bar all the way down now — the old floor of 1.0 is
 	# why it could never wind you (PROJECT.md, 2026-09-08).
-	sprinting = not sneaking and it.sprint and moving and stam > 0.0
+	#
+	# Winded, and overburdened, you cannot sprint at all: the key does nothing
+	# and spends nothing. It used to be charged for — which restarted the
+	# clock every step — so anyone walking home with the key held stayed winded
+	# for ever (the owner's report, 2026-09-15). Walking it off is the way out,
+	# and now it works whether or not the key is down.
+	sprinting = not sneaking and it.sprint and moving and stam > 0.0 \
+		and not winded and not overloaded()
 
 	if sprinting:
 		Stamina.spend(self, P.stam_drain * dt)
@@ -727,6 +772,8 @@ func _dash_refusal(rooted: bool) -> String:
 		return "Your legs are not yours"
 	if rooted:
 		return "Not in the middle of that"
+	if overloaded():
+		return "Too heavy to dash — drop something"
 	if winded:
 		return "Too winded to dash"
 	if stam < float(Config.DASH.stam):

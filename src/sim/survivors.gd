@@ -418,12 +418,16 @@ func _tick_one(sim: GameSim, s: SurvivorSim, dt: float, post: Vector2, base: Dic
 	# ---------------------------------------------------------- targeting --
 	var best: EnemySim = null
 	var best_d := range_ * range_
+	# Posted up a tower they shoot over the wall; on the ground their rounds
+	# stop at it like everyone else's, so their sight test has to agree with
+	# their bullets or they fire into their own perimeter (2026-09-15).
+	var walls: Structures = null if s.posted else sim.structs
 	sim.enemies.hash.query(s.pos.x, s.pos.y, range_, _scratch)
 	for e: EnemySim in _scratch:
 		if e.dead:
 			continue
 		var d := s.pos.distance_squared_to(e.pos)
-		if d < best_d and sim.world.has_terrain_line_of_sight(s.pos, e.pos):
+		if d < best_d and sim.world.has_shot_line(s.pos, e.pos, walls):
 			best_d = d
 			best = e
 	s.target = best
@@ -484,7 +488,20 @@ func _tick_one(sim: GameSim, s: SurvivorSim, dt: float, post: Vector2, base: Dic
 	var dist := to.length()
 	if dist > 12.0:
 		var sp: float = float(S.speed) * (float(S.hungry_speed) if s.hungry else 1.0)
-		s.vel += (to / dist * sp - s.vel) * minf(1.0, 10.0 * dt)
+		var head := to / dist
+		# Something in the way: ask the field that goes round it. A straight
+		# line was all they had, so anybody rescued on the far side of a
+		# building walked into its wall and stayed there (owner, 2026-09-15).
+		if not Enemies.clear_ahead(sim.world, s.pos, head.angle(), minf(dist, 72.0), s.r, sim.structs):
+			var nf := sim.nav_to(want)
+			if nf != null and nf.covers(s.pos):
+				var step := nf.step_dir(s.pos)
+				if step != Vector2.ZERO:
+					head = step
+			# And whichever way they are facing, they still steer round what
+			# they are about to walk into.
+			head = Vector2.from_angle(Enemies.steer_pos(sim.world, s.pos, head.angle(), s.r, sim.structs))
+		s.vel += (head * sp - s.vel) * minf(1.0, 10.0 * dt)
 	else:
 		s.vel *= exp(-9.0 * dt)
 
@@ -532,7 +549,7 @@ func _shoot(sim: GameSim, s: SurvivorSim, arm: Dictionary, best: EnemySim) -> vo
 		return
 	s.out_of_ammo = false
 
-	Combat.spawn_bullet(sim, s.pos + Vector2.from_angle(a) * 16.0, a,
+	var shot := Combat.spawn_bullet(sim, s.pos + Vector2.from_angle(a) * 16.0, a,
 		float(arm.speed) if not arm.is_empty() else 1150.0,
 		s.dmg * s.shot_dmg_mul,
 		float(arm.life) if not arm.is_empty() else 0.5,
@@ -544,6 +561,11 @@ func _shoot(sim: GameSim, s: SurvivorSim, arm: Dictionary, best: EnemySim) -> vo
 		# source and nobody was ever credited for one.
 		"survivor:%d" % s.id, false, "survivor",
 		String(arm.color) if not arm.is_empty() else "#cfe8b0")
+	# Up a Watchtower you are shooting down into the street, so the round
+	# carries over your own wall (2026-09-15). On the ground it does not, and
+	# a guard behind a wall has to come round it like anybody else.
+	if s.posted:
+		shot["over"] = true
 	sim.emit({"t": "muzzle", "x": s.pos.x + cos(a) * 18.0, "y": s.pos.y + sin(a) * 18.0,
 		"a": a, "w": "survivor"})
 	# The whole trade: a tower of arrows is a secret, a cannon is an

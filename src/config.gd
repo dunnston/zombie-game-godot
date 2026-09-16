@@ -53,7 +53,10 @@ const PLAYER := {
 	"max_stam": 100.0,
 	"stam_drain": 26.0,
 	"stam_regen": 20.0,
-	"stam_regen_delay": 0.65,
+	# A beat with no recovery in it after anything is spent. One second, not
+	# the old 0.65 (owner, 2026-09-15): between two swings the bar should sit
+	# still rather than twitch up and back down again.
+	"stam_regen_delay": 1.0,
 	# Every swing costs, and a swing that hits nothing costs too: nothing is
 	# ever refused for want of puff. `stam_swing` is the fallback a weapon
 	# without its own cost falls back to — see `Stamina.swing_cost` and the
@@ -64,8 +67,17 @@ const PLAYER := {
 	"stam_chop_mul": 3.0,
 	"stam_chop_delay": 1.1,
 	"carry_cap": 200.0,
+	# The cap is soft (owner, 2026-09-15): you may load up to this much of it
+	# and walk home overburdened — winded, no sprint and no dash until the
+	# weight comes off — rather than being told a rifle will not fit. Past this
+	# ceiling everything is refused as it always was, so "soft" is still a
+	# limit and not a hole.
+	"overload_mul": 1.5,
 	"inv_slots": 30,
 	"hotbar_slots": 6,
+	# What Sleight of Hand can grow the hotbar to, and what the keys and the
+	# HUD are built for. Eight is where the number row stops being a row.
+	"hotbar_max": 8,
 	"pickup_range": 46.0,
 	"interact_range": 76.0,
 	"search_time": 1.05,
@@ -83,6 +95,10 @@ const PLAYER := {
 	"invuln_after_hit": 0.32,
 	"respawn_time": 3.0,
 	"downed_time": 30.0,
+	# How long the interact key is held, while down, to give up and die rather
+	# than wait out `downed_time` for somebody who is not coming. Long enough
+	# that nobody does it by leaning on the key (owner, 2026-09-15).
+	"give_up_hold": 1.6,
 	"revive_time": 2.5,
 	"revive_hp_frac": 0.4,
 	# Ground-ring tints, one per seat.
@@ -117,7 +133,12 @@ const INSTANCES := {
 	"school": {
 		"name": "PINE HOLLOW HIGH",
 		"tier": 2,
-		"clock_t": 0.70,
+		# Broad daylight through the windows, whatever the town's clock says
+		# (owner, 2026-09-15: "night inside the school — leave it as its own
+		# daylight"). It was 0.70 — dusk, past `DARK_ENOUGH`, so a torch lit
+		# itself and the whole run played at night. The dark in here is the
+		# boss's doing and nothing else's, which is what `dark_t` is for.
+		"clock_t": 0.35,
 		# What the inside's clock is pushed to when the boss kills the lights.
 		"dark_t": 0.82,
 		"boss": "coach",
@@ -181,11 +202,14 @@ const BOSSES := {
 ## `recompute_stats` like a mutation band (invariant 4), so retuning the
 ## penalty is an edit to this dictionary and nothing else.
 ##
-## `dur` is a clock, not a lock: recovery runs at the normal rate throughout
-## (hidden on the HUD until the clock ends), and swinging or sprinting restarts
-## it and empties the bar. Standing still is the way out, and the only one.
+## `dur` is a clock, not a lock, but recovery crawls while it runs:
+## `regen_mul` of the normal rate, shown on the bar (owner, 2026-09-15 — the
+## refill used to run at full speed and be hidden). **Sprinting is refused
+## while winded**, so walking it off works; swinging through it still restarts
+## the clock and throws the refill away. Standing still is the way out.
 const WINDED := {
 	"dur": 3.0,
+	"regen_mul": 0.25,
 	"mul": {"swing_rate_mul": 1.6},
 }
 
@@ -322,6 +346,11 @@ const PERKS := [
 		"desc": "-22% weapon spread and +12% bullet range per rank."},
 	{"id": "sixthSense", "attr": "per", "req": 6, "max": 1, "name": "Sixth Sense",
 		"desc": "Enemies show on the minimap much further out, even unaware ones."},
+	# The owner asked whether the hotbar could grow, "possibly an agility
+	# perk" (2026-09-15). There is no Agility: Perception is the one that is
+	# about your hands, and it already holds Quick Hands.
+	{"id": "sleightOfHand", "attr": "per", "req": 5, "max": 2, "name": "Sleight of Hand",
+		"desc": "+1 hotbar slot per rank, up to eight."},
 
 	# --------------------------------------------------------- constitution --
 	{"id": "thickSkin", "attr": "con", "req": 2, "max": 4, "name": "Thick Skin",
@@ -416,6 +445,10 @@ const STAT_BASE := {
 
 	"adrenaline": false, "second_wind": false,
 	"hotwire": false, "hotwire_speed_mul": 1.0,
+	# How many things you can have to hand. A stat like any other, so Sleight
+	# of Hand writes it in the recompute and nowhere else (invariant 4); the
+	# container is grown to match it by `PlayerSim.sync_hotbar`.
+	"hotbar_slots": 6,
 
 	# Summed from worn gear by the recompute and capped. Nothing else may write
 	# it: damage.gd reads this rather than inspecting what is worn, so gear,
@@ -1564,6 +1597,12 @@ const BUILD := {
 	# here.)
 	"raid_pull_protect": 0.55,
 	"raid_pull_plot": 1.6,
+	# What one tile of a *house* wall takes before it breaks open (owner,
+	# 2026-09-15: "existing house walls should take damage like built walls,
+	# maybe a little stronger"). A Steel Wall is 900 and a Reinforced Wall 520,
+	# so a brick house sits between the two: worth walling a doorway rather
+	# than trusting the brick, and still the long way in for a horde.
+	"house_wall_hp": 620.0,
 }
 
 ## The STRUCTURES table is data: `data/structures.json`, loaded here at boot. Its design
@@ -1583,9 +1622,20 @@ static var RECIPES: Array = DataTable.load_table("recipes")
 
 const BUILD_ORDER := [
 	"woodWall", "stoneWall", "barricade", "reinforcedWall", "metalWall", "gate", "spike",
-	"workbench", "chemStation", "stash", "chest", "locker", "bedroll", "bunk", "raisedBed", "longBed", "watchtower",
+	"workbench", "chemStation", "recycler", "stash", "chest", "locker", "bedroll", "bunk", "raisedBed", "longBed", "watchtower",
 	"generator", "turret", "floodlight",
 ]
+
+## What one of a thing gives back at a Recycler: `data/recycle.json`, written
+## from the owner's **Breaks down into** column on Notion's Items table
+## (DL-86). Buildings are not in it — salvaging one already pays you back.
+static var RECYCLE: Dictionary = DataTable.load_table("recycle")
+
+## The share of that a Recycler actually returns. One, for now, because the
+## owner's column is already "what it breaks down into" rather than "what it
+## cost"; the knob exists so a run through the bench can be made lossy without
+## touching sixty-five rows.
+const RECYCLE_SHARE := 1.0
 
 ## What the survivor on a Watchtower is shooting. Bought once for the whole
 ## base, then chosen per tower, so two towers can answer the same approach

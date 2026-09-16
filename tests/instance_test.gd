@@ -31,14 +31,10 @@ func _find(entry: String, n := 1) -> Dictionary:
 	return Loot.give_entry(sim, p, {"id": entry, "n": n})
 
 
-## A found stack out of the haul and into the pack, the way the pack screen
-## moves it.
-func _haul_to_bag(id: String) -> void:
-	for i in range(p.haul.size()):
-		if p.haul.id_at(i) == id:
-			ok(Equipment.move_stack(sim, p, "haul", i, "bag", p.bag.first_empty()), "moved %s out of the haul" % id)
-			return
-	ok(false, "no %s in the haul" % id)
+## What is in the haul stays there (owner, 2026-09-15), so the tests below
+## check the find where it actually is rather than moving it into the pack.
+func _haul_count(id: String) -> int:
+	return p.haul.count(id)
 
 
 # --------------------------------------------------------------- the town --
@@ -110,38 +106,28 @@ func test_last_weeks_save_moves_what_it_left_where_the_school_now_stands() -> vo
 		ok(not on.call(v.pos), "car %d is inside the building" % v.id)
 
 
-func test_finds_moved_into_the_pack_still_count_against_the_haul() -> void:
-	# Codex on PR #31: the cap measured only the pouch, so a full haul could be
-	# emptied into spare pack space and filled again, and both came out.
+func test_nothing_comes_back_out_of_the_haul() -> void:
+	# Owner, 2026-09-15: dragging a find into the pack is off. It never kept
+	# anything — `haul_load` counted it wherever it sat and `leave` forfeited
+	# it either way — so all it did was look like a way to cheat the run.
+	#
+	# It replaces the Codex PR #31 rule (a full haul emptied into the pack and
+	# refilled), which cannot happen now that the move does not exist.
 	_enter()
 	p.carry_cap = 100000.0
 	var cap: float = Config.INSTANCE.haul_cap
-	# Something that fills the haul by weight long before it runs out of slots.
-	var id := ""
-	for cand in Config.RES:
-		var wt := Items.weight_of(cand)
-		if wt > 0.0 and ceili(cap / wt / float(Items.stack_limit(cand))) <= 8:
-			id = cand
+	_find("scrap", 10)
+	var found := p.haul.count("scrap")
+	gt(found, 0, "the find went into the haul")
+	var free := p.bag.first_empty()
+	ok(free >= 0, "there is room in the pack")
+	for i in range(p.haul.size()):
+		if p.haul.id_at(i) == "scrap":
+			ok(not Equipment.move_stack(sim, p, "haul", i, "bag", free), "a find came out of the haul")
 			break
-	ok(not id.is_empty(), "something heavy enough to fill the haul by weight")
-	_find(id, int(cap / Items.weight_of(id)) + 10)
-	var first := p.haul.count(id)
-	gt(first, 0)
-	var guard := 0
-	while p.haul.count(id) > 0 and guard < 20:
-		_haul_to_bag(id)
-		guard += 1
-	eq(p.bag.count(id), first, "all of it into the pack")
-	_find(id, 10)
-	eq(p.haul.count(id), 0, "and the haul is still full: what left it is still a find")
+	eq(p.haul.count("scrap"), found, "and it is still in there")
+	eq(p.bag.count("scrap"), 0, "with nothing in the pack")
 	ok(Instance.haul_load(sim, p) <= cap + 1e-6, "the load never passed the cap")
-	# Back into the haul costs nothing: it was on the bill all along.
-	var i := -1
-	for j in range(p.bag.size()):
-		if p.bag.id_at(j) == id:
-			i = j
-			break
-	ok(Equipment.move_stack(sim, p, "bag", i, "haul", p.haul.first_empty()), "a find back into the haul")
 
 
 func test_nothing_can_be_made_in_here() -> void:
@@ -325,11 +311,17 @@ func test_nothing_that_runs_the_town_runs_in_here() -> void:
 	near(town_clock.t, t0, 1e-9, "and so is the town's day")
 
 
-func test_inside_is_dark_enough_for_a_torch_and_no_darker() -> void:
-	_enter()
-	var a := float(sim.clock.darkness().alpha)
-	gt(a, Config.DARK_ENOUGH, "a worn torch lights itself")
-	ok(a < 0.8, "and you can still see the room: %.2f" % a)
+func test_inside_is_its_own_daylight_until_the_boss_kills_the_lights() -> void:
+	# Owner, 2026-09-15: the inside played at dusk whatever the town's clock
+	# said, so the whole run was a night run. It is daylight in there now, and
+	# the only dark is the one the boss makes.
+	var inst := _enter()
+	var lit := float(sim.clock.darkness().alpha)
+	ok(lit < Config.DARK_ENOUGH, "the school is dark enough to need a torch: %.2f" % lit)
+	inst.lights_out(sim)
+	var dark := float(sim.clock.darkness().alpha)
+	gt(dark, lit, "the boss killing the lights changed nothing: %.2f" % dark)
+	gt(dark, Config.DARK_ENOUGH, "and it should be dark enough for a torch then")
 
 
 func test_a_run_is_a_fresh_roll_every_time() -> void:
@@ -404,23 +396,26 @@ func test_walking_out_early_keeps_what_you_brought_and_not_what_you_found() -> v
 	p.bag.add("ammoP", 40 - p.bag.count("ammoP"))
 	_enter()
 	_find("ammoP", 20)
-	_haul_to_bag("ammoP")
-	eq(p.bag.count("ammoP"), 60)
+	eq(_haul_count("ammoP"), 20, "the found rounds are in the haul, not the pack")
+	eq(p.bag.count("ammoP"), 40, "and what you brought is what you are shooting")
 	p.bag.take("ammoP", 10)
 	ok(Instance.walk_out(sim, p))
 	eq(p.bag.count("ammoP"), 30)
 	eq(p.haul.used(), 0, "and the haul is empty")
 
 
-func test_a_found_medkit_already_used_costs_nothing() -> void:
+func test_a_found_medkit_stays_in_the_haul_and_is_forfeited_with_it() -> void:
+	# It used to be draggable into the pack and usable on the way through.
+	# The drag is gone (owner, 2026-09-15), so a find is something you carry
+	# out or lose — never something that patches you up mid-run.
 	var bandages := p.count_carried("bandage")
 	_enter()
 	_find("item:medkit", 1)
-	_haul_to_bag("medkit")
-	eq(p.take_carried("medkit", 1), 1, "used on the way through")
+	eq(_haul_count("medkit"), 1, "the medkit is in the haul")
+	eq(p.count_carried("medkit"), 0, "and not on you")
 	Instance.walk_out(sim, p)
 	eq(p.count_carried("bandage"), bandages, "what you brought is untouched")
-	eq(p.count_carried("medkit"), 0)
+	eq(p.count_carried("medkit"), 0, "and what you found is gone with the run")
 
 
 func test_the_boss_lets_it_all_out_and_the_door_stays_chained_until_tomorrow() -> void:
@@ -473,7 +468,7 @@ func test_dying_inside_wakes_you_at_the_door_with_what_you_brought() -> void:
 	var wood := p.bag.count("wood")
 	_enter()
 	_find("scrap", 10)
-	_haul_to_bag("scrap")
+	eq(_haul_count("scrap"), 10, "the find is in the haul")
 	Damage.kill_player(sim, p)
 	ok(p.dead)
 	eq(sim.backpacks.size(), 0, "no pack left in a map that is about to go")
@@ -491,10 +486,9 @@ func test_a_save_written_inside_is_the_game_walked_out() -> void:
 	var wood := p.bag.count("wood")
 	_enter()
 	_find("scrap", 10)
-	_haul_to_bag("scrap")
 	var d := SaveGame.to_dict(sim)
 	ok(sim.instance != null and sim.world.layout == "school", "still inside: writing it changed nothing")
-	eq(p.count_carried("scrap"), 10, "and nothing was taken off you to write it")
+	eq(_haul_count("scrap"), 10, "and nothing was taken out of the haul to write it")
 	eq(int(d.fingerprint), world().fingerprint(), "it is the town that was written")
 	var again := GameSim.new()
 	ok(SaveGame.apply(again, d, world()).ok)

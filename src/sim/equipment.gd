@@ -14,6 +14,10 @@ extends RefCounted
 ## path calls, so there is still exactly one door.
 static func recompute_stats(p: PlayerSim) -> void:
 	Perks.recompute_stats(p)
+	# The one consequence of a stat that is not itself a number: Sleight of
+	# Hand writes `hotbar_slots`, and the hotbar grows to match it here rather
+	# than in the three places a perk can be bought, loaded or joined into.
+	p.sync_hotbar()
 
 
 ## Reconciles the off-hand after anything changes what is worn, then rebuilds
@@ -180,7 +184,7 @@ static func _store(sim: GameSim, p: PlayerSim, at: Vector2i, car: int) -> Slots:
 		var r: float = Config.CAR.enter_range
 		return v.trunk if p.pos.distance_squared_to(v.pos) <= r * r else null
 	if at.x >= 0:
-		return sim.structs.reachable_store(p, at.x, at.y)
+		return sim.structs.reachable_store(p, at.x, at.y, sim)
 	return null
 
 
@@ -206,6 +210,15 @@ static func move_stack(sim: GameSim, p: PlayerSim, from_cont: String, from_index
 	var from := container(p, from_cont, store)
 	var to := container(p, to_cont, store)
 	if from == null or to == null:
+		return false
+	# Nothing comes back out of the haul into your pockets (owner, 2026-09-15).
+	# It could, and it looked like a way to keep a find that the run was about
+	# to forfeit — but `Instance.haul_load` counts what you moved across, and
+	# `Instance.leave` takes it either way, so the move only ever moved the
+	# disappointment to the end of the run.
+	if from_cont == "haul" and (to_cont == "bag" or to_cont == "hotbar"):
+		if sim != null:
+			sim.notify("What you find in here stays in the haul until you are out", "#c96a5a")
 		return false
 	# The haul is for carrying *out* of an instance, and it is only open inside
 	# one: anywhere else it would be a second backpack that weighs nothing.
@@ -236,7 +249,7 @@ static func move_stack(sim: GameSim, p: PlayerSim, from_cont: String, from_index
 		if not s.is_empty():
 			var dest := to.at(to_index)
 			var per := Items.weight_of(s.id)
-			var spare := p.carry_cap - p.carried_weight()
+			var spare := p.carry_limit() - p.carried_weight()
 			if not dest.is_empty() and dest.id != s.id:
 				# A swap hands the other stack back, so it pays for itself.
 				spare += Items.weight_of(dest.id) * dest.n

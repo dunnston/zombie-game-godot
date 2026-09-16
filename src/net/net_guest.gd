@@ -35,6 +35,10 @@ var _rng := Rng.new(0xC11E47)
 ## Set when a world diff changed something the renderers cache (a prop
 ## felled); the scene clears it after rebuilding them.
 var world_dirty := false
+## House-wall tiles the host has had broken since the scene last looked. One
+## tile repaints where it stands; a felled tree's `world_dirty` rebuild is for
+## the prop renderers and would be a hundred thousand cells for this.
+var broken_tiles: Array[Vector2i] = []
 var stats := {"sent": 0, "received": 0, "snaps": 0}
 ## Tests only: a world to mirror into instead of generating one per join.
 static var reuse_world: World = null
@@ -271,6 +275,16 @@ func _on_world(d: Dictionary) -> void:
 		if not prop.is_empty():
 			sim.world.remove_prop(prop)
 			world_dirty = true
+	# A house wall the host has had punched through. The same shape as
+	# `chopped`, and the same `world_dirty` so the mirror redraws the map.
+	for key in d.get("breached", []):
+		var wparts: PackedStringArray = String(key).split(",")
+		if wparts.size() != 2:
+			continue
+		var wt := Vector2i(int(wparts[0]), int(wparts[1]))
+		sim.world.break_wall(wt.x, wt.y)
+		sim.world_version += 1
+		broken_tiles.append(wt)
 	if d.has("discovered"):
 		for l in sim.world.locations:
 			if String(l.id) in d.discovered:
@@ -415,7 +429,7 @@ func _apply_player(pr: Dictionary) -> void:
 	# Through `Stamina`, not a bare assignment: the flag has to reach
 	# `recompute_stats` or the guest's own swing keeps full speed while the
 	# host's is stretched.
-	Stamina.sync(p, bool(f & NetProtocol.PF_WINDED))
+	Stamina.sync(p, bool(f & NetProtocol.PF_WINDED), n[NetProtocol.PL_WINDED_T])
 	p.lit = bool(f & NetProtocol.PF_LIT)
 	p.light_on = p.lit
 	p.down_t = n[NetProtocol.PL_DOWN_T]
@@ -709,6 +723,11 @@ func tick(dt: float, idle := false) -> void:
 ## a snap past `snap_over`, a lerp inside it. Nothing here deals damage or
 ## spends anything.
 func _predict_self(dt: float) -> void:
+	if me.downed:
+		# The only thing a downed player can do is stop waiting, and the bar
+		# that shows it fills on the machine the key is held on. The host is
+		# still the one that decides you died (`PlayerSim.tick`).
+		me.give_up_t = me.give_up_t + dt if me.intent.interact_held else 0.0
 	if me.dead or me.downed or me.away:
 		return
 	if me.driving_id > 0:

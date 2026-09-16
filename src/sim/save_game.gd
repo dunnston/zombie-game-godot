@@ -13,7 +13,7 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 11
+const VERSION := 12
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
@@ -130,6 +130,10 @@ static func _town_dict(sim: GameSim, inst: Instance) -> Dictionary:
 		"players": players,
 		"looted": looted,
 		"chopped": sim.world.chopped_keys(),
+		# House walls punched through this run, by tile key like everything
+		# else the world lost (invariant 7). A wall that was hit and still
+		# stands comes back whole, exactly as a damaged prop does.
+		"breached": sim.world.breached_keys(),
 		# The districts you have stood in. Only the ids: the rects are `Config`,
 		# so a save cannot carry a stale map of a town that has been re-laid.
 		"discovered": _discovered(sim),
@@ -237,6 +241,11 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 			var prop := world.prop_at_tile(int(parts[0]), int(parts[1]))
 			if not prop.is_empty():
 				world.remove_prop(prop)
+
+	for key in data.get("breached", []):
+		var parts: PackedStringArray = String(key).split(",")
+		if parts.size() == 2:
+			world.break_wall(int(parts[0]), int(parts[1]))
 
 	if not data.get("stash", []).is_empty():
 		sim.stash = Slots.new(Config.STASH_SLOTS)

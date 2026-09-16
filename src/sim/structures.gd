@@ -35,11 +35,34 @@ static func footprint(type: String, rot := 0) -> Vector2i:
 	return Vector2i(f.y, f.x) if rot % 2 == 1 else f
 
 
-## Whether turning a piece changes anything. A square one ignores R, and its
-## `rot` is always stored as 0, so a save or a snapshot never carries noise.
+## Whether turning a piece changes anything, and how far round it goes.
+##
+## A piece longer than it is wide has two positions (lying flat, or a quarter
+## turn). A square piece with a *front* — a workbench, a bench-like station,
+## a bunk, a bedroll — has four, and the turn is drawing only: nothing about
+## its footprint, its collision or its reach changes (owner, 2026-09-15:
+## "rotate workbenches"). A wall or a gate never turns on the key: it follows
+## the wall it stands in.
 static func turns(type: String) -> bool:
+	return quarters(type) > 1
+
+
+## How many positions R cycles through: 2 for a long piece, 4 for a square one
+## with a front, 1 for everything else.
+static func quarters(type: String) -> int:
 	var f := footprint(type)
-	return f.x != f.y
+	if f.x != f.y:
+		return 2
+	var def: Dictionary = Config.STRUCTURES.get(type, {})
+	if def.get("wall", false) or def.get("gate", false):
+		return 1
+	return 4 if FACING.has(type) else 1
+
+
+## The square pieces that look like something from one side. Kept here rather
+## than as a field on the table: it is a fact about the picture, not about the
+## piece, and a new field in `data/` is a code change either way (§10).
+const FACING := ["workbench", "chemStation", "bunk", "bedroll", "stash", "locker", "chest", "generator", "watchtower"]
 
 
 static func tiles_of(type: String, tx: int, ty: int, rot := 0) -> Array[Vector2i]:
@@ -209,14 +232,22 @@ func near_station(at: Vector2, station: String) -> Dictionary:
 
 
 ## The store of the structure on a tile, if this player is close enough to
-## be using it. Range-checked here rather than in the screen: the rule has
-## to hold for a guest's command too.
-func reachable_store(p: PlayerSim, tx: int, ty: int) -> Slots:
+## be using it and there is nothing between them. Checked here rather than in
+## the screen: the rule has to hold for a guest's command too, and it is asked
+## every frame the panel is open.
+##
+## `sim` is optional only so a test can ask the cheap question; the game always
+## passes it, and without it the wall rule cannot be applied.
+func reachable_store(p: PlayerSim, tx: int, ty: int, sim: GameSim = null) -> Slots:
 	var s := at_tile(tx, ty)
 	if s.is_empty() or s.store == null:
 		return null
 	var r: float = Config.PLAYER.interact_range + B.store_reach_bonus
-	return s.store if p.pos.distance_squared_to(s.pos) <= r * r else null
+	if p.pos.distance_squared_to(s.pos) > r * r:
+		return null
+	if sim != null and not Interact.in_sight_of(sim, p, s.pos, s):
+		return null
+	return s.store
 
 
 # -------------------------------------------------------------- placement --
@@ -292,7 +323,7 @@ func can_place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim, rot :
 
 func make(sim: GameSim, type: String, tx: int, ty: int, hp_mul := 1.0, rot := 0) -> Dictionary:
 	var def: Dictionary = Config.STRUCTURES[type]
-	rot = posmod(rot, 2) if turns(type) else 0
+	rot = posmod(rot, quarters(type))
 	var max_hp := roundf(def.hp * hp_mul)
 	var store: Slots = null
 	if def.has("store"):
@@ -506,7 +537,7 @@ func repair(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
 		sim.notify("Already intact", "#8a8f84")
 		return false
 	if not p.can_afford(sim, cost):
-		sim.notify("Not enough materials to repair — needs %s" % cost_label(cost), "#c96a5a")
+		sim.notify("Not enough materials to repair — missing %s" % cost_label(shortfall(sim, p, cost)), "#c96a5a")
 		return false
 	p.spend(sim, cost)
 	_restore(sim, s, p)
@@ -518,6 +549,22 @@ func _restore(sim: GameSim, s: Dictionary, p: PlayerSim) -> void:
 	s.hp = s.max_hp
 	sim.emit({"t": "repaired", "x": s.pos.x, "y": s.pos.y})
 	Progression.add_xp(sim, p, 3, "REPAIR")
+
+
+## What is *missing* from a bill, given what this player can reach (pack plus
+## the shared stash), or an empty Dictionary when it is all there.
+##
+## The owner, 2026-09-15: a repair that cannot be paid for listed the whole
+## bill, so "needs WOOD 12 · SCRP 6" with eleven wood in the pack told you
+## nothing about the one thing you had to go and find.
+static func shortfall(sim: GameSim, p: PlayerSim, cost: Dictionary) -> Dictionary:
+	var out := {}
+	for id in cost:
+		var need: int = ceili(cost[id])
+		var short := need - p.total_res(sim, String(id))
+		if short > 0:
+			out[id] = short
+	return out
 
 
 ## "WOOD 4 · SCRP 2" — one way to print a bill, used by every prompt.
@@ -811,7 +858,11 @@ func _tick_turrets(sim: GameSim, dt: float) -> void:
 			s.cd = def.fire_cd
 			s.ammo -= 1
 			var a: float = s.aim + sim.rng.frange(-0.035, 0.035)
-			Combat.spawn_bullet(sim, s.pos + Vector2.from_angle(a) * 18.0, a, 1300.0, def.dmg * turret_mul, 0.5, 45.0, 0, null, false, "turret", "#9fe0ff")
+			var shot := Combat.spawn_bullet(sim, s.pos + Vector2.from_angle(a) * 18.0, a, 1300.0, def.dmg * turret_mul, 0.5, 45.0, 0, null, false, "turret", "#9fe0ff")
+			# A turret is on a mount, so its rounds carry over a wall — the one
+			# exemption from "a shot stops at a wall" (2026-09-15), and what
+			# keeps a turret behind a perimeter worth building.
+			shot["over"] = true
 			sim.emit({"t": "muzzle", "x": s.pos.x + cos(a) * 20.0, "y": s.pos.y + sin(a) * 20.0, "a": a, "w": "turret"})
 			sim.threat.add(sim, Config.THREAT.turret_per_shot)
 			# A machine gun on a post pulls the horde onto itself, which is
@@ -857,6 +908,69 @@ func _tick_traps(sim: GameSim, dt: float) -> void:
 ## consumables above a working supply of four. Weapons, gear and the
 ## bandages in your pocket stay on you — a deposit-all that stripped your
 ## rifle would be a trap rather than a convenience.
+## Everything in your pack that this container **already holds**, and nothing
+## else: the owner's "deposit like materials" (2026-09-15). Sorting a base is
+## putting the wood with the wood, and DEPOSIT ALL cannot do that job — it
+## empties your pack into whatever you are standing at.
+##
+## Weapons, gear, ammunition and food all move if a stack of the same thing is
+## in there, because "the same thing" is the whole rule; what is *not* in
+## there stays on you.
+func deposit_matching(sim: GameSim, p: PlayerSim, store: Slots) -> int:
+	if store == null:
+		return 0
+	var moved := 0
+	var left := 0
+	# Which ids it already holds, asked once before anything moves: topping a
+	# container up must not start matching against what this very call put in.
+	var wanted: Dictionary = store.entries()
+	# Slot by slot, and by *moving* the slot rather than counting it. Counting
+	# it (`store.add(id, n)` then `bag.take(id, n)`) rebuilt every weapon as a
+	# level-1, undamaged copy, because a count carries neither the condition
+	# nor the level (Codex, PR #56).
+	for i in range(p.bag.size()):
+		var s := p.bag.at(i)
+		if s.is_empty() or not wanted.has(String(s.id)):
+			continue
+		var want: int = s.n
+		var got := _move_slot_into(p.bag, i, store)
+		moved += got
+		left += want - got
+	if moved > 0:
+		sim.notify("Topped up %d — no room for %d more" % [moved, left] if left > 0
+			else "Topped up %d items" % moved, "#d9c46a" if left > 0 else "#b7e08a")
+	elif left > 0:
+		sim.notify("That container is full", "#c96a5a")
+	else:
+		sim.notify("Nothing here matches what is in it", "#8a8f84")
+	return moved
+
+
+## Moves the stack in `from_cont[i]` into `store`: part-used stacks of the same
+## thing first, then an empty slot. Returns how many units made it.
+##
+## The slot's own dictionary travels, so a levelled or half-worn weapon arrives
+## as itself. Never onto a slot holding something else — `Slots.move` would
+## swap, and a deposit that handed you back somebody else's stack is not a
+## deposit.
+static func _move_slot_into(from_cont: Slots, i: int, store: Slots) -> int:
+	var before: int = from_cont.at(i).n
+	var id := from_cont.id_at(i)
+	var limit := Items.stack_limit(id)
+	for j in range(store.size()):
+		if from_cont.at(i).is_empty():
+			break
+		var d := store.at(j)
+		if not d.is_empty() and d.id == id and d.n < limit:
+			from_cont.move(i, j, store)
+	if not from_cont.at(i).is_empty():
+		var free := store.first_empty()
+		if free >= 0:
+			from_cont.move(i, free, store)
+	var after := from_cont.at(i)
+	return before - (0 if after.is_empty() else int(after.n))
+
+
 func deposit_all(sim: GameSim, p: PlayerSim, store: Slots) -> int:
 	if store == null:
 		return 0

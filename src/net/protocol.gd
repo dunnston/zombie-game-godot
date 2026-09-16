@@ -30,7 +30,7 @@ extends RefCounted
 ## element and the structure record an `ro`. A protocol-8 host wants exactly
 ## four and would drop every placement, repair and demolition a guest sends;
 ## a protocol-8 guest would draw a turned bed the wrong way round.
-const PROTOCOL := 9
+const PROTOCOL := 10
 
 const RELIABLE := 1
 const STATE := 2
@@ -389,7 +389,11 @@ const PL_SKILL := 16
 const PL_CHANNEL := 17
 const PL_LIGHT_FUEL := 18
 const PL_MUT := 19
-const PL_STRIDE := 20
+## The host's own winded clock. Shipped since protocol 10 rather than guessed
+## from the flag: a guest whose estimate ran out first reset itself to `dur` on
+## the next snapshot and its countdown never reached zero.
+const PL_WINDED_T := 20
+const PL_STRIDE := 21
 
 
 static func pack_player(p: PlayerSim) -> Dictionary:
@@ -428,7 +432,7 @@ static func pack_player(p: PlayerSim) -> Dictionary:
 		r1(p.hp), p.max_hp, r1(p.stam), p.max_stam,
 		float(p.slot), float(f), r1(p.down_t), r1(p.respawn_t), float(p.driving_id),
 		float(p.level), float(roundi(p.xp)), float(p.xp_next), float(p.skill_points),
-		snappedf(ch, 0.01), r1(p.light_fuel), r1(p.mutation),
+		snappedf(ch, 0.01), r1(p.light_fuel), r1(p.mutation), r1(p.winded_t),
 	])
 	# The fourth string is the effect clocks, "nausea:12.3" — a handful of
 	# short-lived ids that a guest needs for its own bars and its own stats,

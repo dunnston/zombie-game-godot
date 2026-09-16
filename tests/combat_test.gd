@@ -441,7 +441,7 @@ func test_a_winded_swing_throws_away_the_refill_and_restarts_the_clock() -> void
 	Stamina.spend(p, p.max_stam)
 	ok(p.winded, "winded")
 	run(sim, 2.0)
-	ok(p.stam > 20.0, "the bar climbed back while standing: %.1f" % p.stam)
+	ok(p.stam > 2.0, "the bar crawled back while standing: %.1f" % p.stam)
 	ok(p.winded_t < 1.5, "and the clock ran down: %.2f" % p.winded_t)
 	sim.enemies.spawn("brute", plot + Vector2(30, 0))
 	p.attack_cd = 0.0

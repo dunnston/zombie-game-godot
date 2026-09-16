@@ -157,8 +157,16 @@ func update_hover(world_pos: Vector2) -> void:
 		elif s.is_empty():
 			check = {"ok": false, "reason": "Nothing there"}
 		elif card == "repair":
-			check = {"ok": Structures.is_damaged(s),
-				"reason": Structures.cost_label(Structures.repair_cost(s, player.build_cost_mul)) if Structures.is_damaged(s) else "Already intact"}
+			# The bill, or — when you cannot pay it — only the part you are
+			# short of. Telling somebody with eleven of the twelve wood that a
+			# repair "needs WOOD 12 · SCRP 6" hides the one thing they have to
+			# go and find (owner, 2026-09-15).
+			var bill := Structures.repair_cost(s, player.build_cost_mul)
+			var missing := Structures.shortfall(sim, player, bill)
+			check = {"ok": Structures.is_damaged(s) and missing.is_empty(),
+				"reason": "Already intact" if not Structures.is_damaged(s)
+					else ("Missing %s" % Structures.cost_label(missing) if not missing.is_empty()
+						else Structures.cost_label(bill))}
 		else:
 			check = {"ok": true, "reason": "Salvage %s" % s.def.name}
 	else:
@@ -166,14 +174,18 @@ func update_hover(world_pos: Vector2) -> void:
 
 
 ## The turn a piece would be placed with: the bar's, for a piece that turns.
+## A long piece has two positions and a square one with a front has four, so
+## the bar's `rot` is folded into whatever this card has.
 func rot_for(card: String) -> int:
-	return rot if Structures.turns(card) else 0
+	return posmod(rot, Structures.quarters(card))
 
 
-## R while placing. Only a piece that turns takes it.
+## R while placing. Only a piece that turns takes it; the count is the piece's
+## (two for a long one, four for a square one with a front).
 func rotate() -> void:
-	if placing() and Structures.turns(selected_card()):
-		rot = 1 - rot
+	var card := selected_card()
+	if placing() and Structures.turns(card):
+		rot = posmod(rot + 1, Structures.quarters(card))
 
 
 ## Drains whatever the last click asked for into the intent. Edges only: one

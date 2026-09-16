@@ -2747,3 +2747,133 @@ rings that survive the night.
 - `tools/test`: 764 tests, 0 failures. Smoke: 98 checkpoints, 2 failures that
   do not touch this change: the move-to-cursor focus flake, and a meal cut
   short when the player was hit (HP 98 -> 72 over the meal).
+
+## The Multiplayer Playing playtest — everything flagged (2026-09-15)
+
+Source: Notion Playtest Log → *Multiplayer Playing* (2026-09-15), its fifteen
+page bullets and the thirteen cards linked from it (DL-83, 85–95, 97). One
+branch and one PR per group below; every group ends green on `tools\test.cmd`.
+
+### A. Stamina, winded and weight  (DL-87; bullets "very slow regen while
+winded", "one mississippi before regen", "winded timer does not drop while
+walking")
+
+- [x] Sprinting while **winded** is refused outright (no spend, no clock
+      restart), so walking with the sprint key held counts the debuff down.
+      Swinging while winded still restarts it and dumps the refill.
+- [x] While winded the bar refills at `WINDED.regen_mul` of the normal rate
+      and the HUD shows it, instead of a normal refill kept out of sight.
+- [x] `stam_regen_delay` 0.65 → 1.0: a beat before recovery starts, so the
+      bar does not stutter between swings.
+- [x] Overburdened (`carried_weight > carry_cap`): no sprint, no dash, and
+      winded until the weight comes off. **Owner: the cap is soft** — you
+      may pick up past it, and walking pace is untouched.
+- [x] Co-op: the host ships `winded_t` in the player record (protocol bump)
+      rather than a guest estimating it from the flag.
+- [x] Tests: sprint refused while winded; the clock reaches zero while
+      walking with sprint held; slow regen; overburdened refusals; a guest's
+      countdown matches the host's.
+
+### B. Walls  (DL-83, DL-94, DL-85; bullets "built walls should prevent
+attacking through", "destroy existing walls?")
+
+- [x] Melee swings are blocked by player-built walls as well as terrain
+      (`Combat.melee_targets`), and a zombie's bite gets the same check —
+      today it can bite you through a wall (`Enemies` has no sight test on
+      `player_in_reach`).
+- [x] **Owner: bullets stop at a built wall too** — pillar 3 is reversed
+      (§6 row). Turrets, survivors and raider guns get the same sight rule
+      so nothing empties a magazine into its own wall.
+- [x] Chests, benches, beds and every built piece are reach-checked through
+      `Interact._in_sight` (terrain **and** solid structures), so a chest
+      cannot be opened through the wall it is standing against; the same
+      predicate guards `reachable_store` every frame, or the screen stays
+      open on a chest you have walked away from.
+- [x] House walls take damage — **zombies only**: per-tile HP on terrain
+      `WALL`, punched by anything that cannot path to its target, breaking to `RUBBLE`. Saved
+      by tile key (save v12, invariant 7), sent to guests as `chopped` is,
+      `world_version` bumped so the flow fields rebuild.
+- [x] Tests: swing and bite refused across a built wall; chest refused
+      through a wall and still reachable diagonally in an alcove; a wall
+      punched through, saved, reloaded and mirrored on a guest.
+
+### C. Storage, controls and the screens  (DL-88, DL-89, DL-97; bullets
+"control schema", "storage controls / deposit like materials", "repair
+tooltip", "TAB should close the window", "does loot pull from chests?")
+
+- [x] **Owner's scheme**, documented on every slot screen: drag to move ·
+      **Shift+LMB** quick-move to the other panel · **RMB** use, equip or
+      quick-move · **Ctrl+LMB** drop · **Alt+LMB** split.
+- [x] DEPOSIT MATCHING: everything in your pack the chest already holds,
+      on a button and a key.
+- [x] Nothing drags out of the **haul** into the pack or the hotbar (DL-97).
+- [x] The repair bill names what is **missing**, not the whole cost, when
+      you cannot pay it (`Structures.shortfall`), on the build bar, the E
+      prompt and the refusal.
+- [x] Tab closes the pack, crafting and the build menu from any tab; the
+      rail steps on its own keys instead.
+- [x] Square pieces with a front (workbench, chemistry station, bunk…) turn
+      with R — drawing only, `rot` 0–3, already carried by the wire and the
+      save.
+- [x] Answer "does loot pull from chests near the hub?" on the card: costs
+      come out of your pack and the **Supply Stash** from anywhere, never
+      out of lockers or chests.
+
+### D. Co-op, death, the instance and the crew  (DL-90, DL-91, DL-92, DL-93,
+DL-95; bullets "everyone's screen blinks red", "night in the instance",
+"respawn counts to 0.0 then waits")
+
+- [x] The red hurt flash is only for the seat that was hit — `Hud.on_event`
+      ignores the seat today, so every screen blinks when anybody is hit.
+- [x] Downed: hold the interact key on yourself to give up and die rather
+      than wait out thirty seconds (`Actions.give_up`, so a guest's command
+      runs on the host).
+- [x] Dead inside an instance says what is actually happening ("waiting for
+      the party — you wake outside when the run ends"), instead of
+      "Respawning in 0.0" for the rest of the run.
+- [x] Autosave every five minutes (`AUTOSAVE_EVERY` 120 → 300), and a hosted
+      game with no slot says so rather than quietly never saving.
+- [x] The instance has its own daylight instead of dusk: `clock_t` to a lit
+      value, the boss's `dark_t` unchanged.
+- [x] A rescued survivor paths home instead of walking into the nearest
+      wall — a real path with give-up logic (invariant 6).
+- [x] Nausea (and every effect) says what it does where you meet it: the HUD
+      chip and the item tooltip carry the consequences, not just a name.
+
+### E. The Recycler  (DL-86)
+
+- [x] A buildable Recycler that breaks an item down into materials, fed by
+      Notion's **Breaks down into** column (about ninety rows already
+      filled) through `tools\edit`'s encoder into `data/`.
+- [x] Its own PR; a sync never smuggles a system in (PROJECT.md §10).
+
+### F. Tools and the hotbar  (bullets "more robust tools", "can players
+increase hotbar size?")
+
+- [x] A written plan for tools: yields, tiers, and where a tool stops
+      overlapping a weapon. A design page, not code, for the owner to answer.
+- [x] Hotbar size as an Agility perk (+1 slot a rank), if the owner wants it.
+
+### Review
+
+- **One PR (#56), six groups, 785 unit tests and a 101-checkpoint smoke run.**
+  Every card from the playtest is `In review` on the board with a comment
+  saying what changed and how to test it; three new cards came out of the
+  work (the tools plan, Sleight of Hand, and *A firing step*).
+- **The Recycler rode along** rather than taking its own PR (§10 says a new
+  system is its own PR). It lands in the same screens and the same action
+  layer as group C, so a separate branch would have had to stack on this one;
+  the PR body says so and offers the split.
+- **The one number to watch:** the compound SIEGE harness went 124s → 296s,
+  against a 300s backstop. That is the owner's "everything stops at a wall"
+  showing up honestly — a defender walled in cannot shoot out — and it is
+  what *A firing step* exists to answer if it plays badly.
+- Two rules the owner's calls rewrote, both with §6 rows: pillar 3 (bullets
+  passing over your own walls) and the hard carry cap.
+- Three things behaved differently from what the note assumed, and each is on
+  its card: the winded timer was the *sprint key* restarting the clock rather
+  than a broken countdown; "respawn counts to 0.0 then waits" was an instance
+  never respawning anybody on their own; and the haul change quietly removed
+  using a found medkit mid-run, which is the owner's call to take back.
+- `tools/test`: 785 tests, 18049 asserts, 0 failures. `--all` adds the slow
+  tier; `tools/smoke`: 101 checkpoints, 0 failures.

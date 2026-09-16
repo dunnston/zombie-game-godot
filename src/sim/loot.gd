@@ -215,11 +215,11 @@ static func give_entry(sim: GameSim, p: PlayerSim, entry: Dictionary, found := t
 ## One non-stacking item into the first free slot, preferring the hotbar for
 ## weapons so a gun you pick up is immediately to hand.
 ##
-## Weight is the capacity rule, so it applies here too: a six-unit rifle at
-## 199 of 200 units carried is refused and stays on the ground, exactly as an
-## overweight stack of scrap would be. Slot space alone is not enough.
+## Weight is the capacity rule, so it applies here too — but against the hard
+## ceiling (`carry_limit`), not the comfortable cap: past the cap you pick it
+## up and walk home overburdened, and only the ceiling leaves it on the ground.
 static func _give_item(p: PlayerSim, id: String, prefer_hotbar: bool, wear := -1, level := 0) -> bool:
-	if p.carried_weight() + Items.weight_of(id) > p.carry_cap + 1e-9:
+	if p.carried_weight() + Items.weight_of(id) > p.carry_limit() + 1e-9:
 		return false
 	if prefer_hotbar and p.hotbar.first_empty() >= 0:
 		return p.hotbar.add(id, 1, wear, level) > 0

@@ -1,0 +1,462 @@
+{
+  "fields": {
+    "gives": {
+      "key_ref": "RES",
+      "type": "map<int>"
+    }
+  },
+  "notes": "What the Recycler gives back for one of a thing, from the owner's Breaks down into column on Notion's Items table. Buildings are not in here: taking one down pays through salvage already. A row is what ONE of the item returns, before Config.RECYCLE_SHARE and before a worn tool's condition.",
+  "rows": [
+    {
+      "gives": {
+        "mil": 4,
+        "parts": 8,
+        "scrap": 30
+      },
+      "id": "akStyleRifle"
+    },
+    {
+      "gives": {
+        "mil": 4,
+        "parts": 8,
+        "scrap": 30
+      },
+      "id": "arStyleRifle"
+    },
+    {
+      "gives": {
+        "mil": 1,
+        "scrap": 2
+      },
+      "id": "armGuards"
+    },
+    {
+      "gives": {
+        "sticks": 1,
+        "stone": 1
+      },
+      "id": "axe"
+    },
+    {
+      "gives": {
+        "wood": 4
+      },
+      "id": "baseballBat"
+    },
+    {
+      "gives": {
+        "parts": 5,
+        "scrap": 24
+      },
+      "id": "boltActionRifle"
+    },
+    {
+      "gives": {
+        "cloth": 1,
+        "sticks": 4
+      },
+      "id": "bow"
+    },
+    {
+      "gives": {
+        "scrap": 4,
+        "wood": 2
+      },
+      "id": "campingAxe"
+    },
+    {
+      "gives": {
+        "elec": 6,
+        "mil": 7,
+        "parts": 9,
+        "scrap": 42
+      },
+      "id": "carbine"
+    },
+    {
+      "gives": {
+        "scrap": 4
+      },
+      "id": "cleaver"
+    },
+    {
+      "gives": {
+        "parts": 4,
+        "scrap": 18
+      },
+      "id": "compactSmg"
+    },
+    {
+      "gives": {
+        "cloth": 2,
+        "sticks": 6
+      },
+      "id": "compoundBow"
+    },
+    {
+      "gives": {
+        "parts": 2,
+        "scrap": 8
+      },
+      "id": "crossbow"
+    },
+    {
+      "gives": {
+        "scrap": 5
+      },
+      "id": "crowbar"
+    },
+    {
+      "gives": {
+        "cloth": 7
+      },
+      "id": "denimPants"
+    },
+    {
+      "gives": {
+        "parts": 2,
+        "scrap": 16
+      },
+      "id": "doubleBarrelShotgun"
+    },
+    {
+      "gives": {
+        "parts": 1,
+        "scrap": 10,
+        "wood": 4
+      },
+      "id": "fireaxe"
+    },
+    {
+      "gives": {
+        "elec": 3,
+        "scrap": 5
+      },
+      "id": "flashlight"
+    },
+    {
+      "gives": {
+        "scrap": 3
+      },
+      "id": "fryingPan"
+    },
+    {
+      "gives": {
+        "scrap": 2,
+        "wood": 2
+      },
+      "id": "gardenSpear"
+    },
+    {
+      "gives": {
+        "sticks": 1,
+        "stone": 3
+      },
+      "id": "hammer"
+    },
+    {
+      "gives": {
+        "scrap": 7
+      },
+      "id": "hardHat"
+    },
+    {
+      "gives": {
+        "cloth": 10,
+        "mil": 2,
+        "scrap": 23
+      },
+      "id": "heavyVest"
+    },
+    {
+      "gives": {
+        "scrap": 3
+      },
+      "id": "huntingKnife"
+    },
+    {
+      "gives": {
+        "scrap": 8
+      },
+      "id": "katana"
+    },
+    {
+      "gives": {
+        "scrap": 2
+      },
+      "id": "kitchenKnife"
+    },
+    {
+      "gives": {
+        "stone": 1
+      },
+      "id": "knife"
+    },
+    {
+      "gives": {
+        "scrap": 5
+      },
+      "id": "kukri"
+    },
+    {
+      "gives": {
+        "scrap": 7
+      },
+      "id": "largeWrench"
+    },
+    {
+      "gives": {
+        "parts": 4,
+        "scrap": 22
+      },
+      "id": "leverActionRifle"
+    },
+    {
+      "gives": {
+        "cloth": 11,
+        "scrap": 6
+      },
+      "id": "lightVest"
+    },
+    {
+      "gives": {
+        "mil": 10,
+        "parts": 14,
+        "scrap": 50
+      },
+      "id": "lmg"
+    },
+    {
+      "gives": {
+        "scrap": 6
+      },
+      "id": "mace"
+    },
+    {
+      "gives": {
+        "scrap": 12
+      },
+      "id": "machete"
+    },
+    {
+      "gives": {
+        "stone": 4
+      },
+      "id": "makeshiftConcreteClub"
+    },
+    {
+      "gives": {
+        "scrap": 1,
+        "sticks": 3
+      },
+      "id": "makeshiftKnifeSpear"
+    },
+    {
+      "gives": {
+        "mil": 5,
+        "parts": 8,
+        "scrap": 34
+      },
+      "id": "marksmanRifle"
+    },
+    {
+      "gives": {
+        "scrap": 8,
+        "wood": 4
+      },
+      "id": "maul"
+    },
+    {
+      "gives": {
+        "scrap": 4,
+        "wood": 2
+      },
+      "id": "metalSpear"
+    },
+    {
+      "gives": {
+        "mil": 1,
+        "scrap": 2
+      },
+      "id": "milBoots"
+    },
+    {
+      "gives": {
+        "mil": 1,
+        "scrap": 3
+      },
+      "id": "milGreaves"
+    },
+    {
+      "gives": {
+        "mil": 1,
+        "scrap": 4
+      },
+      "id": "milHelm"
+    },
+    {
+      "gives": {
+        "cloth": 7,
+        "mil": 6,
+        "scrap": 20
+      },
+      "id": "milVest"
+    },
+    {
+      "gives": {
+        "cloth": 12,
+        "scrap": 5
+      },
+      "id": "paddedLegs"
+    },
+    {
+      "gives": {
+        "sticks": 2,
+        "stone": 2
+      },
+      "id": "pick"
+    },
+    {
+      "gives": {
+        "scrap": 5
+      },
+      "id": "pipe"
+    },
+    {
+      "gives": {
+        "parts": 2,
+        "scrap": 14
+      },
+      "id": "pistol"
+    },
+    {
+      "gives": {
+        "scrap": 3,
+        "wood": 2
+      },
+      "id": "pitchfork"
+    },
+    {
+      "gives": {
+        "scrap": 3
+      },
+      "id": "policeBaton"
+    },
+    {
+      "gives": {
+        "parts": 2,
+        "scrap": 10
+      },
+      "id": "revolver"
+    },
+    {
+      "gives": {
+        "mil": 1,
+        "parts": 6,
+        "scrap": 31
+      },
+      "id": "rifle"
+    },
+    {
+      "gives": {
+        "scrap": 5
+      },
+      "id": "riotHelm"
+    },
+    {
+      "gives": {
+        "mil": 1,
+        "parts": 6,
+        "scrap": 31
+      },
+      "id": "scopedHuntingRifle"
+    },
+    {
+      "gives": {
+        "sticks": 2,
+        "stone": 1
+      },
+      "id": "scythe"
+    },
+    {
+      "gives": {
+        "parts": 4,
+        "scrap": 20
+      },
+      "id": "semiAutoShotgun"
+    },
+    {
+      "gives": {
+        "parts": 3,
+        "scrap": 22,
+        "wood": 6
+      },
+      "id": "shotgun"
+    },
+    {
+      "gives": {
+        "scrap": 3,
+        "wood": 2
+      },
+      "id": "shovel"
+    },
+    {
+      "gives": {
+        "parts": 1,
+        "scrap": 19,
+        "wood": 9
+      },
+      "id": "sledge"
+    },
+    {
+      "gives": {
+        "elec": 5,
+        "parts": 4,
+        "scrap": 24
+      },
+      "id": "smg"
+    },
+    {
+      "gives": {
+        "scrap": 4,
+        "wood": 4
+      },
+      "id": "spikedBat"
+    },
+    {
+      "gives": {
+        "scrap": 6,
+        "wood": 3
+      },
+      "id": "splittingAxe"
+    },
+    {
+      "gives": {
+        "parts": 1,
+        "scrap": 13,
+        "wood": 3
+      },
+      "id": "steelpick"
+    },
+    {
+      "gives": {
+        "sticks": 3
+      },
+      "id": "woodenSpear"
+    },
+    {
+      "gives": {
+        "cloth": 5,
+        "scrap": 3
+      },
+      "id": "workBoots"
+    },
+    {
+      "gives": {
+        "cloth": 4
+      },
+      "id": "workGloves"
+    }
+  ],
+  "shape": "by_id_bare"
+}
