@@ -513,3 +513,19 @@ thread is open and `mergeStateStatus` is CLEAN.
   button.
 - When a smoke leg now takes time in the world, protect it from the world
   (god mode) and leave the interruption to a unit test.
+
+## A count is not a slot (Codex, PR #56)
+
+`deposit_matching` moved things by id and number: `store.add(id, n)`, then
+`bag.take(id, n)`. That reads as a move and is a **rebuild** — the destination
+stack is new, so the condition (`w`) and the level (`lv`) the slot carried are
+gone, and `take` also decides *which* of two Machetes leaves the pack.
+
+`deposit_all` has the same shape and is fine, which is what made it look safe
+to copy: it only ever moves resources and surplus consumables, and a stack of
+scrap has nothing on the slot to lose.
+
+**Rule:** anything that moves a *thing* moves the slot (`Slots.move`), and only
+onto an empty slot or a part-used stack of the same id — `move` swaps
+otherwise. Count-and-recreate is only for material, and the test that proves
+it is one with a level and a condition on it, run against the old code first.
