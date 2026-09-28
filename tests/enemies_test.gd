@@ -57,6 +57,45 @@ func test_aggro_expires_and_only_real_sensing_renews_it() -> void:
 	ok(not e.aggro, "gave up the hunt")
 
 
+# ---------------------------------------------------------------- growls --
+
+func test_a_growl_can_be_heard_before_it_notices_you() -> void:
+	# 400px: past a walker's 330 sense (so it has not noticed you) but inside
+	# its 429 growl radius (sense * growl_sense_mul) — the sweet spot itself.
+	var e := sim.enemies.spawn("walker", plot + Vector2(400, 0))
+	e.growl_t = 0.0
+	run(sim, 1.0 / 60.0)
+	ok(not e.aggro, "still outside its sense")
+	ok(not events_of(sim, "growl").is_empty(), "but close enough to hear")
+
+
+func test_too_far_even_for_a_growl() -> void:
+	var e := sim.enemies.spawn("walker", plot + Vector2(500, 0))
+	e.growl_t = 0.0
+	run(sim, 1.0 / 60.0)
+	ok(events_of(sim, "growl").is_empty(), "500px is past the growl radius too")
+
+
+func test_growling_continues_once_it_is_hunting_you() -> void:
+	# Gating this on `aggro` was the 2026-09-28 regression: a zombie mid-chase
+	# is still close, and going silent there is what made growls seem to have
+	# stopped, since most of the growls anyone actually hears happen in a fight.
+	var e := sim.enemies.spawn("walker", plot + Vector2(250, 0))
+	run(sim, 0.5)
+	ok(e.aggro, "close enough in the open to have been seen")
+	e.growl_t = 0.0
+	run(sim, 1.0 / 60.0)
+	ok(not events_of(sim, "growl").is_empty(), "still close, still worth hearing")
+
+
+func test_a_raid_growls_too() -> void:
+	var e := sim.enemies.spawn("raider", plot + Vector2(250, 0), true, true)
+	ok(e.aggro and e.raid)
+	e.growl_t = 0.0
+	run(sim, 1.0 / 60.0)
+	ok(not events_of(sim, "growl").is_empty())
+
+
 func test_an_unaggroed_walker_shambles_at_half_pace() -> void:
 	# Nobody to see; four seconds of wandering must not cover what four
 	# seconds of chasing would.

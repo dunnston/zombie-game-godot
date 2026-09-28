@@ -21,12 +21,24 @@ extends Node
 
 ## Fills before the first cue can be heard.
 static var _bank := {}
+## group -> its recorded takes, when any were cut. A cue whose group is not
+## here, or whose group has no file on disk, plays its synth recipe instead.
+static var _files := {}
+## group -> the take last played, so a shotgun's own file does not repeat.
+static var _file_last := {}
 ## cue -> last play time in milliseconds, for the throttle.
 static var _last := {}
 static var _players: Array[AudioStreamPlayer] = []
 static var _next := 0
 static var _muted := false
 static var _built := false
+## The three sliders: master, music and effects, each 0..1 and multiplied
+## into whatever plays. `Music` reads the first two; `play` reads the first
+## and third. Muting is still its own switch — the quick toggle on the title
+## screen and the pause menu — rather than the sliders remembering silence.
+static var _master := 1.0
+static var _music_vol := 1.0
+static var _sfx_vol := 1.0
 
 ## How many cues can overlap. A raid is the busy case: several guns, a dozen
 ## impacts and a horde. Past this the oldest voice is taken, which is the right
@@ -67,7 +79,25 @@ static func build() -> void:
 		return
 	for name in Config.SFX:
 		_bank[name] = _render(Config.SFX[name])
+	_load_files()
 	_built = true
+
+
+## One load per group, not per cue: `rifle` is five cues sharing one file.
+static func _load_files() -> void:
+	var groups := {}
+	for g in Config.SFX_FILES.values():
+		groups[g] = true
+	for g in groups:
+		var loaded: Array = []
+		for take in Config.SFX_VARIANTS.get(g, [g]):
+			var path := "%s%s.wav" % [Config.SFX_DIR, take]
+			if ResourceLoader.exists(path):
+				var s: AudioStream = load(path)
+				if s != null:
+					loaded.append(s)
+		if not loaded.is_empty():
+			_files[g] = loaded
 
 
 ## The voices have to hang off a node in the tree, and `Sfx` is an autoload in
@@ -89,6 +119,23 @@ static func has(name: String) -> bool:
 
 static func stream(name: String) -> AudioStreamWAV:
 	return _bank.get(name)
+
+
+## What `play` actually puts on a voice: a recorded take when the cue's group
+## has one on disk, its synth recipe otherwise. Public so a test can ask what
+## a cue will sound like without a speaker. `roll` is the dice, a parameter
+## for the same reason `Music.variant`'s is.
+static func chosen(name: String, roll := randf()) -> AudioStream:
+	var g: String = Config.SFX_FILES.get(name, "")
+	var files: Array = _files.get(g, [])
+	if files.is_empty():
+		return _bank.get(name)
+	var pool: Array = files.filter(func(f): return f != _file_last.get(g))
+	if pool.is_empty():
+		pool = files
+	var f: AudioStream = pool[mini(int(roll * pool.size()), pool.size() - 1)]
+	_file_last[g] = f
+	return f
 
 
 # ---------------------------------------------------------------- synthesis --
@@ -249,11 +296,18 @@ static func play(name: String, pitch := 1.0, gain := 1.0) -> bool:
 		return false
 	var pl := _players[_next]
 	_next = (_next + 1) % _players.size()
-	pl.stream = _bank[name]
+	pl.stream = chosen(name)
 	pl.pitch_scale = clampf(pitch, 0.05, 4.0)
-	pl.volume_db = linear_to_db(clampf(Config.SFX_GAIN * gain, 0.0001, 1.0))
+	pl.volume_db = linear_to_db(effective_gain(gain))
 	pl.play()
 	return true
+
+
+## What a cue at `gain` actually comes out at, master and effects sliders
+## included. Pulled out of `play` so a test can check the mix without a
+## speaker.
+static func effective_gain(gain := 1.0) -> float:
+	return clampf(Config.SFX_GAIN * gain * _sfx_vol * _master, 0.0001, 1.0)
 
 
 static func set_muted(on: bool) -> void:
@@ -268,6 +322,39 @@ static func muted() -> bool:
 	return _muted
 
 
+static func master_volume() -> float:
+	return _master
+
+
+static func music_volume() -> float:
+	return _music_vol
+
+
+static func sfx_volume() -> float:
+	return _sfx_vol
+
+
+## `persist` is false while a slider is still being dragged: the value takes
+## effect immediately either way, but a drag is a lot of calls a second and
+## only the value it is released on is worth a write to disk.
+static func set_master_volume(v: float, persist := true) -> void:
+	_master = clampf(v, 0.0, 1.0)
+	if persist:
+		save_settings()
+
+
+static func set_music_volume(v: float, persist := true) -> void:
+	_music_vol = clampf(v, 0.0, 1.0)
+	if persist:
+		save_settings()
+
+
+static func set_sfx_volume(v: float, persist := true) -> void:
+	_sfx_vol = clampf(v, 0.0, 1.0)
+	if persist:
+		save_settings()
+
+
 # --------------------------------------------------------------- settings --
 
 ## Per machine, like the key bindings and for the same reason: whether your
@@ -276,7 +363,9 @@ static func save_settings() -> bool:
 	var f := FileAccess.open(STORE, FileAccess.WRITE)
 	if f == null:
 		return false
-	f.store_string(JSON.stringify({"muted": _muted}))
+	f.store_string(JSON.stringify({
+		"muted": _muted, "master": _master, "music": _music_vol, "sfx": _sfx_vol,
+	}))
 	f.close()
 	return true
 
@@ -291,3 +380,6 @@ static func load_settings() -> void:
 	f.close()
 	if typeof(data) == TYPE_DICTIONARY:
 		_muted = bool(data.get("muted", false))
+		_master = clampf(float(data.get("master", 1.0)), 0.0, 1.0)
+		_music_vol = clampf(float(data.get("music", 1.0)), 0.0, 1.0)
+		_sfx_vol = clampf(float(data.get("sfx", 1.0)), 0.0, 1.0)

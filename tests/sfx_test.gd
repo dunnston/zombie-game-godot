@@ -232,6 +232,35 @@ func test_distance_is_what_makes_a_turret_across_town_quiet() -> void:
 	eq(ears.gain_at(p.pos + Vector2(Config.SFX_RANGE + 1.0, 0)), 0.0, "and across town is nothing")
 
 
+# ---------------------------------------------------------------- recordings --
+
+func test_a_cue_with_no_recording_plays_its_synth_recipe() -> void:
+	eq(Sfx.chosen("heal"), Sfx.stream("heal"))
+
+
+func test_a_recorded_cue_plays_the_file_not_the_recipe() -> void:
+	var got := Sfx.chosen("pistol")
+	ne(got, Sfx.stream("pistol"))
+	ok(got is AudioStreamWAV and got.data.size() > 64, "pistol.wav loaded")
+
+
+func test_weapons_sharing_a_recording_get_the_same_file() -> void:
+	eq(Sfx.chosen("pistol", 0.0), Sfx.chosen("machinePistol", 0.0))
+	eq(Sfx.chosen("carbine", 0.0), Sfx.chosen("rifle", 0.0))
+
+
+func test_a_group_with_several_takes_alternates_and_never_repeats() -> void:
+	Sfx._file_last.clear()
+	var seen := {}
+	var prev: AudioStream = null
+	for i in range(30):
+		var f := Sfx.chosen("growl", randf())
+		ne(f, prev, "the same take twice running")
+		seen[f] = true
+		prev = f
+	eq(seen.size(), 3, "all three growl takes get played")
+
+
 func test_a_sound_with_nowhere_to_be_is_not_faded() -> void:
 	# A raid warning belongs to the whole town rather than to a point in it,
 	# so it has no position and must not be attenuated to nothing.

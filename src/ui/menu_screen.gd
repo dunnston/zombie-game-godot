@@ -49,6 +49,9 @@ var slot := -1
 
 var _sig := ""
 var _fields_ui := {}
+## vol_* id -> its live label and slider, so a drag can update them directly
+## instead of through a page rebuild. See `_refresh_volume_display`.
+var _vol_ui := {}
 var _dlg_sc: ScrollContainer = null
 var _dlg_list: Control = null
 
@@ -218,6 +221,9 @@ func _rows() -> Array[Dictionary]:
 					out.append(_row("reset", "RESET TO DEFAULTS"))
 				"sound":
 					out.append(_sound_row())
+					out.append(_volume_row("vol_master", "MASTER VOLUME", Sfx.master_volume()))
+					out.append(_volume_row("vol_music", "MUSIC VOLUME", Sfx.music_volume()))
+					out.append(_volume_row("vol_sfx", "EFFECTS VOLUME", Sfx.sfx_volume()))
 				"display":
 					out.append({"id": "fullscreen", "label": "WINDOW", "arg": 0, "enabled": true,
 						"note": "Fullscreen fills the monitor; the game scales to any window without cropping",
@@ -242,6 +248,104 @@ func _sound_row(small := false) -> Dictionary:
 	var on := not Sfx.muted()
 	return {"id": "mute", "label": "SOUND", "arg": 0, "note": "", "enabled": true, "small": small,
 		"tag": "ON" if on else "OFF", "tag_color": Ui.OK if on else Ui.TEXT_DIM}
+
+
+## Master, music and effects: one row each, a real bar under it. The row
+## dict still carries a `tag` (its percentage) so `_signature` notices a drag
+## and rebuilds the row, and `_press`/Left-Right still work the row by tenths
+## for a keyboard or a controller with no pointer.
+func _volume_row(id: String, label: String, v: float) -> Dictionary:
+	var pct := roundi(v * 100.0)
+	return {"id": id, "label": label, "arg": 0, "enabled": true,
+		"note": "Drag the bar, click a point on it, or use Left / Right once it is selected",
+		"tag": "%d%%" % pct, "tag_color": Ui.ACCENT_HI if pct > 0 else Ui.TEXT_DIM}
+
+
+## The slider row itself: label and percentage on top, a draggable `UiSlider`
+## underneath, wrapped in the same bordered face `_menu_row` uses so the
+## selection highlight still reads as one row among the others.
+func _volume_slider_row(r: Dictionary) -> Control:
+	var id := String(r.id)
+	var pct_label := Ui.label(String(r.tag), "Mono", r.get("tag_color", Ui.TEXT_DIM))
+	var top := Ui.hbox(14, [Ui.expand(Ui.label(String(r.label), "MenuItem", Ui.TEXT_HIGH)), pct_label])
+	var slider := UiSlider.new()
+	slider.value = _volume(id)
+	# `false`: a drag is many calls a second, each live so the sound changes
+	# as you drag, none of them written to disk until the mouse comes up.
+	slider.changed.connect(func(v: float) -> void:
+		_set_volume(id, v, false)
+		_select_row_by_id(id))
+	slider.released.connect(func(v: float) -> void:
+		_set_volume(id, v, true))
+	_vol_ui[id] = {"label": pct_label, "slider": slider}
+	var col := Ui.vbox(8, [top, slider, Ui.para(String(r.get("note", "")), "Small", Color(1, 1, 1, 0.35))])
+	var face := Ui.pad(col, 18, 16)
+	var b := Ui.face_button("MenuRowOn" if _is_sel(r) else "MenuRow", face)
+	# The slider consumes its own clicks and drags; the row underneath it is
+	# there for the border and the hover highlight, not a press of its own.
+	b.mouse_entered.connect(func() -> void:
+		var i := _enabled_rows().find(r)
+		if i >= 0 and i != sel:
+			sel = i)
+	reg_row("%s:0:" % id, b)
+	return b
+
+
+## The row's own label and slider are updated straight from here rather than
+## through a full-page rebuild: `_signature` ignores a volume row's tag for
+## exactly this reason, since a drag is many calls a second and rebuilding
+## the settings page that often would replace the very `UiSlider` mid-drag
+## and drop it.
+func _refresh_volume_display(id: String) -> void:
+	var ui: Dictionary = _vol_ui.get(id, {})
+	if ui.is_empty():
+		return
+	var pct := roundi(_volume(id) * 100.0)
+	var label: Label = ui.label
+	var slider: UiSlider = ui.slider
+	if is_instance_valid(label):
+		Ui.set_text(label, "%d%%" % pct)
+		Ui.set_color(label, Ui.ACCENT_HI if pct > 0 else Ui.TEXT_DIM)
+	if is_instance_valid(slider):
+		slider.set_value(_volume(id))
+
+
+## Not `_enabled_rows().find(r)`: a volume change just made every row's dict
+## stale (the tag it was built with is the old percentage), so the row is
+## looked up by id instead of by value, the way `_press` already knows the
+## id rather than the row.
+func _select_row_by_id(id: String) -> void:
+	var en := _enabled_rows()
+	for i in range(en.size()):
+		if String(en[i].id) == id:
+			sel = i
+			return
+
+
+func _volume(id: String) -> float:
+	match id:
+		"vol_master": return Sfx.master_volume()
+		"vol_music": return Sfx.music_volume()
+		_: return Sfx.sfx_volume()
+
+
+## `persist` false is the middle of a drag: audible immediately, not yet
+## written down, so dragging the bar does not put a disk write on every pixel.
+func _set_volume(id: String, v: float, persist := true) -> void:
+	match id:
+		"vol_master": Sfx.set_master_volume(v, persist)
+		"vol_music": Sfx.set_music_volume(v, persist)
+		_: Sfx.set_sfx_volume(v, persist)
+	_refresh_volume_display(id)
+
+
+func _step_volume(id: String) -> void:
+	var next := roundi(_volume(id) * 10.0) + 1
+	_set_volume(id, 0.0 if next > 10 else float(next) / 10.0)
+
+
+func _nudge_volume(id: String, delta: float) -> void:
+	_set_volume(id, clampf(_volume(id) + delta, 0.0, 1.0))
 
 
 # ------------------------------------------------------------------- input --
@@ -275,6 +379,13 @@ func _input(event: InputEvent) -> void:
 		KEY_UP, KEY_DOWN:
 			if not enabled.is_empty():
 				sel = clampi(sel + (1 if key.physical_keycode == KEY_DOWN else -1), 0, enabled.size() - 1)
+		KEY_LEFT, KEY_RIGHT:
+			if enabled.is_empty():
+				return
+			var row: Dictionary = enabled[clampi(sel, 0, enabled.size() - 1)]
+			if not String(row.id).begins_with("vol_"):
+				return
+			_nudge_volume(String(row.id), 0.1 if key.physical_keycode == KEY_RIGHT else -0.1)
 		KEY_ENTER, KEY_KP_ENTER:
 			if key.echo or enabled.is_empty():
 				return
@@ -333,6 +444,8 @@ func _press(r: Dictionary) -> void:
 			# A setting, not a key: whether your speakers are on is not
 			# something you should have to remember a letter for.
 			Sfx.set_muted(not Sfx.muted())
+		"vol_master", "vol_music", "vol_sfx":
+			_step_volume(String(r.id))
 		"fullscreen":
 			DisplayPrefs.set_fullscreen(not DisplayPrefs.fullscreen())
 		"move_mode":
@@ -376,7 +489,13 @@ func _press(r: Dictionary) -> void:
 func _signature() -> String:
 	var sig := "%d|%s|%s|%s|%s|%d|%s|%s|" % [page, str(over_game), settings_tab, rebinding, editing, sel, status_line, str(DisplayPrefs.fullscreen())]
 	for r in _rows():
-		sig += "%s:%s:%s:%s:%s," % [r.id, r.label, r.get("note", ""), str(r.enabled), r.get("tag", "")]
+		# A vol_* row's tag is its percentage, which a drag changes many times
+		# a second. `_refresh_volume_display` keeps it and the slider current
+		# without a rebuild, so it is left out here on purpose: putting it
+		# back would rebuild the settings page mid-drag and free the very
+		# `UiSlider` the drag is happening on.
+		var tag := "" if String(r.id).begins_with("vol_") else String(r.get("tag", ""))
+		sig += "%s:%s:%s:%s:%s," % [r.id, r.label, r.get("note", ""), str(r.enabled), tag]
 	if page == Page.TITLE:
 		for s in Saves.list():
 			sig += str(s)
@@ -688,8 +807,9 @@ func _build_settings() -> void:
 	else:
 		var list := Ui.vbox(10)
 		for r in rows:
-			if not r.get("pinned", false):
-				list.add_child(_menu_row(r))
+			if r.get("pinned", false):
+				continue
+			list.add_child(_volume_slider_row(r) if String(r.id).begins_with("vol_") else _menu_row(r))
 		content = list
 	var foot := Ui.hbox(12)
 	for r in rows:

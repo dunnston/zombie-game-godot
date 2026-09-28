@@ -1088,6 +1088,12 @@ const SPAWN := {
 	"seed_radius": 1100.0,
 	"light_sense_bonus": 90.0,
 	"sneak_sense_mul": 0.55,
+	# A growl's radius, as a multiple of the growler's own `sense`: the sweet
+	# spot between close enough to notice and close enough to be noticed. 1.0
+	# would mean the growl and the aggro land in the same frame, so it is
+	# comfortably past 1 — enough that a walker (sense 330) growls at you from
+	# about a screen away before it can see you at all.
+	"growl_sense_mul": 1.3,
 }
 
 ## How loud things are, as a radius. Weapons carry their own in WEAPONS —
@@ -1519,6 +1525,70 @@ const SFX_THROTTLE := {
 	"stagger": 90,
 	"chop": 60, "pickup": 40, "ui": 30,
 }
+
+## Recorded takes, when they exist. Cues here play a file cut from
+## `SFX_DIR` instead of their synth recipe above; the recipe stays and is
+## what plays if the file is missing, so this list can grow one cue at a
+## time without anything falling silent in between.
+##
+## Several cues share one recording — every rifle sounds like `rifle` until
+## its own take exists — so this maps cue name to *group*, not file. The
+## group is the filename before the game reaches `SFX_VARIANTS`.
+const SFX_DIR := "res://assets/sfx/"
+const SFX_FILES := {
+	"pistol": "pistol", "machinePistol": "pistol",
+	"revolver": "revolver", "sixShooter": "revolver",
+	"smg": "smg", "compactSmg": "smg",
+	"rifle": "rifle", "carbine": "rifle", "arStyleRifle": "rifle", "akStyleRifle": "rifle", "lmg": "rifle",
+	"boltActionRifle": "rifle_heavy", "marksmanRifle": "rifle_heavy",
+	"scopedHuntingRifle": "rifle_heavy", "leverActionRifle": "rifle_heavy",
+	"shotgun": "shotgun", "pipeShotgun": "shotgun", "doubleBarrelShotgun": "shotgun", "semiAutoShotgun": "shotgun",
+	"bow": "bow", "compoundBow": "bow",
+	"swing": "swing",
+	"melee_hit": "melee_hit",
+	"bullet_hit": "bullet_hit",
+	"player_hurt": "player_hurt",
+	"player_die": "player_die",
+	"zombie_die": "zombie_die",
+	"growl": "growl",
+	"dash": "dash",
+	"dryfire": "dryfire",
+	"reload": "reload",
+	"craft": "craft",
+	"raid_win": "raid_win",
+	"car_wreck": "car_wreck",
+}
+## Groups with more than one recorded take: one is picked at random each
+## play, never the same take twice running — the effects side of
+## `MUSIC_VARIANTS`.
+const SFX_VARIANTS := {
+	"growl": ["growl", "growl_b", "growl_c"],
+	"rifle_heavy": ["rifle_heavy", "rifle_heavy_b"],
+	"player_hurt": ["player_hurt", "player_hurt_b", "player_hurt_c"],
+}
+
+# -------------------------------------------------------------------- music --
+
+## Recorded tracks, the one thing in the audio that is a file: `Music` plays
+## `MUSIC_DIR/<name>.mp3`. Linear gain, well under `SFX_GAIN` territory so a
+## gunfight is never fought through a score.
+const MUSIC_DIR := "res://assets/music/"
+const MUSIC_GAIN := 0.3
+## Seconds to cross from one track to the next.
+const MUSIC_FADE := 1.6
+## Only the game-over sting plays once; everything else is a bed.
+const MUSIC_ONCE := ["game_over"]
+## Moods with two recorded takes: one is picked at random each time the mood
+## starts, never the same one twice running. Anything not listed is one file.
+const MUSIC_VARIANTS := {
+	"main_menu": ["main_menu", "main_menu_b"],
+	"exploration": ["exploration", "exploration_b"],
+	"horde": ["horde", "horde_b"],
+	"game_over": ["game_over", "game_over_b"],
+}
+## Enemy type -> the track its fight plays. A boss without a row gets `boss_1`.
+## `boss_2` and `final_boss` are recorded and waiting for the bosses that use them.
+const MUSIC_BOSS := {"coach": "boss_1"}
 
 # ---------------------------------------------------------------------- map --
 
