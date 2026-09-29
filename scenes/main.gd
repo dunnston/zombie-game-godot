@@ -540,6 +540,7 @@ func _process(dt: float) -> void:
 		inventory.on_event(ev)
 		ears.on_event(ev)
 	sim.events.clear()
+	Soundtrack.play(Music.pick(at_title, me.dead, Music.boss_of(sim), sim.raid != null))
 	if net_host != null:
 		net_host.on_events_cleared()
 	_refresh_net_lines()

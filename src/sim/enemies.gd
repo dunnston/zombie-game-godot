@@ -491,10 +491,13 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 		e.alert_t = maxf(0.0, e.alert_t - dt)
 		e.anim += dt * (2.0 + e.speed * 0.03)
 		e.growl_t -= dt
+		# Whether to check for a growl once `sense_r` exists below — not
+		# whether to emit one, since that also needs to know if this thing has
+		# noticed you yet, and it has not been asked that this frame yet.
+		var growl_due := false
 		if e.growl_t <= 0.0:
 			e.growl_t = rng.frange(4.0, 16.0)
-			if p != null and e.pos.distance_squared_to(p.pos) < 620.0 * 620.0:
-				sim.emit({"t": "growl", "x": e.pos.x, "y": e.pos.y})
+			growl_due = true
 
 		# ------------------------------------------------------------ bleeding --
 		# Spent here rather than in a pass of its own. `Fire` needs its own
@@ -561,6 +564,15 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 			e.aggro = false
 		elif e.aggro and not senses and e.alert_t <= 0.0 and not e.raid:
 			e.aggro = false          # losing you makes them investigate, not peaceful
+
+		# Close enough to be heard: a multiple of this one's own `sense`
+		# rather than one flat radius for every kind, so a walker (sense 330)
+		# growls from about a screen away and a behemoth (900) from much
+		# further out. Not gated on `aggro` — a zombie already chasing you is
+		# still a zombie you should hear, and silencing it there was the bug
+		# that made growls seem to have stopped altogether (2026-09-28).
+		if growl_due and p != null and d_player2 < pow(sense_r * S.growl_sense_mul, 2.0):
+			sim.emit({"t": "growl", "x": e.pos.x, "y": e.pos.y})
 
 		var tgt := Vector2.ZERO
 		var hunting := false         # walking at a player: use the flow field

@@ -120,11 +120,53 @@ same page. And **downed-not-dead**: with a teammate standing, running
 out of health puts you on the ground for thirty seconds rather than in it,
 and holding E beside you gets you up. Alone, you die as you always did.
 
-**The ears.** Every sound in the game is synthesised at boot — thirty-five
-recipes in `Config`, no audio file anywhere in the project — and rate-limited
+**The ears.** Every sound effect has a synth recipe in `Config.SFX`, rendered
+at boot, and that recipe is still what plays for any cue with no recording.
+Twenty cues (2026-09-28, LUFS-levelled takes) have one cut in `assets/sfx/`
+instead — `Config.SFX_FILES` maps a cue to its group (several weapons can
+share one file: every rifle sounds like `rifle` until its own take exists)
+and `Sfx` plays the recording when the group's `.wav` is on disk. `growl` and
+`player_hurt` have three takes each, `rifle_heavy` two (`Config.SFX_VARIANTS`),
+alternated at random the way the music's takes are. Cues fire rate-limited
 per kind, so a shotgun hitting twelve zombies is one impact rather than
 twelve. The gunshot rides the muzzle flash, not the bullet. And sounds fade
 with distance, which the prototype never did.
+
+The 2026-09-28 leveled batch also cut takes for footsteps, per-material
+container/build/break sounds, weapon-weight-aware swings and hits, a tree
+falling, an engine idle loop, car-door and car-hits-zombie, a walker's attack
+snarl, a brute's roar, and a click/back split for UI — none of those are
+wired up yet, because none of them are cues that exist: the sim has no
+footstep event, no material on a build or a break, no weight on a swing, and
+so on. Hooking them up is real feature work (mostly threading a category
+through an existing event), not a file drop, and is unscheduled.
+
+A growl (2026-09-28) is gated by distance, not one flat radius for every
+kind: it fires within `sense * Config.SPAWN.growl_sense_mul` (1.3×) of the
+player, per enemy, so a walker (sense 330) growls from about a screen away
+and a behemoth (900) from much further out. The first cut of this also
+silenced it once `e.aggro` went true, on the reasoning that a growl is a
+warning and the warning is over once it has found you — but most growls
+anyone actually hears happen mid-chase, so that read as growls breaking
+outright and was reverted the same day. It is distance-only again.
+
+**The score.** Suno tracks in `assets/music/` (2026-09-26): `Music` (autoload
+`Soundtrack`) crossfades between them, and `Music.pick` chooses from state — title,
+then dead (`game_over`, plays once), a *woken* boss (`Config.MUSIC_BOSS`), a raid
+(`horde`), else `exploration`. Menu, exploration, horde and game over each have two takes (`_b`): one is
+picked at random whenever the mood starts, never the same twice running
+(`Config.MUSIC_VARIANTS`). `boss_2` and `final_boss` wait for bosses that
+do not exist yet.
+
+**Volume.** Settings → Sound (2026-09-28) has three sliders alongside the
+SOUND on/off toggle — Master, Music and Effects, each in `Sfx` as
+`_master`/`_music_vol`/`_sfx_vol` and saved to the same `user://audio.json`
+as the mute. A row's tag is its percentage; clicking steps it a tenth and
+wraps from full back to silent, and Left/Right nudge the selected row by a
+tenth without wrapping. `Sfx.effective_gain()` and `Music.effective_gain()`
+are where master multiplies into each half, kept as their own functions so a
+headless test can check the mix without a speaker. Muting is still its own
+switch rather than the sliders remembering silence.
 
 **The map.** There is a
 minimap in the corner and a town map behind `M`: the ground tinted red by
