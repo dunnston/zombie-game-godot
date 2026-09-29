@@ -321,8 +321,11 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
   adding up until `RANGE.session_gap` (3s) passes without a hit, and the next
   starts fresh; dealt and taken have separate clocks, so being bitten does
   not reset the gun you are testing. A blast of pellets on one body is one
-  hit. DPS is everything after the first hit over the time since it — the
-  first hit had no time to earn — and stops at the kill.
+  hit. DPS is everything after the first hit over the time from the first
+  hit to the last — the first hit had no time to earn — so it holds still
+  between shots rather than falling while you aim. Right-aligned text is
+  drawn inside the panel's width (`RangePanel._right`): the owner's first
+  look found every number column running off its edge.
 - **Where the numbers come from.** In the range `Damage.damage_enemy` calls
   `TargetRange.note_dealt`, which emits a `dealt` event with the seat, the
   body's id and type, and what it has left. It carries the seat, so the host

@@ -621,7 +621,8 @@ func test_the_panel_counts_hits_until_a_three_second_pause() -> void:
 	eq(int(r.hits), 3)
 	near(float(r.total), 30.0, 1e-6)
 	near(float(r.last), 10.0, 1e-6)
-	near(DamageLog.dps(r, 1.0), 20.0, 1e-6, "twenty after the first hit, over the second it took")
+	near(DamageLog.dps(r), 20.0, 1e-6, "twenty after the first hit, over the second it took")
+	near(DamageLog.dps(r), 20.0, 1e-6, "and it holds still while you wait")
 	_hit(log, 1, 10.0, 3.9)
 	eq(int(log.dealt[0].hits), 4, "2.9 seconds is still the same session")
 	_hit(log, 1, 10.0, 7.0)
@@ -646,7 +647,7 @@ func test_the_panel_keeps_a_row_per_body_and_times_the_kill() -> void:
 	eq(log.dealt.size(), 2)
 	near(float(log.dealt[0].ttk), 1.5, 1e-6, "down 1.5s after the first hit")
 	near(float(log.dealt[1].ttk), -1.0, 1e-6, "the other is still up")
-	near(DamageLog.dps(log.dealt[0], 9.0), 38.0 / 1.5, 1e-6, "and its DPS stops at the kill")
+	near(DamageLog.dps(log.dealt[0]), 38.0 / 1.5, 1e-6, "and its DPS stops at the kill")
 
 
 func test_the_panel_hears_only_its_own_seat() -> void:

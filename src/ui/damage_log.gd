@@ -18,7 +18,8 @@ const SAME_HIT := 0.001
 var seat := 0
 
 ## One row per body hit this session, in the order first hit:
-## {id, type, hits, total, first, first_t, last, last_t, hp, max, bleed, ttk}.
+## {id, type, hits, total, first, first_t, last, last_t, end_t, hp, max, bleed, ttk}.
+## `end_t` is the latest damage of any kind, bleed included.
 ## `ttk` is seconds from the first hit to the one that put it down, or -1.
 var dealt: Array[Dictionary] = []
 var dealt_last_t := -INF
@@ -60,9 +61,10 @@ func _dealt(ev: Dictionary, now: float) -> void:
 	var dmg := float(ev.dmg)
 	if row.is_empty():
 		row = {"id": id, "type": String(ev.type), "hits": 0, "total": 0.0, "first": 0.0, "first_t": now,
-			"last": 0.0, "last_t": -INF, "hp": 0.0, "max": float(ev.max), "bleed": 0.0, "ttk": -1.0}
+			"last": 0.0, "last_t": -INF, "end_t": now, "hp": 0.0, "max": float(ev.max), "bleed": 0.0, "ttk": -1.0}
 		dealt.append(row)
 	row.total = float(row.total) + dmg
+	row.end_t = now
 	if String(ev.kind) == "bleed":
 		row.bleed = float(row.bleed) + dmg
 	elif now - float(row.last_t) < SAME_HIT:
@@ -82,13 +84,12 @@ func _dealt(ev: Dictionary, now: float) -> void:
 
 
 ## Sustained damage per second on a body: everything after the first hit over
-## the time since it. The first hit cannot count — no time had passed to earn
-## it — so one hit has no DPS yet, and reads as -1.
-static func dps(row: Dictionary, now: float) -> float:
-	var end := now
-	if float(row.ttk) >= 0.0:
-		end = float(row.first_t) + float(row.ttk)
-	var span := end - float(row.first_t)
+## the time from the first hit to the last. The first hit cannot count — no
+## time had passed to earn it — so one hit has no DPS yet, and reads as -1.
+## It is measured to the last damage, not to now, so it holds still while you
+## line up the next shot instead of falling (owner's first look, 2026-09-29).
+static func dps(row: Dictionary) -> float:
+	var span := float(row.end_t) - float(row.first_t)
 	if span <= 0.05 or (int(row.hits) < 2 and float(row.bleed) <= 0.0):
 		return -1.0
 	return (float(row.total) - float(row.first)) / span
