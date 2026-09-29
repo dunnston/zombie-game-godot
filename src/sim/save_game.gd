@@ -378,6 +378,8 @@ static func _off_the_new_sites(sim: GameSim) -> int:
 	var moved := 0
 	for kind in Config.INSTANCES:
 		var d: Dictionary = Config.INSTANCES[kind]
+		if not d.has("shell"):
+			continue
 		var shell: Rect2i = d.shell
 		var f := Instance.door_for(sim, kind)
 		if f.is_empty():

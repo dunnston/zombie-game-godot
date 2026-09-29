@@ -116,6 +116,14 @@ func _build_catalogue() -> void:
 		# right in play and useless at a keyboard checking the way out.
 		["school", "Walk into Pine Hollow High", "world"],
 		["boss", "Put down the School's boss", "world"],
+		# The Target Range (`TargetRange`). Through `Actions`, unlike the rows
+		# above, so a guest's F1 does the same as the host's.
+		["range", "Walk into the Target Range", "range"],
+		["range_leave", "Leave the Target Range", "range"],
+		["range_restock", "Restock the range lockers", "range"],
+		["range_wear", "Toggle weapon wear in the range", "range"],
+		["range_lv_up", "Held weapon up a level", "range"],
+		["range_lv_down", "Held weapon down a level", "range"],
 	]:
 		_all.append({"kind": "verb", "id": v[0], "label": v[1], "note": v[2]})
 
@@ -216,6 +224,18 @@ func _verb(id: String) -> void:
 			# Through the real door, refusals and all: a dev key that walked
 			# past the daily chain would test nothing about the chain.
 			Instance.enter(sim, player, "school")
+		"range":
+			Actions.range_control(sim, player, "enter")
+		"range_leave":
+			Actions.range_control(sim, player, "leave")
+		"range_restock":
+			Actions.range_control(sim, player, "restock")
+		"range_wear":
+			Actions.range_control(sim, player, "wear")
+		"range_lv_up":
+			Actions.range_control(sim, player, "level", {"d": 1})
+		"range_lv_down":
+			Actions.range_control(sim, player, "level", {"d": -1})
 		"boss":
 			if sim.instance == null or sim.instance.boss == null or sim.instance.boss.dead:
 				sim.notify("DEV  no boss standing", "#8a8f84")

@@ -152,7 +152,7 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 ## The instance door within reach, and what it has to say for itself. An
 ## opened chained door and an exit the boss still guards say nothing.
 static func _door_target(sim: GameSim, p: PlayerSim) -> Dictionary:
-	var f := Instance.feature_near(sim, p, ["instance_door", "leave", "chained", "exit", "breaker"])
+	var f := Instance.feature_near(sim, p, ["instance_door", "leave", "chained", "exit", "breaker", "range_exit"])
 	if f.is_empty():
 		return {}
 	var inst := sim.instance
@@ -173,6 +173,8 @@ static func _door_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 			if not cleared:
 				return {}
 			return {"kind": "exit", "ref": f, "label": "Walk out with everything you found"}
+		"range_exit":
+			return {"kind": "range_exit", "ref": f, "label": "Leave the range — your own things come back"}
 		"breaker":
 			# Only while there is a dark to undo: a switch that always offers
 			# itself would outrank the locker beside it for nothing.
@@ -399,6 +401,8 @@ static func tick(sim: GameSim, p: PlayerSim, dt: float) -> void:
 		"breaker":
 			if sim.instance != null:
 				sim.instance.lights_on(sim)
+		"range_exit":
+			TargetRange.control(sim, p, "leave")
 
 
 static func _finish_search(sim: GameSim, p: PlayerSim) -> void:

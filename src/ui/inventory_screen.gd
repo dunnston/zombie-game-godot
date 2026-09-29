@@ -514,8 +514,8 @@ func _build_pack(col: VBoxContainer) -> void:
 	var hot := drop_zone(Ui.panel("Pane", Ui.vbox(0, [Ui.head("Hotbar"), Ui.pad(grid("hotbar", player.hotbar.size(), player.hotbar.size()), 16)])))
 	var centre := Ui.vbox(16, [pack_panel, hot])
 	# Inside an instance, the haul: what you are trying to carry out, on its own
-	# budget, and nowhere else.
-	if sim.instance != null:
+	# budget, and nowhere else — and not in the range, where nothing goes out.
+	if Instance.haul_open(sim):
 		var hl := Ui.label("", "Mono12", Color("#d8c98a"))
 		refresher(func() -> void:
 			Ui.set_text(hl, "%.0f / %.0f  ·  OUT ONLY PAST THE BOSS" % [Instance.haul_load(sim, player), float(Config.INSTANCE.haul_cap)]))

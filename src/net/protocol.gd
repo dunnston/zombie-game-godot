@@ -30,7 +30,10 @@ extends RefCounted
 ## element and the structure record an `ro`. A protocol-8 host wants exactly
 ## four and would drop every placement, repair and demolition a guest sends;
 ## a protocol-8 guest would draw a turned bed the wrong way round.
-const PROTOCOL := 10
+## 11: the Target Range — the `range` command, the `range` map kind and the
+## `wear` switch on the `inst` record. A protocol-10 guest would be sent into
+## a map kind it has no layout for.
+const PROTOCOL := 11
 
 const RELIABLE := 1
 const STATE := 2

@@ -224,7 +224,7 @@ static func move_stack(sim: GameSim, p: PlayerSim, from_cont: String, from_index
 	# one: anywhere else it would be a second backpack that weighs nothing.
 	# Inside, it holds what its own budget allows and not a gram more.
 	if to_cont == "haul" and from_cont != "haul":
-		if sim == null or sim.instance == null:
+		if sim == null or not Instance.haul_open(sim):
 			return false
 		var s := from.at(from_index)
 		if not s.is_empty():

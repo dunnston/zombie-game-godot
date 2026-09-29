@@ -152,6 +152,28 @@ const INSTANCES := {
 		# How many stand in each kind of room, as [min, max].
 		"pop": {"classroom": [2, 3], "hall": [5, 7], "cafeteria": [4, 5], "small": [1, 2]},
 	},
+	# The Target Range (`TargetRange`, `tasks/target-range.md`): a developer's
+	# instance, reached from the F1 menu and never from the town, so it has no
+	# `shell`, no door and no boss — the town is stamped exactly as before.
+	"range": {
+		"name": "TARGET RANGE",
+		"dev": true,
+		"tier": 1,
+		"clock_t": 0.35,
+		"location": {"id": "range_inside", "name": "TARGET RANGE", "tier": 1,
+			"rect": Rect2i(98, 134, 100, 32), "desc": "Every weapon, and something to point it at."},
+	},
+}
+
+## The Target Range's tunables (`TargetRange`). `ammo_stacks` full stacks of
+## every ammunition type and `consumable_n` of every consumable are what a
+## restock puts back; `lane_len` is the firing lane in tiles, long enough to
+## hear a shot fade out (`SFX_RANGE`: a cue stops at 1500px, 47 tiles).
+const RANGE := {
+	"ammo_stacks": 3,
+	"consumable_n": 5,
+	"lane_len": 60,
+	"marker_every": 5,
 }
 
 ## Phase bosses (`Boss`; `tasks/instanced-dungeons.md` §8), keyed by enemy

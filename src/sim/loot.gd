@@ -142,7 +142,7 @@ static func give_entry(sim: GameSim, p: PlayerSim, entry: Dictionary, found := t
 	# Inside an instance, what you find goes in the haul and is written down
 	# (§6.2, §6.3): it is yours only if the boss goes down. Your own things,
 	# dropped and picked back up, are not finds and go back where they were.
-	if found and sim.instance != null:
+	if found and Instance.haul_open(sim):
 		return _to_haul(sim, p, entry)
 
 	if id.begins_with("weapon:"):
@@ -270,7 +270,7 @@ static func _to_haul(sim: GameSim, p: PlayerSim, entry: Dictionary) -> Dictionar
 ## Into the pack if it fits, onto the ground if it does not. What harvesting
 ## and gathering use, so a full pack costs you a walk rather than the wood.
 static func give_res_or_drop(sim: GameSim, p: PlayerSim, id: String, n: int, at: Vector2) -> int:
-	if sim.instance != null:
+	if Instance.haul_open(sim):
 		var r := _to_haul(sim, p, {"id": item_entry_id(id), "n": n})
 		var left := int(r.get("overflow", {}).get("n", 0))
 		if left > 0:

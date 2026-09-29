@@ -29,6 +29,10 @@ func _draw() -> void:
 					HORIZONTAL_ALIGNMENT_CENTER, 180.0, 12, Color("#d8c98a"))
 			"leave":
 				_doors(r, Color("#2f4a3a"))
+			"range_exit":
+				_doors(r, Color("#2f4a3a"))
+				draw_string(font, Vector2(r.position.x, r.position.y - 6.0), "EXIT", HORIZONTAL_ALIGNMENT_CENTER,
+					r.size.x, 12, Color("#9fe8a0"))
 			"chained":
 				if not f.open:
 					_doors(r, Color("#4a3a2a"))

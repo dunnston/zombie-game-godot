@@ -14,6 +14,10 @@ extends RefCounted
 
 ## Set by the scene while this machine is a guest. Null everywhere else.
 static var guest: NetGuest = null
+## Set by the scene when this is a developer's build (a debug build, or
+## `--dev`): the same gate as the F1 menu. The host refuses a guest's range
+## control without it, so a release host cannot be walked into the range.
+static var dev := false
 
 
 static func _remote(name_: String, args: Dictionary) -> bool:
@@ -82,6 +86,17 @@ static func leave_instance(sim: GameSim, p: PlayerSim) -> bool:
 	if _remote("leave_instance", {}):
 		return false
 	return Instance.walk_out(sim, p)
+
+
+## A Target Range control from the F1 menu: going in, leaving, restocking,
+## the wear switch and the held weapon's level (`TargetRange.control`). A
+## guest's is run by the host as that guest, so every player has the menu.
+static func range_control(sim: GameSim, p: PlayerSim, verb: String, args := {}) -> bool:
+	var a := args.duplicate()
+	a["verb"] = verb
+	if _remote("range", a):
+		return false
+	return TargetRange.control(sim, p, verb, args)
 
 
 ## The workbench on a tile, if `p` is close enough to be using it.
@@ -293,6 +308,10 @@ static func execute(sim: GameSim, p: PlayerSim, name_: String, a: Dictionary) ->
 			return Instance.enter(sim, p, String(a.get("kind", "")))
 		"leave_instance":
 			return Instance.walk_out(sim, p)
+		"range":
+			if not dev:
+				return false
+			return TargetRange.control(sim, p, String(a.get("verb", "")), {"d": clampi(int(a.get("d", 1)), -1, 1)})
 		"attr":
 			return Progression.raise_attribute(sim, p, String(a.get("id", "")))
 		"perk":
