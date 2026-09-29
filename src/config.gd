@@ -174,6 +174,10 @@ const RANGE := {
 	"consumable_n": 5,
 	"lane_len": 60,
 	"marker_every": 5,
+	# A target that goes down is back on its post this long after.
+	"target_respawn": 3.0,
+	# How many of its one type stand in each live room.
+	"room_count": 3,
 }
 
 ## Phase bosses (`Boss`; `tasks/instanced-dungeons.md` §8), keyed by enemy

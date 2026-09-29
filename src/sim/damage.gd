@@ -153,6 +153,10 @@ static func kill_enemy(sim: GameSim, e: EnemySim, source: Variant = null) -> voi
 	if sim.enemies.corpses.size() > 90:
 		sim.enemies.corpses.pop_front()
 	sim.emit({"t": "kill", "x": e.pos.x, "y": e.pos.y, "type": e.type, "boss": e.def.get("boss", false)})
+	# In the Target Range a kill is a measurement, not a reward: no drop to
+	# litter the lane, and no XP to lift the baseline build off level 1.
+	if TargetRange.is_range(sim):
+		return
 	# A body is worth searching. Small drops, but enough of them to keep a
 	# gun fed between containers.
 	Loot.enemy_drop(sim, e, source if source is PlayerSim else null)
