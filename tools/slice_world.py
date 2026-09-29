@@ -5,13 +5,13 @@ looks standing in the street, top-down: `art/world/<id>.png`, plus a picture
 per state where a piece has one (`gate_open`) and the turret's head, which
 the street turns to the turret's aim.
 
-The sheets arrived in `building/` (not in the repo): two contact sheets with
-a black caption under each picture, a turret head on its own and the long
-raised bed on its own. Captions are the only short things on a sheet — every
-picture is taller than 70px, every line of text shorter than 40 — so they
-are dropped by height before `slice_icons.cut` gives each picture to its
-seed. Unlike an icon, a picture is cropped tight and keeps its shape — except
-a wall or gate, which is the whole tile so the street can join it to the next.
+The sheets are in `building/`: two contact sheets with a black caption under
+each picture, a turret head on its own and the long raised bed on its own.
+Captions are the only short things on a sheet — every picture is taller than
+70px, every line of text shorter than 40 — so they are dropped by height
+before `slice_icons.cut` gives each picture to its seed. Unlike an icon, a
+picture is cropped tight and keeps its shape — except a wall or gate, which
+is the whole tile so the street can join it to the next.
 
     conda activate deadline-art      (python, pillow, numpy, scipy)
     python tools/slice_world.py path/to/building

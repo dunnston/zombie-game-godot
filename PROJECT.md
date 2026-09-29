@@ -683,7 +683,9 @@ Every item, weapon, piece of gear, consumable and buildable has a picture —
   a slice of its neighbour — clears the structure sheets' text captions, pads
   each to a square and downscales to 128. Its seed table is the record of
   which picture is which id, and it refuses an id that is not in `data/`.
-  The source sheets are not in the repo.
+  The source sheets are in the repo: `Icons/` (the twelve icon sheets) and
+  `building/` (the world sheets `tools/slice_world.py` cuts), so either slicer
+  can be re-run without hunting for the originals.
 
 ### The UI redesign (2026-09-11)
 
