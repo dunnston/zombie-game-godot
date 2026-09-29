@@ -65,7 +65,9 @@ step; the distance markers; *Reset targets* and *Refill live rooms* through
 nothing and pay no XP (the baseline would drift off level 1), and the range's
 walls are not a thing to hit, so a leashed enemy never thumps one.
 
-**C — the damage panel.** A view of floating numbers off the `hit` event (bleed
-ticks summed every half second); a range-only panel with the per-target
-readout and the damage-taken log. The `hit` event gains the enemy's `id`,
-`player_hit` the damage before armor.
+**C — the damage panel** (`target-range-c`). Top right, your own hits only,
+counted in sessions that end after 3s without a hit (owner, 2026-09-29).
+Floating numbers already existed for every `hit`; only bleed needed adding.
+Rather than widening `hit`, the range emits its own `dealt` event (seat, body
+id and type, HP left, bleed summed every 0.5s), which the host already sends
+only to that seat's guest; `player_hit` gains `raw`, the blow before armor.

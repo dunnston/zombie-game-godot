@@ -45,6 +45,10 @@ static func damage_enemy(sim: GameSim, e: EnemySim, dmg: float, from: Vector2, k
 		e.vel += dir * knock * (1.0 - e.knock_resist)
 	if not no_fx:
 		sim.emit({"t": "hit", "x": e.pos.x, "y": e.pos.y, "dx": dir.x, "dy": dir.y, "dmg": dmg, "crit": crit, "r": e.r, "kind": hit_kind})
+	# The Target Range's damage panel: who dealt it, to which body, and what
+	# it has left — bleed included, which draws nothing above (`no_fx`).
+	if TargetRange.is_range(sim):
+		TargetRange.note_dealt(sim, e, dmg, source, crit, hit_kind)
 
 	if e.hp <= 0.0:
 		kill_enemy(sim, e, source)
@@ -221,7 +225,10 @@ static func damage_player(sim: GameSim, p: PlayerSim, amount: float, from: Vecto
 	var len := dv.length()
 	var dir := dv / len if len > 0.0 else Vector2.RIGHT
 	p.vel += dir * 90.0 * p.stagger_mul
-	sim.emit({"t": "player_hit", "seat": p.seat, "x": p.pos.x, "y": p.pos.y, "dx": dir.x, "dy": dir.y, "dmg": dealt, "label": label})
+	# `raw` is the blow before armour, so the range's panel can show what the
+	# armour took off it.
+	sim.emit({"t": "player_hit", "seat": p.seat, "x": p.pos.x, "y": p.pos.y, "dx": dir.x, "dy": dir.y, "dmg": dealt,
+		"raw": amount, "label": label})
 	# Before Second Wind and before falling: a bite that fills the meter turns
 	# you, and turning is its own death rather than one Second Wind can catch.
 	Mutation.on_damage(sim, p, dealt, bite)
@@ -369,7 +376,7 @@ static func burn_player(sim: GameSim, p: PlayerSim, amount: float, from: Vector2
 		return dealt
 	if p.hp <= 0.0:
 		sim.emit({"t": "player_hit", "seat": p.seat, "x": p.pos.x, "y": p.pos.y,
-			"dx": 0.0, "dy": -1.0, "dmg": dealt, "label": "fire"})
+			"dx": 0.0, "dy": -1.0, "dmg": dealt, "raw": amount, "label": "fire"})
 		_fall(sim, p)
 	return dealt
 

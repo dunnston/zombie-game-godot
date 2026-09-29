@@ -178,6 +178,11 @@ const RANGE := {
 	"target_respawn": 3.0,
 	# How many of its one type stand in each live room.
 	"room_count": 3,
+	# Bleed reaches the damage panel summed over this many seconds.
+	"bleed_report": 0.5,
+	# The damage panel's session: hits keep adding up until this long passes
+	# without one, and the next starts a fresh count (owner, 2026-09-29).
+	"session_gap": 3.0,
 }
 
 ## Phase bosses (`Boss`; `tasks/instanced-dungeons.md` §8), keyed by enemy

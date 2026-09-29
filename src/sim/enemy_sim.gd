@@ -107,6 +107,12 @@ var minion := false
 var passive := false
 var post := Vector2.ZERO
 var leash := Rect2()
+## Bleed dealt to it in the range and not yet reported, whose, and for how
+## long it has been adding up: the panel hears it every half second rather
+## than sixty times one.
+var range_bleed := 0.0
+var range_bleed_t := 0.0
+var range_bleed_seat := -1
 
 
 ## The structure this enemy is about to hit, or an empty Dictionary. Kept as
