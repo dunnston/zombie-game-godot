@@ -284,13 +284,13 @@ func is_new(key: String) -> bool:
 
 
 func mark_seen(key: String) -> void:
-	player.seen[key] = true
+	Actions.mark_seen(sim, player, key)
 
 
 ## The one thing they are working toward, on the HUD. Pinning it again
 ## unpins it.
 func toggle_pin(key: String) -> void:
-	player.pinned = "" if player.pinned == key else key
+	Actions.pin(sim, player, key)
 
 
 ## Called every frame by the scene: a screen that belongs to a thing closes

@@ -130,15 +130,25 @@ static func known_keys(sim: GameSim) -> Array:
 	return out
 
 
-## A guest is told what is known rather than why (the facts are the host's);
-## it keeps the list and says what is new, as the host's own refresh does.
+## A guest is told what is known rather than why (the facts are the host's).
+## It keeps the list and says nothing: the host's "New at the bench" line and
+## its `known` event are relayed to every guest as they are made (Codex,
+## PR #65), so announcing here again would say everything twice.
 static func apply_keys(sim: GameSim, keys: Array) -> void:
 	var fresh_ids := {}
 	for key in keys:
 		fresh_ids[String(key)] = true
-	_announce(sim, fresh_ids)
 	sim.known.ids = fresh_ids
 	sim.known.dirty = false
+
+
+## Whether a key names something that can be known: a recipe id or a
+## buildable's "build:" key. What a guest's seen and pinned commands are
+## checked against.
+static func is_key(key: String) -> bool:
+	if key.begins_with("build:"):
+		return Config.STRUCTURES.has(key.trim_prefix("build:"))
+	return not Crafting.recipe(key).is_empty()
 
 
 ## Whether one row would be known, from the facts alone. Pure, so the data

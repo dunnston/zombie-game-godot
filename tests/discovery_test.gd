@@ -242,4 +242,25 @@ func test_a_guest_draws_the_same_cards() -> void:
 	Discovery.apply_keys(guest, keys)
 	eq(Discovery.known_keys(guest), keys)
 	ok(Discovery.recipe_known(guest, Crafting.recipe("axe")), "known on the guest without the facts")
-	eq(events_of(guest, "known").size(), 1, "and announced there too")
+	# The host's line and event are relayed to every guest as they are made,
+	# so the list itself says nothing (Codex, PR #65).
+	eq(events_of(guest, "known").size(), 0, "and not announced a second time from the list")
+	eq(events_of(guest, "notify").size(), 0)
+
+
+func test_a_guests_seen_and_pin_reach_the_host() -> void:
+	# The commands a guest's screen sends, run on the host as that guest
+	# (Codex, PR #65): what a save keeps has to be on the host's copy.
+	ok(Actions.execute(sim, p, "mark_seen", {"key": "axe"}))
+	ok(p.seen.has("axe"))
+	ok(not Actions.execute(sim, p, "mark_seen", {"key": "no_such_thing"}), "only a real key")
+	ok(Actions.execute(sim, p, "pin", {"key": Discovery.build_key("workbench")}))
+	eq(p.pinned, Discovery.build_key("workbench"))
+	ok(Actions.execute(sim, p, "pin", {"key": ""}), "and unpinned")
+	eq(p.pinned, "")
+	ok(not Actions.execute(sim, p, "pin", {"key": "build:nothing"}))
+	# Locally the same functions toggle, and send the value rather than the toggle.
+	Actions.pin(sim, p, "axe")
+	eq(p.pinned, "axe")
+	Actions.pin(sim, p, "axe")
+	eq(p.pinned, "")

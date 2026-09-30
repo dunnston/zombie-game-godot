@@ -504,9 +504,7 @@ func _card(s: InventoryScreen, row: Dictionary, on: bool) -> Button:
 	var face := Ui.vbox(0, [Ui.pad(top, 13, 13, 13, 8), Ui.pad(bill, 13, 0, 13, 10), Ui.spacer(), strip])
 	var variation := "CardOn" if on else ("CardLocked" if is_locked else ("CardDim" if short else "Card"))
 	var key := String(row.key)
-	var b := Ui.face_button(variation, face, func() -> void:
-		s.craft_sel = key
-		s.mark_seen(String(r.id)))
+	var b := Ui.face_button(variation, face, func() -> void: s.craft_sel = key)
 	b.custom_minimum_size = Vector2(170, 174)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.reg_row("recipe:" + String(r.id), b)
@@ -599,6 +597,10 @@ func _build_detail(s: InventoryScreen, box: Container) -> void:
 	if sel.is_empty():
 		box.add_child(Ui.pad(Ui.para("Choose something on the left.", "Body14", Ui.TEXT_DIM), 20))
 		return
+	# Looking at it is what clears NEW — whatever selected it, a click or the
+	# arrow keys (Codex, PR #65). The detail is built once per selection.
+	if sel.has("recipe"):
+		s.mark_seen(String(sel.recipe.id))
 	var id := ""
 	var title := name_of(sel)
 	var cls := ""

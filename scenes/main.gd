@@ -840,6 +840,8 @@ func _smoke_guidance(smoke: Node) -> void:
 	var axe := Crafting.recipe("axe")
 	if not Discovery.recipe_known(sim, axe):
 		smoke.fail("a stone in the pack did not bring the hatchet recipe")
+	if not inventory.is_new("axe"):
+		smoke.fail("the hatchet is not marked new before anyone has looked at it")
 	await smoke.tap("crafting")
 	await smoke.frames(3)
 	if not inventory.visible or inventory.mode != "craft":
@@ -849,10 +851,12 @@ func _smoke_guidance(smoke: Node) -> void:
 		ids.append(String(r.id))
 	if not ids.has("axe"):
 		smoke.fail("the craft tab does not list the hatchet: %s" % str(ids))
-	if not inventory.is_new("axe"):
-		smoke.fail("the hatchet is not marked new")
+	# The tab opens on its first card, which is looked at by being opened on:
+	# the mark clears from the selection path, not the click (Codex, PR #65).
 	inventory.craft_sel = "recipe:axe"
-	inventory.mark_seen("axe")
+	await smoke.frames(3)
+	if inventory.is_new("axe"):
+		smoke.fail("selecting the hatchet did not clear its NEW mark")
 	await smoke.frames(4)
 	var pin_at := inventory.button_centre("pin")
 	if pin_at == Vector2.ZERO:

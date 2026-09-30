@@ -520,7 +520,7 @@ func _build_rail(box: Container) -> void:
 
 
 func _centre_sig() -> String:
-	var sig := "%s|%s|%s|%d|" % [build_cat, build_search, str(build_filter), selected]
+	var sig := "%s|%s|%s|%d|%d|%s|" % [build_cat, build_search, str(build_filter), selected, player.seen.size(), player.pinned]
 	for id in _shown():
 		var info := card_info(id)
 		sig += "%s%s%s%s," % [id, str(info.afford), str(info.locked), str(info.cost)]
@@ -616,9 +616,7 @@ func _card(id: String) -> Button:
 	strip.custom_minimum_size.y = 26
 	var face := Ui.vbox(0, [Ui.pad(top, 13, 13, 13, 8), Ui.pad(bill, 13, 0, 13, 10), Ui.spacer(), strip])
 	var cid := id
-	var b := Ui.face_button("CardOn" if on else ("CardLocked" if locked else "Card"), face, func() -> void:
-		select_card(cid)
-		player.seen[Discovery.build_key(cid)] = true)
+	var b := Ui.face_button("CardOn" if on else ("CardLocked" if locked else "Card"), face, func() -> void: select_card(cid))
 	b.custom_minimum_size = Vector2(170, 174)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# A double-click takes it straight into the street.
@@ -636,7 +634,7 @@ func _detail_sig() -> String:
 	var have := ""
 	for m in info.cost:
 		have += str(player.total_res(sim, m)) + ","
-	return "%s|%s|%s|%s|%s" % [id, str(info.afford), str(info.locked), have, str(_shown().has(id))]
+	return "%s|%s|%s|%s|%s|%s" % [id, str(info.afford), str(info.locked), have, str(_shown().has(id)), player.pinned]
 
 
 func _build_detail(box: Container) -> void:
@@ -648,6 +646,9 @@ func _build_detail(box: Container) -> void:
 		id = String(_in_cat(build_cat)[0]) if not _in_cat(build_cat).is_empty() else String(Config.BUILD_ORDER[0])
 	var info := card_info(id)
 	var def: Dictionary = Config.STRUCTURES[id]
+	# Looking at it clears NEW, however it was selected (Codex, PR #65).
+	if not info.locked:
+		Actions.mark_seen(sim, player, Discovery.build_key(id))
 	var art := _tile(id, 96, 60)
 	art.frame_color = Ui.LINE_STRONG
 	var solid := bool(def.get("solid", true))
@@ -694,7 +695,19 @@ func _build_detail(box: Container) -> void:
 	place.custom_minimum_size.y = 56
 	place.disabled = not placeable()
 	reg_button("place", place)
-	box.add_child(Ui.boxed(Ui.edge(Ui.BASE, Ui.LINE, 0, 1, 0, 0, 20, 20), Ui.vbox(12, [place,
+	# PIN TO HUD, as a recipe has: a buildable is as much a thing to work
+	# toward as a machete is (Codex, PR #65).
+	var bkey := Discovery.build_key(id)
+	var pinned := player.pinned == bkey
+	var pin_face := Ui.hbox(10, [Ui.label("UNPIN" if pinned else "PIN TO HUD", "Caps13", Ui.INK if pinned else Ui.TEXT_HIGH),
+		Ui.label("what it needs, and where", "Small", Color(Ui.INK, 0.7) if pinned else Ui.TEXT_DIM)])
+	for c in pin_face.get_children():
+		(c as Control).size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var pin := Ui.face_button("SecondaryOn" if pinned else "Secondary", Ui.pad(pin_face, 14, 0, 14, 0),
+		func() -> void: Actions.pin(sim, player, bkey))
+	pin.custom_minimum_size.y = 36
+	reg_button("pin", pin)
+	box.add_child(Ui.boxed(Ui.edge(Ui.BASE, Ui.LINE, 0, 1, 0, 0, 20, 20), Ui.vbox(12, [place, pin,
 		Ui.label("Choosing a piece collapses this menu so you can see the street.", "Small")])))
 
 
