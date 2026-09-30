@@ -239,7 +239,7 @@
       "xp": 12
     },
     {
-      "bench": 1,
+      "bench": 2,
       "cost": {
         "parts": 1,
         "scrap": 9
@@ -362,7 +362,7 @@
       "xp": 8
     },
     {
-      "bench": 1,
+      "bench": 2,
       "cost": {
         "parts": 1,
         "scrap": 24
@@ -375,7 +375,7 @@
       "xp": 25
     },
     {
-      "bench": 1,
+      "bench": 2,
       "cost": {
         "parts": 2,
         "scrap": 20,
@@ -390,7 +390,7 @@
       "xp": 22
     },
     {
-      "bench": 1,
+      "bench": 2,
       "cost": {
         "parts": 3,
         "scrap": 26,
@@ -404,7 +404,7 @@
       "xp": 24
     },
     {
-      "bench": 1,
+      "bench": 2,
       "cost": {
         "parts": 4,
         "scrap": 28
@@ -468,7 +468,7 @@
       "xp": 26
     },
     {
-      "bench": 1,
+      "bench": 2,
       "cost": {
         "parts": 1,
         "scrap": 12
@@ -483,7 +483,7 @@
       "xp": 7
     },
     {
-      "bench": 1,
+      "bench": 2,
       "cost": {
         "parts": 1,
         "scrap": 8
@@ -512,7 +512,7 @@
       "xp": 5
     },
     {
-      "bench": 1,
+      "bench": 2,
       "cost": {
         "elec": 4,
         "scrap": 10
@@ -527,7 +527,7 @@
       "xp": 6
     },
     {
-      "bench": 1,
+      "bench": 3,
       "cost": {
         "elec": 5,
         "scrap": 6
@@ -543,7 +543,7 @@
       "xp": 6
     },
     {
-      "bench": 1,
+      "bench": 3,
       "cost": {
         "elec": 6,
         "parts": 1,
@@ -557,7 +557,7 @@
       "xp": 18
     },
     {
-      "bench": 2,
+      "bench": 3,
       "cost": {
         "parts": 2,
         "scrap": 38,
@@ -571,7 +571,7 @@
       "xp": 45
     },
     {
-      "bench": 2,
+      "bench": 3,
       "cost": {
         "elec": 10,
         "parts": 8,
@@ -585,7 +585,7 @@
       "xp": 60
     },
     {
-      "bench": 2,
+      "bench": 3,
       "cost": {
         "parts": 6,
         "scrap": 44,
@@ -599,7 +599,7 @@
       "xp": 60
     },
     {
-      "bench": 2,
+      "bench": 3,
       "cost": {
         "parts": 2,
         "scrap": 14
@@ -614,7 +614,7 @@
       "xp": 8
     },
     {
-      "bench": 2,
+      "bench": 4,
       "cost": {
         "mil": 3,
         "parts": 12,
@@ -631,7 +631,7 @@
       "bench": 2,
       "cost": {
         "cloth": 20,
-        "mil": 4,
+        "parts": 2,
         "scrap": 46
       },
       "give": {
@@ -642,7 +642,7 @@
       "xp": 70
     },
     {
-      "bench": 2,
+      "bench": 4,
       "cost": {
         "elec": 12,
         "mil": 14,
@@ -657,7 +657,7 @@
       "xp": 150
     },
     {
-      "bench": 2,
+      "bench": 4,
       "cost": {
         "cloth": 15,
         "mil": 12,
@@ -751,7 +751,7 @@
       "xp": 20
     },
     {
-      "bench": 1,
+      "bench": 2,
       "cost": {
         "parts": 2,
         "scrap": 24,
@@ -765,7 +765,7 @@
       "xp": 40
     },
     {
-      "bench": 1,
+      "bench": 2,
       "cost": {
         "cloth": 4,
         "fiber": 8,
@@ -794,7 +794,7 @@
       "xp": 24
     },
     {
-      "bench": 2,
+      "bench": 3,
       "cost": {
         "parts": 2,
         "scrap": 22,
@@ -808,7 +808,7 @@
       "xp": 45
     },
     {
-      "bench": 2,
+      "bench": 3,
       "cost": {
         "parts": 3,
         "scrap": 30
@@ -821,7 +821,7 @@
       "xp": 45
     },
     {
-      "bench": 2,
+      "bench": 3,
       "cost": {
         "parts": 6,
         "scrap": 32
@@ -834,7 +834,7 @@
       "xp": 45
     },
     {
-      "bench": 2,
+      "bench": 3,
       "cost": {
         "parts": 4,
         "scrap": 12,
@@ -862,7 +862,7 @@
       "xp": 35
     },
     {
-      "bench": 2,
+      "bench": 3,
       "cost": {
         "elec": 4,
         "parts": 6,
@@ -874,6 +874,144 @@
       "id": "machinePistol",
       "name": "Machine Pistol",
       "xp": 70
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "cloth": 4,
+        "scrap": 18
+      },
+      "give": {
+        "gear": "riotHelm"
+      },
+      "id": "riotHelm",
+      "name": "Riot Helmet",
+      "xp": 20
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "cloth": 8,
+        "scrap": 6
+      },
+      "give": {
+        "gear": "tacGloves"
+      },
+      "id": "tacGloves",
+      "name": "Tactical Gloves",
+      "xp": 12
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "cloth": 8,
+        "scrap": 10
+      },
+      "give": {
+        "gear": "combatBoots"
+      },
+      "id": "combatBoots",
+      "name": "Combat Boots",
+      "xp": 14
+    },
+    {
+      "bench": 4,
+      "cost": {
+        "cloth": 4,
+        "mil": 3,
+        "scrap": 20
+      },
+      "give": {
+        "gear": "milHelm"
+      },
+      "id": "milHelm",
+      "name": "Combat Helmet",
+      "xp": 60
+    },
+    {
+      "bench": 4,
+      "cost": {
+        "mil": 2,
+        "scrap": 12
+      },
+      "give": {
+        "gear": "armGuards"
+      },
+      "id": "armGuards",
+      "name": "Arm Guards",
+      "xp": 40
+    },
+    {
+      "bench": 4,
+      "cost": {
+        "cloth": 8,
+        "mil": 3,
+        "scrap": 16
+      },
+      "give": {
+        "gear": "milGreaves"
+      },
+      "id": "milGreaves",
+      "name": "Combat Trousers",
+      "xp": 60
+    },
+    {
+      "bench": 4,
+      "cost": {
+        "cloth": 4,
+        "mil": 2,
+        "scrap": 12
+      },
+      "give": {
+        "gear": "milBoots"
+      },
+      "id": "milBoots",
+      "name": "Assault Boots",
+      "xp": 40
+    },
+    {
+      "bench": 4,
+      "cost": {
+        "elec": 4,
+        "mil": 6,
+        "parts": 12,
+        "scrap": 70
+      },
+      "give": {
+        "weapon": "marksmanRifle"
+      },
+      "id": "marksmanRifle",
+      "name": "Marksman Rifle",
+      "xp": 140
+    },
+    {
+      "bench": 4,
+      "cost": {
+        "mil": 2,
+        "parts": 2,
+        "scrap": 50,
+        "wood": 18
+      },
+      "give": {
+        "weapon": "maul"
+      },
+      "id": "maul",
+      "name": "Maul",
+      "xp": 60
+    },
+    {
+      "bench": 4,
+      "cost": {
+        "mil": 4,
+        "parts": 4,
+        "scrap": 40
+      },
+      "give": {
+        "weapon": "katana"
+      },
+      "id": "katana",
+      "name": "Katana",
+      "xp": 80
     }
   ],
   "shape": "list"

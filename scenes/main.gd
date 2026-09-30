@@ -1163,6 +1163,9 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 		smoke.fail("75 points in and the player is still band %d" % p.mut_band)
 	await smoke.checkpoint("mutation_feral")
 
+	# A hit cancels a dose and a meal both. This leg is about the meter, not
+	# about being bitten mid-swallow: a walker wandering in cost a run once.
+	p.god_mode = true
 	p.bag.add("serum", 1)
 	var before_mut := p.mutation
 	await smoke.tap("use_suppress")
@@ -1189,6 +1192,7 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 	await smoke.until(func() -> bool: return p.using.is_empty())
 	if not p.effects.has("fed"):
 		smoke.fail("the meal finished and no buff arrived")
+	p.god_mode = false
 	await smoke.checkpoint("ate")
 
 	# The workbench: E opens it and spends nothing; the upgrade is a button in
@@ -1197,7 +1201,7 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 	# because the pack is what pays now (the strict start, 2026-09-30) — and
 	# the pack is long since full by this point in the run, so what was in
 	# it goes to the stash first.
-	_smoke_pocket({"scrap": 180, "elec": 180, "parts": 180, "med": 60, "wood": 180})
+	_smoke_pocket({"scrap": 180, "elec": 180, "parts": 180, "med": 60, "wood": 180, "cloth": 40})
 	var wb_origin := p.pos
 	var wb_tile := Vector2i(-1, -1)
 	var wb_why := "no tiles tried"
@@ -1275,7 +1279,7 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 	# The Chemistry Station, built where the player stands, and the recipe it
 	# unlocks appearing in the pack's CRAFT tab.
 	_smoke_pocket({"scrap": 60, "elec": 60, "parts": 60, "med": 60, "wood": 60})
-	sim.structs.bench_tier = 2
+	sim.structs.bench_tier = int(Config.STRUCTURES.chemStation.tier)
 	# Somewhere it will actually fit: the ground the player happens to be
 	# stood on is as likely to be a wall or a tree as not.
 	var chem_tile := Vector2i(-1, -1)
@@ -2343,6 +2347,8 @@ func smoke_run(smoke: Node) -> void:
 
 	var member := sim.crew.alive()[0] if not sim.crew.alive().is_empty() else null
 	if member != null:
+		# The ladder: a Builder is Workbench III work, and the run's bench is II.
+		sim.structs.bench_tier = maxi(sim.structs.bench_tier, Config.job_bench("builder"))
 		if not sim.crew.assign_job(sim, member, "builder"):
 			smoke.fail("could not put them on Builder duty")
 		if member.job != "builder":

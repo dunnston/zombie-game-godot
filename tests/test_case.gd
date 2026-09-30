@@ -179,7 +179,7 @@ static func build_compound(sim: GameSim, p: PlayerSim) -> Dictionary:
 	p.carry_cap = 1000000.0
 	for id in ["wood", "stone", "sticks", "scrap", "cloth", "elec", "parts", "mil", "fuel"]:
 		p.bag.add(id, 900)
-	sim.structs.bench_tier = 2
+	sim.structs.bench_tier = Config.MAX_BENCH   # a turret is chapter 3 work
 	var tx := floori(p.pos.x / Config.TILE)
 	var ty := floori(p.pos.y / Config.TILE)
 	# Placement is range-limited, so the builder walks its own perimeter.

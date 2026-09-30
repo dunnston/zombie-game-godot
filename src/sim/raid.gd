@@ -56,7 +56,10 @@ static func start(sim: GameSim, human := false) -> Raid:
 	# both meant a human crew whose numbers were scaled by hordes it had
 	# nothing to do with — tougher on their first visit for every horde you
 	# had beaten, and never any tougher for beating *them*.
-	raid.index = sim.human_raids_done if human else sim.raids_done
+	# And a horde is capped by the base's bench (`Config.raid_cap`): the raid
+	# ceiling rises when the player upgrades, so they choose when the world
+	# gets harder. `raids_done` keeps counting; only the spec is held back.
+	raid.index = sim.human_raids_done if human else mini(sim.raids_done, Config.raid_cap(sim.structs.bench_tier))
 	# The two tracks count separately: a human crew is not "the next horde",
 	# so surviving four hordes does not send a Purge Squad on your first
 	# meeting with the living.

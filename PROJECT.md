@@ -307,6 +307,53 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### The ladder (2026-09-30)
+
+Step C of `tasks/progression-plan.md`, built before step B because the
+locked upgrade row and the recipe waves both need tiers to point at.
+
+**One table, five rungs.** `Config.BENCH_TIERS` is the workbench ladder,
+and a tier is the whole of what a chapter unlocks: its recipes (`bench` in
+`data/recipes.json`) and buildables (`tier` in `data/structures.json`), the
+biggest raid the world sends (`raid_cap`), how far a weapon can be levelled
+(`level_cap`) and which jobs the crew can be given (`jobs`). `bench_name`,
+`raid_cap`, `level_cap`, `bench_for_level` and `job_bench` are the readers,
+and every screen and refusal that used to say "Workbench II" asks them.
+`BENCH_UPGRADE_COST` is gone; each tier carries its own `cost`, and a
+`key` slot waits for the boss items (step E). Costs above II are in
+materials the game has today, to be recosted when each chapter's material
+arrives.
+
+- **Recipes and buildables moved to their chapters**, through
+  `tools/ladder.gd` (the editor's encoder with a list pasted into it): the
+  first gun, the machete, steel tools, lockpicks and fuel to II; the
+  flashlight, batteries, automatic weapons, the crossbow and the heavy
+  melee to III; the rifles and plate to IV. Gate, spike trap, watchtower,
+  reinforced wall, locker and recycler are II; steel wall, generator,
+  turret, floodlight and the Chemistry Station are III. Ten recipes the
+  chapters were missing exist now: the three Riot pieces nothing could
+  make, the four Military pieces, and the Marksman Rifle, Maul and Katana.
+- **The raid ceiling follows the bench.** `Raid.start` caps a horde's index
+  at `raid_cap`; `raids_done` keeps counting, only the spec is held back.
+  The top tier holds nothing back, so the scaling past BEHEMOTH SIEGE is
+  still there for a finished base.
+- **A weapon levels as far as the bench allows** — 2 at the first bench, 4
+  at II, 6 at III — and the refusal names the bench and the level. The
+  ladder promises more (8 and 10) than `UPGRADE.max` pays for; the smaller
+  wins until step H brings the material.
+- **Jobs unlock with the bench:** Guard at I, Scavenger and Sniper at II,
+  Builder at III. `Survivors.job_refusal` is the one sentence, and the crew
+  screen's cards print it before the click.
+- **`upgrade_bench` climbs one rung at a time** and `bench_upgrade_refusal`
+  is the same question without spending, so the button and the notice
+  agree. The bench screen's pips show all six steps.
+
+Found on the way: the Katana grew a recipe, so the found-weapon mending test
+now uses the Halligan Bar; a gate is chapter 2 work, so the save round trip
+builds its bench before its gate; the smoke's Builder needed Workbench III;
+and the dose and meal legs run in god mode, because a walker wandering in
+cancels a swallow and had already cost a run.
+
 ### The strict start (2026-09-30)
 
 Step A of `tasks/progression-plan.md`, and the first thing built from it.
@@ -2086,6 +2133,7 @@ Phases 1–4 respecting it.
 
 | Date | Decision | Why | Reversible? |
 | --- | --- | --- | --- |
+| 2026-09-30 | **The workbench ladder**: five tiers in one table, and a tier is everything a chapter unlocks — recipes, buildables, the raid ceiling, the weapon level cap, the crew's jobs | The progression plan: the next thing to do has to be visible, and a ladder with one rung above the first bench cannot show it. Raids following the bench is pillar 6 made a choice. | Yes: the table, and `raid_cap` returning the top for every tier |
 | 2026-09-30 | **The strict start**: bills are paid from the pack only, carry starts at 100, and dying drops the pack but not what you wear or the hotbar | The progression plan (`tasks/progression-plan.md`): the early game needs chores for progress to remove, and the stash paying from anywhere had given the biggest one away with the first Supply Stash. Death softened because the walk back should be for the haul, made armed. | Yes: `bill_stash` returns `sim.stash`, two consts, and `drop_backpack` |
 | 2026-09-15 | **A shot stops at a wall you built** — pillar 3 reversed, with height as the exemption (a turret's rounds and a posted sniper's carry `over`) | Owner's call on the *Multiplayer Playing* playtest: a wall you can stab and shoot through is a wall that only works for the horde. The compound still shoots back, from the pieces that are *supposed* to — which is also a reason to build a Watchtower. | Yes, one branch in `tick_bullets` (drop `structs`), but the raid balance moves with it |
 | 2026-09-15 | **House walls take damage — from the dead, not from you** (`BUILD.house_wall_hp`, 620) | Owner: a base inside a house was unbreakable, so the only way in was whatever you had built across the doorways. A chaser only starts on the town when the flow field cannot route it to its target at all; a raider treats a house wall like any other wall in its way. Players cannot knock holes in the town — that is a separate tool, and a separate card. | Yes; `break_wall` and the `breached` list are the only writers |
@@ -2902,6 +2950,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-30 | **The ladder** (progression step C). `Config.BENCH_TIERS` I–V with cost, `key` (empty until the bosses), `raid_cap`, `level_cap` and `jobs`; `bench_name` and friends replace every "Workbench II" string; `upgrade_bench` climbs a rung at a time with `bench_upgrade_refusal` beside it; `Raid.start` capped by the bench; `Upgrade.status` capped by the bench; `Survivors.job_refusal`. `tools/ladder.gd` moved 24 recipes and 10 buildables to their chapters and added 10 recipes (Riot Helmet, Tactical Gloves, Combat Boots; Combat Helmet, Arm Guards, Combat Trousers, Assault Boots; Marksman Rifle, Maul, Katana). The editor's Workbenches view lists every tier off the const. `ladder_test.gd` (10 tests). `tools/test`: 851 tests, 0 failures; `--all` 887; smoke 101, 0 failures |
 | 2026-09-30 | **The strict start** (progression step A). Every bill — recipe, structure, repair, bed, weapon level, battery, fuel — is paid from the pack through `PlayerSim.bill_stash`, which allows nothing else yet; a craft is weighed net of its bill (`Crafting._bill_weight`); `carry_cap` 200 → 75 (100 on a starting survivor, 150 at the ceiling); `Loot.drop_backpack` drops the pack and keeps worn gear and the hotbar, handing over the starting weapon only to an unarmed bar. `raid_end` carries `reward`. Tests rewritten to the new rules with break-checks (13 fail against the old code); `_smoke_pocket` and `Smoke.until` in the smoke. `tools/test`: 839 tests, 0 failures; `--all` 876; smoke 101 checkpoints, 0 failures |
 | 2026-09-29 | **The Target Range, PR A** (DL-109, `tasks/target-range.md`). A developer's instance behind F1: a hall, a 60-tile lane and six one-door rooms with walls nothing breaks, six lockers of every weapon at level 1, ammunition, gear and consumables, entered on a baseline build (level 1, no perks, meter clear, empty-handed) and left — by its door or F1 — with your own build and pack back at the main spawn. Dying there gets you up at its entrance; wear is off unless switched on; the held weapon's level moves 1-6. Every control goes through `Actions.range_control`, refused by a release host. Protocol 11. `range_test.gd` (21 tests, two of them a guest over loopback) |
 | 2026-09-15 | **The *Multiplayer Playing* playtest, group D: co-op, death and the crew.** The hurt flash is the hit seat's alone (every screen used to flash); holding the interact key while down gives up rather than waiting out thirty seconds (`PLAYER.give_up_hold`); dead inside an instance says the run has to end rather than counting to 0.0 and stopping; autosave every five minutes; the School is its own daylight (`clock_t` 0.35) and the only dark in it is the boss's; your people path home along `GameSim.nav_to` instead of walking into the first building; and every effect prints what it does to you (`Mutation.effect_summary`) on the HUD chip, the item detail and the craft page. `tools/test`: 780 tests, 17627 asserts, 0 failures |

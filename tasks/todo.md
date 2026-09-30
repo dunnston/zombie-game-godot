@@ -2878,6 +2878,34 @@ increase hotbar size?")
 - `tools/test`: 785 tests, 18049 asserts, 0 failures. `--all` adds the slow
   tier; `tools/smoke`: 101 checkpoints, 0 failures.
 
+## Progression step C — the ladder (`feat/the-ladder`, 2026-09-30)
+
+Built before step B: the locked upgrade row and the recipe waves both point
+at tiers, so the tiers come first.
+
+- [x] `Config.BENCH_TIERS` I–V: name, upgrade cost, `key` (empty until the
+      bosses), raid cap, level cap, jobs; readers `bench_name`, `raid_cap`,
+      `level_cap`, `bench_for_level`, `job_bench`
+- [x] `upgrade_bench` climbs a rung at a time; `bench_upgrade_refusal`
+- [x] Every "Workbench II" string on every screen and refusal asks the table
+- [x] Recipes and buildables re-tiered to their chapters through
+      `tools/ladder.gd`; the ten missing set recipes added
+- [x] Raid ceiling, weapon level cap, job gates
+- [x] The editor's Workbenches view off the const
+- [x] `ladder_test.gd`; every fixture that built chapter 2–3 pieces told
+- [x] `tools\test --all`, smoke, `PROJECT.md`
+
+### Review
+
+- One table, and every reader asks it: there is no second copy of a tier's
+  name, cost or cap anywhere.
+- Costs for III–V are stand-ins in today's materials, written down as such
+  in the table's comment. Steps D, F and H replace them.
+- The top tier's raid cap is unlimited on purpose, so the scaling past the
+  last spec survives for a base that has finished the ladder.
+- Smoke flake found and fixed: a walker's bite cancels a meal; the dose and
+  meal legs run in god mode now.
+
 ## Progression step A — the strict start (`feat/strict-start`, 2026-09-30)
 
 The first step of `tasks/progression-plan.md`. Three rules change; nothing

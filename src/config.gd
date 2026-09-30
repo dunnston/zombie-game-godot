@@ -1672,7 +1672,79 @@ const LOCATIONS := [
 ## Build anywhere. What each piece's fields mean — `solid`, `protect`,
 ## `threat`, `store`, `tier` — is in `data/structures.json`'s notes, beside
 ## the pieces themselves.
-const BENCH_UPGRADE_COST := {"scrap": 55, "elec": 20, "parts": 5}
+## The workbench ladder (progression step C, `tasks/progression-plan.md`).
+## One tier per chapter, and a tier is the whole of what a chapter unlocks:
+## its recipes and buildables (`bench` / `tier` in the tables), the biggest
+## raid the world sends (`raid_cap`, an index into RAIDS — the player chooses
+## when the world gets harder), how far a weapon can be levelled
+## (`level_cap`), and which jobs the crew can be given (`jobs`).
+##
+## `cost` is what the upgrade *to* that tier is paid with, from the pack.
+## `key` is the boss item the upgrade will need once the bosses exist (step
+## E): the Butcher's Saw for II, the Master Breaker for III, the Foreman's
+## Cutting Head for IV, Quarantine Clearance for V. Empty means no boss yet.
+## Costs above II are in materials the game has today; steps D, F and H
+## recost them in each chapter's own material.
+const MAX_BENCH := 5
+const BENCH_TIERS := {
+	1: {"name": "Workbench", "raid_cap": 0, "level_cap": 2, "jobs": ["guard"],
+		"blurb": "the first bench"},
+	2: {"name": "Workbench II", "cost": {"scrap": 40, "wood": 30, "cloth": 10}, "key": "",
+		"raid_cap": 1, "level_cap": 4, "jobs": ["scavenger", "sniper"],
+		"blurb": "steel, the first guns, the Riot set"},
+	3: {"name": "Workbench III", "cost": {"scrap": 55, "elec": 20, "parts": 5}, "key": "",
+		"raid_cap": 2, "level_cap": 6, "jobs": ["builder"],
+		"blurb": "power, turrets and automatic weapons"},
+	4: {"name": "Workbench IV", "cost": {"scrap": 80, "elec": 20, "parts": 10, "mil": 4}, "key": "",
+		"raid_cap": 3, "level_cap": 8, "jobs": [],
+		"blurb": "rifles and plate"},
+	5: {"name": "Workbench V", "cost": {"scrap": 100, "elec": 25, "parts": 12, "mil": 10}, "key": "",
+		"raid_cap": 4, "level_cap": 10, "jobs": [],
+		"blurb": "the last of it"},
+}
+
+
+## What a bench tier is called, on every screen and in every refusal.
+static func bench_name(tier: int) -> String:
+	if tier <= 0:
+		return "By hand"
+	return String(BENCH_TIERS[clampi(tier, 1, MAX_BENCH)].name)
+
+
+## The biggest raid index the world sends a base of this tier. No bench at
+## all is the first raid, the same as the first bench; the top of the ladder
+## holds nothing back, so the scaling past the last spec (`raid_spec`) is
+## still there for a base that has finished.
+static func raid_cap(bench: int) -> int:
+	if bench >= MAX_BENCH:
+		return 1 << 30
+	return int(BENCH_TIERS[clampi(bench, 1, MAX_BENCH)].raid_cap)
+
+
+## How far a weapon can be levelled at a bench of this tier. The ladder can
+## name a cap above UPGRADE.max; the smaller wins, so a tier whose material
+## does not exist yet promises nothing it cannot pay for.
+static func level_cap(bench: int) -> int:
+	if bench <= 0:
+		return 1
+	return mini(int(UPGRADE.max), int(BENCH_TIERS[clampi(bench, 1, MAX_BENCH)].level_cap))
+
+
+## The lowest tier at which a weapon may reach `level`, or 0 if none does.
+static func bench_for_level(level: int) -> int:
+	for t in range(1, MAX_BENCH + 1):
+		if int(BENCH_TIERS[t].level_cap) >= level:
+			return t
+	return 0
+
+
+## The bench a job needs: the lowest tier whose `jobs` names it. A job no
+## tier names is available from the first bench.
+static func job_bench(job: String) -> int:
+	for t in range(1, MAX_BENCH + 1):
+		if job in BENCH_TIERS[t].jobs:
+			return t
+	return 1
 
 const BUILD := {
 	"range": 190.0,

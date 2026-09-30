@@ -246,7 +246,7 @@ static func repair_status(sim: GameSim, p: PlayerSim, cont_kind: String, i: int,
 			return {"ok": false, "reason": "Nothing here can mend it"}
 		var need := mend_bench(id)
 		if bench < need:
-			return {"ok": false, "reason": "Needs a Workbench" if need == 1 else "Needs Workbench II"}
+			return {"ok": false, "reason": "Needs a Workbench" if need == 1 else "Needs %s" % Config.bench_name(need)}
 	else:
 		var why := Crafting.bench_reason(sim, p, r, bench)
 		if not why.is_empty():

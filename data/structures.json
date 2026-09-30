@@ -180,7 +180,7 @@
       "sniper_range": 520.0,
       "solid": true,
       "threat": 2.0,
-      "tier": 1
+      "tier": 2
     },
     {
       "cost": {
@@ -226,7 +226,7 @@
       "solid": true,
       "store": 32,
       "threat": 1.0,
-      "tier": 1
+      "tier": 2
     },
     {
       "cost": {
@@ -294,7 +294,7 @@
       "name": "Reinforced Wall",
       "solid": true,
       "threat": 1.5,
-      "tier": 1,
+      "tier": 2,
       "wall": true
     },
     {
@@ -308,7 +308,7 @@
       "name": "Steel Wall",
       "solid": true,
       "threat": 2.0,
-      "tier": 2,
+      "tier": 3,
       "wall": true
     },
     {
@@ -323,7 +323,7 @@
       "name": "Gate",
       "solid": true,
       "threat": 1.5,
-      "tier": 1
+      "tier": 2
     },
     {
       "cost": {
@@ -336,7 +336,7 @@
       "name": "Spike Trap",
       "solid": false,
       "threat": 1.5,
-      "tier": 1,
+      "tier": 2,
       "trap": true,
       "trap_cd": 0.55,
       "trap_dmg": 26.0
@@ -360,7 +360,7 @@
       "reload": 2.2,
       "solid": true,
       "threat": 5.0,
-      "tier": 2
+      "tier": 3
     },
     {
       "cost": {
@@ -375,7 +375,7 @@
       "powered": true,
       "solid": false,
       "threat": 2.0,
-      "tier": 2
+      "tier": 3
     },
     {
       "cost": {
@@ -393,7 +393,7 @@
       "solid": true,
       "station": "chem",
       "threat": 3.0,
-      "tier": 2
+      "tier": 3
     },
     {
       "cost": {
@@ -427,7 +427,7 @@
       "protect": true,
       "solid": true,
       "threat": 4.0,
-      "tier": 2
+      "tier": 3
     }
   ]
 }

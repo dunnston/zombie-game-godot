@@ -103,12 +103,13 @@ func test_a_base_comes_back_standing() -> void:
 		p.bag.add(id, 400)
 	for d in [Vector2i(2, 0), Vector2i(3, 0), Vector2i(2, 1), Vector2i(3, 1), Vector2i(2, 2)]:
 		clear_ground(sim, plot.x + d.x, plot.y + d.y)
+	# The bench first: a gate is Workbench II work since the ladder.
+	var bench := sim.structs.place(sim, "workbench", plot.x + 2, plot.y + 2, p)
+	sim.structs.upgrade_bench(sim, bench, p)
 	var wall := sim.structs.place(sim, "woodWall", plot.x + 2, plot.y, p)
 	var gate := sim.structs.place(sim, "gate", plot.x + 3, plot.y, p)
 	var chest := sim.structs.place(sim, "chest", plot.x + 2, plot.y + 1, p)
 	var stash := sim.structs.place(sim, "stash", plot.x + 3, plot.y + 1, p)
-	var bench := sim.structs.place(sim, "workbench", plot.x + 2, plot.y + 2, p)
-	sim.structs.upgrade_bench(sim, bench, p)
 	sim.structs.damage(sim, wall, 100.0)
 	sim.structs.toggle_gate(sim, gate)
 	chest.store.add("mil", 12)

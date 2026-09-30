@@ -20,7 +20,7 @@ extends RefCounted
 ## Notion's Items table. The rest are `config.gd` tables by their own names.
 const TABLES := ["WEAPONS", "RES", "CONSUMABLES", "GEAR", "RECIPES", "STRUCTURES", "LOOT", "CONTAINERS", "ENEMIES", "CROPS", "CATALOG", "CATEGORIES"]
 ## Read-only context the cross-references and the checks need.
-const CONSTS := ["AMMO_IDS", "WEAR", "HARVEST", "FURNISHING", "BENCH_UPGRADE_COST", "BRAIN_DROPS"]
+const CONSTS := ["AMMO_IDS", "WEAR", "HARVEST", "FURNISHING", "BENCH_TIERS", "BRAIN_DROPS"]
 ## The tables an item can be defined in, for "is this catalog entry real?".
 const ITEM_TABLES := ["WEAPONS", "GEAR", "CONSUMABLES", "RES", "STRUCTURES"]
 const ART_DIR := "res://art/items/"

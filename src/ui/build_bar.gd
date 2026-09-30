@@ -531,7 +531,7 @@ func _build_centre(box: Container) -> void:
 			short += 1
 	var title := "Results" if not build_search.is_empty() else build_cat
 	box.add_child(Ui.hbox(12, [Ui.label(title, "SectionHead"), Ui.expand(Ui.label(
-		"%d can be built now  ·  %d short of materials  ·  %d need Workbench II" % [ok, short, locked], "Body14", Ui.TEXT_DIM))]))
+		"%d can be built now  ·  %d short of materials  ·  %d need a better workbench" % [ok, short, locked], "Body14", Ui.TEXT_DIM))]))
 	if list.is_empty():
 		box.add_child(Ui.panel("Inset", Ui.para("Nothing here.", "Body14", Ui.TEXT_DIM)))
 		return
@@ -578,7 +578,7 @@ func _card(id: String) -> Button:
 	var fill := Ui.OK_FILL
 	var tcol := Ui.OK_DIM
 	if locked:
-		text = "Workbench II"
+		text = Config.bench_name(int(Config.STRUCTURES[id].get("tier", 1)))
 		col = Ui.LOCKED
 		fill = Ui.LOCK_FILL
 		tcol = Ui.TEXT_FAINT
@@ -629,7 +629,8 @@ func _build_detail(box: Container) -> void:
 	var art := _tile(id, 96, 60)
 	art.frame_color = Ui.LINE_STRONG
 	var solid := bool(def.get("solid", true))
-	var badges := Ui.hbox(6, [Ui.badge("Workbench II" if info.locked else ("Can build" if info.afford else "Missing materials"),
+	var tier_name := Config.bench_name(int(def.get("tier", 1)))
+	var badges := Ui.hbox(6, [Ui.badge(tier_name if info.locked else ("Can build" if info.afford else "Missing materials"),
 		Ui.LOCKED if info.locked else (Ui.OK if info.afford else Ui.SHORT)), Ui.badge("%d HP" % int(info.hp), Ui.TEXT_BODY, true)])
 	box.add_child(Ui.panel("PanelHeadWide", Ui.hbox(16, [art, Ui.expand(Ui.vbox(7, [Ui.label(String(def.name), "PanelTitle"),
 		Ui.label("%s  ·  %s  ·  1 tile" % [category_of(id), "solid" if solid else "walk-through"], "Caps"), badges]))])))
@@ -654,13 +655,13 @@ func _build_detail(box: Container) -> void:
 			short += 1
 		lines.add_child(Ui.req_line(m, have, int(info.cost[m])))
 	var need := Ui.requires_line("No bench — build anywhere", "", true) if int(def.get("tier", 1)) <= 1 \
-		else Ui.requires_line("Workbench II", "UPGRADED" if not info.locked else "UPGRADE A WORKBENCH", not info.locked)
+		else Ui.requires_line(tier_name, "BUILT" if not info.locked else "UPGRADE A WORKBENCH", not info.locked)
 	mid.add_child(_pad(Ui.vbox(12, [Ui.hbox(8, [Ui.expand(Ui.label("Materials", "Caps")),
 		Ui.label("ALL PRESENT" if short == 0 else "%d SHORT" % short, "Mono12", Ui.OK_DIM if short == 0 else Ui.SHORT)]), lines, need])))
 	box.add_child(Ui.scroller(mid))
 
 	var face := Ui.hbox(12, [Ui.label("PLACE", "MenuItem", Ui.INK if not info.locked else Ui.TEXT_OFF),
-		Ui.label("ENTER" if not info.locked else "NEEDS WORKBENCH II", "Mono" if not info.locked else "Caps", Color(Ui.INK, 0.7) if not info.locked else Ui.SHORT)])
+		Ui.label("ENTER" if not info.locked else "NEEDS %s" % tier_name.to_upper(), "Mono" if not info.locked else "Caps", Color(Ui.INK, 0.7) if not info.locked else Ui.SHORT)])
 	face.alignment = BoxContainer.ALIGNMENT_CENTER
 	for c in face.get_children():
 		(c as Control).size_flags_vertical = Control.SIZE_SHRINK_CENTER

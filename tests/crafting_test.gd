@@ -35,7 +35,7 @@ func test_every_recipe_makes_something_that_exists() -> void:
 	for r in Config.RECIPES:
 		ok(not ids.has(r.id), "duplicate recipe id %s" % r.id)
 		ids[r.id] = true
-		ok(r.bench >= 0 and r.bench <= 2, r.id)
+		ok(r.bench >= 0 and r.bench <= Config.MAX_BENCH, r.id)
 		ok(not r.cost.is_empty(), "%s costs nothing" % r.id)
 		for c in r.cost:
 			# A cost is anything that stacks. It used to be "anything in RES",
@@ -135,9 +135,11 @@ func test_you_cannot_craft_what_you_cannot_pay_for() -> void:
 
 func test_a_gun_needs_the_bench_it_says_it_needs() -> void:
 	_stock()
-	eq(Crafting.status(sim, p, _recipe("pistol"), 0).reason, "Needs a Workbench")
-	eq(Crafting.status(sim, p, _recipe("rifle"), 1).reason, "Needs Workbench II")
-	ok(Crafting.status(sim, p, _recipe("rifle"), 2).ok)
+	eq(Crafting.status(sim, p, _recipe("pipe"), 0).reason, "Needs a Workbench")
+	eq(Crafting.status(sim, p, _recipe("pistol"), 1).reason, "Needs Workbench II", "the first gun is chapter 2")
+	eq(Crafting.status(sim, p, _recipe("rifle"), 1).reason, "Needs Workbench IV")
+	eq(Crafting.status(sim, p, _recipe("rifle"), 3).reason, "Needs Workbench IV")
+	ok(Crafting.status(sim, p, _recipe("rifle"), 4).ok)
 
 
 func test_the_stash_does_not_pay_for_a_craft() -> void:
@@ -334,8 +336,8 @@ func test_a_rifle_at_the_ceiling_is_lighter_than_its_materials() -> void:
 		p.bag.add(id, r.cost[id])
 	p.bag.add_capped("stone", 400, p.pack_allowance())
 	gt(p.carried_weight(), 298.5, "loaded to the ceiling, materials included")
-	ok(Crafting.status(sim, p, r, 2).ok, "it is allowed: %s" % Crafting.status(sim, p, r, 2).reason)
-	ok(Crafting.craft(sim, p, r, 2))
+	ok(Crafting.status(sim, p, r, 4).ok, "it is allowed: %s" % Crafting.status(sim, p, r, 4).reason)
+	ok(Crafting.craft(sim, p, r, 4))
 	eq(p.count_carried("rifle"), 1)
 	ok(p.carried_weight() < 300.0, "and you are lighter for it: %.1f" % p.carried_weight())
 

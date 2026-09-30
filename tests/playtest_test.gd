@@ -143,7 +143,7 @@ func test_nobody_upgrades_a_bench_from_across_town() -> void:
 
 func test_e_at_a_chemistry_station_opens_it_too() -> void:
 	# Its recipes are only on the bench screen now, so E has to reach it.
-	sim.structs.bench_tier = 2
+	sim.structs.bench_tier = Config.MAX_BENCH
 	var t := _free_beside()
 	ok(not sim.structs.place(sim, "chemStation", t.x, t.y, p).is_empty())
 	eq(String(Interact.best_target(sim, p).get("label", "")), "Use Chemistry Station")
@@ -155,7 +155,7 @@ func test_a_bench_screen_lists_the_bench_you_opened_and_no_other() -> void:
 	# Codex, PR #25: with a workbench and a Chemistry Station both in reach,
 	# each screen listed the other's recipes, because the list was built from
 	# everything nearby rather than from the structure that was opened.
-	sim.structs.bench_tier = 2
+	sim.structs.bench_tier = Config.MAX_BENCH
 	var wt := _free_beside()
 	var bench := sim.structs.place(sim, "workbench", wt.x, wt.y, p)
 	var ct := Vector2i(-1, -1)
@@ -181,7 +181,8 @@ func test_a_bench_screen_lists_the_bench_you_opened_and_no_other() -> void:
 	for r in screen.recipes():
 		ok(String(r.get("station", "")).is_empty(), "%s at the workbench" % r.id)
 		ids.append(String(r.id))
-	has(ids, "pistol", "the workbench lists its own tier")
+	has(ids, "pipe", "the workbench lists its own tier")
+	ok(not ids.has("pistol"), "a gun is chapter 2")
 	ok(not ids.has("rifle"), "and only its own: this one is not upgraded")
 	eq(screen.bench(), 1)
 	screen.free()

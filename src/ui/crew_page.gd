@@ -266,12 +266,10 @@ func _build_detail(s: InventoryScreen, box: Container) -> void:
 	box.add_child(jobs)
 
 
-## Why a job cannot be taken, or "". A Sniper is the only job that can be
-## refused, and it says why up front rather than after the click.
+## Why a job cannot be taken, or "": the sim's own answer, so the card says
+## up front what the click would say after.
 func _job_block(s: InventoryScreen, c: SurvivorSim, id: String) -> String:
-	if id == "sniper" and c.job != "sniper" and s.sim.crew.free_towers(s.sim).is_empty():
-		return "No free Watchtower"
-	return ""
+	return s.sim.crew.job_refusal(s.sim, c, id)
 
 
 func _job_card(s: InventoryScreen, c: SurvivorSim, id: String) -> Button:
@@ -284,7 +282,10 @@ func _job_card(s: InventoryScreen, c: SurvivorSim, id: String) -> Button:
 		top.add_child(Ui.boxed(Ui.box(Ui.ACCENT, Ui.ACCENT, 0, 0, 7, 2), Ui.label("Current", "Caps", Ui.INK)))
 	var pre := "ALWAYS AVAILABLE"
 	var pc := Ui.TEXT_OFF
-	match id:
+	if blocked.begins_with("Needs Workbench"):
+		pre = blocked.to_upper()
+		pc = Ui.LOCKED
+	else: match id:
 		"sniper":
 			var n := s.sim.crew.free_towers(s.sim).size()
 			pre = ("%d TOWER%s FREE" % [n, "" if n == 1 else "S"]) if blocked.is_empty() else blocked.to_upper()
