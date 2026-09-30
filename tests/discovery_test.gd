@@ -65,9 +65,15 @@ func test_every_row_has_a_wave_and_every_tier_a_kit() -> void:
 
 # ------------------------------------------------------------------ rules --
 
-func test_a_fresh_run_knows_only_the_workbench() -> void:
+## What a fresh run can build: the first bench, the basic walls and the gate
+## (owner, 2026-09-30 — a wall should not wait for a raid). Sorted, as
+## `known_keys` returns them.
+const FIRST_DAY := ["barricade", "gate", "stoneWall", "woodWall", "workbench"]
+
+func test_a_fresh_run_knows_only_the_workbench_and_the_basic_walls() -> void:
 	var keys := Discovery.known_keys(sim)
-	eq(keys, [Discovery.build_key("workbench")], "nothing but the first bench: %s" % str(keys))
+	var want := FIRST_DAY.map(func(t: String) -> String: return Discovery.build_key(t))
+	eq(keys, want, "the first bench, the basic walls and the gate: %s" % str(keys))
 	ok(not _known("axe"), "not even a hatchet, until you hold a stone")
 
 
@@ -130,13 +136,14 @@ func test_the_tiers_arrive_in_waves() -> void:
 
 
 func test_defence_arrives_with_the_raid_warning() -> void:
-	ok(not Discovery.structure_known(sim, "woodWall"), "a wall is a Defence-wave arrival")
+	ok(Discovery.structure_known(sim, "woodWall"), "the basic walls are there from the start")
+	ok(Discovery.structure_known(sim, "gate"), "and the gate with them")
+	ok(not Discovery.structure_known(sim, "bunk"), "a bunk is a Defence-wave arrival")
 	sim.structs.bench_tier = 0
 	var r := Raid.start(sim, false)
 	r.force_end(sim)
-	ok(Discovery.structure_known(sim, "woodWall"), "the first raid warning brings the walls")
-	ok(Discovery.structure_known(sim, "barricade"))
-	ok(not Discovery.structure_known(sim, "gate"), "the gate is chapter 2's Defence")
+	ok(Discovery.structure_known(sim, "bunk"), "the first raid warning brings the rest of the Defence")
+	ok(not Discovery.structure_known(sim, "spike"), "the spike trap is chapter 2's Defence")
 
 
 func test_a_station_reveals_its_own_recipes() -> void:
@@ -244,7 +251,7 @@ func test_the_pinned_card_says_what_is_short_and_where() -> void:
 
 func test_a_guest_draws_the_same_cards() -> void:
 	var guest := new_sim()
-	eq(Discovery.known_keys(guest).size(), 1)
+	eq(Discovery.known_keys(guest).size(), FIRST_DAY.size())
 	p.bag.add("stone", 1)
 	Discovery.tick(sim)
 	var keys := Discovery.known_keys(sim)
