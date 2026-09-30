@@ -390,6 +390,12 @@ simulate.
 
 ## 11. The four, and an order
 
+> **Superseded (owner, 2026-09-30) by `tasks/progression-plan.md`.** The
+> ladder is now one boss dungeon per chapter — the Butcher's barn, the School,
+> the Dock Yard, Checkpoint Delta, the lab. The Hospital and the Mall are
+> optional chapter 3 dungeons built after those five; the Prison is dropped.
+> What follows is kept as history.
+
 Hospital and mall exist as districts (St. Martha, Galleria). Prison and school
 do not — Precinct 12 is a police station. Both are new district work for the
 overworld entrance, even though the interiors are instanced.

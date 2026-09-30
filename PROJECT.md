@@ -2214,16 +2214,19 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    four beds; does a Farmer drinking the stash's Clean Water read as sensible
    or as theft; and should they replant automatically or leave the bed empty
    for you to decide.
-0. **Should the shared stash have a reach?** Raised by Codex against farming
-   on PR #24, and it is not a farming question: `PlayerSim.total_res` has
-   added `sim.stash` with no distance test since Phase 3, so a Steel Wall, a
-   repair, a Machete and a Medkit are all payable from a stash on the far
-   side of town. It is either a deliberate convenience that should be written
-   down as one, or a hole that wants closing in `can_afford` / `spend` for
-   every system at once — but not in one system, because "I can build a wall
-   out here but not water a bed" is a worse rule than either. The knock-on if
-   it closes: an outlying bed genuinely becomes a thing you carry water to,
-   which is a nicer shape and a real cost in walking. Owner's call.
+0. **The shared stash gets a reach — decided (owner, 2026-09-30), not yet
+   built.** Raised by Codex against farming on PR #24: `PlayerSim.total_res`
+   has added `sim.stash` with no distance test since Phase 3, so a Steel
+   Wall, a repair, a Machete and a Medkit are all payable from a stash on the
+   far side of town. The progression plan closes it, and turns the old
+   convenience into something earned: crafting **and building** pay from the
+   pack only at the start; from every chest, locker and stash in the base
+   once a Storage Link is built (Workbench III); from the base stash anywhere
+   once a Field Radio is carried (Workbench IV). It closes in `can_afford` /
+   `spend` for every system at once, farming included — "I can build a wall
+   out here but not water a bed" is still a worse rule than either. Until
+   step A of `tasks/progression-plan.md` lands, the code behaves as it
+   always has.
 0. **Does a garden feel like a supply line or like a window box?** The farming
    gate, and the numbers most likely to want moving. A potato is one in-game
    day and corn is two; a full bed dries out over a day and a half, which is

@@ -7,7 +7,19 @@ proposing anything about progression, balance, recipes, benches, bosses or
 the early game. This file is the pointer and a summary, so the shape survives
 if nobody opens Notion. When the two disagree, Notion is right.
 
-**Nothing in it is built.** Every number there is a first pass.
+**The progression changes are not built; much of what they stand on is.**
+Every number in the plan is a first pass. Do not rebuild what exists:
+
+| Already in the game (keep, re-tier or re-cost) | Not built (the plan's work) |
+| --- | --- |
+| Pine Hollow High and the Coach, the instance machinery, the door panel, Precision Parts | The Butcher, the Foreman, the Colonel, Patient Zero and their dungeons; boss items; guaranteed first-kill drops; recommended gear on the door |
+| A workbench with two tiers (`bench` 0/1/2) and one upgrade cost | Tiers III–V, boss items in the upgrade cost, the locked upgrade row |
+| Weapon wear and mending at the bench; torches that burn out; weapon levels 1–6 | The Repair Kit, the Oil Lantern, the level cap per bench tier |
+| Crafting and building that pay from the pack **and the shared stash from anywhere**; carry about 225; the whole pack drops on death | The strict start (pack only, carry 100), the Storage Link, the Field Radio, the pack upgrades, keeping worn gear and the hotbar on death |
+| Every recipe of a bench tier visible at once | Recipe waves, the pinned recipe |
+| Scrap, Cloth, Weapon Parts, Electronics, Military, Neural Tissue; the Chemistry Station, Generator, Turret, Floodlight, Recycler | Sheet Metal, Steel Bar, Circuits, Composite Plate, Stabilised Mutagen; the Forge, Electronics Bench, Radio Beacon, Quartermaster's Desk; the Hacksaw and Cutting Torch; loot tables moved by chapter |
+| Five raid sizes; four survivor jobs, all available from the first Bunk; car wrecks as scenery | The raid ceiling per bench tier; job gates; the Farmer and Armourer; cutting wrecks; padlocked sheds, powered shutters, sealed crates |
+| Most weapons and the three armour tiers in `data/` | The Tactical and Carapace sets, chapter 5 weapons, decor sets, trophies |
 
 ## The goal
 
