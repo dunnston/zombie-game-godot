@@ -2198,6 +2198,16 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 
 ### Next up
 
+0. **The progression plan (owner, 2026-09-30) — this is the direction now.**
+   Five chapters, a dungeon boss closing each, the boss drop upgrading the
+   workbench, a strict start whose chores are removed by things you craft.
+   The full plan is the *Progression Map* page in Notion; the pointer, the
+   decisions and the build order (steps A–K) are in
+   **`tasks/progression-plan.md`**. None of it is built. It changes three
+   things written elsewhere in this document: crafting tiers are gated by
+   boss kills (pillar 2 still holds for places), the shared stash gets a
+   reach (the question two items down is answered), and the four-dungeon
+   ladder in `tasks/instanced-dungeons.md` §11 is superseded.
 0. **Walk into the School.** PR B's gate. The dev menu has *Walk into Pine
    Hollow High* and *Put down the School's boss*, so the way out can be seen
    without the fight. The questions: does the building read as somewhere you
@@ -2240,16 +2250,19 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    four beds; does a Farmer drinking the stash's Clean Water read as sensible
    or as theft; and should they replant automatically or leave the bed empty
    for you to decide.
-0. **Should the shared stash have a reach?** Raised by Codex against farming
-   on PR #24, and it is not a farming question: `PlayerSim.total_res` has
-   added `sim.stash` with no distance test since Phase 3, so a Steel Wall, a
-   repair, a Machete and a Medkit are all payable from a stash on the far
-   side of town. It is either a deliberate convenience that should be written
-   down as one, or a hole that wants closing in `can_afford` / `spend` for
-   every system at once — but not in one system, because "I can build a wall
-   out here but not water a bed" is a worse rule than either. The knock-on if
-   it closes: an outlying bed genuinely becomes a thing you carry water to,
-   which is a nicer shape and a real cost in walking. Owner's call.
+0. **The shared stash gets a reach — decided (owner, 2026-09-30), not yet
+   built.** Raised by Codex against farming on PR #24: `PlayerSim.total_res`
+   has added `sim.stash` with no distance test since Phase 3, so a Steel
+   Wall, a repair, a Machete and a Medkit are all payable from a stash on the
+   far side of town. The progression plan closes it, and turns the old
+   convenience into something earned: crafting **and building** pay from the
+   pack only at the start; from every chest, locker and stash in the base
+   once a Storage Link is built (Workbench III); from the base stash anywhere
+   once a Field Radio is carried (Workbench IV). It closes in `can_afford` /
+   `spend` for every system at once, farming included — "I can build a wall
+   out here but not water a bed" is still a worse rule than either. Until
+   step A of `tasks/progression-plan.md` lands, the code behaves as it
+   always has.
 0. **Does a garden feel like a supply line or like a window box?** The farming
    gate, and the numbers most likely to want moving. A potato is one in-game
    day and corn is two; a full bed dries out over a day and a half, which is
