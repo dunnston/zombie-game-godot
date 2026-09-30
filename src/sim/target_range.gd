@@ -331,12 +331,45 @@ static func _remove(sim: GameSim, targets: bool) -> void:
 			list.remove_at(i)
 
 
+## A blow a player dealt in the range, for the damage panel: a `dealt` event
+## carrying the seat, which the host sends only to that seat's guest, so each
+## player's panel is their own hits. Bleed is summed and reported every
+## `RANGE.bleed_report` seconds, or at once on the tick that kills.
+static func note_dealt(sim: GameSim, e: EnemySim, dmg: float, source: Variant, crit: bool, kind: String) -> void:
+	if not (source is PlayerSim):
+		return
+	var seat := (source as PlayerSim).seat
+	if kind == "bleed":
+		e.range_bleed += dmg
+		e.range_bleed_seat = seat
+		if e.hp <= 0.0:
+			_report_bleed(sim, e)
+		return
+	_report(sim, e, seat, dmg, crit, kind)
+
+
+static func _report(sim: GameSim, e: EnemySim, seat: int, dmg: float, crit: bool, kind: String) -> void:
+	sim.emit({"t": "dealt", "seat": seat, "id": e.id, "type": e.type, "dmg": dmg, "hp": maxf(0.0, e.hp),
+		"max": e.max_hp, "kind": kind, "crit": crit, "x": e.pos.x, "y": e.pos.y, "r": e.r})
+
+
+static func _report_bleed(sim: GameSim, e: EnemySim) -> void:
+	if e.range_bleed > 0.0:
+		_report(sim, e, e.range_bleed_seat, e.range_bleed, false, "bleed")
+	e.range_bleed = 0.0
+	e.range_bleed_t = 0.0
+
+
 ## A target that went down is put back on its post `target_respawn` later.
 ## Called from `Instance.tick` before it culls the dead, so a target that
 ## fell this step is seen here exactly once.
 static func tick(sim: GameSim, dt: float) -> void:
 	var inst := sim.instance
 	for e in sim.enemies.list:
+		if e.range_bleed > 0.0 and not e.dead:
+			e.range_bleed_t += dt
+			if e.range_bleed_t >= float(Config.RANGE.bleed_report) or e.bleed_t <= 0.0:
+				_report_bleed(sim, e)
 		if e.dead and e.passive:
 			inst.range_respawn.append({"type": e.type, "post": e.post, "t": float(Config.RANGE.target_respawn)})
 	for i in range(inst.range_respawn.size() - 1, -1, -1):
