@@ -268,13 +268,29 @@ func bench_station() -> String:
 
 func recipes() -> Array:
 	if mode != "bench":
-		return Crafting.visible_recipes(player, 0)
+		return Crafting.visible_recipes(player, 0, {}, sim)
 	var st := bench_station()
 	if st.is_empty():
-		return Crafting.visible_recipes(player, bench())
+		return Crafting.visible_recipes(player, bench(), {}, sim)
 	# A station lists its own work and nothing else: the hand basics are on C.
-	return Crafting.visible_recipes(player, 0, {st: true}).filter(
+	return Crafting.visible_recipes(player, 0, {st: true}, sim).filter(
 		func(r: Dictionary) -> bool: return String(r.get("station", "")) == st)
+
+
+## Guidance (step B). A known thing this player has not looked at yet is
+## marked; looking at it — selecting its card — is what clears the mark.
+func is_new(key: String) -> bool:
+	return not player.seen.has(key)
+
+
+func mark_seen(key: String) -> void:
+	player.seen[key] = true
+
+
+## The one thing they are working toward, on the HUD. Pinning it again
+## unpins it.
+func toggle_pin(key: String) -> void:
+	player.pinned = "" if player.pinned == key else key
 
 
 ## Called every frame by the scene: a screen that belongs to a thing closes
@@ -1247,6 +1263,9 @@ func _press_button(id: String) -> void:
 			Actions.equip_best(sim, player)
 		"upgrade":
 			Actions.upgrade_bench(sim, player, bench_tile)
+		"pin":
+			if mode == "craft" or mode == "bench":
+				_craft.pin(self)
 		"enter":
 			if Actions.enter_instance(sim, player, door_kind):
 				visible = false

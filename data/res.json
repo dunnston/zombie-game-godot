@@ -3,6 +3,9 @@
     "color": {
       "type": "string"
     },
+    "found": {
+      "type": "string"
+    },
     "name": {
       "type": "string"
     },
@@ -20,6 +23,7 @@
   "rows": [
     {
       "color": "#a3763f",
+      "found": "trees, with a hatchet",
       "id": "wood",
       "name": "Wood",
       "short": "WOOD",
@@ -28,6 +32,7 @@
     },
     {
       "color": "#8a6a3c",
+      "found": "under trees, and in bushes",
       "id": "sticks",
       "name": "Sticks",
       "short": "STCK",
@@ -36,6 +41,7 @@
     },
     {
       "color": "#8f8a80",
+      "found": "rocks by the roadside",
       "id": "stone",
       "name": "Stone",
       "short": "STNE",
@@ -44,6 +50,7 @@
     },
     {
       "color": "#9aae5a",
+      "found": "bushes and long grass",
       "id": "fiber",
       "name": "Fiber",
       "short": "FIBR",
@@ -52,6 +59,7 @@
     },
     {
       "color": "#9aa2ab",
+      "found": "houses and cars, everywhere",
       "id": "scrap",
       "name": "Scrap",
       "short": "SCRP",
@@ -60,6 +68,7 @@
     },
     {
       "color": "#c2a98a",
+      "found": "wardrobes and dressers, or cut from fiber",
       "id": "cloth",
       "name": "Cloth",
       "short": "CLTH",
@@ -68,6 +77,7 @@
     },
     {
       "color": "#59b8c4",
+      "found": "parts bins in the Dock Yard, the Mall and Crown Heights",
       "id": "elec",
       "name": "Electronics",
       "short": "ELEC",
@@ -76,6 +86,7 @@
     },
     {
       "color": "#8fd08a",
+      "found": "desks, glove boxes and parts bins",
       "id": "battery",
       "name": "Batteries",
       "short": "BATT",
@@ -84,6 +95,7 @@
     },
     {
       "color": "#d9575f",
+      "found": "medicine cabinets, and St. Martha Hospital",
       "id": "med",
       "name": "Medical",
       "short": "MED",
@@ -92,6 +104,7 @@
     },
     {
       "color": "#c9a227",
+      "found": "toolboxes and gun safes past the Suburbs",
       "id": "parts",
       "name": "Weapon Parts",
       "short": "PART",
@@ -100,6 +113,7 @@
     },
     {
       "color": "#7fa14a",
+      "found": "Checkpoint Delta and Downtown",
       "id": "mil",
       "name": "Military",
       "short": "MIL",
@@ -108,6 +122,7 @@
     },
     {
       "color": "#d2762c",
+      "found": "the Fuel Stop's pumps and drums",
       "id": "fuel",
       "name": "Fuel",
       "short": "FUEL",
@@ -116,6 +131,7 @@
     },
     {
       "color": "#c4a86a",
+      "found": "kitchens, vending machines and the Farms",
       "id": "rations",
       "name": "Rations",
       "short": "FOOD",
@@ -124,6 +140,7 @@
     },
     {
       "color": "#c9a86a",
+      "found": "the Farms",
       "id": "seedPotato",
       "name": "Potato Eyes",
       "notes": "Seeds and fertilizer are resources rather than consumables on purpose: DEPOSIT ALL moves resources wholesale, so a haul of seeds ends up in the base pantry where the Farmer will one day go looking for it, and nothing in the \"eat what is to hand\" path can ever reach a packet of seed corn.",
@@ -133,6 +150,7 @@
     },
     {
       "color": "#e0c24a",
+      "found": "the Farms",
       "id": "seedCorn",
       "name": "Corn Seed",
       "short": "CSED",
@@ -141,6 +159,7 @@
     },
     {
       "color": "#9aae5a",
+      "found": "the Farms and the Forest cabins",
       "id": "seedHerb",
       "name": "Herb Seed",
       "short": "HSED",
@@ -149,6 +168,7 @@
     },
     {
       "color": "#5a4a32",
+      "found": "the workbench, from fiber and sticks",
       "id": "compost",
       "name": "Compost",
       "short": "CMPT",
@@ -157,6 +177,7 @@
     },
     {
       "color": "#b06ad0",
+      "found": "the Chemistry Station",
       "id": "sludge",
       "name": "Mutagen Sludge",
       "short": "SLDG",
@@ -165,6 +186,7 @@
     },
     {
       "color": "#b9a072",
+      "found": "the workbench",
       "id": "arrow",
       "name": "Arrows",
       "short": "ARRW",
@@ -173,6 +195,7 @@
     },
     {
       "color": "#d8c98a",
+      "found": "the Precinct, gun safes, or the bench",
       "id": "ammoP",
       "name": "9mm Rounds",
       "short": "9MM",
@@ -181,6 +204,7 @@
     },
     {
       "color": "#c9584e",
+      "found": "the Precinct, gun safes, or the bench",
       "id": "ammoS",
       "name": "Shells",
       "short": "SHEL",
@@ -189,6 +213,7 @@
     },
     {
       "color": "#b8a05a",
+      "found": "the Precinct, the Checkpoint, or the bench",
       "id": "ammoR",
       "name": "Rifle Rounds",
       "short": "RIFL",
@@ -197,6 +222,7 @@
     },
     {
       "color": "#9fd0ff",
+      "found": "Pine Hollow High",
       "id": "precision",
       "name": "Precision Parts",
       "notes": "What a weapon past level 3 is made of (PR E). Found only inside an instance — the School's desks and its boss — so it only leaves past the boss: the gate on levels 4 to 6 is this material, not a flag.",

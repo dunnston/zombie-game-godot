@@ -33,7 +33,7 @@ extends RefCounted
 ## 11: the Target Range — the `range` command, the `range` map kind and the
 ## `wear` switch on the `inst` record. A protocol-10 guest would be sent into
 ## a map kind it has no layout for.
-const PROTOCOL := 11
+const PROTOCOL := 12
 
 const RELIABLE := 1
 const STATE := 2

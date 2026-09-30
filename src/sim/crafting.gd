@@ -74,7 +74,12 @@ static func has_tool(p: PlayerSim, flag: String) -> bool:
 
 ## The recipes worth showing at this bench. By hand (bench 0) that is the six
 ## things you make before you have a base; everything else is bench work.
-static func visible_recipes(_p: PlayerSim, bench: int, stations := {}) -> Array:
+##
+## With a `sim`, only what the run knows (`Discovery`) — plus a teaser: the
+## next rung's Foothold, greyed, so the bench always shows one thing past
+## its top. Without one, every recipe of the tier, which is what the data
+## tests and the editor ask for.
+static func visible_recipes(_p: PlayerSim, bench: int, stations := {}, sim: GameSim = null) -> Array:
 	var out: Array = []
 	for r in Config.RECIPES:
 		# A station recipe is shown only at its station: it is not the top of
@@ -82,7 +87,13 @@ static func visible_recipes(_p: PlayerSim, bench: int, stations := {}) -> Array:
 		# read as "keep upgrading" and send the player the wrong way.
 		var st := String(r.get("station", ""))
 		if not st.is_empty():
-			if stations.has(st):
+			if stations.has(st) and (sim == null or Discovery.recipe_known(sim, r)):
+				out.append(r)
+			continue
+		if sim != null:
+			if r.bench <= bench and Discovery.recipe_known(sim, r):
+				out.append(r)
+			elif bench >= 1 and int(r.bench) == bench + 1 and int(r.get("wave", Discovery.WAVE_KIT)) == Discovery.WAVE_FOOTHOLD:
 				out.append(r)
 			continue
 		if r.bench <= bench:
@@ -262,6 +273,7 @@ static func craft(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> bool
 		sim.notify(st.reason, "#c96a5a")
 		return false
 	p.spend(sim, r.cost)
+	Discovery.note_crafted(sim, String(r.id))
 
 	# Belt and braces behind the checks above: whatever will not go in lands
 	# at the player's feet. The cost is already spent by this point, so the

@@ -105,6 +105,9 @@ func _build_catalogue() -> void:
 		# play and useless at a keyboard trying to see what a harvest feels
 		# like — or whether a row of beds reads at a glance.
 		["ripen", "Ripen and fill every raised bed", "world"],
+		# Every recipe and buildable at once: the waves are right in play and
+		# in the way at a keyboard trying to see a chapter 4 bench.
+		["reveal", "Reveal every recipe and buildable", "world"],
 		# Also F2. A row here because a debug key nobody remembers is a
 		# feature nobody can find.
 		["noise", "Toggle the noise overlay (F2)", "view"],
@@ -245,6 +248,9 @@ func _verb(id: String) -> void:
 			for row in Wear.worn_carried(player):
 				Wear.mend(Wear.container_for(player, String(row.c)), int(row.i))
 			sim.notify("DEV  everything mended", "#b7e08a")
+		"reveal":
+			Discovery.reveal_all(sim)
+			sim.notify("DEV  everything known", "#59b8c4")
 		"ripen":
 			var beds := 0
 			for s in sim.structs.list:

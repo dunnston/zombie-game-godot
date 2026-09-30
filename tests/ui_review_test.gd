@@ -23,6 +23,7 @@ func _survivor() -> SurvivorSim:
 # ------------------------------------------------------------ build menu --
 
 func test_a_search_that_hides_the_selected_piece_moves_the_selection() -> void:
+	Discovery.reveal_all(sim)   # the walls are a Defence-wave arrival; this is about the search
 	var bar := BuildBar.new(sim)
 	bar.toggle()
 	bar.select_card("woodWall")

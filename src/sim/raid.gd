@@ -60,6 +60,8 @@ static func start(sim: GameSim, human := false) -> Raid:
 	# ceiling rises when the player upgrades, so they choose when the world
 	# gets harder. `raids_done` keeps counting; only the spec is held back.
 	raid.index = sim.human_raids_done if human else mini(sim.raids_done, Config.raid_cap(sim.structs.bench_tier))
+	if not human:
+		Discovery.note_raid(sim, raid.index)
 	# The two tracks count separately: a human crew is not "the next horde",
 	# so surviving four hordes does not send a Purge Squad on your first
 	# meeting with the living.

@@ -242,9 +242,18 @@ func cycle(dir: int) -> void:
 func _in_cat(cat: String) -> Array:
 	var out: Array = []
 	for id in Config.BUILD_ORDER:
-		if category_of(id) == cat:
+		if category_of(id) == cat and Discovery.structure_known(sim, id):
 			out.append(id)
 	return out
+
+
+## Everything the run knows how to build, for the count on the page.
+func _known_count() -> int:
+	var n := 0
+	for id in Config.BUILD_ORDER:
+		if Discovery.structure_known(sim, id):
+			n += 1
+	return n
 
 
 func typing() -> bool:
@@ -332,6 +341,7 @@ func card_info(id: String) -> Dictionary:
 		"cost": sim.structs.cost_of(id, player),
 		"afford": player.can_afford(sim, def.cost, player.build_cost_mul),
 		"locked": not sim.structs.is_unlocked(id),
+		"known": Discovery.structure_known(sim, id),
 		"hp": roundi(def.hp * (owner.struct_hp_mul if owner != null else 1.0)),
 		"label": def.get("name", id),
 	}
@@ -344,6 +354,9 @@ func _shown() -> Array:
 	var out: Array = []
 	for id in Config.BUILD_ORDER:
 		var def: Dictionary = Config.STRUCTURES[id]
+		# Guidance: only what the run knows how to build (`Discovery`).
+		if not Discovery.structure_known(sim, id):
+			continue
 		if q.is_empty():
 			if category_of(id) != build_cat:
 				continue
@@ -427,7 +440,7 @@ func _build_menu() -> void:
 	_search = field
 	var hits := Ui.label("", "Mono12", Ui.TEXT_OFF)
 	var count := Ui.label("", "Mono", Ui.TEXT_DIM)
-	refresher(func() -> void: Ui.set_text(count, "%d / %d structures" % [_shown().size(), Config.BUILD_ORDER.size()]))
+	refresher(func() -> void: Ui.set_text(count, "%d / %d structures" % [_shown().size(), _known_count()]))
 	var fbox := Ui.hbox(0)
 	section(fbox, func() -> String: return str(build_filter), func(box: Container) -> void:
 		box.add_child(Chrome.filter_chip("Can build now", build_filter, "F", func() -> void: build_filter = not build_filter)))
@@ -563,9 +576,16 @@ func _card(id: String) -> Button:
 	tile.frame_color = Ui.LINE_STRONG if on else (Ui.LINE_SOFT if locked else Ui.LINE)
 	tile.alpha = 0.45 if locked else 1.0
 	# As on a recipe card: the text wraps, so no card is wider than its column.
-	var top := Ui.hbox(12, [tile, Ui.expand(Ui.vbox(5, [Ui.para(String(def.name), "ItemName", Ui.TEXT_OFF if locked else Ui.TEXT_HIGH),
+	var head := Ui.vbox(5, [Ui.para(String(def.name), "ItemName", Ui.TEXT_OFF if locked else Ui.TEXT_HIGH),
 		Ui.expand(Ui.label(category_of(id).trim_suffix("s") if category_of(id) != "Crafting stations" else "Station", "Small",
-			Ui.TEXT_FAINT if locked else Ui.TEXT_DIM))]))])
+			Ui.TEXT_FAINT if locked else Ui.TEXT_DIM))])
+	# Guidance: new until looked at; and the one on the HUD says so.
+	var bkey := Discovery.build_key(id)
+	if not locked and not player.seen.has(bkey):
+		head.add_child(Ui.badge("NEW", Ui.ACCENT_HI))
+	elif player.pinned == bkey:
+		head.add_child(Ui.badge("PINNED", Ui.XP))
+	var top := Ui.hbox(12, [tile, Ui.expand(head)])
 	var bill: Control
 	if locked:
 		bill = Ui.para("%s  ·  %d HP" % [Structures.cost_label(info.cost), int(info.hp)], "Mono12", Ui.TEXT_FAINT)
@@ -596,7 +616,9 @@ func _card(id: String) -> Button:
 	strip.custom_minimum_size.y = 26
 	var face := Ui.vbox(0, [Ui.pad(top, 13, 13, 13, 8), Ui.pad(bill, 13, 0, 13, 10), Ui.spacer(), strip])
 	var cid := id
-	var b := Ui.face_button("CardOn" if on else ("CardLocked" if locked else "Card"), face, func() -> void: select_card(cid))
+	var b := Ui.face_button("CardOn" if on else ("CardLocked" if locked else "Card"), face, func() -> void:
+		select_card(cid)
+		player.seen[Discovery.build_key(cid)] = true)
 	b.custom_minimum_size = Vector2(170, 174)
 	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# A double-click takes it straight into the street.

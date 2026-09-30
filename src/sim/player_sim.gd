@@ -173,6 +173,12 @@ var hotbar: Slots
 var haul: Slots
 var equip := {"head": "", "body": "", "hands": "", "legs": "", "feet": "", "offhand": ""}
 var start_weapon: String = Config.START_KIT.weapon
+## Guidance (step B). `seen` is every known recipe or buildable this player
+## has looked at, so the screens can mark what is new; `pinned` is the one
+## they chose to work toward, a recipe id or "build:<type>", on the HUD.
+## Both are the player's own and travel in their save record, never the wire.
+var seen := {}
+var pinned := ""
 var slot := 0
 var mag := {}                    # weapon id -> rounds loaded
 ## Condition is deliberately NOT here: it lives on the slot, so it travels

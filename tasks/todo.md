@@ -2878,6 +2878,31 @@ increase hotbar size?")
 - `tools/test`: 785 tests, 18049 asserts, 0 failures. `--all` adds the slow
   tier; `tools/smoke`: 101 checkpoints, 0 failures.
 
+## Progression step B — guidance (`feat/guidance`, 2026-09-30)
+
+- [x] `Discovery`: facts on `GameSim.known`, the known set derived; pockets
+      scanned per tick; hooks for crafted, built, bench, raid
+- [x] `wave` on every recipe and buildable, `found` on every material
+      (`tools/waves.gd`); `Config.WAVES` triggers per tier
+- [x] Screens filtered to what is known; the next rung's Foothold as teaser
+- [x] NEW badges (`PlayerSim.seen`); PIN TO HUD and the HUD card
+- [x] The locked upgrade row with `key` and `hint`
+- [x] Save v13, protocol 12, dev reveal-all
+- [x] `discovery_test.gd`; smoke `guidance_new_recipe`, `guidance_pinned`
+- [x] `tools\test --all`, smoke, `PROJECT.md`
+
+### Review
+
+- The known set is derived, never stored: the same rule as stats. A table
+  edit moving a recipe between waves needs no save migration.
+- The pocket scan replaced eight hooks with one, and it is cheap: a
+  dictionary lookup per stack per step.
+- Chapter 2's Kit trigger is Weapon Parts until step D brings Steel Bar;
+  the change is one line in `Config.WAVES`.
+- The smoke's guidance leg photographs the NEW badge and the pinned card,
+  then reveals everything, because the rest of the run builds chapter 3
+  pieces at minute two.
+
 ## Progression step C — the ladder (`feat/the-ladder`, 2026-09-30)
 
 Built before step B: the locked upgrade row and the recipe waves both point

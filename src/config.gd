@@ -1689,7 +1689,9 @@ const MAX_BENCH := 5
 const BENCH_TIERS := {
 	1: {"name": "Workbench", "raid_cap": 0, "level_cap": 2, "jobs": ["guard"],
 		"blurb": "the first bench"},
-	2: {"name": "Workbench II", "cost": {"scrap": 40, "wood": 30, "cloth": 10}, "key": "",
+	# `hint` is what the locked upgrade row says beside a boss item you do
+	# not have yet: where to look, in the owner's words (step E fills it).
+	2: {"name": "Workbench II", "cost": {"scrap": 40, "wood": 30, "cloth": 10}, "key": "", "hint": "",
 		"raid_cap": 1, "level_cap": 4, "jobs": ["scavenger", "sniper"],
 		"blurb": "steel, the first guns, the Riot set"},
 	3: {"name": "Workbench III", "cost": {"scrap": 55, "elec": 20, "parts": 5}, "key": "",
@@ -1701,6 +1703,24 @@ const BENCH_TIERS := {
 	5: {"name": "Workbench V", "cost": {"scrap": 100, "elec": 25, "parts": 12, "mil": 10}, "key": "",
 		"raid_cap": 4, "level_cap": 10, "jobs": [],
 		"blurb": "the last of it"},
+}
+
+
+## What reveals a chapter's recipes, per rung (progression step B; the rule
+## is in `Discovery`). `kit` is the trigger for the tier's second wave and
+## `second` for its fourth: `{"held": [ids]}` fires on the first of those
+## ever carried, `{"bench": n}` on reaching that bench. Foothold is the
+## rung itself, Set is anything from the Kit made, and Defence is a raid as
+## big as the tier's ceiling. Nothing about a tier lives anywhere else, so a
+## chapter's material arriving (step D: Steel Bar for 2) is one line here.
+const WAVES := {
+	1: {"kit": {"bench": 1}, "second": {"held": ["seedPotato", "seedCorn", "seedHerb", "rations", "brainRaw"]}},
+	# Until Sheet Metal and Steel Bar exist (step D), the first Weapon Parts
+	# open chapter 2's Kit and its guns alike.
+	2: {"kit": {"held": ["parts"]}, "second": {"held": ["parts"]}},
+	3: {"kit": {"held": ["elec"]}, "second": {"held": ["parts"]}},
+	4: {"kit": {"held": ["mil"]}, "second": {"held": ["mil"]}},
+	5: {"kit": {"held": ["brainSpec"]}, "second": {"held": ["brainSpec"]}},
 }
 
 

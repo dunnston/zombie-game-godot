@@ -393,6 +393,8 @@ func place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim, rot := 0)
 		sim.notify("Respawn point set", "#b7e08a", true)
 	if type == "workbench":
 		bench_tier = maxi(bench_tier, 1)
+		Discovery.note_bench(sim, 1)
+	Discovery.note_built(sim, type)
 
 	sim.emit({"t": "built", "x": s.pos.x, "y": s.pos.y, "type": type})
 	sim.threat.add(sim, Config.THREAT.per_build * def.threat, p)
@@ -757,6 +759,7 @@ func upgrade_bench(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
 	p.spend(sim, spec.cost)
 	s.tier = next
 	bench_tier = maxi(bench_tier, next)
+	Discovery.note_bench(sim, next)
 	var name := String(spec.name).to_upper()
 	sim.notify("%s — %s" % [name, String(spec.get("blurb", "unlocked"))], "#59b8c4", true)
 	Progression.add_xp(sim, p, 60, name)
