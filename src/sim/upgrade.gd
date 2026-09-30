@@ -88,6 +88,11 @@ static func status(sim: GameSim, p: PlayerSim, cont_kind: String, i: int, bench:
 	var why := Crafting.bench_reason(sim, p, r, bench)
 	if not why.is_empty():
 		return {"ok": false, "reason": why}
+	# The ladder's cap: a level is a chapter's work as much as a gun is, so
+	# the bench you are standing at has to be the tier that allows it.
+	var next := level(cont, i) + 1
+	if next > Config.level_cap(bench):
+		return {"ok": false, "reason": "Needs %s for level %d" % [Config.bench_name(Config.bench_for_level(next)), next]}
 	var c := cost(cont, i)
 	var pp := int(c.get("precision", 0))
 	if pp > 0 and p.total_res(sim, "precision") < pp:

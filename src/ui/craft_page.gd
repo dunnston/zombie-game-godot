@@ -186,9 +186,10 @@ func build(s: InventoryScreen, col: VBoxContainer) -> void:
 		var right: Array = []
 		# The upgrade lives here, priced, rather than on E: the key you press
 		# to look at a bench must never be the key that spends on it.
-		if is_wb and tier < 2:
-			var face := Ui.hbox(14, [Ui.label("Upgrade to Workbench II", "Caps13", Ui.ACCENT_HI), Ui.rule(true, 18, Ui.LINE),
-				Ui.label(Structures.cost_label(Config.BENCH_UPGRADE_COST), "Mono", Ui.TEXT_DIM)])
+		if is_wb and tier < Config.MAX_BENCH:
+			var next: Dictionary = Config.BENCH_TIERS[tier + 1]
+			var face := Ui.hbox(14, [Ui.label("Upgrade to %s" % String(next.name), "Caps13", Ui.ACCENT_HI), Ui.rule(true, 18, Ui.LINE),
+				Ui.label(Structures.cost_label(next.cost), "Mono", Ui.TEXT_DIM)])
 			for c in face.get_children():
 				(c as Control).size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			var up := Ui.face_button("SecondaryOn", Ui.pad(face, 16, 0, 16, 0), func() -> void: s._press_button("upgrade"))
@@ -198,11 +199,11 @@ func build(s: InventoryScreen, col: VBoxContainer) -> void:
 		right.append(s.close_cap("ESC"))
 		var chip: Control = null
 		if is_wb:
-			var pips := UiPips.new(3)
+			var pips := UiPips.new(Config.MAX_BENCH + 1)
 			pips.set_filled(tier + 1)
 			pips.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			chip = Ui.boxed(Ui.box(Color("#1a2028"), Ui.LINE, 1, 0, 10, 4), Ui.hbox(8, [pips, Ui.label("TIER %d" % tier, "Mono12", Ui.TEXT_BODY)]))
-		col.add_child(Chrome.title_bar("Workbench II" if is_wb and tier >= 2 else String(bs.get("def", {}).get("name", "Workbench")),
+		col.add_child(Chrome.title_bar(Config.bench_name(tier) if is_wb else String(bs.get("def", {}).get("name", "Workbench")),
 			chip, right))
 	else:
 		col.add_child(s.tab_bar([w[0]]))
@@ -317,11 +318,10 @@ func _build_rail(s: InventoryScreen, box: Container) -> void:
 			stations[st] = int(stations.get(st, 0)) + 1
 	var here := s.bench()
 	var here_st := s.bench_station()
-	var names := {0: "By hand", 1: "Workbench", 2: "Workbench II"}
-	for t in [0, 1, 2]:
+	for t in range(Config.MAX_BENCH + 1):
 		var reach: bool = (here_st.is_empty() and t <= here) if s.mode == "bench" else t == 0
-		bench_rows.append(Chrome.rail_row(String(names[t]) + ("  ·  anywhere" if t == 0 and s.mode == "bench" else ""),
-			str(tally[t]), false, Callable(), false, Ui.OK if reach else Ui.SHORT, null, 38))
+		bench_rows.append(Chrome.rail_row(Config.bench_name(t) + ("  ·  anywhere" if t == 0 and s.mode == "bench" else ""),
+			str(tally.get(t, 0)), false, Callable(), false, Ui.OK if reach else Ui.SHORT, null, 38))
 	for st: String in stations:
 		var at := here_st == st
 		bench_rows.append(Chrome.rail_row(Crafting.station_name(st), "HERE" if at else str(stations[st]) if s.mode != "bench" else "NOT HERE",
@@ -454,7 +454,7 @@ func _card(s: InventoryScreen, row: Dictionary, on: bool) -> Button:
 		col = Ui.LOCKED
 		fill = Ui.LOCK_FILL
 		xp_col = Ui.TEXT_FAINT
-		text = "Workbench II" if int(r.bench) >= 2 and gate.begins_with("Needs Work") else \
+		text = Config.bench_name(int(r.bench)) if int(r.bench) >= 2 and gate.begins_with("Needs Work") else \
 			("Workbench" if gate == "Needs a Workbench" else gate.trim_prefix("Needs "))
 		if String(r.get("station", "")) != "" and gate.begins_with("Needs a "):
 			text = Crafting.station_name(String(r.station))
@@ -715,7 +715,7 @@ func _requirement_lines(s: InventoryScreen, sel: Dictionary) -> Array:
 			out.append(Ui.requires_line(Crafting.station_name(station), "STANDING AT ONE" if here else "NOT HERE", here))
 		elif int(r.bench) > 0:
 			var ok := s.bench() >= int(r.bench)
-			out.append(Ui.requires_line("Workbench II" if int(r.bench) >= 2 else "Workbench", "STANDING AT ONE" if ok else "GO TO ONE", ok))
+			out.append(Ui.requires_line(Config.bench_name(int(r.bench)), "STANDING AT ONE" if ok else "GO TO ONE", ok))
 		else:
 			out.append(Ui.requires_line("Nothing — made by hand", "ANYWHERE", true))
 		if r.has("tool"):
@@ -730,7 +730,7 @@ func _requirement_lines(s: InventoryScreen, sel: Dictionary) -> Array:
 		var wid := String((sel.repair if sel.has("repair") else sel.upgrade).id)
 		var what := "the bench that made it"
 		if sel.has("repair") and Wear.recipe_for(wid).is_empty():
-			what = "Workbench II" if Wear.mend_bench(wid) >= 2 else "a Workbench"
+			what = Config.bench_name(Wear.mend_bench(wid)) if Wear.mend_bench(wid) >= 2 else "a Workbench"
 		out.append(Ui.requires_line(what, ("TIER %d IS ENOUGH" % maxi(1, s.bench())) if not gated else why.to_upper(),
 			not gated, "Mended at" if sel.has("repair") else "Levelled at"))
 	return out

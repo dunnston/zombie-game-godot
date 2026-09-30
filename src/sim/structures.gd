@@ -252,9 +252,11 @@ func reachable_store(p: PlayerSim, tx: int, ty: int, sim: GameSim = null) -> Slo
 
 # -------------------------------------------------------------- placement --
 
+## Whether the base's best workbench is good enough for a buildable. Tier 1
+## needs no bench at all: you build the first bench with your hands.
 func is_unlocked(type: String) -> bool:
 	var def: Dictionary = Config.STRUCTURES.get(type, {})
-	return def.is_empty() or def.tier <= 1 or bench_tier >= 2
+	return def.is_empty() or def.tier <= 1 or bench_tier >= int(def.tier)
 
 
 func cost_of(type: String, p: PlayerSim) -> Dictionary:
@@ -275,7 +277,7 @@ func can_place(sim: GameSim, type: String, tx: int, ty: int, p: PlayerSim, rot :
 	if sim.instance != null:
 		return {"ok": false, "reason": "Nothing can be built in here"}
 	if not is_unlocked(type):
-		return {"ok": false, "reason": "Needs Workbench II"}
+		return {"ok": false, "reason": "Needs %s" % Config.bench_name(int(def.tier))}
 	var tiles := tiles_of(type, tx, ty, rot)
 	for t in tiles:
 		if t.x < 1 or t.y < 1 or t.x >= W - 1 or t.y >= W - 1:
@@ -742,20 +744,37 @@ func use_generator(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
 	return true
 
 
+## One rung up the ladder, paid from the pack. `bench_upgrade_refusal` is
+## the same question asked without spending, so the screen prints the same
+## sentence the button would.
 func upgrade_bench(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
-	if s.tier >= 2:
-		sim.notify("Already upgraded", "#8a8f84")
+	var why := bench_upgrade_refusal(sim, s, p)
+	if not why.is_empty():
+		sim.notify(why, "#8a8f84" if why.begins_with("Already") else "#c96a5a")
 		return false
-	if not p.can_afford(sim, Config.BENCH_UPGRADE_COST):
-		sim.notify("Need %s" % cost_label(Config.BENCH_UPGRADE_COST), "#c96a5a")
-		return false
-	p.spend(sim, Config.BENCH_UPGRADE_COST)
-	s.tier = 2
-	bench_tier = 2
-	sim.notify("WORKBENCH II — advanced weapons and steel unlocked", "#59b8c4", true)
-	Progression.add_xp(sim, p, 60, "WORKBENCH II")
+	var next := int(s.tier) + 1
+	var spec: Dictionary = Config.BENCH_TIERS[next]
+	p.spend(sim, spec.cost)
+	s.tier = next
+	bench_tier = maxi(bench_tier, next)
+	var name := String(spec.name).to_upper()
+	sim.notify("%s — %s" % [name, String(spec.get("blurb", "unlocked"))], "#59b8c4", true)
+	Progression.add_xp(sim, p, 60, name)
 	sim.threat.add(sim, 4.0, p)
 	return true
+
+
+## Why this workbench cannot go up a tier right now, or "".
+func bench_upgrade_refusal(sim: GameSim, s: Dictionary, p: PlayerSim) -> String:
+	if int(s.tier) >= Config.MAX_BENCH:
+		return "Already at the top"
+	var spec: Dictionary = Config.BENCH_TIERS[int(s.tier) + 1]
+	var key := String(spec.get("key", ""))
+	if not key.is_empty() and p.count_carried(key) <= 0:
+		return "Needs the %s" % Items.name_of(key)
+	if not p.can_afford(sim, spec.cost):
+		return "Need %s" % cost_label(spec.cost)
+	return ""
 
 
 func toggle_gate(sim: GameSim, s: Dictionary) -> bool:

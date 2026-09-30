@@ -114,9 +114,12 @@ func test_a_found_weapon_is_mended_off_its_salvage_at_a_workbench() -> void:
 
 func test_a_tier_three_find_needs_workbench_two() -> void:
 	_stock()
-	_hold("katana", 10)
+	# The Katana has a recipe since the ladder (chapter 4); the Halligan Bar
+	# is still found and nothing else.
+	ok(Wear.recipe_for("halliganBar").is_empty(), "the bar is found, not made")
+	_hold("halliganBar", 10)
 	var st := Wear.repair_status(sim, p, "hotbar", 0, 1)
-	ok(not st.ok, "a katana is third-band work")
+	ok(not st.ok, "a halligan bar is third-band work")
 	eq(st.reason, "Needs Workbench II")
 	ok(Wear.repair_status(sim, p, "hotbar", 0, 2).ok, "and the upgraded bench mends it")
 
@@ -271,7 +274,8 @@ func test_every_tool_a_recipe_names_is_mendable_by_hand() -> void:
 
 func test_mending_costs_a_share_of_the_recipe_scaled_by_the_damage() -> void:
 	_stock()
-	sim.structs.place(sim, "workbench", plot.x + 2, plot.y, p)
+	var bench := sim.structs.place(sim, "workbench", plot.x + 2, plot.y, p)
+	ok(sim.structs.upgrade_bench(sim, bench, p), "a Machete is chapter 2 work")
 	_hold("machete", Wear.max_of("machete") / 2)
 	# The Machete costs 24 scrap and 1 weapon part. Half gone, at a half
 	# share, is 24 * 0.5 * 0.5 = 6 scrap.
@@ -282,7 +286,7 @@ func test_mending_costs_a_share_of_the_recipe_scaled_by_the_damage() -> void:
 	ok(not cost.has("parts"), "the trimming a light repair would not use")
 
 	var scrap := p.count_res("scrap")
-	ok(Actions.repair_weapon(sim, p, "hotbar", 0, 1))
+	ok(Actions.repair_weapon(sim, p, "hotbar", 0, 2))
 	eq(Wear.left(p.hotbar, 0), Wear.max_of("machete"), "back to new")
 	eq(p.count_res("scrap"), scrap - 6, "and it was paid for")
 
@@ -311,12 +315,15 @@ func test_mending_happens_at_the_bench_that_makes_it_and_nowhere_else() -> void:
 	_hold("machete", 10)
 
 	var st := Wear.repair_status(sim, p, "hotbar", 0, 0)
-	ok(not st.ok, "a Machete is bench-1 work")
-	eq(st.reason, "Needs a Workbench")
+	ok(not st.ok, "a Machete is bench-2 work")
+	eq(st.reason, "Needs Workbench II")
 	ok(not Actions.repair_weapon(sim, p, "hotbar", 0, 0), "and asking anyway fails")
 	eq(Wear.left(p.hotbar, 0), 10, "nothing was mended")
 
-	sim.structs.place(sim, "workbench", plot.x + 2, plot.y, p)
+	var bench := sim.structs.place(sim, "workbench", plot.x + 2, plot.y, p)
+	ok(not Wear.repair_status(sim, p, "hotbar", 0, Crafting.bench_tier_at(sim, p)).ok,
+		"the first bench is not the one that makes it")
+	ok(sim.structs.upgrade_bench(sim, bench, p))
 	ok(Wear.repair_status(sim, p, "hotbar", 0, Crafting.bench_tier_at(sim, p)).ok,
 		"beside the bench that makes it, yes")
 
@@ -342,10 +349,10 @@ func test_a_repair_may_not_name_a_chest() -> void:
 func test_mending_without_the_materials_is_refused() -> void:
 	sim.structs.place(sim, "workbench", plot.x + 2, plot.y, p)
 	_hold("machete", 1)
-	var st := Wear.repair_status(sim, p, "hotbar", 0, 1)
+	var st := Wear.repair_status(sim, p, "hotbar", 0, 2)
 	ok(not st.ok)
 	eq(st.reason, "Missing materials")
-	ok(not Actions.repair_weapon(sim, p, "hotbar", 0, 1))
+	ok(not Actions.repair_weapon(sim, p, "hotbar", 0, 2))
 	eq(Wear.left(p.hotbar, 0), 1, "and it stayed broken rather than half-mending")
 
 

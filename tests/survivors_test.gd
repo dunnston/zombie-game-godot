@@ -11,6 +11,9 @@ var plot: Vector2i
 func before_each() -> void:
 	sim = new_sim()
 	p = sim.players[0]
+	# Every job, so the crew tests are about the crew; the ladder's job gate
+	# has its own test in ladder_test.
+	sim.structs.bench_tier = Config.MAX_BENCH
 	plot = clear_plot(10)
 	p.pos = tile_centre(plot)
 	p.intent.aim = p.pos + Vector2.RIGHT

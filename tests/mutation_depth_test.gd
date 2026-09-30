@@ -61,7 +61,7 @@ func test_a_refined_dose_is_out_of_reach_until_you_build_the_bench() -> void:
 	var tile := clear_plot(3)
 	for id in ["scrap", "elec", "parts", "med", "wood"]:
 		p.bag.add(id, 400)
-	sim.structs.bench_tier = 2
+	sim.structs.bench_tier = int(Config.STRUCTURES.chemStation.tier)
 	p.pos = tile_centre(tile) + Vector2(0, Config.TILE * 2)
 	sim.structs.place(sim, "chemStation", tile.x, tile.y, p)
 	ok(not sim.structs.at_tile(tile.x, tile.y).is_empty(), "the station would not go up")

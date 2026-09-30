@@ -15,8 +15,8 @@ extends RefCounted
 ## stash, then the ground.
 
 
-## The bench a player standing here has access to: 0 by hand, 1 beside a
-## workbench, 2 beside an upgraded one.
+## The bench a player standing here has access to: 0 by hand, otherwise the
+## tier of the workbench within reach (1 to `Config.MAX_BENCH`).
 static func bench_tier_at(sim: GameSim, p: PlayerSim) -> int:
 	var bench := sim.structs.near_workbench(p.pos)
 	return 0 if bench.is_empty() else int(bench.tier)
@@ -99,7 +99,7 @@ static func visible_recipes(_p: PlayerSim, bench: int, stations := {}) -> Array:
 ## Returns "" when the bench is fine.
 static func bench_reason(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> String:
 	if r.bench > bench:
-		return "Needs a Workbench" if r.bench == 1 else "Needs Workbench II"
+		return "Needs a Workbench" if r.bench == 1 else "Needs %s" % Config.bench_name(int(r.bench))
 	# Asked of the world rather than taken from the caller: on a guest this
 	# same function runs on the host, where standing beside the station is the
 	# only thing that can be checked honestly.

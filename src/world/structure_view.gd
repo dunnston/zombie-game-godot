@@ -241,7 +241,7 @@ func _draw_state(s: Dictionary, rect: Rect2, pictured: bool, font: Font) -> void
 				draw_arc(pos, s.def.power_radius, 0.0, TAU, 48, Color("#59b8c4", 0.07), 1.0)
 		"workbench":
 			if s.tier >= 2:
-				draw_string(font, pos + Vector2(-16, -12), "II", HORIZONTAL_ALIGNMENT_CENTER, 32, 10, Color("#59b8c4"))
+				draw_string(font, pos + Vector2(-16, -12), Config.bench_numeral(int(s.tier)), HORIZONTAL_ALIGNMENT_CENTER, 32, 10, Color("#59b8c4"))
 
 
 ## A bed's crop, growing out of the soil in four steps: three shoots per tile,

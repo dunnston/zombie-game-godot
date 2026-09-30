@@ -108,7 +108,7 @@ static func best_target(sim: GameSim, p: PlayerSim) -> Dictionary:
 		elif s.type == "workbench" or s.def.has("station"):
 			# E opens the bench; it never spends anything. Upgrading is a button
 			# inside, with its price on it, rather than the key you press to look.
-			entry = {"kind": "bench", "ref": s, "label": "Use %s" % ("Workbench II" if s.type == "workbench" and s.tier >= 2 else s.def.name)}
+			entry = {"kind": "bench", "ref": s, "label": "Use %s" % (Config.bench_name(int(s.tier)) if s.type == "workbench" else s.def.name)}
 		elif s.type == "gate":
 			entry = {"kind": "gate", "ref": s, "label": "Close gate" if s.open else "Open gate"}
 		elif s.type == "generator":

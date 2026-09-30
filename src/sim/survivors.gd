@@ -90,8 +90,24 @@ func free_towers(sim: GameSim) -> Array[Dictionary]:
 	return out
 
 
+## Why a job cannot be given right now, or "". The bench gate is the
+## ladder's (`Config.job_bench`): each chapter gives the crew something new
+## to do. Asked by the crew screen too, so the card says what the click would.
+func job_refusal(sim: GameSim, s: SurvivorSim, job: String) -> String:
+	var need := Config.job_bench(job)
+	if s.job != job and sim.structs.bench_tier < need:
+		return "Needs %s" % Config.bench_name(need)
+	if job == "sniper" and s.job != "sniper" and free_towers(sim).is_empty():
+		return "No free Watchtower"
+	return ""
+
+
 func assign_job(sim: GameSim, s: SurvivorSim, job: String) -> bool:
 	if not Config.JOBS.has(job) or s.dead:
+		return false
+	var why := job_refusal(sim, s, job)
+	if not why.is_empty():
+		sim.notify(why if why != "No free Watchtower" else "No free Watchtower to post them on", "#c96a5a")
 		return false
 	if job == "sniper":
 		var tower := s.tower if not s.tower.is_empty() and not s.tower.destroyed else {}
@@ -99,7 +115,6 @@ func assign_job(sim: GameSim, s: SurvivorSim, job: String) -> bool:
 			var free := free_towers(sim)
 			tower = free[0] if not free.is_empty() else {}
 		if tower.is_empty():
-			sim.notify("No free Watchtower to post them on", "#c96a5a")
 			return false
 		s.tower = tower
 	else:

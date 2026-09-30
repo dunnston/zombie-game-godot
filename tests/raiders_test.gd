@@ -68,6 +68,7 @@ func test_the_living_come_for_what_you_are_becoming() -> void:
 
 
 func test_the_two_raid_tracks_count_separately() -> void:
+	sim.structs.bench_tier = Config.MAX_BENCH   # no raid ceiling in the way
 	sim.raids_done = 3
 	var horde := Raid.start(sim, false)
 	eq(String(horde.spec.name), String(Config.raid_spec(3).name))
@@ -89,6 +90,7 @@ func test_a_human_raid_is_scaled_by_human_raids() -> void:
 	# every raider gets (`hp_per_index`). Read off the wrong counter, a crew
 	# arrives tougher for hordes it had nothing to do with, and never gets
 	# tougher for beating *you*. (Codex review, PR #21.)
+	sim.structs.bench_tier = Config.MAX_BENCH
 	sim.raids_done = 6
 	var first := Raid.start(sim, true)
 	eq(first.index, 0, "the living arrived scaled by six hordes they were not at")

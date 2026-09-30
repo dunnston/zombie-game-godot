@@ -615,7 +615,7 @@ func item_facts(stack: Dictionary) -> Dictionary:
 				badges.append(["Broken", Ui.SHORT])
 				var where := "the bench that made it"
 				if found:
-					where = "Workbench II" if Wear.mend_bench(id) >= 2 else "a Workbench"
+					where = Config.bench_name(Wear.mend_bench(id)) if Wear.mend_bench(id) >= 2 else "a Workbench"
 				parts.append("Broken — mend it at %s." % where)
 			else:
 				var f := float(Wear.left_in(stack)) / maxf(1.0, float(Wear.max_in(stack)))

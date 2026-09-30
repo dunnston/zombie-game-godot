@@ -10,8 +10,9 @@ const isObj = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
 // Columns and fields that read best first; everything else is alphabetical.
 const FIRST = ["name", "label", "category", "subcategory", "status", "kind", "slot", "table", "tier"];
-// PROJECT.md §10: 0 is by hand, 1 and 2 the one Workbench and its upgrade.
-const BENCH = { 0: "by hand", 1: "Workbench", 2: "Workbench II" };
+// The workbench ladder (Config.BENCH_TIERS, served as a const): 0 is by hand,
+// 1 the Workbench, 2 to 5 its upgrades. One tier per chapter.
+const benchName = (b) => (b === 0 ? "by hand" : ((S.consts.BENCH_TIERS || {})[b] || {}).name || `bench ${b}`);
 // The recipe keys the card spells out; any other key shows as a tag.
 const RECIPE_KEYS = ["id", "name", "bench", "cost", "give", "xp"];
 // Where an item can be defined, in the order a lookup tries them.
@@ -201,7 +202,7 @@ const structuresUsing = (id) => listRows("STRUCTURES").filter((s) => isObj(s.cos
 // Every specialised station a structure offers (the Chemistry Station today).
 const stationList = () => listRows("STRUCTURES").filter((s) => s.station).map((s) => ({ id: s.station, name: s.name, row: s }));
 const stationName = (id) => (stationList().find((s) => s.id === id) || { name: id }).name;
-const placeLabel = (r) => (r.station ? stationName(r.station) : BENCH[r.bench] || `bench ${r.bench}`);
+const placeLabel = (r) => (r.station ? stationName(r.station) : benchName(r.bench));
 const badge = (status) => (status ? el("span", { class: `badge ${String(status).replace(/\s+/g, "-")}` }, status) : "");
 const swatch = (c) => (c ? el("span", { class: "sw", style: `background:${c}` }) : "");
 const none = () => el("span", { class: "hint" }, "—");
@@ -498,8 +499,9 @@ function viewWorkbenches(q) {
     ["By hand", "No bench — the C menu. What you need before you have a base.", R.filter((r) => !r.station && r.bench === 0)],
     ["Workbench", wb ? ["Build a ", link("STRUCTURES", "workbench", "Workbench"), ": ", chips(wb.cost), " Also does everything by hand."] : "",
       R.filter((r) => !r.station && r.bench === 1)],
-    ["Workbench II", ["Upgrade the Workbench: ", chips(S.consts.BENCH_UPGRADE_COST), " Also does everything below it."],
-      R.filter((r) => !r.station && r.bench === 2)],
+    ...Object.entries(S.consts.BENCH_TIERS || {}).filter(([t]) => Number(t) >= 2).map(([t, spec]) => [spec.name,
+      [`Upgrade to ${spec.name}: `, chips(spec.cost || {}), spec.key ? ` and the ${itemName(spec.key)}.` : "", " Also does everything below it."],
+      R.filter((r) => !r.station && r.bench === Number(t))]),
     ...stationList().map((s) => [s.name, ["Build a ", link("STRUCTURES", s.row.id, s.name), ": ", chips(s.row.cost),
       " A separate station, not a Workbench tier."], R.filter((r) => r.station === s.id)]),
   ];
@@ -1397,7 +1399,7 @@ function weaponCard(w) {
   const box = el("div", {});
   const recipes = recipesMaking(w.id);
   add(box, el("h3", {}, "Made at"), recipes.length ? recipes.map(recipeCard)
-    : el("p", { class: "hint" }, "No recipe: found, never made. Mended off its salvage at the Workbench (tier 3: Workbench II), never upgraded (Wear.mend_bench)."));
+    : el("p", { class: "hint" }, "No recipe: found, never made. Mended off its salvage at the Workbench (a tier-3 weapon: Workbench II), never upgraded (Wear.mend_bench)."));
   add(box, el("h3", {}, "Found in"), lootCards(`weapon:${w.id}`, "No loot table rolls it."));
   if (w.ammo) {
     const res = rowById("RES", w.ammo);

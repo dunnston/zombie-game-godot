@@ -69,8 +69,8 @@ func test_every_refusal_says_which_one() -> void:
 	var e := sim.enemies.spawn("walker", tile_centre(Vector2i(plot.x + 3, plot.y)))
 	eq(sim.structs.can_place(sim, "woodWall", plot.x + 3, plot.y, p).reason, "Enemy in the way")
 	e.dead = true
-	# Tier 2 without the bench.
-	eq(sim.structs.can_place(sim, "metalWall", plot.x + 4, plot.y, p).reason, "Needs Workbench II")
+	# Tier 3 without the bench.
+	eq(sim.structs.can_place(sim, "metalWall", plot.x + 4, plot.y, p).reason, "Needs Workbench III")
 
 
 func _find_blocked_tile() -> Vector2i:
@@ -97,10 +97,15 @@ func test_the_upgraded_bench_unlocks_steel() -> void:
 	_stock()
 	var bench := _build("workbench", plot.x + 2, plot.y)
 	eq(sim.structs.bench_tier, 1)
-	ok(not sim.structs.is_unlocked("metalWall"), "steel is still locked")
+	ok(not sim.structs.is_unlocked("reinforcedWall"), "the reinforced wall is still locked")
+	ok(not sim.structs.is_unlocked("metalWall"), "and so is steel")
 	ok(sim.structs.upgrade_bench(sim, bench, p))
 	eq(sim.structs.bench_tier, 2)
-	ok(sim.structs.is_unlocked("metalWall"), "and now it is not")
+	ok(sim.structs.is_unlocked("reinforcedWall"), "and now the reinforced wall is not")
+	ok(not sim.structs.is_unlocked("metalWall"), "steel is a chapter further on")
+	ok(sim.structs.upgrade_bench(sim, bench, p))
+	eq(sim.structs.bench_tier, 3)
+	ok(sim.structs.is_unlocked("metalWall"), "and there it is")
 
 
 # -------------------------------------------------------------- footprint --
@@ -207,6 +212,7 @@ func test_you_can_shoot_over_your_own_barricade() -> void:
 
 func test_a_gate_is_solid_shut_and_open_when_open() -> void:
 	_stock()
+	sim.structs.bench_tier = Config.MAX_BENCH   # the ladder: these pieces are chapter 2 and 3 work
 	var gate := _build("gate", plot.x + 2, plot.y)
 	ok(sim.structs.solid_at(plot.x + 2, plot.y))
 	sim.structs.toggle_gate(sim, gate)
@@ -269,6 +275,7 @@ func test_a_raider_walks_at_the_nearest_piece() -> void:
 
 func test_a_turret_needs_a_running_generator() -> void:
 	_stock()
+	sim.structs.bench_tier = Config.MAX_BENCH   # the ladder: these pieces are chapter 2 and 3 work
 	var bench := _build("workbench", plot.x + 3, plot.y + 3)
 	sim.structs.upgrade_bench(sim, bench, p)
 	var gen := _build("generator", plot.x + 1, plot.y + 1)
@@ -294,6 +301,7 @@ func test_a_turret_needs_a_running_generator() -> void:
 
 func test_a_generator_burns_its_fuel_and_stops() -> void:
 	_stock()
+	sim.structs.bench_tier = Config.MAX_BENCH   # the ladder: these pieces are chapter 2 and 3 work
 	var bench := _build("workbench", plot.x + 3, plot.y + 3)
 	sim.structs.upgrade_bench(sim, bench, p)
 	var gen := _build("generator", plot.x + 1, plot.y + 1)
@@ -308,6 +316,7 @@ func test_a_generator_burns_its_fuel_and_stops() -> void:
 
 func test_a_spike_trap_chews_what_stands_on_it() -> void:
 	_stock()
+	sim.structs.bench_tier = Config.MAX_BENCH   # the ladder: these pieces are chapter 2 and 3 work
 	var trap := _build("spike", plot.x + 2, plot.y)
 	ok(not sim.structs.solid_at(plot.x + 2, plot.y), "a trap is walked over, not into")
 	var e := sim.enemies.spawn("walker", trap.pos)
@@ -518,11 +527,11 @@ func test_salvaging_your_only_workbench_relocks_what_it_unlocked() -> void:
 	_stock()
 	var bench := _build("workbench", plot.x + 2, plot.y)
 	sim.structs.upgrade_bench(sim, bench, p)
-	ok(sim.structs.is_unlocked("metalWall"))
+	ok(sim.structs.is_unlocked("reinforcedWall"))
 	sim.structs.demolish(sim, bench, p)
 	eq(sim.structs.bench_tier, 0, "no bench, no bench tier")
-	ok(not sim.structs.is_unlocked("metalWall"), "and steel is locked again")
-	eq(sim.structs.can_place(sim, "metalWall", plot.x + 4, plot.y, p).reason, "Needs Workbench II")
+	ok(not sim.structs.is_unlocked("reinforcedWall"), "and sheet metal is locked again")
+	eq(sim.structs.can_place(sim, "reinforcedWall", plot.x + 4, plot.y, p).reason, "Needs Workbench II")
 
 
 func test_a_repair_sweep_bills_each_piece_once() -> void:
