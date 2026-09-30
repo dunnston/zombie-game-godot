@@ -118,6 +118,7 @@ func _build_catalogue() -> void:
 		# The School is a walk from anywhere and a fight at the end, which is
 		# right in play and useless at a keyboard checking the way out.
 		["school", "Walk into Pine Hollow High", "world"],
+		["barn", "Walk into Hollow Creek Barn", "world"],
 		["boss", "Put down the School's boss", "world"],
 		# The Target Range (`TargetRange`). Through `Actions`, unlike the rows
 		# above, so a guest's F1 does the same as the host's.
@@ -214,11 +215,11 @@ func _verb(id: String) -> void:
 				sim.notify("DEV  %s is down to its last use" % Config.WEAPONS[wid].name, "#d9c46a")
 			else:
 				sim.notify("DEV  that does not wear out", "#8a8f84")
-		"school":
+		"school", "barn":
 			if sim.instance != null:
 				sim.notify("DEV  already inside", "#8a8f84")
 				return
-			var door := Instance.door_for(sim, "school")
+			var door := Instance.door_for(sim, id)
 			if door.is_empty():
 				return
 			player.driving_id = 0
@@ -226,7 +227,7 @@ func _verb(id: String) -> void:
 			player.prev_pos = door.stand
 			# Through the real door, refusals and all: a dev key that walked
 			# past the daily chain would test nothing about the chain.
-			Instance.enter(sim, player, "school")
+			Instance.enter(sim, player, id)
 		"range":
 			Actions.range_control(sim, player, "enter")
 		"range_leave":

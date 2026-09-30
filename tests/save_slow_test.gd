@@ -105,6 +105,7 @@ func test_a_base_comes_back_standing() -> void:
 		clear_ground(sim, plot.x + d.x, plot.y + d.y)
 	# The bench first: a gate is Workbench II work since the ladder.
 	var bench := sim.structs.place(sim, "workbench", plot.x + 2, plot.y + 2, p)
+	give_keys(sim)
 	sim.structs.upgrade_bench(sim, bench, p)
 	var wall := sim.structs.place(sim, "woodWall", plot.x + 2, plot.y, p)
 	var gate := sim.structs.place(sim, "gate", plot.x + 3, plot.y, p)

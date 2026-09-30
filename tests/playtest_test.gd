@@ -125,6 +125,7 @@ func test_the_upgrade_button_upgrades_the_bench_you_are_at() -> void:
 	var t := _free_beside()
 	var bench := sim.structs.place(sim, "workbench", t.x, t.y, p)
 	# Through `execute`, the path a guest's press takes on the host.
+	give_keys(sim)
 	ok(Actions.execute(sim, p, "upgrade_bench", {"tx": t.x, "ty": t.y}))
 	eq(int(bench.tier), 2)
 	eq(sim.structs.bench_tier, 2)

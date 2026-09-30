@@ -2878,6 +2878,29 @@ increase hotbar size?")
 - `tools/test`: 785 tests, 18049 asserts, 0 failures. `--all` adds the slow
   tier; `tools/smoke`: 101 checkpoints, 0 failures.
 
+## Progression step E — the Butcher (`feat/the-butcher`, 2026-09-30)
+
+- [x] Hollow Creek Barn: the shell on the farm, `_gen_barn`, no key
+- [x] The Butcher: body (data), `BOSSES.butcher`, the hook move and its lane
+- [x] `first_drop`: the Saw and the Cleaver once ever; `Discovery.has_key`
+- [x] `BENCH_TIERS[2].key` and `hint`; the refusal asks the fact
+- [x] Door panel `recommends`; dungeon doors on the town map; dev row
+- [x] `past_fingerprints` so School-era saves still load; spawn tiles off
+      the shell
+- [x] `butcher_test.gd`; `tools/parse_check.gd` in place of the smoke
+- [x] `PROJECT.md`
+
+### Review
+
+- The whole dungeon is data plus one generator function: the School's
+  machinery carried it. The one new mechanic is the hook.
+- A boss item is a fact, not an object: "ever held" is what the bench asks,
+  which is what makes it unlosable without a special inventory rule.
+- The plan's notes-in-containers became door markers on the map: same
+  purpose, no new system.
+- **Playtest gate reached**: chapters 1 and 2 are playable end to end — the
+  strict start, the Butcher, the Saw, Workbench II, the Forge, the Coach.
+
 ## Progression step D — steel (`feat/steel`, 2026-09-30)
 
 - [x] Sheet Metal, Steel Bar; the Hacksaw; the Forge and its station recipe

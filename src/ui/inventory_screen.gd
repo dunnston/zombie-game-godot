@@ -922,7 +922,15 @@ func _build_door(col: VBoxContainer) -> void:
 		for l in lines:
 			var bar := Ui.rect(l[1], 4, 18)
 			var t := Ui.expand(Ui.para(String(l[0]), "Body", l[1]))
-			box.add_child(Ui.hbox(12, [bar, t])))
+			box.add_child(Ui.hbox(12, [bar, t]))
+		# What to bring (guidance, step E): the door says what the fight
+		# behind it expects, so the walk in is a decision and not a surprise.
+		var rec: Array = Config.INSTANCES.get(door_kind, {}).get("recommends", [])
+		if why.is_empty() and not rec.is_empty():
+			box.add_child(Ui.fixed(0, 6))
+			box.add_child(Ui.label("Bring", "Caps", Ui.TEXT_DIM))
+			for r in rec:
+				box.add_child(Ui.hbox(12, [Ui.rect(Ui.ACCENT_HI, 4, 18), Ui.expand(Ui.para(String(r), "Body", Ui.TEXT_HIGH))])))
 	var enter := btn("enter", "Enter", "Primary")
 	enter.custom_minimum_size.y = 56
 	refresher(func() -> void: enter.disabled = not Instance.refusal(sim, player, door_kind).is_empty())
@@ -947,7 +955,7 @@ func _build_leave(col: VBoxContainer) -> void:
 			return
 		box.add_child(Ui.para("Walk out now and %s keeps everything you found." % Instance.title(inst.kind), "Row", Color("#e0a070")))
 		box.add_child(Ui.para(_leave_text(), "Body", Ui.TEXT_HIGH))
-		box.add_child(Ui.para("Put down what is in the gym and all of it comes with you.", "Body", Ui.OK))
+		box.add_child(Ui.para("Put down what is in %s and all of it comes with you." % Instance.arena_name(sim), "Body", Ui.OK))
 		# With company, walking out takes everyone: say who it is waiting for.
 		var why := Instance.leave_refusal(sim, player)
 		if not why.is_empty():

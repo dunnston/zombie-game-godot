@@ -307,6 +307,47 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### The Butcher (2026-09-30)
+
+Step E of `tasks/progression-plan.md`: chapter 1's boss, and the first
+rung of the ladder locked behind a fight. Everything here rides the School's
+machinery (`Instance`, `Boss`, the door panel, the haul, the daily chain).
+
+- **Hollow Creek Barn** (`Config.INSTANCES.barn`, `World._gen_barn`): a
+  slaughter barn stamped at the west edge of the farm, door east onto the
+  fields. Inside: a yard, the barn floor with three stalls off it, and the
+  killing floor at the back through an open doorway — no key, nothing to
+  find first. Farm stock in the stalls, a crowd rolled from the entry seed.
+  Its district is tier 1, and the spawn tiles under a shell are dropped so
+  a respawn cannot land on a roof. The town's fingerprint history
+  (`World.past_fingerprints`, one per stamp) keeps a School-era save
+  loading: every stamp only takes away what was under it.
+- **The Butcher** (`Config.BOSSES.butcher`, the body in `data/enemies.json`):
+  700 health, half the Coach. Two moves and the pens. The cleave is the
+  slam with a smaller ring; the **hook** is new — a lane like the charge's,
+  but it is you that moves, dragged to arm's length and cut on the way, and
+  a step sideways out of the lane before it lands is the whole answer
+  (`Boss._hook`; the lane is fixed from the tell). Below half, THE PENS:
+  the whistle brings four Walkers in from the corners.
+- **The prize** (`first_drop` on the boss, `Loot._roll_enemy_drop`): the
+  **Butcher's Saw** and the **Cleaver**, given once ever rather than rolled,
+  and never again once either has been held. The Saw is a weightless,
+  unusable consumable — a fact wearing an icon: `Discovery.has_key` is
+  "ever held", carried to guests as `key:butcherSaw` among the known keys,
+  so losing the object loses nothing. `BENCH_TIERS[2].key` names it and
+  `bench_upgrade_refusal` asks the fact, not the pocket.
+- **Guidance around it.** The locked upgrade row reads *Butcher's Saw + 40
+  Scrap … — ??? carried by whatever is in the barn at Hollow Creek Farms*.
+  The door panel says what to bring (`recommends`). The town map marks a
+  dungeon's door with a skull and its name once its district is discovered
+  — in place of the plan's notes-in-containers, which would have been a
+  system for one sentence. The dev menu has *Walk into Hollow Creek Barn*.
+
+Not run: the smoke (the owner needed the screen). `tools/parse_check.gd`
+is new for exactly that case: it loads every script headless and reports
+the ones that will not parse, which is what the smoke used to be the only
+way to find.
+
 ### Steel (2026-09-30)
 
 Step D of `tasks/progression-plan.md`: chapter 2's material, and the first
@@ -3032,6 +3073,7 @@ moment the parent merges.
 | Date | What |
 | --- | --- |
 | 2026-09-30 | **Guidance** (progression step B). `Discovery` (facts on `GameSim.known`, the known set derived; `tick` reads pockets; hooks in `Crafting.craft`, `Structures.place`/`upgrade_bench`, `Raid.start`); `wave` on every recipe and buildable and `found` on every material (`tools/waves.gd`; Padded Leggings to II, Fuel to III); `Config.WAVES` triggers; `visible_recipes` and the build menu filtered to what is known; NEW badges off `PlayerSim.seen`; PIN TO HUD and the HUD's pinned card (`Hud.pin_lines`); the locked upgrade row with `key`/`hint`; save **v13** (facts, seen, pinned); protocol **12** (`known` on the world diff); dev *Reveal every recipe and buildable*. `discovery_test.gd` (13 tests). Smoke: `guidance_new_recipe`, `guidance_pinned`. `tools/test`: 865 tests, 0 failures; `--all` and smoke green |
+| 2026-09-30 | **The Butcher** (progression step E). `INSTANCES.barn` and `World._gen_barn` (a yard, the floor, three stalls, the killing floor, four pens); `BOSSES.butcher` with the new `hook` move (`Boss._hook`, `boss_hook` event, its lane drawn in `BossView`) and `first_drop`; the Butcher's body, the Butcher's Saw and `butcherDrops` (`tools/butcher.gd`); `Loot._roll_enemy_drop` gives a boss's `first_drop` once ever; `Discovery.has_key` and `key:<id>` among the known keys; `BENCH_TIERS[2].key` / `hint`; `INSTANCES.*.recommends` on the door panel; `arena_name` for the leave panel and the chain notice; dungeon doors on the town map; `World.past_fingerprints`; spawn tiles dropped under a shell; `BRAIN_DROPS.butcher`; dev *Walk into Hollow Creek Barn*; `tools/parse_check.gd`. `butcher_test.gd` (7 tests). `tools/test`: 882 tests, 0 failures. Smoke not run (owner's screen); every script parses headless |
 | 2026-09-30 | **Steel** (progression step D). Sheet Metal and Steel Bar (`data/res.json`); wrecks on the prop grid under both tiles with `harvest: "wreck"` behind the Hacksaw (`HARVEST.wreck`, `NEEDS_HINT.hacksaw`), `remove_prop` freeing every tile; the Hacksaw (weapon, tool flag, on tool racks and in toolboxes rarely); the Forge (tier 2 station) and the Steel Bar station recipe; 13 chapter 2 recipes recosted in Steel Bar; Pack Frame (`pack_tier`, `PACK_TIERS`, in `recompute_stats`, save and wire), Oil Lantern (`battery: fuel`, 2700s), Repair Kit (`Wear.mend_by`); `WAVES[2].kit` on the bar; the Hacksaw as the first bench's teaser. `steel_test.gd` (9 tests). `tools/test`: 874 tests, 0 failures; `--all` green. **Smoke not run**: the owner was using the machine (it takes the screen); the wreck and forge leg is written and ran green once before the ask |
 | 2026-09-30 | **The ladder** (progression step C). `Config.BENCH_TIERS` I–V with cost, `key` (empty until the bosses), `raid_cap`, `level_cap` and `jobs`; `bench_name` and friends replace every "Workbench II" string; `upgrade_bench` climbs a rung at a time with `bench_upgrade_refusal` beside it; `Raid.start` capped by the bench; `Upgrade.status` capped by the bench; `Survivors.job_refusal`. `tools/ladder.gd` moved 24 recipes and 10 buildables to their chapters and added 10 recipes (Riot Helmet, Tactical Gloves, Combat Boots; Combat Helmet, Arm Guards, Combat Trousers, Assault Boots; Marksman Rifle, Maul, Katana). The editor's Workbenches view lists every tier off the const. `ladder_test.gd` (10 tests). `tools/test`: 851 tests, 0 failures; `--all` 887; smoke 101, 0 failures |
 | 2026-09-30 | **The strict start** (progression step A). Every bill — recipe, structure, repair, bed, weapon level, battery, fuel — is paid from the pack through `PlayerSim.bill_stash`, which allows nothing else yet; a craft is weighed net of its bill (`Crafting._bill_weight`); `carry_cap` 200 → 75 (100 on a starting survivor, 150 at the ceiling); `Loot.drop_backpack` drops the pack and keeps worn gear and the hotbar, handing over the starting weapon only to an unarmed bar. `raid_end` carries `reward`. Tests rewritten to the new rules with break-checks (13 fail against the old code); `_smoke_pocket` and `Smoke.until` in the smoke. `tools/test`: 839 tests, 0 failures; `--all` 876; smoke 101 checkpoints, 0 failures |
