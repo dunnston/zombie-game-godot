@@ -124,6 +124,8 @@ func _build_catalogue() -> void:
 		["range_wear", "Toggle weapon wear in the range", "range"],
 		["range_lv_up", "Held weapon up a level", "range"],
 		["range_lv_down", "Held weapon down a level", "range"],
+		["range_reset", "Reset the range targets", "range"],
+		["range_refill", "Refill the range's live rooms", "range"],
 	]:
 		_all.append({"kind": "verb", "id": v[0], "label": v[1], "note": v[2]})
 
@@ -236,6 +238,10 @@ func _verb(id: String) -> void:
 			Actions.range_control(sim, player, "level", {"d": 1})
 		"range_lv_down":
 			Actions.range_control(sim, player, "level", {"d": -1})
+		"range_reset":
+			Actions.range_control(sim, player, "reset")
+		"range_refill":
+			Actions.range_control(sim, player, "refill")
 		"boss":
 			if sim.instance == null or sim.instance.boss == null or sim.instance.boss.dead:
 				sim.notify("DEV  no boss standing", "#8a8f84")

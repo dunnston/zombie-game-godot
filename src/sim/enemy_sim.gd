@@ -100,6 +100,13 @@ var brain: Boss = null
 var shield_t := 0.0
 ## Called in by a boss's whistle, so the whistle can count its own team.
 var minion := false
+## The Target Range's (`TargetRange`). A target is `passive`: pinned to its
+## `post`, never moving, swinging, shooting or noticing anyone, while hits,
+## stagger and bleed still land on it. A live room's enemy has a `leash`, in
+## pixels: it fights as it always does and is held inside it every step.
+var passive := false
+var post := Vector2.ZERO
+var leash := Rect2()
 
 
 ## The structure this enemy is about to hit, or an empty Dictionary. Kept as

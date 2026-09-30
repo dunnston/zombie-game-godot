@@ -16,6 +16,8 @@ func _init(sim_: GameSim) -> void:
 func _draw() -> void:
 	var font := ThemeDB.fallback_font
 	var inst := sim.instance
+	if sim.world.layout == "range":
+		_range_paint(font)
 	for f in sim.world.features:
 		var r := _rect(f)
 		match String(f.kind):
@@ -52,6 +54,36 @@ func _draw() -> void:
 				if open:
 					draw_string(font, Vector2(r.position.x, r.position.y - 6.0), "EXIT", HORIZONTAL_ALIGNMENT_CENTER,
 						r.size.x, 12, Color("#9fe8a0"))
+
+
+## The range's floor paint (`TargetRange`): a line across the lane every
+## `RANGE.marker_every` tiles back from the targets, numbered in tiles, and a
+## hazard line where each live room's leash stops its enemies.
+func _range_paint(font: Font) -> void:
+	var w := sim.world
+	var tile := float(Config.TILE)
+	var top := w.range_lane.position.y * tile
+	var bottom := w.range_lane.end.y * tile
+	var x0 := TargetRange.target_line_x(w)
+	var every := int(Config.RANGE.marker_every)
+	var d := 0
+	while x0 - d * tile > w.range_lane.position.x * tile:
+		var x := x0 - d * tile
+		var col := Color(1, 1, 1, 0.18 if d > 0 else 0.35)
+		draw_line(Vector2(x, top), Vector2(x, bottom), col, 2.0)
+		draw_string(font, Vector2(x - 20.0, top + 16.0), "%d" % d, HORIZONTAL_ALIGNMENT_CENTER, 40.0, 13, Color("#d8c98a"))
+		d += every
+	draw_string(font, Vector2(x0 - 60.0, bottom - 8.0), "TILES TO TARGET", HORIZONTAL_ALIGNMENT_CENTER, 120.0, 10, Color(1, 1, 1, 0.45))
+	for room: Rect2i in w.range_rooms:
+		var leash := TargetRange.leash_of(room)
+		var y := leash.end.y
+		var x := leash.position.x
+		var i := 0
+		while x < leash.end.x:
+			var seg := minf(12.0, leash.end.x - x)
+			draw_line(Vector2(x, y), Vector2(x + seg, y), Color("#e0b030") if i % 2 == 0 else Color("#2a2a2a"), 4.0)
+			x += seg
+			i += 1
 
 
 static func _rect(f: Dictionary) -> Rect2:
