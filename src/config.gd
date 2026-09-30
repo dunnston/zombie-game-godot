@@ -1037,12 +1037,17 @@ const HARVEST := {
 	"litter_stone":  {"res": "stone",  "min": 1, "max": 3, "xp": 1, "label": "STONE"},
 	"litter_fiber":  {"res": "fiber",  "min": 2, "max": 4, "xp": 1, "label": "FIBER"},
 	"thicket":       {"res": "fiber", "min": 9, "max": 15, "bonus": "sticks", "bonus_min": 2, "bonus_max": 4, "needs": "scythe", "xp": 4, "label": "FIBER"},
+	# Chapter 2's material (step D). A wreck is a road's worth of Sheet Metal
+	# behind the Hacksaw: cut, it is gone, and its two tiles open — the wrecks
+	# were always on every road, and this is what makes them worth walking to.
+	"wreck":         {"res": "sheetMetal", "min": 4, "max": 6, "bonus": "scrap", "bonus_min": 2, "bonus_max": 4, "needs": "hacksaw", "xp": 8, "label": "SHEET METAL"},
 }
 
 const NEEDS_HINT := {
 	"axe": "You need a HATCHET to fell trees — bushes give fiber and sticks, rocks give stone",
 	"pick": "That boulder needs a STONE PICKAXE — loose rocks you can break by hand",
 	"scythe": "That thicket needs a SCYTHE — small bushes you can pull by hand",
+	"hacksaw": "A wreck needs a HACKSAW — Workbench II makes one",
 }
 
 ## What a new survivor wakes up with: a pipe in the first hotbar slot and a
@@ -1715,13 +1720,20 @@ const BENCH_TIERS := {
 ## chapter's material arriving (step D: Steel Bar for 2) is one line here.
 const WAVES := {
 	1: {"kit": {"bench": 1}, "second": {"held": ["seedPotato", "seedCorn", "seedHerb", "rations", "brainRaw"]}},
-	# Until Sheet Metal and Steel Bar exist (step D), the first Weapon Parts
-	# open chapter 2's Kit and its guns alike.
-	2: {"kit": {"held": ["parts"]}, "second": {"held": ["parts"]}},
+	# Chapter 2's Kit arrives with the first Steel Bar out of the Forge; its
+	# guns with the first Weapon Parts.
+	2: {"kit": {"held": ["steelBar"]}, "second": {"held": ["parts"]}},
 	3: {"kit": {"held": ["elec"]}, "second": {"held": ["parts"]}},
 	4: {"kit": {"held": ["mil"]}, "second": {"held": ["mil"]}},
 	5: {"kit": {"held": ["brainSpec"]}, "second": {"held": ["brainSpec"]}},
 }
+
+
+## What a fitted pack is worth in carry, by tier: nothing, the Pack Frame
+## (chapter 2), the Hiking Pack (3), the Rucksack (4). A chore the strict
+## start is made of, taken away one step at a time. Read by
+## `Perks.recompute_stats`, the only writer of a stat (invariant 4).
+const PACK_TIERS := [0.0, 60.0, 120.0, 200.0]
 
 
 ## What a bench tier is called, on every screen and in every refusal.
@@ -1820,7 +1832,7 @@ static var RECIPES: Array = DataTable.load_table("recipes")
 
 const BUILD_ORDER := [
 	"woodWall", "stoneWall", "barricade", "reinforcedWall", "metalWall", "gate", "spike",
-	"workbench", "chemStation", "recycler", "stash", "chest", "locker", "bedroll", "bunk", "raisedBed", "longBed", "watchtower",
+	"workbench", "forge", "chemStation", "recycler", "stash", "chest", "locker", "bedroll", "bunk", "raisedBed", "longBed", "watchtower",
 	"generator", "turret", "floodlight",
 ]
 

@@ -113,12 +113,19 @@ func test_the_tiers_arrive_in_waves() -> void:
 	ok(Discovery.structure_known(sim, "raisedBed"))
 	# Nothing of chapter 2 yet, whatever is held.
 	p.bag.add("parts", 5)
+	p.bag.add("steelBar", 1)
 	Discovery.tick(sim)
 	ok(not _known("machete"), "chapter 2 waits for Workbench II")
 	ok(sim.structs.upgrade_bench(sim, bench, p))
-	ok(_known("machete"), "Workbench II and Weapon Parts held: the Kit")
+	ok(_known("hacksaw"), "Workbench II: the Foothold")
+	ok(Discovery.structure_known(sim, "forge"))
+	ok(_known("machete"), "Workbench II and a Steel Bar held: the Kit")
 	ok(not _known("riotHelm"), "its Set waits")
-	ok(_known("pistol"), "and its guns, on the same Weapon Parts for now")
+	ok(_known("pistol"), "and its guns, on the Weapon Parts")
+	# The bar itself is the Forge's, and the Forge's alone.
+	ok(not _known("steelBar"), "no Forge, no bar")
+	Discovery.note_built(sim, "forge")
+	ok(_known("steelBar"))
 
 
 func test_defence_arrives_with_the_raid_warning() -> void:
@@ -176,10 +183,12 @@ func test_the_bench_teases_the_next_rungs_foothold() -> void:
 	var ids: Array = []
 	for r in listed:
 		ids.append(String(r.id))
-	# Chapter 2's Foothold does not exist until step D's Hacksaw; nothing of
-	# tier 2 leaks in meanwhile.
+	# Chapter 2's Foothold, the Hacksaw, is the one thing past the top of a
+	# first bench; nothing else of tier 2 leaks in.
+	has(ids, "hacksaw", "the teaser")
 	for id in ids:
-		ok(int(Crafting.recipe(id).bench) <= 1, "%s is not tier 1" % id)
+		var r := Crafting.recipe(id)
+		ok(int(r.bench) <= 1 or (int(r.bench) == 2 and int(r.wave) == Discovery.WAVE_FOOTHOLD), "%s is not tier 1 or the teaser" % id)
 
 
 func test_reveal_all_knows_everything() -> void:

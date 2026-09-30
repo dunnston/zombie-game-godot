@@ -33,7 +33,7 @@ extends RefCounted
 ## 11: the Target Range — the `range` command, the `range` map kind and the
 ## `wear` switch on the `inst` record. A protocol-10 guest would be sent into
 ## a map kind it has no layout for.
-const PROTOCOL := 12
+const PROTOCOL := 13
 
 const RELIABLE := 1
 const STATE := 2
@@ -620,7 +620,7 @@ static func pack_inventory(p: PlayerSim) -> Dictionary:
 	return {
 		"bag": p.bag.to_record(), "hotbar": p.hotbar.to_record(), "haul": p.haul.to_record(), "equip": p.equip.duplicate(),
 		"mag": p.mag.duplicate(), "car_keys": p.car_keys.duplicate(), "attrs": p.attrs.duplicate(),
-		"perks": p.perks.duplicate(), "sk": p.skill_points, "slot": p.slot,
+		"perks": p.perks.duplicate(), "sk": p.skill_points, "slot": p.slot, "pack": p.pack_tier,
 		"light_on": p.light_on, "light_fuel": p.light_fuel, "light_id": p.light_id,
 		"light_doused": p.light_doused, "light_charge": p.light_charge.duplicate(), "spawn_tx": p.spawn_tile.x, "spawn_ty": p.spawn_tile.y,
 		"lv": p.level, "xp": p.xp, "xn": p.xp_next, "swc": p.second_wind_cd,
@@ -651,6 +651,7 @@ static func apply_inventory(p: PlayerSim, rec: Dictionary) -> void:
 	for k in rec.get("perks", {}):
 		p.perks[String(k)] = int(rec.perks[k])
 	p.skill_points = int(rec.get("sk", 0))
+	p.pack_tier = int(rec.get("pack", 0))
 	p.slot = int(rec.get("slot", 0))
 	p.light_on = bool(rec.get("light_on", false))
 	p.light_fuel = float(rec.get("light_fuel", 0.0))

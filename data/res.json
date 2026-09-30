@@ -229,6 +229,24 @@
       "short": "PREC",
       "stack": 20,
       "wt": 0.5
+    },
+    {
+      "color": "#8e9aa6",
+      "found": "car wrecks, with a Hacksaw — thickest at Rust Belt Salvage",
+      "id": "sheetMetal",
+      "name": "Sheet Metal",
+      "short": "SHMT",
+      "stack": 30,
+      "wt": 2.0
+    },
+    {
+      "color": "#c0c8d0",
+      "found": "the Forge, from Sheet Metal and wood",
+      "id": "steelBar",
+      "name": "Steel Bar",
+      "short": "STEL",
+      "stack": 30,
+      "wt": 2.0
     }
   ],
   "shape": "by_id_bare"

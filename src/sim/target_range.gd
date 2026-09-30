@@ -21,7 +21,7 @@ extends RefCounted
 ## What is held while you are in here, per seat. The keys are the save's own
 ## (`SaveGame._town_dict`), so a save written from inside merges it straight
 ## over the player: nobody is ever written down on a baseline build.
-const HELD_KEYS := ["xp", "level", "xp_next", "skill_points", "attrs", "perks", "second_wind_cd",
+const HELD_KEYS := ["xp", "level", "xp_next", "skill_points", "attrs", "perks", "second_wind_cd", "pack_tier",
 	"mutation", "effects", "slot", "bag", "hotbar", "equip", "mag", "hp", "stam",
 	"light_on", "light_fuel", "light_id", "light_doused", "light_charge"]
 
@@ -37,6 +37,7 @@ static func hold(p: PlayerSim) -> Dictionary:
 	return {
 		"xp": p.xp, "level": p.level, "xp_next": p.xp_next, "skill_points": p.skill_points,
 		"attrs": p.attrs.duplicate(), "perks": p.perks.duplicate(), "second_wind_cd": p.second_wind_cd,
+		"pack_tier": p.pack_tier,
 		"mutation": p.mutation, "effects": p.effects.duplicate(),
 		"slot": p.slot, "bag": p.bag.to_record(), "hotbar": p.hotbar.to_record(),
 		"equip": p.equip.duplicate(), "mag": p.mag.duplicate(), "hp": p.hp, "stam": p.stam,
@@ -57,6 +58,7 @@ static func give_back(p: PlayerSim, rec: Dictionary) -> void:
 	p.attrs = (rec.attrs as Dictionary).duplicate()
 	p.perks = (rec.perks as Dictionary).duplicate()
 	p.second_wind_cd = float(rec.second_wind_cd)
+	p.pack_tier = int(rec.get("pack_tier", 0))
 	p.mutation = float(rec.mutation)
 	p.mut_band = Mutation.band_index(p.mutation)
 	p.effects = (rec.effects as Dictionary).duplicate()
@@ -86,6 +88,9 @@ static func baseline(p: PlayerSim) -> void:
 	p.skill_points = 0
 	p.attrs = Perks.starting_attrs()
 	p.perks = {}
+	# The pack is the build too (step D): a Pack Frame fitted in the range
+	# must not leave with you (Codex, PR #66).
+	p.pack_tier = 0
 	p.mutation = 0.0
 	p.mut_band = Mutation.band_index(0.0)
 	p.effects = {}

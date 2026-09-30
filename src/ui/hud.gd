@@ -433,7 +433,7 @@ func refresh() -> void:
 		var hint := "Dark — wear a Torch in your off-hand"
 		if not lamp.is_empty():
 			hint = "Dark — %s to light it again" % key if p.light_fuel > 0.0 \
-				else "%s is flat — %s loads a battery" % [String(lamp.name), key]
+				else "%s is flat — %s loads %s" % [String(lamp.name), key, Equipment.refill_name(lamp).to_lower()]
 		Ui.set_text(_dark_hint, hint)
 		_dark_hint.modulate.a = 0.6 + 0.4 * dark
 

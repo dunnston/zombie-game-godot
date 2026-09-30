@@ -95,6 +95,13 @@ static func mend(cont: Slots, i: int) -> void:
 		cont.set_wear_at(i, max_at(cont, i))
 
 
+## Part of the way back: a Repair Kit in the field (step D). A share of the
+## weapon's whole life, never past whole.
+static func mend_by(cont: Slots, i: int, frac: float) -> void:
+	if cont != null and wears(cont.id_at(i)):
+		cont.set_wear_at(i, mini(max_at(cont, i), left(cont, i) + ceili(max_at(cont, i) * frac)))
+
+
 # ------------------------------------------------------------- what is held --
 
 ## Everything combat needs to know about the weapon in the player's hand. The

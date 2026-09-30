@@ -80,7 +80,7 @@ static func _town_dict(sim: GameSim, inst: Instance) -> Dictionary:
 			# recompute that produced it, so a save can never carry a stale one.
 			"xp": p.xp, "level": p.level, "xp_next": p.xp_next,
 			"skill_points": p.skill_points, "attrs": p.attrs.duplicate(), "perks": p.perks.duplicate(),
-			"second_wind_cd": p.second_wind_cd,
+			"second_wind_cd": p.second_wind_cd, "pack_tier": p.pack_tier,
 			# The meter, and whatever is still working through you (v8). The
 			# band is not stored: it is derived from the value on load, the
 			# same way it is derived from it in play.
@@ -304,6 +304,7 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 		for k in rec.get("perks", {}):
 			p.perks[k] = int(rec.perks[k])
 		p.second_wind_cd = float(rec.get("second_wind_cd", 0.0))
+		p.pack_tier = int(rec.get("pack_tier", 0))
 		p.slot = int(rec.slot)
 		p.bag.from_record(rec.bag)
 		p.hotbar.from_record(rec.hotbar)

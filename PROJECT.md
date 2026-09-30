@@ -307,6 +307,41 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### Steel (2026-09-30)
+
+Step D of `tasks/progression-plan.md`: chapter 2's material, and the first
+three chores taken away. Content through `tools/steel.gd` (the encoder with
+a list pasted into it); a small amount of code.
+
+- **A wreck is Sheet Metal behind the Hacksaw.** The wrecks have stood on
+  every road since Phase 1 as scenery; `World._add_wreck` now puts them on
+  the prop grid under both tiles (anchored on the left one, which is the
+  key a save replays them by), with 900 hit points and `harvest: "wreck"`
+  — 4–6 Sheet Metal and some scrap, `needs: "hacksaw"`, so a hatchet
+  bounces off with a hint. `remove_prop` frees every tile a multi-tile
+  prop stood on. About a hundred wrecks in the world, which is several
+  chapters of bars for four players.
+- **The Forge makes Steel Bar**, 1 Sheet Metal + 2 Wood → 1, as a
+  `station` recipe like the chemistry, so no workbench tier hands it out;
+  the Forge is a tier 2 buildable and the chapter's Foothold beside the
+  Hacksaw. `Config.WAVES[2].kit` is the first bar held, so the chapter's
+  Kit arrives out of your own Forge.
+- **Every chapter 2 recipe is priced in Steel Bar** — the Machete, the
+  steel tools, the first guns, the Riot set — at the Progression Map §7's
+  numbers.
+- **Three chore items at Workbench II.** The **Pack Frame** is a consumable
+  that sets `PlayerSim.pack_tier` (`Config.PACK_TIERS`: 100 → 160 → 220 →
+  300 as the chapters go), read by `recompute_stats` alone (invariant 4),
+  saved with the build and on the wire with the attributes; a second one is
+  refused unspent. The **Oil Lantern** is off-hand gear refilled from Fuel
+  through the flashlight's own `battery` path, 2700s a fill — five nights.
+  The **Repair Kit** mends the held weapon by half in the field
+  (`Wear.mend_by`), refused on a whole one.
+
+Not built here: the padlocked sheds the Hacksaw is meant to open. They
+share a mechanism with chapter 3's powered shutters and chapter 4's sealed
+crates, and the three want one pass.
+
 ### Guidance (2026-09-30)
 
 Step B of `tasks/progression-plan.md`: the next thing to do, visible. Three
@@ -2997,6 +3032,7 @@ moment the parent merges.
 | Date | What |
 | --- | --- |
 | 2026-09-30 | **Guidance** (progression step B). `Discovery` (facts on `GameSim.known`, the known set derived; `tick` reads pockets; hooks in `Crafting.craft`, `Structures.place`/`upgrade_bench`, `Raid.start`); `wave` on every recipe and buildable and `found` on every material (`tools/waves.gd`; Padded Leggings to II, Fuel to III); `Config.WAVES` triggers; `visible_recipes` and the build menu filtered to what is known; NEW badges off `PlayerSim.seen`; PIN TO HUD and the HUD's pinned card (`Hud.pin_lines`); the locked upgrade row with `key`/`hint`; save **v13** (facts, seen, pinned); protocol **12** (`known` on the world diff); dev *Reveal every recipe and buildable*. `discovery_test.gd` (13 tests). Smoke: `guidance_new_recipe`, `guidance_pinned`. `tools/test`: 865 tests, 0 failures; `--all` and smoke green |
+| 2026-09-30 | **Steel** (progression step D). Sheet Metal and Steel Bar (`data/res.json`); wrecks on the prop grid under both tiles with `harvest: "wreck"` behind the Hacksaw (`HARVEST.wreck`, `NEEDS_HINT.hacksaw`), `remove_prop` freeing every tile; the Hacksaw (weapon, tool flag, on tool racks and in toolboxes rarely); the Forge (tier 2 station) and the Steel Bar station recipe; 13 chapter 2 recipes recosted in Steel Bar; Pack Frame (`pack_tier`, `PACK_TIERS`, in `recompute_stats`, save and wire), Oil Lantern (`battery: fuel`, 2700s), Repair Kit (`Wear.mend_by`); `WAVES[2].kit` on the bar; the Hacksaw as the first bench's teaser. `steel_test.gd` (9 tests). `tools/test`: 874 tests, 0 failures; `--all` green. **Smoke not run**: the owner was using the machine (it takes the screen); the wreck and forge leg is written and ran green once before the ask |
 | 2026-09-30 | **The ladder** (progression step C). `Config.BENCH_TIERS` I–V with cost, `key` (empty until the bosses), `raid_cap`, `level_cap` and `jobs`; `bench_name` and friends replace every "Workbench II" string; `upgrade_bench` climbs a rung at a time with `bench_upgrade_refusal` beside it; `Raid.start` capped by the bench; `Upgrade.status` capped by the bench; `Survivors.job_refusal`. `tools/ladder.gd` moved 24 recipes and 10 buildables to their chapters and added 10 recipes (Riot Helmet, Tactical Gloves, Combat Boots; Combat Helmet, Arm Guards, Combat Trousers, Assault Boots; Marksman Rifle, Maul, Katana). The editor's Workbenches view lists every tier off the const. `ladder_test.gd` (10 tests). `tools/test`: 851 tests, 0 failures; `--all` 887; smoke 101, 0 failures |
 | 2026-09-30 | **The strict start** (progression step A). Every bill — recipe, structure, repair, bed, weapon level, battery, fuel — is paid from the pack through `PlayerSim.bill_stash`, which allows nothing else yet; a craft is weighed net of its bill (`Crafting._bill_weight`); `carry_cap` 200 → 75 (100 on a starting survivor, 150 at the ceiling); `Loot.drop_backpack` drops the pack and keeps worn gear and the hotbar, handing over the starting weapon only to an unarmed bar. `raid_end` carries `reward`. Tests rewritten to the new rules with break-checks (13 fail against the old code); `_smoke_pocket` and `Smoke.until` in the smoke. `tools/test`: 839 tests, 0 failures; `--all` 876; smoke 101 checkpoints, 0 failures |
 | 2026-09-29 | **The Target Range, PR A** (DL-109, `tasks/target-range.md`). A developer's instance behind F1: a hall, a 60-tile lane and six one-door rooms with walls nothing breaks, six lockers of every weapon at level 1, ammunition, gear and consumables, entered on a baseline build (level 1, no perks, meter clear, empty-handed) and left — by its door or F1 — with your own build and pack back at the main spawn. Dying there gets you up at its entrance; wear is off unless switched on; the held weapon's level moves 1-6. Every control goes through `Actions.range_control`, refused by a release host. Protocol 11. `range_test.gd` (21 tests, two of them a guest over loopback) |
