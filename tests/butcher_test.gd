@@ -107,6 +107,17 @@ func test_the_hook_drags_you_in_from_its_lane_and_a_step_aside_is_enough() -> vo
 	ok(not events_of(sim, "boss_hook").back().caught)
 
 
+func test_the_screen_can_draw_the_hooks_lane() -> void:
+	# The view kept every field of a tell but the hook's width, so the first
+	# frame of its telegraph read a key that was not there and the game died.
+	var view := BossView.new(sim)
+	_put(Vector2(0, 300))
+	brain.force(sim, butcher, p, "hook")
+	eq(view.on_event(events_of(sim, "boss_tell").back()), "hook")
+	near(float(view.tells[0].width), float(B.moves.hook.width), 1e-6, "the lane is as wide as the hook")
+	view.free()
+
+
 func test_below_half_the_pens_open() -> void:
 	eq(Boss.phase_for(B, 1.0), 0)
 	eq(Boss.phase_for(B, 0.49), 1)
