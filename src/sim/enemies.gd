@@ -242,6 +242,10 @@ static func _cut_off(sim: GameSim, e: EnemySim, p: PlayerSim) -> bool:
 ## The house wall tile straight ahead, or (-1, -1). The same question
 ## `_blocker_ahead` asks of what the player built.
 static func _wall_ahead(world: World, e: EnemySim, angle: float) -> Vector2i:
+	# The range's walls cannot be broken, so they are not a thing to hit: a
+	# leashed enemy thumping one would be a sound nobody made.
+	if world.layout == "range":
+		return Vector2i(-1, -1)
 	var at := e.pos + Vector2.from_angle(angle) * (e.r + 16.0)
 	var tx := floori(at.x / Config.TILE)
 	var ty := floori(at.y / Config.TILE)
@@ -258,6 +262,8 @@ static func _wall_ahead(world: World, e: EnemySim, angle: float) -> Vector2i:
 ## A base built inside a house used to be a fortress with one door, because the
 ## house itself could not be hurt (owner, 2026-09-15).
 static func _adjacent_wall(world: World, e: EnemySim, want: float) -> Vector2i:
+	if world.layout == "range":
+		return Vector2i(-1, -1)
 	var best := Vector2i(-1, -1)
 	var best_d := INF
 	for i in range(8):
@@ -508,6 +514,18 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 			Damage.tick_bleed(sim, e, dt)
 			if e.dead:
 				continue
+
+		# ------------------------------------------------------------ a target --
+		# The range's (`TargetRange`): on its post whatever hit it — the
+		# knockback a blow gave it is dropped here — doing nothing, noticing
+		# nobody. Its stagger still runs out, so a rocked target reads as one.
+		if e.passive:
+			e.stagger_t = maxf(0.0, e.stagger_t - dt)
+			e.vel = Vector2.ZERO
+			e.pos = e.post
+			e.aggro = false
+			e.last_pos = e.pos
+			continue
 
 		# ------------------------------------------------------------ a boss --
 		# A scripted boss owns its step while it is doing something scripted —
@@ -822,3 +840,22 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 		else:
 			e.stuck_t = 0.0
 		e.last_pos = e.pos
+
+	_hold_leashes()
+
+
+## Everything on a leash back inside it (`EnemySim.leash`, the Target Range's
+## live rooms), after it has moved. It stops there rather than trying to get
+## round: a leash is not a wall to be stuck against, so the stuck clock that
+## would have it sidestep or start on the walls is cleared with it.
+func _hold_leashes() -> void:
+	for e in list:
+		if e.dead or not e.leash.has_area():
+			continue
+		var pad := Vector2(e.r, e.r)
+		var held := e.pos.clamp(e.leash.position + pad, e.leash.end - pad)
+		if held != e.pos:
+			e.pos = held
+			e.vel = Vector2.ZERO
+			e.stuck_t = 0.0
+			e.last_pos = e.pos

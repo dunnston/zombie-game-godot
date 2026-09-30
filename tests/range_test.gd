@@ -238,7 +238,7 @@ func test_the_level_control_moves_the_held_weapon_between_one_and_the_max() -> v
 
 
 func test_controls_do_nothing_outside_the_range() -> void:
-	for verb in ["leave", "restock", "wear", "level"]:
+	for verb in ["leave", "restock", "wear", "level", "reset", "refill"]:
 		ok(not TargetRange.control(sim, p, verb), verb)
 
 
@@ -284,6 +284,159 @@ func test_every_live_room_has_one_doorway() -> void:
 				if not w.blocked[y * World.W + x]:
 					gaps += 1
 		eq(gaps, 2, "one doorway, two tiles wide")
+
+
+# ---------------------------------------------------------------- targets --
+
+func _targets() -> Array[EnemySim]:
+	var out: Array[EnemySim] = []
+	for e in sim.enemies.list:
+		if e.passive and not e.dead:
+			out.append(e)
+	return out
+
+
+func _leashed() -> Array[EnemySim]:
+	var out: Array[EnemySim] = []
+	for e in sim.enemies.list:
+		if not e.passive and not e.dead:
+			out.append(e)
+	return out
+
+
+func test_one_target_of_every_type_and_no_boss() -> void:
+	_enter()
+	var seen := {}
+	for e in _targets():
+		seen[e.type] = int(seen.get(e.type, 0)) + 1
+		near(e.hp, e.max_hp, 1e-6, "%s at its full health" % e.type)
+	for type: String in Config.ENEMIES:
+		if bool(Config.ENEMIES[type].get("boss", false)):
+			eq(int(seen.get(type, 0)), 0, "no %s" % type)
+		else:
+			eq(int(seen.get(type, 0)), 1, "one %s target" % type)
+
+
+func test_a_target_stands_still_and_never_attacks() -> void:
+	_enter()
+	p.god_mode = false
+	var hp := p.hp
+	# The Raider carries a gun: the one a shot would come from.
+	var t: EnemySim = null
+	for e in _targets():
+		if e.type == "raider":
+			t = e
+	p.pos = t.post + Vector2(-(t.r + p.r + 4.0), 0)
+	p.prev_pos = p.pos
+	var shots := 0
+	for i in range(40):
+		run(sim, 0.1)
+		shots += sim.bullets.size()
+	eq(t.pos, t.post, "on its post")
+	near(p.hp, hp, 1e-6, "and it never touched you")
+	eq(shots, 0, "nor shot")
+
+
+func test_a_target_takes_hits_stagger_and_bleed_but_not_knockback() -> void:
+	_enter()
+	var t := _targets()[0]
+	Damage.damage_enemy(sim, t, 5.0, t.pos + Vector2(-40, 0), 900.0)
+	run(sim, 0.1)
+	eq(t.pos, t.post, "the shove is dropped")
+	near(t.hp, t.max_hp - 5.0, 1e-6, "the hit landed")
+	gt(Damage.stagger_enemy(sim, t, 0.6), 0.0, "it can be rocked")
+	ok(Damage.bleed_enemy(t, 4.0, p), "it can be cut")
+	var before := t.hp
+	run(sim, 1.0)
+	ok(t.hp < before, "and it bleeds")
+
+
+func test_a_downed_target_is_back_on_its_post_three_seconds_later() -> void:
+	_enter()
+	var t := _targets()[0]
+	var type := t.type
+	var post := t.post
+	var xp := p.xp
+	Damage.damage_enemy(sim, t, 99999.0, t.pos + Vector2(-40, 0), 0.0, false, p)
+	eq(sim.pickups.size(), 0, "no drop in the range")
+	near(p.xp, xp, 1e-9, "and no XP: the baseline stays on level 1")
+	run(sim, float(Config.RANGE.target_respawn) - 0.2)
+	eq(_targets().size(), 5, "still down just before")
+	run(sim, 0.4)
+	eq(_targets().size(), 6, "back after")
+	var back: EnemySim = null
+	for e in _targets():
+		if e.post == post:
+			back = e
+	ok(back != null and back.type == type and back.hp == back.max_hp, "the same type, on the same post, whole")
+
+
+func test_reset_puts_every_target_back_whole() -> void:
+	_enter()
+	for e in _targets():
+		Damage.damage_enemy(sim, e, 10.0, e.pos + Vector2(-40, 0))
+	Damage.kill_enemy(sim, _targets()[0], p)
+	ok(TargetRange.control(sim, p, "reset"))
+	run(sim, 0.05)
+	eq(_targets().size(), TargetRange.types().size())
+	for e in _targets():
+		near(e.hp, e.max_hp, 1e-6, "%s whole" % e.type)
+	run(sim, float(Config.RANGE.target_respawn) + 0.5)
+	eq(_targets().size(), TargetRange.types().size(), "and nothing queued comes back twice")
+
+
+# ------------------------------------------------------------- live rooms --
+
+func test_each_live_room_holds_three_of_one_type_on_a_leash() -> void:
+	_enter()
+	var by_room := {}
+	for e in _leashed():
+		ok(e.leash.has_area(), "%s is leashed" % e.type)
+		var key := str(e.leash)
+		if not by_room.has(key):
+			by_room[key] = []
+		by_room[key].append(e.type)
+	eq(by_room.size(), 6, "six rooms")
+	for key in by_room:
+		var types: Array = by_room[key]
+		eq(types.size(), int(Config.RANGE.room_count))
+		eq(types.count(types[0]), types.size(), "one type to a room")
+
+
+func test_nothing_leaves_its_room_even_with_you_at_the_doorway() -> void:
+	_enter()
+	var room: Rect2i = sim.world.range_rooms[1]
+	var door := Vector2((room.position.x + 6) * Config.TILE, (room.end.y + 0.5) * Config.TILE)
+	p.pos = door
+	p.prev_pos = p.pos
+	for i in range(20):
+		run(sim, 0.5)
+		for e in _leashed():
+			ok(e.leash.grow(0.5).has_point(e.pos), "%s is still in its room" % e.type)
+	eq(events_of(sim, "struct_hit").size(), 0, "and nothing thumped a wall trying")
+
+
+func test_the_live_rooms_do_attack() -> void:
+	_enter()
+	p.god_mode = false
+	var room: Rect2i = sim.world.range_rooms[0]
+	var leash := TargetRange.leash_of(room)
+	p.pos = leash.get_center()
+	p.prev_pos = p.pos
+	var hp := p.hp
+	run(sim, 4.0)
+	ok(p.hp < hp or p.downed or p.dead, "walk into a room and it fights you")
+
+
+func test_refill_puts_three_back_in_every_room() -> void:
+	_enter()
+	for e in _leashed():
+		Damage.kill_enemy(sim, e, p)
+	run(sim, 0.1)
+	eq(_leashed().size(), 0)
+	ok(TargetRange.control(sim, p, "refill"))
+	eq(_leashed().size(), 6 * int(Config.RANGE.room_count))
+	eq(_targets().size(), TargetRange.types().size(), "and the targets are untouched")
 
 
 # ----------------------------------------------------------------- saving --
@@ -350,6 +503,15 @@ func test_a_guest_can_take_the_party_in_and_sees_the_lockers() -> void:
 	ok(not mine.is_empty() and mine.store != null, "the guest has the locker")
 	eq((mine.store as Slots).to_record(), (sim.structs.at_tile(tl.x, tl.y).store as Slots).to_record(),
 		"with what the host has in it")
+	# Snapshots describe what is within `interest_radius` of the guest, so the
+	# far end of the lane is out of it from the hall.
+	var near_guest := 0
+	var R: float = Config.NET.interest_radius
+	for e in sim.enemies.list:
+		if e.pos.distance_to((t.gp as PlayerSim).pos) <= R:
+			near_guest += 1
+	gt(near_guest, 0)
+	eq(g.sim.enemies.list.size(), near_guest, "and every target and room enemy within sight of it")
 
 
 func test_a_guest_can_switch_wear_and_level_and_leave() -> void:
@@ -377,3 +539,162 @@ func test_a_guest_can_switch_wear_and_level_and_leave() -> void:
 	ok(sim.instance == null, "the guest took the party out")
 	ok(g.sim.instance == null, "and the mirror came out with it")
 	eq(gp.bag.to_record(), bag_before, "with the guest's own pack back")
+
+
+# ---------------------------------------------------------- damage panel --
+
+func _dealt_events() -> Array[Dictionary]:
+	return events_of(sim, "dealt")
+
+
+func test_a_hit_in_the_range_is_reported_with_who_and_what_is_left() -> void:
+	_enter()
+	var t := _targets()[0]
+	sim.events.clear()
+	Damage.damage_enemy(sim, t, 7.0, t.pos + Vector2(-40, 0), 0.0, true, p, false, false, "melee")
+	var evs := _dealt_events()
+	eq(evs.size(), 1)
+	var ev := evs[0]
+	eq(int(ev.seat), p.seat)
+	eq(int(ev.id), t.id)
+	eq(String(ev.type), t.type)
+	near(float(ev.dmg), 7.0, 1e-6)
+	near(float(ev.hp), t.max_hp - 7.0, 1e-6)
+	near(float(ev.max), t.max_hp, 1e-6)
+	ok(bool(ev.crit))
+	eq(String(ev.kind), "melee")
+
+
+func test_only_a_players_blows_are_reported_and_only_in_the_range() -> void:
+	var e := sim.enemies.spawn("walker", p.pos + Vector2(200, 0))
+	Damage.damage_enemy(sim, e, 5.0, p.pos, 0.0, false, p)
+	eq(_dealt_events().size(), 0, "not in the town")
+	_enter()
+	var t := _targets()[0]
+	sim.events.clear()
+	Damage.damage_enemy(sim, t, 5.0, t.pos, 0.0, false, "turret")
+	eq(_dealt_events().size(), 0, "nor what no player dealt")
+
+
+func test_bleed_is_reported_summed_every_half_second() -> void:
+	_enter()
+	var t := _targets()[0]
+	sim.events.clear()
+	ok(Damage.bleed_enemy(t, 10.0, p))
+	run(sim, 1.05)
+	var sum := 0.0
+	var n := 0
+	for ev in _dealt_events():
+		if String(ev.kind) == "bleed":
+			n += 1
+			sum += float(ev.dmg)
+	eq(n, 2, "twice a second, not sixty times")
+	near(sum + t.range_bleed, t.max_hp - t.hp, 1e-3, "and every point of it, reported or still adding up")
+
+
+func test_a_blow_on_you_says_what_the_armour_took_off() -> void:
+	_enter()
+	p.god_mode = false
+	p.armor_dr = 0.3
+	p.invuln = 0.0
+	sim.events.clear()
+	Damage.damage_player(sim, p, 20.0, p.pos + Vector2(30, 0), "Walker")
+	var evs := events_of(sim, "player_hit")
+	eq(evs.size(), 1)
+	near(float(evs[0].raw), 20.0, 1e-6, "the blow")
+	near(float(evs[0].dmg), 14.0, 1e-6, "what got through")
+	eq(String(evs[0].label), "Walker")
+
+
+func _hit(log: DamageLog, id: int, dmg: float, at: float, hp := 50.0, kind := "bullet") -> void:
+	log.feed({"t": "dealt", "seat": 0, "id": id, "type": "walker", "dmg": dmg, "hp": hp, "max": 58.0,
+		"kind": kind, "crit": false}, at)
+
+
+func test_the_panel_counts_hits_until_a_three_second_pause() -> void:
+	var log := DamageLog.new()
+	_hit(log, 1, 10.0, 0.0)
+	_hit(log, 1, 10.0, 0.5)
+	_hit(log, 1, 10.0, 1.0)
+	eq(log.dealt.size(), 1)
+	var r: Dictionary = log.dealt[0]
+	eq(int(r.hits), 3)
+	near(float(r.total), 30.0, 1e-6)
+	near(float(r.last), 10.0, 1e-6)
+	near(DamageLog.dps(r), 20.0, 1e-6, "twenty after the first hit, over the second it took")
+	near(DamageLog.dps(r), 20.0, 1e-6, "and it holds still while you wait")
+	_hit(log, 1, 10.0, 3.9)
+	eq(int(log.dealt[0].hits), 4, "2.9 seconds is still the same session")
+	_hit(log, 1, 10.0, 7.0)
+	eq(int(log.dealt[0].hits), 1, "past three seconds, a fresh count")
+
+
+func test_the_panel_counts_a_blast_of_pellets_as_one_hit() -> void:
+	var log := DamageLog.new()
+	for i in range(8):
+		_hit(log, 1, 4.0, 2.0)
+	var r: Dictionary = log.dealt[0]
+	eq(int(r.hits), 1)
+	near(float(r.last), 32.0, 1e-6, "the whole blast")
+	near(float(r.total), 32.0, 1e-6)
+
+
+func test_the_panel_keeps_a_row_per_body_and_times_the_kill() -> void:
+	var log := DamageLog.new()
+	_hit(log, 1, 20.0, 0.0, 38.0)
+	_hit(log, 2, 5.0, 0.2, 53.0)
+	_hit(log, 1, 38.0, 1.5, 0.0)
+	eq(log.dealt.size(), 2)
+	near(float(log.dealt[0].ttk), 1.5, 1e-6, "down 1.5s after the first hit")
+	near(float(log.dealt[1].ttk), -1.0, 1e-6, "the other is still up")
+	near(DamageLog.dps(log.dealt[0]), 38.0 / 1.5, 1e-6, "and its DPS stops at the kill")
+
+
+func test_the_panel_hears_only_its_own_seat() -> void:
+	var log := DamageLog.new()
+	log.seat = 1
+	_hit(log, 1, 10.0, 0.0)
+	eq(log.dealt.size(), 0)
+
+
+func test_the_panel_logs_hits_taken_on_a_clock_of_their_own() -> void:
+	var log := DamageLog.new()
+	log.feed({"t": "player_hit", "seat": 0, "dmg": 7.0, "raw": 10.0, "label": "Walker"}, 0.0)
+	log.feed({"t": "player_hit", "seat": 0, "dmg": 14.0, "raw": 20.0, "label": "Raider"}, 2.0)
+	_hit(log, 1, 10.0, 2.5)
+	var tot := log.taken_totals()
+	eq(int(tot.hits), 2)
+	near(float(tot.raw), 30.0, 1e-6)
+	near(float(tot.dmg), 21.0, 1e-6)
+	_hit(log, 1, 10.0, 4.0)
+	eq(log.taken.size(), 2, "shooting does not reset what you took")
+	log.feed({"t": "player_hit", "seat": 0, "dmg": 3.0, "raw": 3.0, "label": "Runner"}, 5.5)
+	eq(log.taken.size(), 1, "3.5s without being hit: a fresh log")
+
+
+func test_a_guest_hears_its_own_hits_and_not_the_hosts() -> void:
+	var t := _table()
+	var g: NetGuest = t.guest
+	Actions.guest = g
+	Actions.range_control(g.sim, g.me, "enter")
+	_pump(t, 0.6)
+	var gp: PlayerSim = t.gp
+	# The room enemy nearest the guest, well inside what a snapshot describes.
+	var e: EnemySim = null
+	for x in _leashed():
+		if e == null or x.pos.distance_to(gp.pos) < e.pos.distance_to(gp.pos):
+			e = x
+	g.sim.events.clear()
+	Damage.damage_enemy(sim, e, 3.0, e.pos, 0.0, false, p)
+	Damage.damage_enemy(sim, e, 4.0, e.pos, 0.0, false, gp)
+	_pump(t, 0.3)
+	var mine := 0
+	var theirs := 0
+	for ev in g.sim.events:
+		if String(ev.t) == "dealt":
+			if int(ev.seat) == gp.seat:
+				mine += 1
+			else:
+				theirs += 1
+	eq(mine, 1, "the guest's own hit reached it")
+	eq(theirs, 0, "the host's did not")

@@ -13,6 +13,8 @@ extends Control
 var sim: GameSim
 ## Whose bars these are: the local player, whatever seat they hold.
 var player: PlayerSim = null
+## The Target Range's damage panel, under the Threat card; hidden elsewhere.
+var range_panel: RangePanel
 ## What the scene knows about the connection, for the corner line.
 var net_line := ""
 var notices: Array[Dictionary] = []
@@ -90,6 +92,8 @@ func _init(sim_: GameSim) -> void:
 
 
 func on_event(ev: Dictionary) -> void:
+	if range_panel != null:
+		range_panel.on_event(ev)
 	match ev.t:
 		"notify":
 			notices.append({"text": ev.text, "color": Color(ev.color), "life": 5.5 if ev.important else 3.5, "max": 5.5 if ev.important else 3.5, "big": ev.important})
@@ -236,7 +240,8 @@ func _build() -> void:
 	_pin_card = Ui.panel("HudCard", Ui.vbox(6, [Ui.hbox(8, [Ui.expand(Ui.label("Pinned", "Caps")), Ui.label("from the bench", "Small", Ui.TEXT_OFF)]),
 		_pin_title, _pin_lines]))
 	_pin_card.visible = false
-	var right := Ui.vbox(12, [threat_card, _light_card, _dark_hint, _pin_card])
+	range_panel = RangePanel.new(sim, self)
+	var right := Ui.vbox(12, [threat_card, _light_card, _dark_hint, _pin_card, range_panel])
 	right.custom_minimum_size.x = 300
 	_corner(right, Control.PRESET_TOP_RIGHT)
 

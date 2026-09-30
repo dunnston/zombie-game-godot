@@ -57,13 +57,17 @@ spends no weapon uses unless the switch is on, and gives everything back on
 the way out. Finds go to the pack: the haul is closed in there
 (`Instance.haul_open`). Protocol 11.
 
-**B — targets and live rooms.** A `passive` flag on `EnemySim` (no step, no
+**B — targets and live rooms** (`target-range-b`). A `passive` flag on `EnemySim` (no step, no
 swing, no alert, no knockback; stagger and bleed still land and show), each
 target's post and its 3s respawn; a `leash` rectangle held at the end of every
 step; the distance markers; *Reset targets* and *Refill live rooms* through
-`Actions.range_control`.
+`Actions.range_control`. Built as planned, plus: kills in the range drop
+nothing and pay no XP (the baseline would drift off level 1), and the range's
+walls are not a thing to hit, so a leashed enemy never thumps one.
 
-**C — the damage panel.** A view of floating numbers off the `hit` event (bleed
-ticks summed every half second); a range-only panel with the per-target
-readout and the damage-taken log. The `hit` event gains the enemy's `id`,
-`player_hit` the damage before armor.
+**C — the damage panel** (`target-range-c`). Top right, your own hits only,
+counted in sessions that end after 3s without a hit (owner, 2026-09-29).
+Floating numbers already existed for every `hit`; only bleed needed adding.
+Rather than widening `hit`, the range emits its own `dealt` event (seat, body
+id and type, HP left, bleed summed every 0.5s), which the host already sends
+only to that seat's guest; `player_hit` gains `raw`, the blow before armor.

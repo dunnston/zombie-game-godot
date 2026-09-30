@@ -159,6 +159,7 @@ func _ready() -> void:
 	if OS.is_debug_build() or OS.get_cmdline_args().has("--dev"):
 		dev = DevScreen.new(sim)
 		layer.add_child(dev)
+		dev.clear_panel = hud.range_panel.damage.clear
 		Actions.dev = true
 	menu = MenuScreen.new()
 	menu.chose.connect(_on_menu)
