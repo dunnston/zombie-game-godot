@@ -189,3 +189,20 @@ func test_the_oil_lantern_burns_fuel_for_nights() -> void:
 	ok(float(g.burn) >= 4.0 * Config.DAY_LENGTH * 0.5, "a fill is nights of light, not one")
 	eq(String(g.slot), "offhand")
 	ok(g.has("light"))
+	# And the prompts say Fuel, not battery (Codex, PR #66).
+	eq(Equipment.refill_name(g), "Fuel")
+	eq(Equipment.refill_name(Config.GEAR.flashlight), "Batteries")
+
+
+func test_the_range_holds_and_baselines_the_pack_tier() -> void:
+	# A Pack Frame fitted in the range must not leave with you, and your own
+	# comes back when you do (Codex, PR #66).
+	p.pack_tier = 1
+	var held := TargetRange.hold(p)
+	TargetRange.baseline(p)
+	eq(p.pack_tier, 0, "the range is the strict start's pack")
+	p.pack_tier = 2
+	TargetRange.give_back(p, held)
+	eq(p.pack_tier, 1, "and your own pack comes back, not the range's")
+	for k in TargetRange.HELD_KEYS:
+		ok(held.has(k), "%s is held" % k)

@@ -316,10 +316,17 @@ static func drop_equipped(sim: GameSim, p: PlayerSim, slot: String) -> bool:
 
 # -------------------------------------------------------------------- light --
 
+## What a light is refilled with, by name: a battery for the flashlight,
+## Fuel for the Oil Lantern (Codex, PR #66). Every prompt on the refill path
+## asks this, so a lamp can never send you looking for the wrong thing.
+static func refill_name(g: Dictionary) -> String:
+	return Items.name_of(String(g.get("battery", "battery")))
+
+
 ## Strike it or douse it, by hand. The dark does this for you (see
 ## `update_light`) — T is for going dark on purpose, and for a flashlight
 ## whose battery has not been spent yet. A flat flashlight spends one from
-## the pack first, then the stash: running out mid-street should send you
+## the pack, since the strict start: running out mid-street should send you
 ## home rather than end the night.
 static func toggle_light(sim: GameSim, p: PlayerSim) -> bool:
 	var g := equipped_light(p)
@@ -342,10 +349,10 @@ static func toggle_light(sim: GameSim, p: PlayerSim) -> bool:
 			return false                      # a spent torch is gone already
 		var got := p.take_for_bill(sim, g.battery, 1)
 		if got == 0:
-			sim.notify("%s is flat — it needs a battery" % g.name, "#c96a5a")
+			sim.notify("%s is flat — it needs %s" % [g.name, refill_name(g)], "#c96a5a")
 			return false
 		p.light_fuel = g.burn
-		sim.notify("Fresh battery", "#b7e08a")
+		sim.notify("Fresh %s" % refill_name(g).to_lower(), "#b7e08a")
 	p.light_on = true
 	p.light_doused = false
 	p.lit = true
@@ -399,4 +406,4 @@ static func update_light(sim: GameSim, p: PlayerSim, dt: float) -> void:
 		after_equip_change(p)
 		sim.notify("Your torch burns out", "#c96a5a")
 	else:
-		sim.notify("%s is dead — load a battery" % g.name, "#c96a5a")
+		sim.notify("%s is dead — load %s" % [g.name, refill_name(g).to_lower()], "#c96a5a")
