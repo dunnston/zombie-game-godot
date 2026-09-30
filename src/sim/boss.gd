@@ -190,6 +190,10 @@ func _start(sim: GameSim, e: EnemySim, p: PlayerSim, id: String) -> void:
 			ev["r"] = float(m.radius)
 		"charge":
 			ev["dist"] = float(m.dist)
+		"hook":
+			dir = (aim - e.pos).normalized() if (aim - e.pos).length_squared() > 1.0 else Vector2.from_angle(e.angle)
+			ev["dist"] = float(m.range)
+			ev["width"] = float(m.width)
 		"dodgeball":
 			ev["fan"] = float(m.fan)
 			ev["n"] = int(m.count)
@@ -215,6 +219,9 @@ func _act(sim: GameSim, e: EnemySim) -> void:
 			struck.clear()
 			state = "charge"
 			sim.emit({"t": "boss_charge", "x": e.pos.x, "y": e.pos.y})
+		"hook":
+			_hook(sim, e, m)
+			_recover(m)
 		"dodgeball":
 			_throw(sim, e, m)
 			_recover(m)
@@ -252,6 +259,33 @@ func _charge_step(sim: GameSim, e: EnemySim, dt: float) -> void:
 		sim.emit({"t": "shake", "amount": 7.0})
 	elif travelled >= float(m.dist):
 		_recover(m)
+
+
+## The hook (the Butcher): down the lane it telegraphed, whoever is still in
+## it is dragged to `stop` in front of him and cut on the way. Sideways out
+## of the lane — a dash, or a walk — and it takes nothing. The lane is fixed
+## from the tell, so where you were is what it goes for.
+func _hook(sim: GameSim, e: EnemySim, m: Dictionary) -> void:
+	var caught := false
+	for q in sim.players:
+		if q.dead or q.away or q.downed:
+			continue
+		var to := q.pos - e.pos
+		var along := to.dot(dir)
+		if along <= 0.0 or along > float(m.range):
+			continue
+		var off := absf(to.dot(dir.orthogonal()))
+		if off > float(m.width) + q.r:
+			continue
+		var land := e.pos + dir * (float(m.stop) + e.r + q.r)
+		q.pos = _clamped(e, sim.world.move_circle(land, Vector2.ZERO, q.r, sim.structs))
+		q.prev_pos = q.pos
+		q.vel = Vector2.ZERO
+		Damage.damage_player(sim, q, float(m.dmg), e.pos, String(e.def.name))
+		caught = true
+	sim.emit({"t": "boss_hook", "id": e.id, "x": e.pos.x, "y": e.pos.y, "dx": dir.x, "dy": dir.y, "caught": caught})
+	if caught:
+		sim.emit({"t": "shake", "amount": 5.0})
 
 
 ## A fan of slow balls at where you were standing. Hostile rounds, so

@@ -18,6 +18,16 @@ static func world() -> World:
 
 ## A fresh simulation on the shared world, with the spawner's opening
 ## crowd cleared so a test starts from exactly what it plants.
+## Every boss item the ladder asks for, as if the party had held it: a test
+## about the bench climbing is not a test about the Butcher.
+static func give_keys(sim: GameSim) -> void:
+	for t in range(1, Config.MAX_BENCH + 1):
+		var key := String(Config.BENCH_TIERS[t].get("key", ""))
+		if not key.is_empty():
+			sim.known.held[key] = true
+	sim.known.dirty = true
+
+
 static func new_sim(run_seed := 1) -> GameSim:
 	var sim := GameSim.new()
 	sim.start(world(), run_seed)

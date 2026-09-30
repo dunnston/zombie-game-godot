@@ -2287,6 +2287,36 @@
       ],
       "id": "coachDrops",
       "notes": "What the Coach drops. **For a boss, `w` is a percentage and every entry rolls on its own** — a boss is not one cupboard's pick but a list of chances, which is how a rare weapon can be rare without crowding out the Precision Parts that always come."
+    },
+    {
+      "entries": [
+        {
+          "id": "rations",
+          "max": 6,
+          "min": 3,
+          "w": 80
+        },
+        {
+          "id": "scrap",
+          "max": 12,
+          "min": 6,
+          "w": 70
+        },
+        {
+          "id": "item:medkit",
+          "max": 1,
+          "min": 1,
+          "w": 40
+        },
+        {
+          "id": "cloth",
+          "max": 8,
+          "min": 4,
+          "w": 60
+        }
+      ],
+      "id": "butcherDrops",
+      "notes": "What the Butcher drops besides the Saw and, on the first kill, the Cleaver — both of those are `Config.BOSSES.butcher.first_drop`, given once and never rolled. **For a boss, `w` is a percentage and every entry rolls on its own.**"
     }
   ],
   "shape": "groups"

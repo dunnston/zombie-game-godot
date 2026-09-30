@@ -413,3 +413,16 @@ class MapView extends Control:
 			else:
 				draw_string(name_f, at, "? ? ?", HORIZONTAL_ALIGNMENT_LEFT, w, 15, Color(0.55, 0.59, 0.51, 0.55))
 				draw_string(mono, at + Vector2(0, 16), "UNDISCOVERED", HORIZONTAL_ALIGNMENT_LEFT, w, 12, Color(0.55, 0.59, 0.51, 0.45))
+		# The dungeons (guidance, step E): a door on the map once you have stood in
+		# its district, so the far goal the locked bench row names is somewhere
+		# you can point at. A skull, and the building's name under it.
+		for fe in sim.world.features:
+			if String(fe.get("kind", "")) != "instance_door":
+				continue
+			var here: Dictionary = sim.world.location_at_px(float(fe.x), float(fe.y))
+			if here.is_empty() or not here.get("discovered", false):
+				continue
+			var dp := rect.position + Vector2(float(fe.x), float(fe.y)) * scale
+			draw_circle(dp, 5.0, Color(0.1, 0.08, 0.08, 0.9))
+			draw_arc(dp, 5.0, 0.0, TAU, 16, Ui.DANGER, 1.5)
+			draw_string(caps, dp + Vector2(-60, 18), Instance.title(String(fe.id)).to_upper(), HORIZONTAL_ALIGNMENT_CENTER, 120, 11, Ui.DANGER)

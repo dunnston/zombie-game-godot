@@ -130,6 +130,15 @@ static func known_keys(sim: GameSim) -> Array:
 	return out
 
 
+## Whether the run has ever held a boss item (a bench's `key`). A fact, so it
+## is never lost with the object; carried to a guest as "key:<id>" among the
+## known keys, so its locked upgrade row reads the same as the host's.
+static func has_key(sim: GameSim, id: String) -> bool:
+	if sim.known.dirty:
+		_refresh(sim)
+	return sim.known.ids.has("key:" + id)
+
+
 ## A guest is told what is known rather than why (the facts are the host's).
 ## It keeps the list and says nothing: the host's "New at the bench" line and
 ## its `known` event are relayed to every guest as they are made (Codex,
@@ -215,6 +224,10 @@ static func _refresh(sim: GameSim) -> void:
 		var def: Dictionary = Config.STRUCTURES[type]
 		if row_known(k, int(def.get("tier", 1)), int(def.get("wave", WAVE_KIT)), def.cost, ""):
 			fresh_ids[build_key(type)] = true
+	for t in range(1, Config.MAX_BENCH + 1):
+		var key := String(Config.BENCH_TIERS[t].get("key", ""))
+		if not key.is_empty() and k.held.has(key):
+			fresh_ids["key:" + key] = true
 	_announce(sim, fresh_ids)
 	k.ids = fresh_ids
 	k.dirty = false
@@ -230,7 +243,7 @@ static func _announce(sim: GameSim, fresh_ids: Dictionary) -> void:
 	var names: Array[String] = []
 	var keys: Array = []
 	for key in fresh_ids:
-		if was.has(key):
+		if was.has(key) or String(key).begins_with("key:"):
 			continue
 		keys.append(key)
 		names.append(display_name(String(key)))

@@ -73,6 +73,10 @@ var range_lockers: Array[Vector2i] = []
 ## The town's fingerprint before the instance buildings were stamped on it. A
 ## save written before the School existed carries this one (`accepts_fingerprint`).
 var base_fingerprint := 0
+## The town after each instance stamp in turn (`_gen_instances`). A save
+## written when only the School stood carries that town, and is still this
+## town: every stamp since only took away what was under its own footprint.
+var past_fingerprints: Array[int] = []
 
 var _no_tree := PackedByteArray()    # tiles the woodland pass must leave alone
 
@@ -727,6 +731,11 @@ func _gen_instances() -> void:
 		var f := _door(d.door, "instance_door")
 		f["id"] = kind
 		f["stand"] = Vector2(f.x, f.y) + Vector2(out) * TILE
+		# A shell on tier-1 ground stands on spawn tiles that were counted
+		# before it: a respawn must not land on a roof.
+		var footprint := r.merge(lot)
+		spawn_tiles = spawn_tiles.filter(func(t: Vector2i) -> bool: return not footprint.has_point(t))
+		past_fingerprints.append(_hash())
 
 
 ## Takes every prop whose tile is in `r` off the map, as if it had never grown.
@@ -779,6 +788,8 @@ func _generate_instance() -> void:
 	match layout:
 		"school":
 			_gen_school(d)
+		"barn":
+			_gen_barn(d)
 		"range":
 			_gen_range()
 
@@ -934,6 +945,45 @@ func _gen_school(d: Dictionary) -> void:
 	_spots_in(cafeteria, _pop(d, "cafeteria"))
 	_spots_in(nurse, _pop(d, "small"))
 	_spots_in(office, _pop(d, "small"))
+
+
+## Hollow Creek Barn (step E): the first dungeon, and the short one. You come
+## in through the yard, the barn floor runs north with three stalls off its
+## west side, and the killing floor is at the back behind an open doorway —
+## no key, nothing to find first: the Butcher is the whole of it. What is in
+## the stalls and who is standing where is rolled from the entry seed. Five
+## minutes, the plan says.
+func _gen_barn(d: Dictionary) -> void:
+	var yard := _room(120, 140, 16, 10)
+	var floor_ := _room(112, 120, 32, 21)
+	var stalls: Array[Rect2i] = [_room(104, 121, 9, 6), _room(104, 127, 9, 6), _room(104, 133, 9, 6)]
+	var killing := _room(114, 100, 28, 21)
+	# The yard opens onto the floor in the middle; each stall by one gap in
+	# the wall it shares with the floor; the killing floor by a wide doorway.
+	_gap(126, 140, 4, 1)
+	for s in stalls:
+		_gap(112, rng.irange(s.position.y + 1, s.end.y - 3), 1, 2)
+	_gap(126, 120, 4, 1)
+	var leave := _door(Rect2i(126, 149, 4, 1), "leave")
+	_door(Rect2i(126, 100, 4, 1), "exit")
+	entry_spot = Vector2(128 * TILE, 147 * TILE + TILE / 2.0)
+	leave["stand"] = entry_spot
+	boss_spot = _centre_px(killing)
+	arena = Rect2i(killing.position + Vector2i.ONE, killing.size - Vector2i(2, 2))
+	# The pens, in the killing floor's corners: where the whistle's adds come in.
+	for c: Vector2i in [killing.position + Vector2i(2, 2), Vector2i(killing.end.x - 3, killing.position.y + 2),
+			Vector2i(killing.position.x + 2, killing.end.y - 4), Vector2i(killing.end.x - 3, killing.end.y - 4)]:
+		add_spots.append(Vector2(c.x * TILE + TILE / 2.0, c.y * TILE + TILE / 2.0))
+	# What is in it: farm stock. Nothing worth a second run on its own; the
+	# Saw is the prize.
+	for s in stalls:
+		_stock(_furnishable(s), ["crate", "toolbox", "fuelDrum"], rng.irange(1, 2))
+	_stock(_furnishable(floor_), ["logPile", "crate"], rng.irange(2, 3))
+	_stock(_furnishable(yard), ["shelf"], 1)
+	# Who is in it. The yard is empty: arriving is not an ambush.
+	for s in stalls:
+		_spots_in(s, _pop(d, "stall"))
+	_spots_in(floor_, _pop(d, "floor"))
 
 
 ## The Target Range. Fixed, not rolled — the point is to test the same thing
@@ -1517,7 +1567,7 @@ func _hash() -> int:
 ## container, every other prop and every other tile a save names is where it
 ## was, and a chopped tree the stamp already cleared simply finds nothing.
 func accepts_fingerprint(fp: int) -> bool:
-	return fp == gen_fingerprint or (layout == "town" and fp == base_fingerprint)
+	return fp == gen_fingerprint or (layout == "town" and (fp == base_fingerprint or fp in past_fingerprints))
 
 
 ## The first location whose rect contains the point, or an empty Dictionary.

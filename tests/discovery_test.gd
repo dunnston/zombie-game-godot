@@ -116,6 +116,7 @@ func test_the_tiers_arrive_in_waves() -> void:
 	p.bag.add("steelBar", 1)
 	Discovery.tick(sim)
 	ok(not _known("machete"), "chapter 2 waits for Workbench II")
+	give_keys(sim)
 	ok(sim.structs.upgrade_bench(sim, bench, p))
 	ok(_known("hacksaw"), "Workbench II: the Foothold")
 	ok(Discovery.structure_known(sim, "forge"))

@@ -168,6 +168,29 @@ const INSTANCES := {
 		"location": {"id": "range_inside", "name": "TARGET RANGE", "tier": 1,
 			"rect": Rect2i(98, 134, 100, 32), "desc": "Every weapon, and something to point it at."},
 	},
+	# Chapter 1's dungeon (step E): a slaughter barn at the west edge of
+	# Hollow Creek Farms, short and without a key, the one that teaches you
+	# that bosses exist. Its door faces east onto the fields. Listed after the
+	# School on purpose: the town's stamps are recorded in this order, and a
+	# save from the School's era carries the town as it was after the School
+	# alone (`World.accepts_fingerprint`).
+	"barn": {
+		"name": "HOLLOW CREEK BARN",
+		"tier": 1,
+		"clock_t": 0.35,
+		"boss": "butcher",
+		"boss_hp_mul": 1.0,
+		"shell": Rect2i(3, 90, 16, 12),
+		"door": Rect2i(18, 95, 1, 2),
+		"out": Vector2i(1, 0),
+		"lot": Rect2i(19, 92, 6, 8),
+		"arena_name": "the killing floor",
+		"location": {"id": "barn_inside", "name": "HOLLOW CREEK BARN", "tier": 1,
+			"rect": Rect2i(100, 96, 50, 56), "desc": "The stalls, the barn floor, and the killing floor at the back."},
+		"pop": {"stall": [1, 2], "floor": [3, 4]},
+		# What the door panel tells you to bring (Progression Map §6).
+		"recommends": ["The Work set", "A Hunting Bow", "Four Bandages"],
+	},
 }
 
 ## The Target Range's tunables (`TargetRange`). `ammo_stacks` full stacks of
@@ -192,6 +215,28 @@ const RANGE := {
 ## the screen calls it. `transition` is the beat between phases in which it
 ## cannot be hurt and does nothing, so a phase change reads as a phase change.
 const BOSSES := {
+	# Chapter 1's boss (step E). Two moves and the pens: the cleave is the
+	# slam with a smaller ring, and the hook is the new one — a lane like the
+	# charge's, but it is you that moves, dragged in for the cleave that
+	# follows; step out of the lane and it takes nothing. Below half it opens
+	# the pens. `first_drop` is given once, ever: the Saw is Workbench II's
+	# key and the Cleaver is the weapon the first kill promises.
+	"butcher": {
+		"wake": "THE BUTCHER — he never stopped working",
+		"min_tell": 0.7,
+		"transition": 1.0,
+		"first_drop": ["butcherSaw", "cleaver"],
+		"moves": {
+			"slam": {"tell": 0.9, "radius": 120.0, "dmg": 26.0, "recover": 0.6},
+			"hook": {"tell": 0.8, "range": 420.0, "width": 44.0, "stop": 60.0, "dmg": 12.0, "recover": 0.4},
+			"whistle": {"tell": 0.9, "adds": 4, "cap": 6, "recover": 0.6},
+		},
+		"phases": [
+			{"at": 1.00, "moves": ["hook", "slam"], "cd": [2.0, 3.0]},
+			{"at": 0.50, "name": "THE PENS", "moves": ["hook", "slam", "whistle"], "cd": [1.8, 2.6],
+				"enter": ["whistle"]},
+		],
+	},
 	"coach": {
 		"wake": "THE COACH — he has been waiting in here for a team",
 		"min_tell": 0.7,
@@ -1090,6 +1135,10 @@ const BRAIN_DROPS := {
 		"also": {"id": "brainMut", "min": 2, "max": 2}},
 	# The School's boss is a Behemoth's worth of tissue: it is the fight a
 	# Behemoth was, with a script on it.
+	# The first boss: mutated matter, a lot of it, and none of the Coach's
+	# Neural Tissue — that is chapter 2's to hand out.
+	"butcher":  {"chance": 1.0,  "id": "brainMut", "min": 2, "max": 3,
+		"also": {"id": "brainRaw", "min": 2, "max": 4}},
 	"coach":    {"chance": 1.0,  "id": "brainSpec", "min": 1, "max": 2,
 		"also": {"id": "brainMut", "min": 2, "max": 2}},
 }
@@ -1620,7 +1669,7 @@ const MUSIC_VARIANTS := {
 }
 ## Enemy type -> the track its fight plays. A boss without a row gets `boss_1`.
 ## `boss_2` and `final_boss` are recorded and waiting for the bosses that use them.
-const MUSIC_BOSS := {"coach": "boss_1"}
+const MUSIC_BOSS := {"coach": "boss_1", "butcher": "boss_1"}
 
 # ---------------------------------------------------------------------- map --
 
@@ -1696,7 +1745,8 @@ const BENCH_TIERS := {
 		"blurb": "the first bench"},
 	# `hint` is what the locked upgrade row says beside a boss item you do
 	# not have yet: where to look, in the owner's words (step E fills it).
-	2: {"name": "Workbench II", "cost": {"scrap": 40, "wood": 30, "cloth": 10}, "key": "", "hint": "",
+	2: {"name": "Workbench II", "cost": {"scrap": 40, "wood": 30, "cloth": 10}, "key": "butcherSaw",
+		"hint": "carried by whatever is in the barn at Hollow Creek Farms",
 		"raid_cap": 1, "level_cap": 4, "jobs": ["scavenger", "sniper"],
 		"blurb": "steel, the first guns, the Riot set"},
 	3: {"name": "Workbench III", "cost": {"scrap": 55, "elec": 20, "parts": 5}, "key": "",

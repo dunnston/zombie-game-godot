@@ -94,6 +94,14 @@ func test_bench_names_are_the_ladders() -> void:
 func test_the_bench_climbs_every_rung_and_pays_for_each() -> void:
 	var bench := _bench()
 	eq(sim.structs.bench_tier, 1)
+	# The first rung wants the Butcher's Saw (step E), and wants it as a fact
+	# the run holds, not an object in a pocket.
+	eq(sim.structs.bench_upgrade_refusal(sim, bench, p), "Needs the Butcher's Saw")
+	ok(not sim.structs.upgrade_bench(sim, bench, p))
+	p.bag.add("butcherSaw", 1)
+	Discovery.tick(sim)
+	p.bag.take("butcherSaw", 1)
+	ok(Discovery.has_key(sim, "butcherSaw"), "held once is held")
 	for t in range(2, Config.MAX_BENCH + 1):
 		var cost: Dictionary = Config.BENCH_TIERS[t].cost
 		var before := {}
@@ -110,6 +118,7 @@ func test_the_bench_climbs_every_rung_and_pays_for_each() -> void:
 
 func test_an_upgrade_is_refused_with_its_bill_named() -> void:
 	var bench := _bench()
+	give_keys(sim)
 	p.bag.clear_all()
 	var why := sim.structs.bench_upgrade_refusal(sim, bench, p)
 	ok(why.begins_with("Need "), why)
