@@ -328,9 +328,8 @@ static func kill_player(sim: GameSim, p: PlayerSim, cause := "died") -> void:
 	if sim.instance != null:
 		sim.notify("%s — %s keeps what you found" % [head, Instance.title(sim.instance.kind)], col, true)
 		return
-	# Everything you were carrying stays where you fell, in a pack you can
-	# walk back to. You keep the starting weapon, so a respawn is never
-	# completely toothless.
+	# What was in the pack stays where you fell, to be walked back to. What
+	# you wear and the hotbar come with you.
 	var pack := Loot.drop_backpack(sim, p)
 	sim.notify(head if pack.is_empty() else head + " — your pack is where you fell", col, true)
 

@@ -731,9 +731,7 @@ func use_generator(sim: GameSim, s: Dictionary, p: PlayerSim) -> bool:
 	var need := ceili(s.def.fuel_max - s.fuel)
 	var got := 0
 	if need > 0:
-		got = p.bag.take("fuel", need)
-		if got < need and sim.stash != null:
-			got += sim.stash.take("fuel", need - got)
+		got = p.take_for_bill(sim, "fuel", need)
 		if got > 0:
 			s.fuel = minf(s.def.fuel_max, s.fuel + got)
 	if s.fuel <= 0.0:

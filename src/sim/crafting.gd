@@ -130,32 +130,45 @@ static func status(sim: GameSim, p: PlayerSim, r: Dictionary, bench: int) -> Dic
 	if r.give.has("weapon"):
 		if p.bag.first_empty() < 0 and p.hotbar.first_empty() < 0:
 			return {"ok": false, "reason": "No room for it"}
-		if not _can_lift(p, r.give.weapon):
+		if not _can_lift(p, r, r.give.weapon):
 			return {"ok": false, "reason": "Too heavy to carry"}
 	if r.give.has("gear"):
 		if p.bag.first_empty() < 0:
 			return {"ok": false, "reason": "No room in your pack"}
-		if not _can_lift(p, r.give.gear):
+		if not _can_lift(p, r, r.give.gear):
 			return {"ok": false, "reason": "Too heavy to carry"}
-	if r.give.has("item") and not _room_for(p, r.give.item, r.give.n):
+	if r.give.has("item") and not _room_for(p, r, r.give.item, r.give.n):
 		return {"ok": false, "reason": "No room in your pack"}
 	if not p.can_afford(sim, r.cost):
 		return {"ok": false, "reason": "Missing materials"}
 	return {"ok": true, "reason": ""}
 
 
-## Whether one more of `id` fits under the hard ceiling. Weapons and gear go
-## into a slot rather than a stack, so they never meet `add_capped` and have
-## to be weighed here.
-static func _can_lift(p: PlayerSim, id: String) -> bool:
-	return p.carried_weight() + Items.weight_of(id) <= p.carry_limit() + 1e-9
+## The weight a recipe's bill takes out of the pack. A craft is weighed as
+## what you will be carrying *afterwards*: since the pack is what pays
+## (`PlayerSim.bill_stash`), a rifle is seventy-seven units of metal becoming
+## six, and refusing it as too heavy at the ceiling would be refusing to let
+## you put something down. Only what the pack itself holds counts — whatever
+## a stash pays for never weighed anything.
+static func _bill_weight(p: PlayerSim, r: Dictionary) -> float:
+	var w := 0.0
+	for id in r.cost:
+		w += mini(p.bag.count(id), int(r.cost[id])) * Items.weight_of(id)
+	return w
+
+
+## Whether one more of `id` fits under the hard ceiling once the bill is paid.
+## Weapons and gear go into a slot rather than a stack, so they never meet
+## `add_capped` and have to be weighed here.
+static func _can_lift(p: PlayerSim, r: Dictionary, id: String) -> bool:
+	return p.carried_weight() - _bill_weight(p, r) + Items.weight_of(id) <= p.carry_limit() + 1e-9
 
 
 ## Whether the pack can take `n` of `id`, by slot space and by weight.
-static func _room_for(p: PlayerSim, id: String, n: int) -> bool:
+static func _room_for(p: PlayerSim, r: Dictionary, id: String, n: int) -> bool:
 	if p.bag.room_for(id) < n:
 		return false
-	return p.pack_allowance() - p.bag.weight() >= Items.weight_of(id) * n - 1e-9
+	return p.pack_allowance() - p.bag.weight() + _bill_weight(p, r) >= Items.weight_of(id) * n - 1e-9
 
 
 ## A recipe row by id, or empty. The wire and the channel both carry the id.

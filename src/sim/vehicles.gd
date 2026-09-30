@@ -449,9 +449,7 @@ func refuel(sim: GameSim, v: Dictionary, p: PlayerSim) -> bool:
 	if need <= 0:
 		sim.notify("Tank is full", "#8a8f84")
 		return false
-	var took := p.bag.take("fuel", need)
-	if took < need and sim.stash != null:
-		took += sim.stash.take("fuel", need - took)
+	var took := p.take_for_bill(sim, "fuel", need)
 	if took <= 0:
 		sim.notify("No fuel to put in it", "#c96a5a")
 		return false

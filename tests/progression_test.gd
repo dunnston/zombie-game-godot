@@ -175,6 +175,14 @@ func test_damage_reduction_is_capped_however_much_is_worn() -> void:
 	ok(p.armor_dr <= Config.MAX_GEAR_DR + 1e-9, "no amount of scavenging is immunity")
 
 
+func test_the_two_carry_caps_are_one_number() -> void:
+	# PLAYER.carry_cap seeds the field and STAT_BASE.carry_cap is what
+	# recompute_stats writes over it; the strict start moved both to 75 and
+	# a change to one without the other would be a stat that flickers.
+	near(float(Config.PLAYER.carry_cap), float(Config.STAT_BASE.carry_cap), 1e-9)
+	near(float(Config.STAT_BASE.carry_cap), 75.0, 1e-9, "75, so a starting survivor carries 100 (owner, 2026-09-30)")
+
+
 func test_a_starting_survivor_is_one_rank_above_the_baseline() -> void:
 	# The numbers Phases 1-3 were balanced against, now produced rather than
 	# written down. Anything here that moves has moved the whole game.
@@ -185,7 +193,7 @@ func test_a_starting_survivor_is_one_rank_above_the_baseline() -> void:
 	near(p.spread_mul, 0.96, 1e-9)
 	near(p.crit_chance, 0.08, 1e-9)
 	near(p.crit_dmg, 0.03, 1e-9)
-	near(p.carry_cap, 225.0, 1e-9)
+	near(p.carry_cap, 100.0, 1e-9)   # 75 + Strength 2's 25 (owner, 2026-09-30: was 200 + 25)
 	near(p.pickup_range, 49.0, 1e-9)
 	near(p.chop_mul, 1.06, 1e-9)
 	near(p.search_mul, 0.95, 1e-9)

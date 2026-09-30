@@ -449,16 +449,23 @@ func test_a_base_quietens_the_ground_around_it() -> void:
 	ok(after < before, "the spawner wants %.2f of what it wanted (%.2f)" % [after, before])
 
 
-func test_the_stash_pays_for_what_you_build_beside_it() -> void:
+func test_the_stash_does_not_pay_for_what_you_build_beside_it() -> void:
+	# The strict start (owner, 2026-09-30): you carry what you spend, even
+	# standing next to a stash full of it. The Storage Link earns this back.
 	_stock()
 	_build("stash", plot.x + 2, plot.y)
 	sim.stash.add("wood", 100)
 	p.bag.clear_all()
 	p.carry_cap = 100000.0
-	ok(p.can_afford(sim, {"wood": 16}), "the stash counts toward the bill")
+	ok(not p.can_afford(sim, {"wood": 16}), "the stash does not count toward the bill")
 	var s := _build("woodWall", plot.x + 4, plot.y)
-	ok(not s.is_empty())
-	eq(sim.stash.count("wood"), 84, "and it was paid out of the stash")
+	ok(s.is_empty(), "nothing went up")
+	eq(sim.stash.count("wood"), 100, "and nothing left the stash")
+	p.bag.add("wood", 16)
+	s = _build("woodWall", plot.x + 4, plot.y)
+	ok(not s.is_empty(), "carried in, it goes up")
+	eq(p.bag.count("wood"), 0, "out of the pack")
+	eq(sim.stash.count("wood"), 100, "and still not the stash")
 
 
 func test_deposit_all_leaves_your_weapons_alone() -> void:

@@ -72,7 +72,7 @@ Valheim, Core Keeper, Abiotic Factor. Anti-models: Vein and Project Zomboid
 
 Each step is one PR that leaves the game playable.
 
-- [ ] A. The strict start: craft and build from the pack, carry 100, keep gear on death
+- [x] A. The strict start: craft and build from the pack, carry 100, keep gear on death (2026-09-30)
 - [ ] B. Guidance: recipe waves, the pinned recipe, the locked upgrade row
 - [ ] C. The ladder: bench tiers I–V, recipes moved, raid ceiling, level cap, job gates
 - [ ] D. Steel: Hacksaw, wrecks, Sheet Metal, Forge, chapter 2 recipes, first chore items

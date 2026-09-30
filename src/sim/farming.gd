@@ -136,9 +136,11 @@ static func prompt(s: Dictionary) -> String:
 
 # ------------------------------------------------------------------- work --
 
-## Everything below spends out of the pack and then the shared stash, through
-## `PlayerSim.can_afford` and `spend` — the same pair a wall, a repair and a
-## recipe already use.
+## Everything below spends through `PlayerSim.can_afford` and `spend` — the
+## same pair a wall, a repair and a recipe use — so what a bed may draw on is
+## whatever `PlayerSim.bill_stash` says, and since 2026-09-30 that is the
+## pack: an outlying bed is a thing you carry water to. The paragraph below
+## is the history of why that was not decided here.
 ##
 ## **The stash is reachable from anywhere in the world, and always has been.**
 ## `total_res` adds `sim.stash` with no distance test at all, so a Steel Wall

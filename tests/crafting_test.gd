@@ -140,15 +140,24 @@ func test_a_gun_needs_the_bench_it_says_it_needs() -> void:
 	ok(Crafting.status(sim, p, _recipe("rifle"), 2).ok)
 
 
-func test_the_stash_pays_for_a_craft_at_the_bench() -> void:
+func test_the_stash_does_not_pay_for_a_craft() -> void:
+	# The strict start (owner, 2026-09-30): the bench takes from your pack
+	# and nowhere else, until the Storage Link says otherwise.
 	_stock(0)
 	sim.stash = Slots.new(Config.STASH_SLOTS)
 	sim.stash.add("sticks", 20)
 	sim.stash.add("stone", 20)
 	sim.stash.add("fiber", 20)
-	ok(Crafting.craft(sim, p, _recipe("axe"), 0), "paid out of the stash")
-	eq(sim.stash.count("sticks"), 17)
-	eq(p.count_carried("axe"), 1)
+	eq(Crafting.status(sim, p, _recipe("axe"), 0).reason, "Missing materials")
+	ok(not Crafting.craft(sim, p, _recipe("axe"), 0), "not paid out of the stash")
+	eq(sim.stash.count("sticks"), 20, "and the stash was not touched")
+	eq(p.count_carried("axe"), 0)
+	p.bag.add("sticks", 3)
+	p.bag.add("stone", 3)
+	p.bag.add("fiber", 4)
+	ok(Crafting.craft(sim, p, _recipe("axe"), 0), "carried, it is made")
+	eq(p.bag.count("sticks"), 0, "out of the pack")
+	eq(sim.stash.count("sticks"), 20, "never the stash")
 
 
 func test_an_output_with_nowhere_to_go_lands_at_your_feet() -> void:
@@ -287,28 +296,48 @@ func test_craft_time_is_one_number_and_a_stat_shortens_it() -> void:
 
 # ------------------------------------------------ the Codex review, PR #5 --
 
-func test_you_cannot_craft_a_rifle_you_cannot_lift() -> void:
-	# Materials in the stash, so affording it is not the question — and a
-	# free slot, so slot space is not the question either.
-	sim.stash = Slots.new(Config.STASH_SLOTS)
-	for id in ["scrap", "parts", "mil"]:
-		sim.stash.add(id, 200)
+func test_you_cannot_craft_what_you_cannot_lift() -> void:
+	# A craft is weighed as what you carry afterwards. A Wooden Spear is six
+	# units made from under four of sticks and fiber, so at the ceiling it is
+	# the one thing here that makes you heavier — and a free slot, so slot
+	# space is not the question.
 	p.bag.clear_all()
 	p.hotbar.clear_all()
 	p.carry_cap = 200.0                                  # ceiling 300
+	p.bag.add("sticks", 6)
+	p.bag.add("fiber", 3)
 	p.bag.add_capped("stone", 400, p.pack_allowance())
 	ok(p.bag.first_empty() >= 0, "there is a slot free")
-	near(p.carried_weight(), 300.0, 0.01, "loaded to the ceiling")
-	var r := _recipe("rifle")
-	eq(Crafting.status(sim, p, r, 2).reason, "Too heavy to carry")
-	ok(not Crafting.craft(sim, p, r, 2))
-	eq(p.count_carried("rifle"), 0)
-	eq(sim.stash.count("scrap"), 200, "and it cost nothing")
+	gt(p.carried_weight(), 298.5, "loaded to the ceiling, to within a stone")
+	var r := _recipe("woodenSpear")
+	eq(Crafting.status(sim, p, r, 1).reason, "Too heavy to carry")
+	ok(not Crafting.craft(sim, p, r, 1))
+	eq(p.count_carried("woodenSpear"), 0)
+	eq(p.bag.count("sticks"), 6, "and it cost nothing")
 	# Put something down and it goes through.
-	p.bag.take("stone", 20)
+	p.bag.take("stone", 2)
+	ok(Crafting.craft(sim, p, r, 1))
+	eq(p.count_carried("woodenSpear"), 1)
+	ok(p.carried_weight() <= p.carry_limit(), "carrying %.1f" % p.carried_weight())
+
+
+func test_a_rifle_at_the_ceiling_is_lighter_than_its_materials() -> void:
+	# Seventy-seven units of scrap, parts and military become a six-unit
+	# rifle. Now that the pack is what pays, refusing this as "too heavy"
+	# would refuse to let you put something down (the check used to weigh the
+	# gun on top of a load the stash had paid for).
+	p.bag.clear_all()
+	p.hotbar.clear_all()
+	p.carry_cap = 200.0                                  # ceiling 300
+	var r := _recipe("rifle")
+	for id in r.cost:
+		p.bag.add(id, r.cost[id])
+	p.bag.add_capped("stone", 400, p.pack_allowance())
+	gt(p.carried_weight(), 298.5, "loaded to the ceiling, materials included")
+	ok(Crafting.status(sim, p, r, 2).ok, "it is allowed: %s" % Crafting.status(sim, p, r, 2).reason)
 	ok(Crafting.craft(sim, p, r, 2))
 	eq(p.count_carried("rifle"), 1)
-	ok(p.carried_weight() <= p.carry_limit(), "carrying %.1f" % p.carried_weight())
+	ok(p.carried_weight() < 300.0, "and you are lighter for it: %.1f" % p.carried_weight())
 
 
 # ------------------------------------------------------------- the Recycler --

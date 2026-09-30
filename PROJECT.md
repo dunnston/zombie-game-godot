@@ -247,7 +247,8 @@ else. Everything else is out there. Thirty container archetypes answer a
 held E and pay out of their own loot table; ground litter, bushes and rocks
 answer a tap. What comes out goes into a thirty-slot pack, a six-slot hotbar
 and six body slots, all of it draggable, droppable and weighed — capacity is
-200 units across the pack and hotbar together. Fifteen armour pieces reduce
+100 units across the pack and hotbar together (200 until the strict start of
+2026-09-30, §4). Fifteen armour pieces reduce
 damage through `recompute_stats()` and nothing else; a torch lights the
 off-hand by itself when the dark comes, goes out at dawn, and burns itself
 away over about one night. Dying leaves a pack where you fell. Nothing
@@ -305,6 +306,45 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 ---
 
 ## 4. What is built
+
+### The strict start (2026-09-30)
+
+Step A of `tasks/progression-plan.md`, and the first thing built from it.
+Three rules change and nothing is added: each is a chore the plan removes
+later with something you craft, so each has to exist first.
+
+- **Bills are paid from the pack.** `PlayerSim.bill_stash` is the one place
+  that says what a bill may draw on besides the pack, and it says nothing:
+  a recipe, a wall, a repair, a bed, a weapon level, a flashlight's battery,
+  a generator's or a car's fuel all come out of what you carry. The stash
+  had paid for all of it from anywhere in the world since Phase 3, which
+  gave away the biggest convenience in the game with the first Supply Stash.
+  The Storage Link (step F) and the Field Radio (step H) widen this, and
+  they widen it there. Survivors, turrets and upkeep still feed from
+  `sim.stash`: that is the base's economy, not the player's pocket.
+- **A craft is weighed as what you carry afterwards.** Since the pack pays,
+  seventy-seven units of rifle materials become a six-unit rifle;
+  `Crafting._bill_weight` takes the bill off the load before the ceiling
+  check, or the check would refuse to let you put something down. A Wooden
+  Spear, six units from under four of sticks and fiber, is what still gets
+  refused at the ceiling, and the test uses it.
+- **Carry starts at 100.** `PLAYER.carry_cap` and `STAT_BASE.carry_cap`
+  75, so a starting survivor (Strength 2) is 100 comfortable and 150 at the
+  ceiling; it was 200 and 225. Strength (+25 a rank) and Pack Mule (+70)
+  are unchanged and now weigh more against the base than they did — a
+  number to settle when the Pack Frame arrives in step D.
+- **Dying keeps what you wear and the hotbar.** `Loot.drop_backpack` drops
+  the pack alone; a bar with no weapon on it still gets the starting one,
+  out of the pack if one is in there. A gun kept on the bar keeps its
+  rounds; one that went into the pack leaves them there, as before.
+
+Found on the way: the raid harness measured the payout by counting the
+player's scrap, and a player at the new cap gets it at their feet. The
+`raid_end` event now carries `reward` and the harness reads that. The smoke
+stocked two legs into the stash because the pack was full; `_smoke_pocket`
+moves the pack aside and stocks the bill into it. The dose and meal legs
+waited a count of process frames that a 144Hz monitor makes too short; they
+wait on `Smoke.until` for the channel to finish.
 
 ### The Target Range, PR A (2026-09-29)
 
@@ -2046,6 +2086,7 @@ Phases 1–4 respecting it.
 
 | Date | Decision | Why | Reversible? |
 | --- | --- | --- | --- |
+| 2026-09-30 | **The strict start**: bills are paid from the pack only, carry starts at 100, and dying drops the pack but not what you wear or the hotbar | The progression plan (`tasks/progression-plan.md`): the early game needs chores for progress to remove, and the stash paying from anywhere had given the biggest one away with the first Supply Stash. Death softened because the walk back should be for the haul, made armed. | Yes: `bill_stash` returns `sim.stash`, two consts, and `drop_backpack` |
 | 2026-09-15 | **A shot stops at a wall you built** — pillar 3 reversed, with height as the exemption (a turret's rounds and a posted sniper's carry `over`) | Owner's call on the *Multiplayer Playing* playtest: a wall you can stab and shoot through is a wall that only works for the horde. The compound still shoots back, from the pieces that are *supposed* to — which is also a reason to build a Watchtower. | Yes, one branch in `tick_bullets` (drop `structs`), but the raid balance moves with it |
 | 2026-09-15 | **House walls take damage — from the dead, not from you** (`BUILD.house_wall_hp`, 620) | Owner: a base inside a house was unbreakable, so the only way in was whatever you had built across the doorways. A chaser only starts on the town when the flow field cannot route it to its target at all; a raider treats a house wall like any other wall in its way. Players cannot knock holes in the town — that is a separate tool, and a separate card. | Yes; `break_wall` and the `breached` list are the only writers |
 | 2026-09-15 | **The carry cap is soft**: `carry_cap` is comfort, `carry_limit()` (1.5x) is the refusal | Owner, from the *Multiplayer Playing* playtest: a find one unit too heavy simply would not go in, which reads as a bug rather than as a decision. Overburdened is now a state you can walk home in — winded, no sprint, no dash — instead of a wall. | Yes, one const (`PLAYER.overload_mul` 1.0 restores the hard cap) |
@@ -2277,7 +2318,7 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 0. **The owner walks, fights, and builds** (the Phase 1, 2 and 3 gates,
    together — three phases are now waiting on one session at the keyboard).
    Phase 3's questions: does searching a container at 1.05s feel like
-   searching or like waiting; is a thirty-slot pack at 200 units generous or
+   searching or like waiting; is a thirty-slot pack at 100 units generous or
    fussy; does dropping and dragging read; is the build bar quick enough to
    use mid-raid; does a wood wall feel worth 16 wood; is crafting-in-the-pack
    the right call. And the older ones:
@@ -2861,6 +2902,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-30 | **The strict start** (progression step A). Every bill — recipe, structure, repair, bed, weapon level, battery, fuel — is paid from the pack through `PlayerSim.bill_stash`, which allows nothing else yet; a craft is weighed net of its bill (`Crafting._bill_weight`); `carry_cap` 200 → 75 (100 on a starting survivor, 150 at the ceiling); `Loot.drop_backpack` drops the pack and keeps worn gear and the hotbar, handing over the starting weapon only to an unarmed bar. `raid_end` carries `reward`. Tests rewritten to the new rules with break-checks (13 fail against the old code); `_smoke_pocket` and `Smoke.until` in the smoke. `tools/test`: 839 tests, 0 failures; `--all` 876; smoke 101 checkpoints, 0 failures |
 | 2026-09-29 | **The Target Range, PR A** (DL-109, `tasks/target-range.md`). A developer's instance behind F1: a hall, a 60-tile lane and six one-door rooms with walls nothing breaks, six lockers of every weapon at level 1, ammunition, gear and consumables, entered on a baseline build (level 1, no perks, meter clear, empty-handed) and left — by its door or F1 — with your own build and pack back at the main spawn. Dying there gets you up at its entrance; wear is off unless switched on; the held weapon's level moves 1-6. Every control goes through `Actions.range_control`, refused by a release host. Protocol 11. `range_test.gd` (21 tests, two of them a guest over loopback) |
 | 2026-09-15 | **The *Multiplayer Playing* playtest, group D: co-op, death and the crew.** The hurt flash is the hit seat's alone (every screen used to flash); holding the interact key while down gives up rather than waiting out thirty seconds (`PLAYER.give_up_hold`); dead inside an instance says the run has to end rather than counting to 0.0 and stopping; autosave every five minutes; the School is its own daylight (`clock_t` 0.35) and the only dark in it is the boss's; your people path home along `GameSim.nav_to` instead of walking into the first building; and every effect prints what it does to you (`Mutation.effect_summary`) on the HUD chip, the item detail and the craft page. `tools/test`: 780 tests, 17627 asserts, 0 failures |
 | 2026-09-15 | **The *Multiplayer Playing* playtest, groups B and C: walls, and the slot screens.** A shot or a swing stops at anything solid, terrain and built alike (`World.shot_blocks_px`), with height as the exemption — a turret's round and a posted sniper's carry `over`. Zombies cannot bite through a wall either, and nothing you built answers `E` through one: `Interact._in_sight` counts structures, and `reachable_store` asks it every frame. House walls have hit points (`BUILD.house_wall_hp` 620), break to rubble, and are carried by the save (**v12**) and the world diff as tile keys; the dead break them and only when the flow field cannot route them (`Enemies._cut_off`). Storage: one scheme on every screen (Shift sends across, Ctrl drops, Alt splits, RMB uses), DEPOSIT MATCHING, no dragging out of the haul, a repair bill that names only what is missing, Tab closes a screen (Shift+Tab steps the rail), and a workbench that turns four ways for the picture's sake. `tools/test`: 777 tests, 17602 asserts, 0 failures; `--all` 810 with the compound SIEGE at 296s, up from 124s — a defender walled in cannot shoot out any more, which is the decision showing up in the numbers |

@@ -223,27 +223,84 @@ func test_a_wall_built_on_a_pile_puts_it_out_beside_the_wall() -> void:
 # --------------------------------------------------------------- backpacks --
 
 func test_dying_leaves_a_pack_you_can_walk_back_to() -> void:
+	# The pack drops; what you wear and the hotbar stay on you (owner,
+	# 2026-09-30). The walk back is for the haul, and you make it armed.
 	sim.give_test_kit(p)
 	var carried := p.bag.count("ammoP")
 	gt(carried, 0)
 	p.bag.add("milVest", 1)
 	Equipment.equip_best(sim, p)
-	gt(p.armor_dr, 0.0)
+	var dr := p.armor_dr
+	gt(dr, 0.0)
+	var bar := p.hotbar.entries()
+	gt(bar.size(), 1, "the kit is on the bar")
 
 	Damage.kill_player(sim, p)
 	eq(sim.backpacks.size(), 1, "your pack is where you fell")
-	eq(p.bag.used(), 0, "and you are carrying nothing")
-	eq(p.armor_dr, 0.0, "losing the armour costs the mitigation")
-	eq(p.weapon().id, "pipe", "you keep the pipe, so a respawn is not toothless")
+	eq(p.bag.used(), 0, "and the pack is empty")
+	near(p.armor_dr, dr, 1e-9, "the armour is still on you")
+	eq(p.equip.body, "milVest")
+	eq(p.hotbar.entries(), bar, "and so is everything on the bar")
 
 	var pack: Dictionary = sim.backpacks[0]
 	has(pack.held, "ammoP")
-	has(pack.held, "milVest")
+	ok(not pack.held.has("milVest"), "worn armour is not in the pack")
+	ok(not pack.held.has("shotgun"), "nor a gun from the bar")
 	p.dead = false
 	p.pos = pack.pos
 	eq(Loot.collect_backpack(sim, p, pack) > 0, true)
 	eq(sim.backpacks.size(), 0, "recovered")
 	eq(p.bag.count("ammoP"), carried)
+
+
+func test_the_pipe_handed_up_from_the_pack_keeps_its_condition() -> void:
+	# Codex, PR #63: recreated with `add`'s defaults, a worn and levelled
+	# Pipe came back mended and at level 1 — dying was a free bench.
+	p.hotbar.clear_all()
+	p.bag.clear_all()
+	p.bag.add("pipe", 1, 7, 2)
+	Damage.kill_player(sim, p)
+	var at := p.hotbar_index("pipe")
+	gt(at, -1, "the pipe is on the bar")
+	eq(Wear.left(p.hotbar, at), 7, "as worn as it was")
+	eq(Upgrade.level(p.hotbar, at), 2, "and at the level it was")
+
+
+func test_a_bar_full_of_bandages_does_not_lose_the_pipe() -> void:
+	# Codex, PR #63: no weapon on the bar and no room on it either. The
+	# pipe was taken out of the dropped pack and the unchecked add lost it.
+	p.hotbar.clear_all()
+	for i in range(p.hotbar.size()):
+		p.hotbar.slots[i] = {"id": "bandage", "n": 1}
+	p.bag.clear_all()
+	p.bag.add("pipe", 1)
+	p.bag.add("wood", 5)
+	Damage.kill_player(sim, p)
+	eq(p.bag.count("pipe"), 1, "the pipe is in the emptied pack, not gone")
+	eq(sim.backpacks[0].held, {"wood": 5}, "and not in the pack on the ground")
+	# And with nothing packed either, the conjured one has the same fallback.
+	p.dead = false
+	p.bag.clear_all()
+	Damage.kill_player(sim, p)
+	eq(p.bag.count("pipe"), 1)
+
+
+func test_dying_with_nothing_on_the_bar_still_hands_you_the_pipe() -> void:
+	p.hotbar.clear_all()
+	p.bag.clear_all()
+	p.bag.add("wood", 5)
+	Damage.kill_player(sim, p)
+	eq(p.weapon().id, "pipe", "a respawn is never toothless")
+	eq(sim.backpacks[0].held, {"wood": 5}, "the pipe came from nowhere, not out of the pack")
+	# And a pipe that was in the pack is the one you get back.
+	p.dead = false
+	p.hotbar.clear_all()
+	p.bag.clear_all()
+	p.bag.add("pipe", 1)
+	p.bag.add("wood", 5)
+	Damage.kill_player(sim, p)
+	eq(p.weapon().id, "pipe")
+	eq(sim.backpacks[1].held, {"wood": 5}, "the packed pipe went to the bar rather than the ground")
 
 
 func test_the_pack_is_what_the_interact_key_offers_first() -> void:
@@ -313,10 +370,10 @@ func test_a_gun_you_cannot_carry_stays_on_the_ground() -> void:
 	var s := _own_sim()
 	var q := s.players[0]
 	q.hotbar.clear_all()
-	# 337.5 of 337.5 units — the ceiling, not the comfortable cap: a free grid
+	# 150 of 150 units — the ceiling, not the comfortable cap: a free grid
 	# slot, but no room for a six-unit rifle.
 	q.bag.add_capped("stone", 400, q.pack_allowance())
-	near(q.carried_weight(), 337.5, 0.01)
+	near(q.carried_weight(), 150.0, 0.01)
 	var r := Loot.give_entry(s, q, {"id": "weapon:rifle", "n": 1})
 	ok(r.has("overflow"), "refused: %s" % r.text)
 	eq(q.count_carried("rifle"), 0)
@@ -376,6 +433,10 @@ func test_spare_ammo_that_does_not_fit_is_not_destroyed() -> void:
 
 func test_the_magazine_goes_into_the_pack_with_the_gun() -> void:
 	sim.give_test_kit(p)
+	# The kit's pistol is on the bar and would stay there; this one is in
+	# the pack, which is what drops.
+	p.hotbar.take("pistol", 1)
+	p.bag.add("pistol", 1)
 	p.mag["pistol"] = 3
 	Damage.kill_player(sim, p)
 	var pack: Dictionary = sim.backpacks[0]
@@ -386,3 +447,11 @@ func test_the_magazine_goes_into_the_pack_with_the_gun() -> void:
 	p.dead = false
 	Loot.give_entry(sim, p, {"id": "weapon:pistol", "n": 1})
 	eq(p.mag.pistol, Config.WEAPONS.pistol.mag, "a fresh pistol, not the dead one's three rounds")
+
+
+func test_a_gun_kept_on_the_bar_keeps_its_rounds() -> void:
+	sim.give_test_kit(p)
+	p.mag["pistol"] = 3
+	p.bag.add("pistol", 1)                      # a second one, in the pack
+	Damage.kill_player(sim, p)
+	eq(p.mag.pistol, 3, "the pistol on the bar is still loaded")

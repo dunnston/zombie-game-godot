@@ -2877,3 +2877,40 @@ increase hotbar size?")
   using a found medkit mid-run, which is the owner's call to take back.
 - `tools/test`: 785 tests, 18049 asserts, 0 failures. `--all` adds the slow
   tier; `tools/smoke`: 101 checkpoints, 0 failures.
+
+## Progression step A — the strict start (`feat/strict-start`, 2026-09-30)
+
+The first step of `tasks/progression-plan.md`. Three rules change; nothing
+is added. Each is the chore a later step's item removes.
+
+- [x] **Bills are paid from the pack.** `PlayerSim.total_res` / `spend` stop
+      adding the shared stash, through one seam (`bill_stash`) that the
+      Storage Link (step F) and the Field Radio (step H) will widen. The
+      three hand-fed draws that reached the stash directly — a flashlight
+      battery, a generator's fuel, a car's tank — use the same seam.
+      Survivors, turrets and upkeep still feed from the stash: that is the
+      base's economy, not the player's pocket.
+- [x] **Carry starts at 100.** `carry_cap` 200 → 75, so a starting survivor
+      (Strength 2) is 100 comfortable and 150 at the ceiling.
+- [x] **Dying keeps what you wear and the hotbar.** Only the pack drops.
+      A hotbar with no weapon on it still gets the starting one.
+- [x] Tests for each rule, each broken on purpose first; existing tests that
+      paid out of the stash stock the pack instead.
+- [x] `tools\test --all`, smoke, `PROJECT.md` (§3, §4, §6, §7, §11).
+
+### Review
+
+- Three rules, one seam. `bill_stash` is where steps F and H will widen the
+  reach, and the three hand-fed draws (battery, generator, car) go through
+  it too, so "what pays" is one answer everywhere.
+- A rule change found a bug it created: weighing a craft gross of its bill
+  refused a rifle at the ceiling when the materials were in the pack. Net
+  weighing, and a test either way (`woodenSpear` refused, `rifle` allowed).
+- 13 rewritten tests fail against the old `src/`; two more are guards.
+- Smoke: two legs stocked the stash and had to stock the pack; two legs
+  counted frames on a 144Hz monitor and now wait on the channel. The first
+  three smoke runs failed on window focus (26 failures, all mouse) and the
+  baseline on `main` passed, which is what separated the real failures
+  from the flake.
+- Open: Strength and Pack Mule's carry bonuses are now large against a base
+  of 75; decide when the Pack Frame lands (step D).
