@@ -242,9 +242,18 @@ func cycle(dir: int) -> void:
 func _in_cat(cat: String) -> Array:
 	var out: Array = []
 	for id in Config.BUILD_ORDER:
-		if category_of(id) == cat:
+		if category_of(id) == cat and Discovery.structure_known(sim, id):
 			out.append(id)
 	return out
+
+
+## Everything the run knows how to build, for the count on the page.
+func _known_count() -> int:
+	var n := 0
+	for id in Config.BUILD_ORDER:
+		if Discovery.structure_known(sim, id):
+			n += 1
+	return n
 
 
 func typing() -> bool:
@@ -332,6 +341,7 @@ func card_info(id: String) -> Dictionary:
 		"cost": sim.structs.cost_of(id, player),
 		"afford": player.can_afford(sim, def.cost, player.build_cost_mul),
 		"locked": not sim.structs.is_unlocked(id),
+		"known": Discovery.structure_known(sim, id),
 		"hp": roundi(def.hp * (owner.struct_hp_mul if owner != null else 1.0)),
 		"label": def.get("name", id),
 	}
@@ -344,6 +354,9 @@ func _shown() -> Array:
 	var out: Array = []
 	for id in Config.BUILD_ORDER:
 		var def: Dictionary = Config.STRUCTURES[id]
+		# Guidance: only what the run knows how to build (`Discovery`).
+		if not Discovery.structure_known(sim, id):
+			continue
 		if q.is_empty():
 			if category_of(id) != build_cat:
 				continue
@@ -427,7 +440,7 @@ func _build_menu() -> void:
 	_search = field
 	var hits := Ui.label("", "Mono12", Ui.TEXT_OFF)
 	var count := Ui.label("", "Mono", Ui.TEXT_DIM)
-	refresher(func() -> void: Ui.set_text(count, "%d / %d structures" % [_shown().size(), Config.BUILD_ORDER.size()]))
+	refresher(func() -> void: Ui.set_text(count, "%d / %d structures" % [_shown().size(), _known_count()]))
 	var fbox := Ui.hbox(0)
 	section(fbox, func() -> String: return str(build_filter), func(box: Container) -> void:
 		box.add_child(Chrome.filter_chip("Can build now", build_filter, "F", func() -> void: build_filter = not build_filter)))
@@ -507,7 +520,7 @@ func _build_rail(box: Container) -> void:
 
 
 func _centre_sig() -> String:
-	var sig := "%s|%s|%s|%d|" % [build_cat, build_search, str(build_filter), selected]
+	var sig := "%s|%s|%s|%d|%d|%s|" % [build_cat, build_search, str(build_filter), selected, player.seen.size(), player.pinned]
 	for id in _shown():
 		var info := card_info(id)
 		sig += "%s%s%s%s," % [id, str(info.afford), str(info.locked), str(info.cost)]
@@ -563,9 +576,16 @@ func _card(id: String) -> Button:
 	tile.frame_color = Ui.LINE_STRONG if on else (Ui.LINE_SOFT if locked else Ui.LINE)
 	tile.alpha = 0.45 if locked else 1.0
 	# As on a recipe card: the text wraps, so no card is wider than its column.
-	var top := Ui.hbox(12, [tile, Ui.expand(Ui.vbox(5, [Ui.para(String(def.name), "ItemName", Ui.TEXT_OFF if locked else Ui.TEXT_HIGH),
+	var head := Ui.vbox(5, [Ui.para(String(def.name), "ItemName", Ui.TEXT_OFF if locked else Ui.TEXT_HIGH),
 		Ui.expand(Ui.label(category_of(id).trim_suffix("s") if category_of(id) != "Crafting stations" else "Station", "Small",
-			Ui.TEXT_FAINT if locked else Ui.TEXT_DIM))]))])
+			Ui.TEXT_FAINT if locked else Ui.TEXT_DIM))])
+	# Guidance: new until looked at; and the one on the HUD says so.
+	var bkey := Discovery.build_key(id)
+	if not locked and not player.seen.has(bkey):
+		head.add_child(Ui.badge("NEW", Ui.ACCENT_HI))
+	elif player.pinned == bkey:
+		head.add_child(Ui.badge("PINNED", Ui.XP))
+	var top := Ui.hbox(12, [tile, Ui.expand(head)])
 	var bill: Control
 	if locked:
 		bill = Ui.para("%s  ·  %d HP" % [Structures.cost_label(info.cost), int(info.hp)], "Mono12", Ui.TEXT_FAINT)
@@ -614,7 +634,7 @@ func _detail_sig() -> String:
 	var have := ""
 	for m in info.cost:
 		have += str(player.total_res(sim, m)) + ","
-	return "%s|%s|%s|%s|%s" % [id, str(info.afford), str(info.locked), have, str(_shown().has(id))]
+	return "%s|%s|%s|%s|%s|%s" % [id, str(info.afford), str(info.locked), have, str(_shown().has(id)), player.pinned]
 
 
 func _build_detail(box: Container) -> void:
@@ -626,6 +646,9 @@ func _build_detail(box: Container) -> void:
 		id = String(_in_cat(build_cat)[0]) if not _in_cat(build_cat).is_empty() else String(Config.BUILD_ORDER[0])
 	var info := card_info(id)
 	var def: Dictionary = Config.STRUCTURES[id]
+	# Looking at it clears NEW, however it was selected (Codex, PR #65).
+	if not info.locked:
+		Actions.mark_seen(sim, player, Discovery.build_key(id))
 	var art := _tile(id, 96, 60)
 	art.frame_color = Ui.LINE_STRONG
 	var solid := bool(def.get("solid", true))
@@ -672,7 +695,19 @@ func _build_detail(box: Container) -> void:
 	place.custom_minimum_size.y = 56
 	place.disabled = not placeable()
 	reg_button("place", place)
-	box.add_child(Ui.boxed(Ui.edge(Ui.BASE, Ui.LINE, 0, 1, 0, 0, 20, 20), Ui.vbox(12, [place,
+	# PIN TO HUD, as a recipe has: a buildable is as much a thing to work
+	# toward as a machete is (Codex, PR #65).
+	var bkey := Discovery.build_key(id)
+	var pinned := player.pinned == bkey
+	var pin_face := Ui.hbox(10, [Ui.label("UNPIN" if pinned else "PIN TO HUD", "Caps13", Ui.INK if pinned else Ui.TEXT_HIGH),
+		Ui.label("what it needs, and where", "Small", Color(Ui.INK, 0.7) if pinned else Ui.TEXT_DIM)])
+	for c in pin_face.get_children():
+		(c as Control).size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var pin := Ui.face_button("SecondaryOn" if pinned else "Secondary", Ui.pad(pin_face, 14, 0, 14, 0),
+		func() -> void: Actions.pin(sim, player, bkey))
+	pin.custom_minimum_size.y = 36
+	reg_button("pin", pin)
+	box.add_child(Ui.boxed(Ui.edge(Ui.BASE, Ui.LINE, 0, 1, 0, 0, 20, 20), Ui.vbox(12, [place, pin,
 		Ui.label("Choosing a piece collapses this menu so you can see the street.", "Small")])))
 
 

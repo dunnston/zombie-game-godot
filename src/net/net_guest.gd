@@ -297,6 +297,8 @@ func _on_world(d: Dictionary) -> void:
 		_apply_roster(d.roster)
 	if d.has("bench"):
 		sim.structs.bench_tier = int(d.bench)
+	if d.has("known"):
+		Discovery.apply_keys(sim, d.known)
 
 
 func _upsert_structure(rec: Dictionary) -> void:

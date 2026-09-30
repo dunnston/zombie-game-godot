@@ -49,6 +49,10 @@ var _light_name: Label
 var _light_left: Label
 var _light_bar: UiMeter
 var _dark_hint: Label
+var _pin_card: PanelContainer
+var _pin_title: Label
+var _pin_lines: VBoxContainer
+var _pin_sig := ""
 var _notice_box: VBoxContainer
 var _notice_sig := ""
 var _mates: VBoxContainer
@@ -225,7 +229,14 @@ func _build() -> void:
 	_light_card = Ui.panel("HudCard", Ui.vbox(6, [Ui.hbox(8, [Ui.expand(_light_name), _light_left]), _light_bar]))
 	_light_card.add_theme_stylebox_override("panel", Ui.box(Ui.HUD_FILL, Ui.LINE, 1, 3, 14, 10))
 	_dark_hint = _shadowed(Ui.para("", "Row14", Color(0.95, 0.75, 0.4)))
-	var right := Ui.vbox(12, [threat_card, _light_card, _dark_hint])
+	# The pinned recipe (guidance, step B): the one thing you chose to work
+	# toward, what it still needs, and where to look for each.
+	_pin_title = Ui.label("", "Row14", Ui.TEXT_HIGH)
+	_pin_lines = Ui.vbox(3)
+	_pin_card = Ui.panel("HudCard", Ui.vbox(6, [Ui.hbox(8, [Ui.expand(Ui.label("Pinned", "Caps")), Ui.label("from the bench", "Small", Ui.TEXT_OFF)]),
+		_pin_title, _pin_lines]))
+	_pin_card.visible = false
+	var right := Ui.vbox(12, [threat_card, _light_card, _dark_hint, _pin_card])
 	right.custom_minimum_size.x = 300
 	_corner(right, Control.PRESET_TOP_RIGHT)
 
@@ -410,6 +421,7 @@ func refresh() -> void:
 	var dark: float = float(sim.clock.darkness().alpha)
 	_light_card.visible = p.lit and not lamp.is_empty()
 	_dark_hint.visible = sim.clock.is_dark() and not p.lit
+	_refresh_pin(p)
 	if _light_card.visible:
 		var burn: float = maxf(1.0, float(lamp.get("burn", 1.0)))
 		var left: float = clampf(p.light_fuel / burn, 0.0, 1.0)
@@ -517,6 +529,51 @@ func refresh() -> void:
 
 
 ## What the interact key is offering, or the channel in progress.
+## What the pinned recipe still needs, one line a material, and where the
+## short ones are best looked for (`found` on the material's row). The same
+## `total_res` the bench charges, so the card can never promise a craft the
+## bench refuses.
+static func pin_lines(sim: GameSim, p: PlayerSim) -> Array:
+	var out: Array = []
+	var cost := pin_cost(sim, p)
+	for m: String in cost:
+		var have := p.total_res(sim, m)
+		var need := int(cost[m])
+		var line := {"id": m, "name": Items.name_of(m), "have": have, "need": need, "short": have < need,
+			"found": String(Config.RES.get(m, {}).get("found", ""))}
+		out.append(line)
+	return out
+
+
+static func pin_cost(sim: GameSim, p: PlayerSim) -> Dictionary:
+	if p.pinned.is_empty():
+		return {}
+	if p.pinned.begins_with("build:"):
+		return sim.structs.cost_of(p.pinned.trim_prefix("build:"), p)
+	var r := Crafting.recipe(p.pinned)
+	return r.get("cost", {}) if not r.is_empty() else {}
+
+
+func _refresh_pin(p: PlayerSim) -> void:
+	var lines := pin_lines(sim, p)
+	var sig := p.pinned + "|" + str(lines)
+	if sig == _pin_sig:
+		return
+	_pin_sig = sig
+	_pin_card.visible = not p.pinned.is_empty() and not lines.is_empty()
+	if not _pin_card.visible:
+		return
+	Ui.set_text(_pin_title, Discovery.display_name(p.pinned))
+	for c in _pin_lines.get_children():
+		c.queue_free()
+	for l in lines:
+		var col: Color = Ui.SHORT if l.short else Ui.OK_DIM
+		_pin_lines.add_child(Ui.hbox(8, [Ui.expand(Ui.label(String(l.name), "Mono12", col)),
+			Ui.label("%d / %d" % [int(l.have), int(l.need)], "Mono12", col)]))
+		if l.short and not String(l.found).is_empty():
+			_pin_lines.add_child(Ui.para("   " + String(l.found), "Small", Ui.TEXT_DIM))
+
+
 func _refresh_prompt(p: PlayerSim) -> void:
 	var key := ""
 	var text := ""

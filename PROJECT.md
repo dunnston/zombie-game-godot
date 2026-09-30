@@ -261,7 +261,7 @@ that will not fit is ever destroyed: it lands on the ground.
 | Unit tests | 711 tests, 17097 assertions (`tools\test.cmd`). `--all` adds the compound raid harness, the save round trips, the fire spread trials, the survivor combat tests, the UPnP door and the real broker under Node: 713 tests, 13540 assertions. The broker leg needs `node` and `npm` on PATH; `server/node_modules/` is gitignored, so in a fresh worktree the test runs `npm install` itself (through `cmd.exe` on Windows, where npm is a batch file) and needs the network that once. Wall-clock varies with the machine — see §9 |
 | Smoke | 94 checkpoints, **a craft photographed mid-bar with CANCEL beside it and the "crafted" line after**, **every one of them failing if any piece of the redesigned UI reaches past the edge of the window**, and the new screens reached through real clicks — **the build menu, a card and PLACE**, a recipe card and CRAFT, MEND, the CREW tab, DEPOSIT ALL — and before that: **a weapon taken to level 2 with the UPGRADE row at the workbench**, **the Coach's slam ring, charge lane and dodgeball fan each photographed mid-telegraph, the second half killing the lights, and the breaker putting them back on the key**, **the loopback guest into the School with the host and back out, its mirror in the same building from the seed**, and before that **the School end to end — its door, the panel, the foyer, the gym unchained with the key from the principal's desk, the stand-in boss, and out through the exit to a door chained for the day** — a loopback guest joined, walked and parked, and before that walk, sprint, **a dash photographed mid-burst**, seven districts, a container searched, the pack, a stack dropped and recovered, a wall built, walked into, repaired and salvaged, a hatchet crafted from the six-recipe C tab, broken and mended at the bench that made it, a workbench opened with E and upgraded with its button, the character sheet opened and a point spent, a chest filled, **four raised beds at four stages, the bed panel, compost dug in and a ripe bed harvested on the key**, a save reloaded, a walker shot, a raid, dusk and night, **a worn torch that the dark lit by itself, put out with T and struck again, and the flashlight's cone on a battery**, a treeline set alight, a swing interrupted mid-wind-up and something left bleeding, somebody taken in, the roster opened, a job reassigned, a car found, driven and parked, the town map with its districts, Sixth Sense widening the reveal, a Chemistry Station and the dose it unlocks, the Lurch, a Raider holding its standoff, the pause menu, CONTROLS, a key rebound, a save written, the title screen, and a slot loaded from it, and every cue reaching a voice |
 | World build | ~320ms generation, ~80ms terrain, at boot; a flow field ~2ms |
-| Save format | **v11** — what is in every raised bed: the seed, the feed, the water and the growing banked so far. **Not the stage**, which is derived from the last of those on load exactly as it is in play, so a save can no more carry a stale stage than it can a stale stat. On top of v10's weapon condition (on the slot, so it travels with the weapon), v9's and v8's the Mutation meter and the effect clocks (the band derived on load), and v7's every player by identity, with whether they are here, so a guest's character comes back to them next week (a guest's seat loads parked; the host's never does), on top of v6's the districts you have found (ids only: the rects are `Config`, so a save cannot carry a stale map), on top of v5's what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
+| Save format | **v13** — what the run has found out (`GameSim.known`: the facts, never the derived list) and, per player, what they have looked at and what they pinned; v12 the breached house walls; **v11** — what is in every raised bed: the seed, the feed, the water and the growing banked so far. **Not the stage**, which is derived from the last of those on load exactly as it is in play, so a save can no more carry a stale stage than it can a stale stat. On top of v10's weapon condition (on the slot, so it travels with the weapon), v9's and v8's the Mutation meter and the effect clocks (the band derived on load), and v7's every player by identity, with whether they are here, so a guest's character comes back to them next week (a guest's seat loads parked; the host's never does), on top of v6's the districts you have found (ids only: the rects are `Config`, so a save cannot carry a stale map), on top of v5's what a run changed about the cars (broken, open, fuelled, loaded, and where the driven one stopped), on top of v4's crew (level, job, tower by tile, whatever they are hauling) and who is still out there, on top of v3's clock, v2's build, and v1's tile-derived container identity, world fingerprint and slots under `user://saves/`. No derived stat is ever stored: not the player's, not a survivor's. |
 
 ### Port status by system
 
@@ -306,6 +306,51 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 ---
 
 ## 4. What is built
+
+### Guidance (2026-09-30)
+
+Step B of `tasks/progression-plan.md`: the next thing to do, visible. Three
+pieces, all reading one new sim module.
+
+**`Discovery`: what the run knows how to make, and why.** The facts live on
+`GameSim.known` — every item id anyone has ever held, every recipe crafted
+and piece built, the biggest raid warned about, the highest bench reached —
+and the known set is *derived* from them whenever they change, never
+stored (invariant 4's shape again: a save carries the facts, v13, and a
+table change can never leave it knowing something it has no reason to).
+`Discovery.tick` finds new holdings by looking in every present player's
+pockets each step, so no path an item takes into a pack has to remember to
+say so. The rule per rung and per `wave` on the row (`data/recipes.json`,
+`data/structures.json`, written by `tools/waves.gd`): by hand needs any
+material of the bill held; Foothold the rung reached; Kit the tier's trigger
+in `Config.WAVES` (a material first held); Set anything from the Kit made;
+Second the tier's other material; Defence a raid as big as the tier's
+ceiling; a station recipe its station built. A fresh run knows the
+Workbench and nothing else; a stone in the pack brings the Hatchet.
+`discovery_test` holds every wave to eight rows, which is the flood fix of
+the Progression Map §19. Everything arriving together is one HUD line
+("New at the bench: Hatchet, Stone Hammer …") and a `known` event. A guest
+is sent the list on the world diff (protocol 12) and announces its own
+news from it; the facts stay the host's.
+
+- **The screens show only what is known.** `Crafting.visible_recipes` with
+  a `sim` lists known recipes at or under the bench plus the next rung's
+  Foothold greyed as a teaser (nothing yet: that is step D's Hacksaw); the
+  build menu's categories, page and count are the known pieces. Without a
+  `sim` the whole tier lists, for the data tests and the editor. The dev
+  menu's *Reveal every recipe and buildable* is `Discovery.reveal_all`, and
+  the smoke run uses it after its guidance leg.
+- **NEW until looked at.** `PlayerSim.seen` is what this player has
+  selected; a known card they have not wears a NEW badge on the craft tab
+  and the build menu. Per player, in their save record, never on the wire.
+- **The pin.** `PlayerSim.pinned` is one recipe or buildable, chosen with
+  PIN TO HUD under the craft detail. The HUD's card (`Hud.pin_lines`) says
+  what it still needs by the same `total_res` the bench charges and, for
+  each short material, where it is best looked for — `found` on the
+  material's row in `data/res.json`. The player's own goal, not a quest.
+- **The locked upgrade row** on the bench screen is always there and always
+  priced; once a rung wants a boss item (`key`, step E) it shows the item
+  and the tier's `hint` beside "???".
 
 ### The ladder (2026-09-30)
 
@@ -2133,6 +2178,7 @@ Phases 1–4 respecting it.
 
 | Date | Decision | Why | Reversible? |
 | --- | --- | --- | --- |
+| 2026-09-30 | **Recipes arrive in waves, and what is known is derived from facts** (`Discovery`): held, crafted, built, raid, bench | The plan's three-goal test: the next thing has to be visible without a quest log, and never more than eight things at once. Deriving rather than storing is what lets a table change move a recipe between waves without a save migration. | Yes: `reveal_all` on start, or `wave` 1 on every row |
 | 2026-09-30 | **The workbench ladder**: five tiers in one table, and a tier is everything a chapter unlocks — recipes, buildables, the raid ceiling, the weapon level cap, the crew's jobs | The progression plan: the next thing to do has to be visible, and a ladder with one rung above the first bench cannot show it. Raids following the bench is pillar 6 made a choice. | Yes: the table, and `raid_cap` returning the top for every tier |
 | 2026-09-30 | **The strict start**: bills are paid from the pack only, carry starts at 100, and dying drops the pack but not what you wear or the hotbar | The progression plan (`tasks/progression-plan.md`): the early game needs chores for progress to remove, and the stash paying from anywhere had given the biggest one away with the first Supply Stash. Death softened because the walk back should be for the haul, made armed. | Yes: `bill_stash` returns `sim.stash`, two consts, and `drop_backpack` |
 | 2026-09-15 | **A shot stops at a wall you built** — pillar 3 reversed, with height as the exemption (a turret's rounds and a posted sniper's carry `over`) | Owner's call on the *Multiplayer Playing* playtest: a wall you can stab and shoot through is a wall that only works for the horde. The compound still shoots back, from the pieces that are *supposed* to — which is also a reason to build a Watchtower. | Yes, one branch in `tick_bullets` (drop `structs`), but the raid balance moves with it |
@@ -2950,6 +2996,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-09-30 | **Guidance** (progression step B). `Discovery` (facts on `GameSim.known`, the known set derived; `tick` reads pockets; hooks in `Crafting.craft`, `Structures.place`/`upgrade_bench`, `Raid.start`); `wave` on every recipe and buildable and `found` on every material (`tools/waves.gd`; Padded Leggings to II, Fuel to III); `Config.WAVES` triggers; `visible_recipes` and the build menu filtered to what is known; NEW badges off `PlayerSim.seen`; PIN TO HUD and the HUD's pinned card (`Hud.pin_lines`); the locked upgrade row with `key`/`hint`; save **v13** (facts, seen, pinned); protocol **12** (`known` on the world diff); dev *Reveal every recipe and buildable*. `discovery_test.gd` (13 tests). Smoke: `guidance_new_recipe`, `guidance_pinned`. `tools/test`: 865 tests, 0 failures; `--all` and smoke green |
 | 2026-09-30 | **The ladder** (progression step C). `Config.BENCH_TIERS` I–V with cost, `key` (empty until the bosses), `raid_cap`, `level_cap` and `jobs`; `bench_name` and friends replace every "Workbench II" string; `upgrade_bench` climbs a rung at a time with `bench_upgrade_refusal` beside it; `Raid.start` capped by the bench; `Upgrade.status` capped by the bench; `Survivors.job_refusal`. `tools/ladder.gd` moved 24 recipes and 10 buildables to their chapters and added 10 recipes (Riot Helmet, Tactical Gloves, Combat Boots; Combat Helmet, Arm Guards, Combat Trousers, Assault Boots; Marksman Rifle, Maul, Katana). The editor's Workbenches view lists every tier off the const. `ladder_test.gd` (10 tests). `tools/test`: 851 tests, 0 failures; `--all` 887; smoke 101, 0 failures |
 | 2026-09-30 | **The strict start** (progression step A). Every bill — recipe, structure, repair, bed, weapon level, battery, fuel — is paid from the pack through `PlayerSim.bill_stash`, which allows nothing else yet; a craft is weighed net of its bill (`Crafting._bill_weight`); `carry_cap` 200 → 75 (100 on a starting survivor, 150 at the ceiling); `Loot.drop_backpack` drops the pack and keeps worn gear and the hotbar, handing over the starting weapon only to an unarmed bar. `raid_end` carries `reward`. Tests rewritten to the new rules with break-checks (13 fail against the old code); `_smoke_pocket` and `Smoke.until` in the smoke. `tools/test`: 839 tests, 0 failures; `--all` 876; smoke 101 checkpoints, 0 failures |
 | 2026-09-29 | **The Target Range, PR A** (DL-109, `tasks/target-range.md`). A developer's instance behind F1: a hall, a 60-tile lane and six one-door rooms with walls nothing breaks, six lockers of every weapon at level 1, ammunition, gear and consumables, entered on a baseline build (level 1, no perks, meter clear, empty-handed) and left — by its door or F1 — with your own build and pack back at the main spawn. Dying there gets you up at its entrance; wear is off unless switched on; the held weapon's level moves 1-6. Every control goes through `Actions.range_control`, refused by a release host. Protocol 11. `range_test.gd` (21 tests, two of them a guest over loopback) |

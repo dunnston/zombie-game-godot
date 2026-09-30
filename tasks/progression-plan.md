@@ -74,7 +74,7 @@ Each step is one PR that leaves the game playable.
 
 - [x] A. The strict start: craft and build from the pack, carry 100, keep gear on death (2026-09-30)
 - [x] C. The ladder: bench tiers I–V, recipes moved, raid ceiling, level cap, job gates (2026-09-30; built before B, which points at its tiers)
-- [ ] B. Guidance: recipe waves, the pinned recipe, the locked upgrade row
+- [x] B. Guidance: recipe waves, the pinned recipe, the locked upgrade row (2026-09-30)
 - [ ] D. Steel: Hacksaw, wrecks, Sheet Metal, Forge, chapter 2 recipes, first chore items
 - [ ] E. The Butcher and his barn — **playtest gate: chapters 1 and 2**
 - [ ] F. Power: Electronics Bench, Circuits, Storage Link, Tactical set

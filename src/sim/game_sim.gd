@@ -22,6 +22,9 @@ var human_raids_done := 0
 var time := 0.0
 var rng: Rng
 var stats := {"kills": 0, "deaths": 0, "damage_dealt": 0.0, "damage_taken": 0.0, "looted": 0}
+## What the run has found out (`Discovery`): the facts, and the known set
+## derived from them. Saved as the facts; sent to a guest as the set.
+var known := Discovery.fresh()
 
 ## Piles on the ground, and the packs the dead leave behind.
 var pickups: Array[Dictionary] = []
@@ -103,6 +106,7 @@ func start(world_: World, run_seed: int = 1) -> void:
 	raid = null
 	raids_done = 0
 	human_raids_done = 0
+	known = Discovery.fresh()
 	# A load from inside a run lands in the town: whatever the Instance was
 	# holding is dropped along with it.
 	instance = null
@@ -497,6 +501,9 @@ func tick(dt: float) -> void:
 	for p in players:
 		p.tick(self, dt)
 		_discover(p)
+	# What is in everyone's pockets, after the players' own step has put it
+	# there and before anything reads what is known.
+	Discovery.tick(self)
 	enemies.tick_ai(self, dt)
 	Combat.tick_bullets(self, dt)
 	if town:

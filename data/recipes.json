@@ -35,6 +35,9 @@
     "tool": {
       "type": "string"
     },
+    "wave": {
+      "type": "int"
+    },
     "xp": {
       "type": "int"
     }
@@ -52,6 +55,7 @@
       },
       "id": "bandage",
       "name": "Bandage x2",
+      "wave": 1,
       "xp": 3
     },
     {
@@ -66,6 +70,7 @@
       },
       "id": "axe",
       "name": "Hatchet",
+      "wave": 1,
       "xp": 10
     },
     {
@@ -80,6 +85,7 @@
       },
       "id": "knife",
       "name": "Stone Knife",
+      "wave": 1,
       "xp": 8
     },
     {
@@ -94,6 +100,7 @@
       },
       "id": "pick",
       "name": "Stone Pickaxe",
+      "wave": 1,
       "xp": 12
     },
     {
@@ -108,6 +115,7 @@
       },
       "id": "scythe",
       "name": "Scythe",
+      "wave": 2,
       "xp": 12
     },
     {
@@ -122,6 +130,7 @@
       },
       "id": "hammer",
       "name": "Stone Hammer",
+      "wave": 1,
       "xp": 12
     },
     {
@@ -138,6 +147,7 @@
       "name": "Cloth x4",
       "notes": "Cordage: fiber becomes cloth, but only with a blade to cut it.",
       "tool": "knife",
+      "wave": 2,
       "xp": 4
     },
     {
@@ -152,6 +162,7 @@
       "id": "torch",
       "name": "Torch",
       "notes": "The first night's answer to \"I cannot see\", made of the two things the ground is covered in. It burns itself up, so it is a thing you keep remaking rather than a thing you own once.",
+      "wave": 1,
       "xp": 6
     },
     {
@@ -167,6 +178,7 @@
       "id": "bow",
       "name": "Hunting Bow",
       "notes": "The first bench's quiet answer to a gun: cheap, and a workbench away.",
+      "wave": 2,
       "xp": 18
     },
     {
@@ -183,6 +195,7 @@
       },
       "id": "arrow",
       "name": "Arrows x10",
+      "wave": 2,
       "xp": 3
     },
     {
@@ -199,6 +212,7 @@
       "id": "compost",
       "name": "Compost x2",
       "notes": "A compost heap is a pile of dead plants: first-bench work, so a garden is fed from the same workbench that is the first thing a base builds.",
+      "wave": 4,
       "xp": 3
     },
     {
@@ -211,6 +225,7 @@
       },
       "id": "workGloves",
       "name": "Work Gloves",
+      "wave": 3,
       "xp": 8
     },
     {
@@ -223,6 +238,7 @@
       },
       "id": "denimPants",
       "name": "Work Trousers",
+      "wave": 3,
       "xp": 10
     },
     {
@@ -236,6 +252,7 @@
       },
       "id": "pipe",
       "name": "Steel Pipe",
+      "wave": 2,
       "xp": 12
     },
     {
@@ -251,6 +268,7 @@
       },
       "id": "ammoP",
       "name": "9mm x24",
+      "wave": 4,
       "xp": 6
     },
     {
@@ -265,6 +283,7 @@
       },
       "id": "medkit",
       "name": "Medkit",
+      "wave": 3,
       "xp": 8
     },
     {
@@ -281,6 +300,7 @@
       "id": "serum",
       "name": "Stabilized Neural Serum",
       "notes": "Processing raw tissue is the first thing a base does for you that your hands cannot: three times the suppression, none of the nausea.",
+      "wave": 4,
       "xp": 10
     },
     {
@@ -296,6 +316,7 @@
       "id": "jerky",
       "name": "Dried Meat x2",
       "notes": "Food is bench work, not chemistry: a fire and a pot. Both of these are buffs with a clock on them and neither is ever required.",
+      "wave": 4,
       "xp": 4
     },
     {
@@ -311,6 +332,7 @@
       },
       "id": "hotMeal",
       "name": "Hot Meal",
+      "wave": 4,
       "xp": 6
     },
     {
@@ -327,6 +349,7 @@
       "id": "cornRations",
       "name": "Ration Pack x8  (corn)",
       "notes": "What a garden is actually for. Corn into rations is the important one: the crew eats Rations out of the shared stash, so a corn patch is what stops a base needing a supply run to stay fed. Herbs into medical is deliberately a trickle — two a day against a pharmacy's eight to sixteen in one search — so a long siege stops running you out of bandages without pharmacies losing their reason to exist.",
+      "wave": 4,
       "xp": 8
     },
     {
@@ -342,6 +365,7 @@
       },
       "id": "herbMed",
       "name": "Medical x2  (herbs)",
+      "wave": 4,
       "xp": 8
     },
     {
@@ -359,6 +383,7 @@
       "id": "hotMealVeg",
       "name": "Hot Meal x2  (garden)",
       "notes": "Two meals from your own beds against one from three rations: cooking what you grew is better than cooking what you found, which is the payoff for the days it took.",
+      "wave": 4,
       "xp": 8
     },
     {
@@ -372,6 +397,7 @@
       },
       "id": "machete",
       "name": "Machete",
+      "wave": 2,
       "xp": 25
     },
     {
@@ -387,6 +413,7 @@
       "id": "fireaxe",
       "name": "Fire Axe",
       "notes": "The metal tool tier: the workbench costs wood and wood costs a Hatchet, so these sit exactly one step past the stone tools that got you here.",
+      "wave": 2,
       "xp": 22
     },
     {
@@ -401,6 +428,7 @@
       },
       "id": "steelpick",
       "name": "Steel Pickaxe",
+      "wave": 2,
       "xp": 24
     },
     {
@@ -414,6 +442,7 @@
       },
       "id": "pistol",
       "name": "M9 Pistol",
+      "wave": 4,
       "xp": 35
     },
     {
@@ -427,6 +456,7 @@
       },
       "id": "lightVest",
       "name": "Padded Vest",
+      "wave": 3,
       "xp": 25
     },
     {
@@ -440,6 +470,7 @@
       },
       "id": "workBoots",
       "name": "Work Boots",
+      "wave": 3,
       "xp": 12
     },
     {
@@ -452,10 +483,11 @@
       },
       "id": "hardHat",
       "name": "Hard Hat",
+      "wave": 3,
       "xp": 14
     },
     {
-      "bench": 1,
+      "bench": 2,
       "cost": {
         "cloth": 24,
         "scrap": 10
@@ -465,6 +497,7 @@
       },
       "id": "paddedLegs",
       "name": "Padded Leggings",
+      "wave": 3,
       "xp": 26
     },
     {
@@ -480,6 +513,7 @@
       },
       "id": "ammoS",
       "name": "Shells x14",
+      "wave": 4,
       "xp": 7
     },
     {
@@ -494,6 +528,7 @@
       },
       "id": "lockpick",
       "name": "Lockpicks x3",
+      "wave": 2,
       "xp": 6
     },
     {
@@ -509,10 +544,11 @@
       },
       "id": "rationPack",
       "name": "Ration Pack x8",
+      "wave": 3,
       "xp": 5
     },
     {
-      "bench": 2,
+      "bench": 3,
       "cost": {
         "elec": 4,
         "scrap": 10
@@ -524,6 +560,7 @@
       },
       "id": "fuel",
       "name": "Fuel x25",
+      "wave": 2,
       "xp": 6
     },
     {
@@ -540,6 +577,7 @@
       "id": "battery",
       "name": "Batteries x2",
       "notes": "A battery is findable long before it is craftable — parts bins, desks, glove boxes — so the flashlight is something you scavenge your way into rather than a bench unlock.",
+      "wave": 2,
       "xp": 6
     },
     {
@@ -554,6 +592,7 @@
       },
       "id": "flashlight",
       "name": "Flashlight",
+      "wave": 2,
       "xp": 18
     },
     {
@@ -568,6 +607,7 @@
       },
       "id": "sledge",
       "name": "Sledgehammer",
+      "wave": 2,
       "xp": 45
     },
     {
@@ -582,6 +622,7 @@
       },
       "id": "smg",
       "name": "Scrap SMG",
+      "wave": 4,
       "xp": 60
     },
     {
@@ -596,6 +637,7 @@
       },
       "id": "shotgun",
       "name": "Pump Shotgun",
+      "wave": 4,
       "xp": 60
     },
     {
@@ -611,6 +653,7 @@
       },
       "id": "ammoR",
       "name": "Rifle Rounds x18",
+      "wave": 4,
       "xp": 8
     },
     {
@@ -625,6 +668,7 @@
       },
       "id": "rifle",
       "name": "Hunting Rifle",
+      "wave": 2,
       "xp": 90
     },
     {
@@ -639,6 +683,7 @@
       },
       "id": "heavyVest",
       "name": "Riot Armor",
+      "wave": 3,
       "xp": 70
     },
     {
@@ -654,6 +699,7 @@
       },
       "id": "carbine",
       "name": "Military Carbine",
+      "wave": 3,
       "xp": 150
     },
     {
@@ -668,6 +714,7 @@
       },
       "id": "milVest",
       "name": "Plate Carrier",
+      "wave": 3,
       "xp": 120
     },
     {
@@ -686,6 +733,7 @@
       "name": "Refined Suppressant",
       "notes": "The chemistry. `station` is a *different* gate to `bench`: standing at a Chemistry Station is what unlocks these, and no amount of workbench upgrading ever will. `bench` stays 0 for exactly that reason — the two gates are independent, and reading `bench: 2` here would suggest the ladder had anything to do with it.",
       "station": "chem",
+      "wave": 1,
       "xp": 30
     },
     {
@@ -703,6 +751,7 @@
       "id": "experimental",
       "name": "Experimental Suppressant",
       "station": "chem",
+      "wave": 1,
       "xp": 60
     },
     {
@@ -721,6 +770,7 @@
       "name": "Mutagen Sludge x2",
       "notes": "The Chemistry Station's second job, and the same bet the whole game is built on: spend the brain matter that holds the meter down and the ground gives you far more back, far faster.",
       "station": "chem",
+      "wave": 1,
       "xp": 12
     },
     {
@@ -734,6 +784,7 @@
       },
       "id": "woodenSpear",
       "name": "Wooden Spear",
+      "wave": 2,
       "xp": 8
     },
     {
@@ -748,6 +799,7 @@
       },
       "id": "makeshiftConcreteClub",
       "name": "Makeshift Concrete Club",
+      "wave": 2,
       "xp": 20
     },
     {
@@ -762,6 +814,7 @@
       },
       "id": "doubleBitAxe",
       "name": "Double-Bit Axe",
+      "wave": 3,
       "xp": 40
     },
     {
@@ -777,6 +830,7 @@
       },
       "id": "compoundBow",
       "name": "Compound Bow",
+      "wave": 4,
       "xp": 30
     },
     {
@@ -791,6 +845,7 @@
       },
       "id": "metalSpear",
       "name": "Metal Spear",
+      "wave": 2,
       "xp": 24
     },
     {
@@ -805,6 +860,7 @@
       },
       "id": "bladedPike",
       "name": "Bladed Pike",
+      "wave": 2,
       "xp": 45
     },
     {
@@ -818,6 +874,7 @@
       },
       "id": "leafSpringBlade",
       "name": "Leaf-Spring Blade",
+      "wave": 3,
       "xp": 45
     },
     {
@@ -831,6 +888,7 @@
       },
       "id": "pistonHammer",
       "name": "Piston Hammer",
+      "wave": 3,
       "xp": 45
     },
     {
@@ -845,6 +903,7 @@
       },
       "id": "crossbow",
       "name": "Crossbow",
+      "wave": 2,
       "xp": 55
     },
     {
@@ -859,6 +918,7 @@
       },
       "id": "pipeShotgun",
       "name": "Pipe Shotgun",
+      "wave": 4,
       "xp": 35
     },
     {
@@ -873,6 +933,7 @@
       },
       "id": "machinePistol",
       "name": "Machine Pistol",
+      "wave": 4,
       "xp": 70
     },
     {
@@ -886,6 +947,7 @@
       },
       "id": "riotHelm",
       "name": "Riot Helmet",
+      "wave": 3,
       "xp": 20
     },
     {
@@ -899,6 +961,7 @@
       },
       "id": "tacGloves",
       "name": "Tactical Gloves",
+      "wave": 3,
       "xp": 12
     },
     {
@@ -912,6 +975,7 @@
       },
       "id": "combatBoots",
       "name": "Combat Boots",
+      "wave": 3,
       "xp": 14
     },
     {
@@ -926,6 +990,7 @@
       },
       "id": "milHelm",
       "name": "Combat Helmet",
+      "wave": 3,
       "xp": 60
     },
     {
@@ -939,6 +1004,7 @@
       },
       "id": "armGuards",
       "name": "Arm Guards",
+      "wave": 3,
       "xp": 40
     },
     {
@@ -953,6 +1019,7 @@
       },
       "id": "milGreaves",
       "name": "Combat Trousers",
+      "wave": 3,
       "xp": 60
     },
     {
@@ -967,6 +1034,7 @@
       },
       "id": "milBoots",
       "name": "Assault Boots",
+      "wave": 3,
       "xp": 40
     },
     {
@@ -982,6 +1050,7 @@
       },
       "id": "marksmanRifle",
       "name": "Marksman Rifle",
+      "wave": 3,
       "xp": 140
     },
     {
@@ -997,6 +1066,7 @@
       },
       "id": "maul",
       "name": "Maul",
+      "wave": 2,
       "xp": 60
     },
     {
@@ -1011,6 +1081,7 @@
       },
       "id": "katana",
       "name": "Katana",
+      "wave": 2,
       "xp": 80
     }
   ],

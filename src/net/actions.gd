@@ -35,6 +35,24 @@ static func craft(sim: GameSim, p: PlayerSim, recipe: Dictionary, bench: int, n 
 	return Crafting.start(sim, p, recipe, bench, n)
 
 
+## Guidance (step B). Both are the player's own and live on the host's copy
+## of them, so a guest's go over the wire like everything else that a save
+## keeps (Codex, PR #65) — and are set on the mirror at once, so the screen
+## does not wait a round trip to drop a NEW badge.
+static func mark_seen(_sim: GameSim, p: PlayerSim, key: String) -> void:
+	if p.seen.has(key):
+		return
+	p.seen[key] = true
+	_remote("mark_seen", {"key": key})
+
+
+## Pin, or unpin by pinning again. The value is sent, not the toggle, so the
+## host and the mirror cannot end up on opposite sides of it.
+static func pin(_sim: GameSim, p: PlayerSim, key: String) -> void:
+	p.pinned = "" if p.pinned == key else key
+	_remote("pin", {"key": p.pinned})
+
+
 static func cancel_craft(sim: GameSim, p: PlayerSim) -> bool:
 	if _remote("cancel_craft", {}):
 		return false
@@ -293,6 +311,18 @@ static func execute(sim: GameSim, p: PlayerSim, name_: String, a: Dictionary) ->
 				clampi(int(a.get("n", 1)), 1, 99))
 		"cancel_craft":
 			return Crafting.cancel(sim, p)
+		"mark_seen":
+			var key := String(a.get("key", ""))
+			if not Discovery.is_key(key):
+				return false
+			p.seen[key] = true
+			return true
+		"pin":
+			var key := String(a.get("key", ""))
+			if not key.is_empty() and not Discovery.is_key(key):
+				return false
+			p.pinned = key
+			return true
 		"recycle":
 			return not Recycle.recycle(sim, p, String(a.get("cont", "")), int(a.get("i", -1))).is_empty()
 		"repair_weapon":

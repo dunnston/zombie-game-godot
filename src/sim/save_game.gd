@@ -13,7 +13,7 @@ extends RefCounted
 ## the version and the reason rather than loaded into a world that has moved
 ## underneath it.
 
-const VERSION := 12
+const VERSION := 13
 const DIR := "user://saves"
 
 ## Fields of a structure that are worth remembering. Everything else is
@@ -91,6 +91,9 @@ static func _town_dict(sim: GameSim, inst: Instance) -> Dictionary:
 			"light_doused": p.light_doused, "light_charge": p.light_charge.duplicate(),
 			"spawn_tx": p.spawn_tile.x, "spawn_ty": p.spawn_tile.y,
 			"driving_id": p.driving_id, "car_keys": p.car_keys.duplicate(),
+			# Guidance (v13): what this player has looked at, and what they
+			# are working toward.
+			"seen": p.seen.keys(), "pinned": p.pinned,
 		}
 		# Everyone who went in, here or dropped: nobody is written down inside
 		# a map that a save never keeps.
@@ -126,6 +129,11 @@ static func _town_dict(sim: GameSim, inst: Instance) -> Dictionary:
 		"raids_done": sim.raids_done, "human_raids_done": sim.human_raids_done,
 		"threat": sim.threat.value,
 		"bench_tier": sim.structs.bench_tier,
+		# What the run has found out (v13): the facts, never the list derived
+		# from them, so a table change can never leave a save knowing a thing
+		# it has no reason to.
+		"known": {"held": sim.known.held.keys(), "crafted": sim.known.crafted.keys(),
+			"built": sim.known.built.keys(), "raid_max": sim.known.raid_max, "bench_max": sim.known.bench_max},
 		"stats": sim.stats.duplicate(),
 		"players": players,
 		"looted": looted,
@@ -215,6 +223,16 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 	sim.threat.value = float(data.get("threat", 0.0))
 	sim.threat.tier = Threat.tier_of(sim.threat.value)
 	sim.structs.bench_tier = int(data.get("bench_tier", 0))
+	var kn: Dictionary = data.get("known", {})
+	for id in kn.get("held", []):
+		sim.known.held[String(id)] = true
+	for id in kn.get("crafted", []):
+		sim.known.crafted[String(id)] = true
+	for id in kn.get("built", []):
+		sim.known.built[String(id)] = true
+	sim.known.raid_max = int(kn.get("raid_max", -1))
+	sim.known.bench_max = maxi(int(kn.get("bench_max", 0)), sim.structs.bench_tier)
+	sim.known.dirty = true
 	for k in data.get("cleared", {}):
 		sim.cleared[String(k)] = int(data.cleared[k])
 	for k in data.get("stats", {}):
@@ -293,6 +311,9 @@ static func apply(sim: GameSim, data: Dictionary, reuse: World = null) -> Dictio
 			p.equip[k] = String(rec.equip[k])
 		for k in rec.get("mag", {}):
 			p.mag[k] = int(rec.mag[k])
+		for key in rec.get("seen", []):
+			p.seen[String(key)] = true
+		p.pinned = String(rec.get("pinned", ""))
 		p.light_id = String(rec.get("light_id", ""))
 		p.light_fuel = float(rec.get("light_fuel", 0.0))
 		for k in rec.get("light_charge", {}):

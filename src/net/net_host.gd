@@ -29,6 +29,7 @@ var _looted_seen := {}
 var _chopped_sent := 0
 var _breached_sent := 0
 var _discovered_seen := {}
+var _known_hash := ""
 var _rescues_hash := ""
 var _roster_hash := ""
 ## Events the view has already been shown are still in `sim.events` until
@@ -68,6 +69,7 @@ func _reset_world_baseline() -> void:
 	_chopped_sent = 0
 	_breached_sent = 0
 	_discovered_seen.clear()
+	_known_hash = ""
 	_rescues_hash = ""
 
 
@@ -483,6 +485,12 @@ func _send_world_diff(g: Dictionary, force: bool) -> void:
 		d["roster"] = roster
 
 	d["bench"] = sim.structs.bench_tier
+	# What the run knows how to make (`Discovery`), as the list: the facts are
+	# the host's, and a guest only needs to draw the same cards.
+	var known := Discovery.known_keys(sim)
+	var ktext := var_to_str(known)
+	if force or ktext != _known_hash:
+		d["known"] = known
 	# The run, as this guest needs it: small, and it carries the per-seat
 	# tally no other message has, so it goes every time one is on.
 	if sim.instance != null:
@@ -504,6 +512,7 @@ func _send_world_diff(g: Dictionary, force: bool) -> void:
 			_discovered_seen[id] = true
 		_rescues_hash = rtext
 		_roster_hash = rostext
+		_known_hash = ktext
 
 
 func _last_guest() -> Dictionary:

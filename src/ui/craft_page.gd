@@ -188,8 +188,18 @@ func build(s: InventoryScreen, col: VBoxContainer) -> void:
 		# to look at a bench must never be the key that spends on it.
 		if is_wb and tier < Config.MAX_BENCH:
 			var next: Dictionary = Config.BENCH_TIERS[tier + 1]
+			# The locked upgrade row (guidance, step B): always here, always
+			# priced, and once a rung wants a boss item it says which and where
+			# (`hint` on the tier) — the far goal, on the bench you use every day.
+			var why := s.sim.structs.bench_upgrade_refusal(s.sim, bs, s.player)
+			var key := String(next.get("key", ""))
+			var price := Structures.cost_label(next.cost)
+			if not key.is_empty():
+				price = "%s + %s" % [Items.name_of(key), price]
 			var face := Ui.hbox(14, [Ui.label("Upgrade to %s" % String(next.name), "Caps13", Ui.ACCENT_HI), Ui.rule(true, 18, Ui.LINE),
-				Ui.label(Structures.cost_label(next.cost), "Mono", Ui.TEXT_DIM)])
+				Ui.label(price, "Mono", Ui.TEXT_DIM if why.is_empty() else Ui.TEXT_OFF)])
+			if why.begins_with("Needs the"):
+				face.add_child(Ui.label("— ???  " + String(next.get("hint", "")), "Small", Ui.SHORT))
 			for c in face.get_children():
 				(c as Control).size_flags_vertical = Control.SIZE_SHRINK_CENTER
 			var up := Ui.face_button("SecondaryOn", Ui.pad(face, 16, 0, 16, 0), func() -> void: s._press_button("upgrade"))
@@ -360,7 +370,8 @@ func _on_hand_ids(s: InventoryScreen) -> Array:
 
 func _centre_sig(s: InventoryScreen) -> String:
 	var rows := visible_rows(s)
-	var sig := "%s|%s|%s|%s|%s|" % [s.craft_cat, s.craft_search, str(s.craft_filter), s.craft_sel, s.player.crafting.get("id", "")]
+	var sig := "%s|%s|%s|%s|%s|%s|%d|" % [s.craft_cat, s.craft_search, str(s.craft_filter), s.craft_sel, s.player.crafting.get("id", ""),
+		s.player.pinned, s.player.seen.size()]
 	for row in rows:
 		var st := status_of(s, row)
 		sig += "%s:%s:%s:%s," % [row.key, str(st.ok), String(st.reason), str(_cost_of(s, row))]
@@ -440,7 +451,14 @@ func _card(s: InventoryScreen, row: Dictionary, on: bool) -> Button:
 	# second line rather than widening its column (`Ui.card_grid`).
 	var name_l := Ui.para(String(r.name), "ItemName", Ui.TEXT_OFF if is_locked else (Ui.TEXT_DIM if short else Ui.TEXT_HIGH))
 	var cls := Ui.expand(Ui.label(Ui.kind_line(id), "Small", Ui.TEXT_FAINT if is_locked else Ui.TEXT_DIM))
-	var top := Ui.hbox(12, [tile, Ui.expand(Ui.vbox(5, [name_l, cls]))])
+	var head := Ui.vbox(5, [name_l, cls])
+	# Guidance: a thing the run has just found out how to make wears a mark
+	# until this player looks at it, and the one they pinned says so.
+	if not is_locked and s.is_new(String(r.id)):
+		head.add_child(Ui.badge("NEW", Ui.ACCENT_HI))
+	elif s.player.pinned == String(r.id):
+		head.add_child(Ui.badge("PINNED", Ui.XP))
+	var top := Ui.hbox(12, [tile, Ui.expand(head)])
 	var bill: Control
 	if is_locked:
 		bill = Ui.para(Structures.cost_label(r.cost), "Mono12", Ui.TEXT_FAINT)
@@ -570,8 +588,8 @@ func _detail_sig(s: InventoryScreen) -> String:
 	var have := ""
 	for id in _cost_of(s, sel):
 		have += str(s.player.total_res(s.sim, id)) + ","
-	return "%s|%s|%s|%d|%s|%s|%s" % [sel.key, str(st.ok), String(st.reason), s.craft_qty, have, str(_cost_of(s, sel)),
-		s.player.crafting.get("id", "")]
+	return "%s|%s|%s|%d|%s|%s|%s|%s" % [sel.key, str(st.ok), String(st.reason), s.craft_qty, have, str(_cost_of(s, sel)),
+		s.player.crafting.get("id", ""), s.player.pinned]
 
 
 func _build_detail(s: InventoryScreen, box: Container) -> void:
@@ -579,6 +597,10 @@ func _build_detail(s: InventoryScreen, box: Container) -> void:
 	if sel.is_empty():
 		box.add_child(Ui.pad(Ui.para("Choose something on the left.", "Body14", Ui.TEXT_DIM), 20))
 		return
+	# Looking at it is what clears NEW — whatever selected it, a click or the
+	# arrow keys (Codex, PR #65). The detail is built once per selection.
+	if sel.has("recipe"):
+		s.mark_seen(String(sel.recipe.id))
 	var id := ""
 	var title := name_of(sel)
 	var cls := ""
@@ -798,7 +820,29 @@ func _action_block(s: InventoryScreen, sel: Dictionary, st: Dictionary) -> Panel
 	row.add_child(primary)
 	col.add_child(row)
 	col.add_child(_note_line(s, sel, most))
+	if sel.has("recipe"):
+		col.add_child(_pin_row(s, String(sel.recipe.id)))
 	return Ui.boxed(Ui.edge(Ui.BASE, Ui.LINE, 0, 1, 0, 0, 20, 20), col)
+
+
+## PIN or UNPIN: the one recipe on the HUD, with what it still needs and
+## where to look. The player's own goal, not a quest.
+func _pin_row(s: InventoryScreen, key: String) -> Control:
+	var on := s.player.pinned == key
+	var face := Ui.hbox(10, [Ui.label("UNPIN" if on else "PIN TO HUD", "Caps13", Ui.INK if on else Ui.TEXT_HIGH),
+		Ui.label("what it needs, and where", "Small", Color(Ui.INK, 0.7) if on else Ui.TEXT_DIM)])
+	for c in face.get_children():
+		(c as Control).size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var b := Ui.face_button("SecondaryOn" if on else "Secondary", Ui.pad(face, 14, 0, 14, 0), func() -> void: s._press_button("pin"))
+	b.custom_minimum_size.y = 36
+	s.reg_button("pin", b)
+	return b
+
+
+func pin(s: InventoryScreen) -> void:
+	var sel := _selected(s, visible_rows(s))
+	if sel.has("recipe"):
+		s.toggle_pin(String(sel.recipe.id))
 
 
 ## The line under the button: what the action costs besides materials — or,
@@ -844,7 +888,9 @@ func _do(s: InventoryScreen, row: Dictionary, times := 1) -> void:
 
 
 func press(s: InventoryScreen, id: String) -> void:
-	if id == "cancel_craft":
+	if id == "pin":
+		pin(s)
+	elif id == "cancel_craft":
 		Actions.cancel_craft(s.sim, s.player)
 	elif id == "craft":
 		var sel := _selected(s, visible_rows(s))
