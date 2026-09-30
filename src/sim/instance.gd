@@ -51,6 +51,10 @@ var party: Array[int] = []
 var mirror := false
 ## The boss has killed the lights, and the breaker has not put them back.
 var dark := false
+## The Target Range's own (`TargetRange`): what each seat walked in with, held
+## until they leave, and whether a weapon's uses are spent in here.
+var range_held := {}
+var range_wear := false
 
 
 ## Exchanges every map field with `held`. Entering, leaving, and the two sides
@@ -149,12 +153,20 @@ static func enter(sim: GameSim, p: PlayerSim, kind: String) -> bool:
 	if not why.is_empty():
 		sim.notify(why, "#c96a5a")
 		return false
+	begin(sim, kind, f.stand)
+	sim.notify("%s — what you find in here leaves only past the boss" % title(kind), "#d8c98a", true)
+	return true
+
+
+## The swap itself, and everyone present into the new map: what going in is,
+## once whatever door it was has agreed. `door` is where the party comes out.
+static func begin(sim: GameSim, kind: String, door_at: Vector2) -> Instance:
 	var inst := Instance.new()
 	inst.kind = kind
 	inst.def = Config.INSTANCES[kind]
 	# A fresh roll every time you go in.
 	inst.run_seed = sim.rng.irange(1, 0x3FFFFFFF)
-	inst.door = f.stand
+	inst.door = door_at
 	inst.held = inst._interior(sim.clock.day)
 	inst.swap(sim)
 	sim.instance = inst
@@ -167,8 +179,7 @@ static func enter(sim: GameSim, p: PlayerSim, kind: String) -> bool:
 		inst.party.append(q.seat)
 	inst._populate(sim)
 	sim.emit({"t": "instance_enter", "kind": kind})
-	sim.notify("%s — what you find in here leaves only past the boss" % title(kind), "#d8c98a", true)
-	return true
+	return inst
 
 
 ## A fresh set of map objects for the inside: its own world, a frozen clock at
@@ -196,6 +207,8 @@ func _interior(day: int) -> Dictionary:
 ## standing-population spawner is what makes the town never quiet, and a
 ## dungeon has to be clearable (§7).
 func _populate(sim: GameSim) -> void:
+	if not def.has("boss"):
+		return
 	var tier := int(def.tier)
 	for at in sim.world.enemy_spots:
 		sim.enemies.spawn(sim.enemies.pick_type(tier), at)
@@ -237,6 +250,9 @@ func tick(sim: GameSim, dt: float) -> void:
 		# with anything. With anyone still standing it is an extraction, and
 		# the party rule brings the fallen out with everything.
 		var outcome := leaving
+		if outcome == "range":
+			TargetRange.leave(sim)
+			return
 		if outcome == "extracted" and _nobody_standing(sim):
 			outcome = "wiped"
 		leave(sim, outcome)
@@ -251,6 +267,10 @@ func tick(sim: GameSim, dt: float) -> void:
 		state = "cleared"
 		sim.notify("It is down. Walk out with everything you found — the doors are open", "#ffe08a", true)
 		sim.emit({"t": "instance_cleared", "kind": kind})
+	# The range has no wipe: a death there gets up at the entrance
+	# (`Damage.respawn_player`), because testing what hurts is the point.
+	if kind == "range":
+		return
 	# A wipe: everyone present is dead and has had their moment on the floor.
 	# Nobody comes back inside on their own (`Damage.respawn_player`).
 	var present := sim.present_players()
@@ -438,6 +458,12 @@ static func _nobody_standing(sim: GameSim) -> bool:
 	return true
 
 
+## Whether finds go in the haul: inside an instance, and not the range — in
+## there nothing is carried out, so a find is simply yours until you leave.
+static func haul_open(sim: GameSim) -> bool:
+	return sim.instance != null and not bool(sim.instance.def.get("dev", false))
+
+
 ## What the haul counts against its cap (Codex, PR #31). Not the pouch's own
 ## weight: a find moved into the pack is still a find, and counting only the
 ## pouch let a full haul be emptied into spare pack space and filled again.
@@ -510,9 +536,15 @@ static func mirror_enter(sim: GameSim, kind: String, seed: int, day: int) -> voi
 	inst.mirror = true
 	var f := door_for(sim, kind)
 	inst.door = f.stand if not f.is_empty() else Vector2.ZERO
+	if kind == "range":
+		inst.door = TargetRange.main_spawn(sim)
 	inst.held = inst._interior(day)
 	inst.swap(sim)
 	sim.instance = inst
+	# The range's lockers are built, not generated: the same tiles and sizes
+	# as the host's, so the stores it sends by tile land in them.
+	if kind == "range":
+		TargetRange.furnish(sim)
 	var present := sim.present_players()
 	for i in range(present.size()):
 		present[i].pos = arrival(sim.world, i, present.size())
@@ -546,13 +578,14 @@ func record(sim: GameSim, seat: int) -> Dictionary:
 			var t0: Vector2i = f.tiles[0]
 			opened.append([t0.x, t0.y])
 	return {"st": state, "keys": keys.keys(), "open": opened, "t": snappedf(t, 0.1),
-		"g": gained.get(seat, {}).duplicate(), "dark": dark}
+		"g": gained.get(seat, {}).duplicate(), "dark": dark, "wear": range_wear}
 
 
 func apply_record(sim: GameSim, rec: Dictionary, seat: int) -> void:
 	state = String(rec.get("st", state))
 	# For the breaker's prompt; the light itself follows the host's clock.
 	dark = bool(rec.get("dark", dark))
+	range_wear = bool(rec.get("wear", range_wear))
 	keys.clear()
 	for k in rec.get("keys", []):
 		keys[String(k)] = true
@@ -578,6 +611,12 @@ func apply_record(sim: GameSim, rec: Dictionary, seat: int) -> void:
 ## What a save written now would say `p` has: walked out without the boss.
 ## Worked out on a copy, so writing the save changes nothing about the run.
 func walked_out_record(p: PlayerSim) -> Dictionary:
+	# The range: what they walked in with, at the spot they would come out.
+	if kind == "range":
+		var rec: Dictionary = range_held.get(p.seat, {}).duplicate(true)
+		rec["x"] = door.x
+		rec["y"] = door.y
+		return rec
 	var ghost := PlayerSim.new()
 	ghost.seat = p.seat
 	ghost.bag.from_record(p.bag.to_record())

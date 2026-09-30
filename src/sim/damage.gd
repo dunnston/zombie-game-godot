@@ -322,6 +322,9 @@ static func kill_player(sim: GameSim, p: PlayerSim, cause := "died") -> void:
 	# Inside an instance there is no pack to leave: when the run ends you come
 	# out with what you brought, less what you found (`Instance.leave`), and
 	# nothing is left lying in a map that is about to stop existing.
+	if TargetRange.is_range(sim):
+		sim.notify("%s — you get up at the range entrance" % head, col, true)
+		return
 	if sim.instance != null:
 		sim.notify("%s — %s keeps what you found" % [head, Instance.title(sim.instance.kind)], col, true)
 		return
@@ -380,9 +383,14 @@ static func heal_player(sim: GameSim, p: PlayerSim, amount: float) -> float:
 ## ends — and `note` is what the screen says about it.
 static func respawn_player(sim: GameSim, p: PlayerSim, at := Vector2.INF, note := "") -> void:
 	# Inside an instance nobody comes back on their own: the run ends when the
-	# party does (`Instance.tick`), and everyone wakes outside its door.
+	# party does (`Instance.tick`), and everyone wakes outside its door. The
+	# Target Range is the exception — you get up at its entrance, carrying
+	# what you had, because finding out what hurts is what it is for.
 	if sim.instance != null and at == Vector2.INF:
-		return
+		if not TargetRange.is_range(sim):
+			return
+		at = sim.world.unstick(sim.world.entry_spot, p.r, sim.structs)
+		note = "Back on your feet at the range entrance" if note.is_empty() else note
 	# A bedroll is a respawn point: waking up beside your own base is the
 	# whole reason to have built one.
 	var at_bedroll := false

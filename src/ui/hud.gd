@@ -503,7 +503,7 @@ func refresh() -> void:
 		# Inside an instance nobody comes back on their own: the run ends when
 		# the party does. Counting down to 0.0 and then sitting there was the
 		# owner's "respawn counts to 0.0 and then takes some time".
-		if sim.instance != null:
+		if sim.instance != null and not TargetRange.is_range(sim):
 			Ui.set_text(_dead_line, "Waiting for the party — you wake outside when the run ends")
 		else:
 			Ui.set_text(_dead_line, "Respawning in %.1f" % maxf(0.0, p.respawn_t))

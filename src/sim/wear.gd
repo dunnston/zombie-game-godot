@@ -118,6 +118,10 @@ static func use_held(sim: GameSim, p: PlayerSim, n := 1) -> void:
 static func use(sim: GameSim, p: PlayerSim, cont: Slots, i: int, n := 1) -> void:
 	if cont == null or n <= 0:
 		return
+	# The Target Range spends no uses unless it is asked to (`TargetRange`):
+	# a test of how a weapon hits should not be cut short by how it wears.
+	if TargetRange.is_range(sim) and not sim.instance.range_wear:
+		return
 	var id := cont.id_at(i)
 	if not wears(id):
 		return

@@ -64,6 +64,12 @@ var boss_spot := Vector2.ZERO
 ## fight is framed for. And where its whistle's team comes in.
 var arena := Rect2i()
 var add_spots: Array[Vector2] = []
+## The Target Range's layout (`TargetRange`): the firing lane, the rooms the
+## live enemies are kept in, and the tiles its lockers stand on — in tiles,
+## like `arena`, and built identically on a guest from the same layout.
+var range_lane := Rect2i()
+var range_rooms: Array[Rect2i] = []
+var range_lockers: Array[Vector2i] = []
 ## The town's fingerprint before the instance buildings were stamped on it. A
 ## save written before the School existed carries this one (`accepts_fingerprint`).
 var base_fingerprint := 0
@@ -694,6 +700,10 @@ func _generate() -> void:
 func _gen_instances() -> void:
 	for kind: String in Config.INSTANCES:
 		var d: Dictionary = Config.INSTANCES[kind]
+		# A developer's instance (the Target Range) has no building in the
+		# town: it is reached from the F1 menu, so the town is not touched.
+		if not d.has("shell"):
+			continue
 		var r: Rect2i = d.shell
 		var lot: Rect2i = d.lot
 		_clear_props(r.merge(lot))
@@ -758,6 +768,8 @@ func _generate_instance() -> void:
 	match layout:
 		"school":
 			_gen_school(d)
+		"range":
+			_gen_range()
 
 
 ## A room: its border becomes wall wherever it is still roof, so two rooms can
@@ -911,6 +923,34 @@ func _gen_school(d: Dictionary) -> void:
 	_spots_in(cafeteria, _pop(d, "cafeteria"))
 	_spots_in(nurse, _pop(d, "small"))
 	_spots_in(office, _pop(d, "small"))
+
+
+## The Target Range. Fixed, not rolled — the point is to test the same thing
+## twice. The hall you arrive in holds the lockers and the way out; north of
+## it the firing lane runs east from the hall's end, `Config.RANGE.lane_len`
+## tiles of it; east of it six rooms for the live enemies open, each by one
+## doorway, onto a corridor back to the hall.
+func _gen_range() -> void:
+	var lane_len := int(Config.RANGE.lane_len)
+	_room(100, 148, 30, 16)
+	var lane := _room(100, 136, lane_len + 2, 13)
+	_room(129, 159, 68, 5)
+	range_lane = Rect2i(lane.position + Vector2i.ONE, lane.size - Vector2i(2, 2))
+	range_rooms.clear()
+	for i in range(6):
+		var r := _room(129 + i * 11, 148, 12, 12)
+		range_rooms.append(r)
+		# One doorway, two tiles wide, in the middle of the south wall.
+		_gap(r.position.x + 5, r.end.y - 1, 2, 1)
+	# The hall opens onto the lane at its west end and onto the corridor.
+	_gap(101, 148, 6, 1)
+	_gap(129, 160, 1, 3)
+	_door(Rect2i(113, 163, 4, 1), "range_exit")
+	entry_spot = Vector2(115 * TILE, 161 * TILE + TILE / 2.0)
+	range_lockers.clear()
+	for x in [102, 106, 110, 119, 123, 127]:
+		# Three rows in from the lane's doorway, so the way through stays open.
+		range_lockers.append(Vector2i(x, 152))
 
 
 func _gen_town() -> void:
@@ -1630,6 +1670,10 @@ func wall_hp_at(ti: int) -> float:
 ## "existing house can't be destroyed, this is OP" (2026-09-15).
 func damage_wall(tx: int, ty: int, amount: float) -> bool:
 	if not in_bounds(tx, ty) or amount <= 0.0:
+		return false
+	# The Target Range's walls are what keep its live rooms live rooms: nothing
+	# in there is ever let out by chewing through one.
+	if layout == "range":
 		return false
 	var ti := ty * W + tx
 	if tiles[ti] != T.WALL:
