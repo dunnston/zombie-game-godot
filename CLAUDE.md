@@ -33,6 +33,12 @@ to WebRTC", "room codes", "UPnP didn't work", "my friend can't connect",
   session, move cards as you go, put the PR link on a shipped card), the
   *Playtest Log*, and the design pages. The Linear import of 2026-09-10 was
   never adopted; do not read or write Linear.
+- **The progression plan is the direction (owner, 2026-09-30).** Five
+  chapters, boss-gated workbench tiers, a strict start whose chores are
+  crafted away. Read `tasks/progression-plan.md` (pointer, decisions, build
+  order) and the Notion page *Progression Map*
+  (`3eb10d456b168109b2b9fb53380e759c`) before touching progression, recipes,
+  benches, bosses or the early game. Not built yet.
 - **Content is designed in Notion, read from `data/`:** DEADLINE → *Items & Crafting*
   (page `3d610d456b16816fbf35d781eeaccb11`) holds the Items, Workbenches and
   Loot Sources tables. Items has eleven categories with a tab each, and its

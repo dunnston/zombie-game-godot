@@ -2162,6 +2162,16 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
 
 ### Next up
 
+0. **The progression plan (owner, 2026-09-30) — this is the direction now.**
+   Five chapters, a dungeon boss closing each, the boss drop upgrading the
+   workbench, a strict start whose chores are removed by things you craft.
+   The full plan is the *Progression Map* page in Notion; the pointer, the
+   decisions and the build order (steps A–K) are in
+   **`tasks/progression-plan.md`**. None of it is built. It changes three
+   things written elsewhere in this document: crafting tiers are gated by
+   boss kills (pillar 2 still holds for places), the shared stash gets a
+   reach (the question two items down is answered), and the four-dungeon
+   ladder in `tasks/instanced-dungeons.md` §11 is superseded.
 0. **Walk into the School.** PR B's gate. The dev menu has *Walk into Pine
    Hollow High* and *Put down the School's boss*, so the way out can be seen
    without the fight. The questions: does the building read as somewhere you
