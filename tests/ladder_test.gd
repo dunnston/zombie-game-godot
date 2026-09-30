@@ -81,6 +81,12 @@ func test_bench_names_are_the_ladders() -> void:
 	eq(Config.bench_name(2), "Workbench II")
 	eq(Config.bench_name(5), "Workbench V")
 	eq(Config.bench_name(99), "Workbench V", "clamped, never a crash")
+	# What a bench wears in the world (Codex, PR #64): the numeral off its
+	# own name, so two upgraded benches in one base can be told apart.
+	eq(Config.bench_numeral(1), "")
+	eq(Config.bench_numeral(2), "II")
+	eq(Config.bench_numeral(3), "III")
+	eq(Config.bench_numeral(5), "V")
 
 
 # ---------------------------------------------------------------- climbing --

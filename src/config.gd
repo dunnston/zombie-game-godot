@@ -1711,6 +1711,15 @@ static func bench_name(tier: int) -> String:
 	return String(BENCH_TIERS[clampi(tier, 1, MAX_BENCH)].name)
 
 
+## The numeral a bench of this tier wears in the world: nothing for the
+## first, then II to V, so two upgraded benches in one base can be told apart
+## (Codex, PR #64). The name is the tier's own, so the two cannot drift.
+static func bench_numeral(tier: int) -> String:
+	if tier <= 1:
+		return ""
+	return bench_name(tier).trim_prefix("Workbench ")
+
+
 ## The biggest raid index the world sends a base of this tier. No bench at
 ## all is the first raid, the same as the first bench; the top of the ladder
 ## holds nothing back, so the scaling past the last spec (`raid_spec`) is
