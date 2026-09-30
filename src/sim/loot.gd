@@ -467,23 +467,33 @@ static func drop_backpack(sim: GameSim, p: PlayerSim) -> Dictionary:
 			var lv := Upgrade.level(p.bag, i)
 			levels[wid] = mini(int(levels.get(wid, lv)), lv)
 	# Nothing to fight with on the bar: the starting weapon, out of the pack
-	# if one is in there and out of thin air if not.
+	# if one is in there and out of thin air if not. It keeps the condition
+	# and the level it had in the pack (Codex, PR #63) — the worst of two, as
+	# the pack's own record does — so dying never mends or unlevels it.
 	var armed := false
 	for i in range(p.hotbar.size()):
 		if Config.WEAPONS.has(p.hotbar.id_at(i)):
 			armed = true
 			break
 	var keep := ""
+	var keep_wear := -1
+	var keep_lv := 0
 	if not armed:
 		keep = p.start_weapon
 		if held.has(keep):
 			held[keep] -= 1
 			if held[keep] <= 0:
 				held.erase(keep)
+			keep_wear = int(worn.get(keep, -1))
+			keep_lv = int(levels.get(keep, 0))
 
 	p.bag.clear_all()
 	if not keep.is_empty():
-		p.hotbar.add(keep, 1)
+		# A bar full of bandages has no weapon on it and no room either
+		# (Codex, PR #63): the pack has just been emptied, so it goes there
+		# rather than nowhere.
+		if p.hotbar.add(keep, 1, keep_wear, keep_lv) == 0:
+			p.bag.add(keep, 1, keep_wear, keep_lv)
 
 	if held.is_empty():
 		return {}

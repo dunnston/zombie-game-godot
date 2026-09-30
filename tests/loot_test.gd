@@ -253,6 +253,38 @@ func test_dying_leaves_a_pack_you_can_walk_back_to() -> void:
 	eq(p.bag.count("ammoP"), carried)
 
 
+func test_the_pipe_handed_up_from_the_pack_keeps_its_condition() -> void:
+	# Codex, PR #63: recreated with `add`'s defaults, a worn and levelled
+	# Pipe came back mended and at level 1 — dying was a free bench.
+	p.hotbar.clear_all()
+	p.bag.clear_all()
+	p.bag.add("pipe", 1, 7, 2)
+	Damage.kill_player(sim, p)
+	var at := p.hotbar_index("pipe")
+	gt(at, -1, "the pipe is on the bar")
+	eq(Wear.left(p.hotbar, at), 7, "as worn as it was")
+	eq(Upgrade.level(p.hotbar, at), 2, "and at the level it was")
+
+
+func test_a_bar_full_of_bandages_does_not_lose_the_pipe() -> void:
+	# Codex, PR #63: no weapon on the bar and no room on it either. The
+	# pipe was taken out of the dropped pack and the unchecked add lost it.
+	p.hotbar.clear_all()
+	for i in range(p.hotbar.size()):
+		p.hotbar.slots[i] = {"id": "bandage", "n": 1}
+	p.bag.clear_all()
+	p.bag.add("pipe", 1)
+	p.bag.add("wood", 5)
+	Damage.kill_player(sim, p)
+	eq(p.bag.count("pipe"), 1, "the pipe is in the emptied pack, not gone")
+	eq(sim.backpacks[0].held, {"wood": 5}, "and not in the pack on the ground")
+	# And with nothing packed either, the conjured one has the same fallback.
+	p.dead = false
+	p.bag.clear_all()
+	Damage.kill_player(sim, p)
+	eq(p.bag.count("pipe"), 1)
+
+
 func test_dying_with_nothing_on_the_bar_still_hands_you_the_pipe() -> void:
 	p.hotbar.clear_all()
 	p.bag.clear_all()

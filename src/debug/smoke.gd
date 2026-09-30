@@ -73,14 +73,16 @@ func frames(n: int) -> void:
 		await get_tree().process_frame
 
 
-## Wait until the game says something happened, with a cap. A count of
-## process frames is a count of nothing on a 144Hz monitor: the sim steps at
-## 60, so a 1.6s channel needs 96 physics steps however many frames that is.
-func until(done: Callable, cap := 400) -> bool:
-	for i in range(cap):
+## Wait until the game says something happened, with a cap in physics
+## steps. A count of process frames is a count of nothing on a 144Hz
+## monitor: the sim steps at 60, so a 1.6s channel needs 96 physics steps
+## however many frames that is — and so the cap is counted in those too
+## (Codex, PR #63), or a faster monitor would make it shorter.
+func until(done: Callable, cap_steps := 400) -> bool:
+	for i in range(cap_steps):
 		if done.call():
 			return true
-		await get_tree().process_frame
+		await get_tree().physics_frame
 	return done.call()
 
 
