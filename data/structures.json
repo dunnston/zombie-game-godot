@@ -452,6 +452,24 @@
       "threat": 4.0,
       "tier": 3,
       "wave": 1
+    },
+    {
+      "cost": {
+        "scrap": 20,
+        "stone": 30,
+        "wood": 10
+      },
+      "desc": "Sheet Metal and wood go in, Steel Bar comes out. Stand near it to work.",
+      "hp": 320.0,
+      "id": "forge",
+      "name": "Forge",
+      "notes": "Chapter 2's station. A station, not a workbench rung, for the Chemistry Station's reason: what it makes is the material every chapter 2 recipe is priced in.",
+      "protect": true,
+      "solid": true,
+      "station": "forge",
+      "threat": 2.5,
+      "tier": 2,
+      "wave": 1
     }
   ]
 }

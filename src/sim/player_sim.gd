@@ -140,6 +140,11 @@ var radar_mul := 1.0
 var armor_dr := 0.0
 var lit := false                 # carrying a lit light: noticed further out
 var carry_cap: float = Config.PLAYER.carry_cap + 25.0
+## Which pack is fitted (`Config.PACK_TIERS`): the strict start's small one,
+## then the Pack Frame, the Hiking Pack, the Rucksack. Part of the build, so
+## it is saved and travels the wire with the attributes, and what it is worth
+## is written by `recompute_stats` alone.
+var pack_tier := 0
 var pickup_range: float = Config.PLAYER.pickup_range + 3.0
 
 # Read by Phase 4c's survivors, produced here so no perk is inert.
@@ -502,6 +507,16 @@ func start_use(sim: GameSim, id: String) -> bool:
 	if float(c.get("heal", 0.0)) > 0.0 and not c.has("effect") and float(c.get("mut", 0.0)) <= 0.0 and hp >= max_hp:
 		sim.notify("Already at full health", "#8a8f84")
 		return false
+	# The two chore items (step D) refuse when there is nothing for them to
+	# do, so a Repair Kit is never spent on a whole weapon and a second Pack
+	# Frame never on a pack that already has one.
+	if int(c.get("pack", 0)) > 0 and pack_tier >= int(c.pack):
+		sim.notify("Your pack already has that", "#8a8f84")
+		return false
+	if float(c.get("mend", 0.0)) > 0.0:
+		if not Wear.wears(held_id()) or not Wear.is_worn(hotbar, slot):
+			sim.notify("Nothing in your hand needs mending", "#8a8f84")
+			return false
 	using = {"id": id, "t": 0.0, "dur": float(c.time)}
 	return true
 
@@ -530,6 +545,13 @@ func _finish_use(sim: GameSim) -> void:
 		elif c.has("effect"):
 			Mutation.give_effect(sim, self, String(c.effect), float(c.get("effect_mul", 1.0)))
 			sim.emit({"t": "ate", "seat": seat, "x": pos.x, "y": pos.y, "id": id})
+		if int(c.get("pack", 0)) > pack_tier:
+			pack_tier = int(c.pack)
+			Equipment.recompute_stats(self)
+			sim.notify("%s fitted — you can carry %d" % [c.name, roundi(carry_cap)], "#b7e08a", true)
+		if float(c.get("mend", 0.0)) > 0.0:
+			Wear.mend_by(hotbar, slot, float(c.mend))
+			sim.notify("%s mended by %d%%" % [Items.name_of(held_id()), roundi(float(c.mend) * 100.0)], "#b7e08a")
 	using = {}
 
 

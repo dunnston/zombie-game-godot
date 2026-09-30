@@ -229,6 +229,22 @@
       "slot": "offhand",
       "tier": 2,
       "wt": 2.0
+    },
+    {
+      "battery": "fuel",
+      "burn": 2700.0,
+      "color": "#e8b45a",
+      "dr": 0.0,
+      "id": "oilLantern",
+      "light": {
+        "radius": 260.0,
+        "strength": 1.0,
+        "warm": "#ffc070"
+      },
+      "name": "Oil Lantern",
+      "slot": "offhand",
+      "tier": 2,
+      "wt": 2.5
     }
   ]
 }

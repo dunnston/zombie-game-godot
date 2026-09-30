@@ -15,11 +15,17 @@
     "heal": {
       "type": "float"
     },
+    "mend": {
+      "type": "float"
+    },
     "mut": {
       "type": "float"
     },
     "name": {
       "type": "string"
+    },
+    "pack": {
+      "type": "int"
     },
     "rank": {
       "type": "int"
@@ -304,6 +310,26 @@
       "stack": 20,
       "time": 1.2,
       "wt": 0.2
+    },
+    {
+      "color": "#a3763f",
+      "id": "packFrame",
+      "name": "Pack Frame",
+      "pack": 1,
+      "stack": 1,
+      "time": 1.2,
+      "verb": "Fit",
+      "wt": 3.0
+    },
+    {
+      "color": "#9aa2ab",
+      "id": "repairKit",
+      "mend": 0.5,
+      "name": "Repair Kit",
+      "stack": 5,
+      "time": 2.0,
+      "verb": "Use",
+      "wt": 1.0
     }
   ]
 }

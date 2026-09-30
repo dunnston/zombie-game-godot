@@ -18,7 +18,7 @@ func before_each() -> void:
 func _stock(n := 400) -> void:
 	p.bag = Slots.new(200)
 	p.carry_cap = 1000000.0
-	for id in ["wood", "stone", "sticks", "scrap", "cloth", "elec", "parts", "mil", "fuel"]:
+	for id in ["wood", "stone", "sticks", "scrap", "cloth", "elec", "parts", "mil", "fuel", "steelBar"]:
 		p.bag.add(id, n)
 
 

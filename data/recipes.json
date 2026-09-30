@@ -389,8 +389,9 @@
     {
       "bench": 2,
       "cost": {
-        "parts": 1,
-        "scrap": 24
+        "cloth": 1,
+        "steelBar": 4,
+        "wood": 2
       },
       "give": {
         "weapon": "machete"
@@ -403,9 +404,8 @@
     {
       "bench": 2,
       "cost": {
-        "parts": 2,
-        "scrap": 20,
-        "wood": 8
+        "steelBar": 3,
+        "wood": 6
       },
       "give": {
         "weapon": "fireaxe"
@@ -419,8 +419,7 @@
     {
       "bench": 2,
       "cost": {
-        "parts": 3,
-        "scrap": 26,
+        "steelBar": 4,
         "wood": 6
       },
       "give": {
@@ -435,7 +434,7 @@
       "bench": 2,
       "cost": {
         "parts": 4,
-        "scrap": 28
+        "steelBar": 5
       },
       "give": {
         "weapon": "pistol"
@@ -489,8 +488,8 @@
     {
       "bench": 2,
       "cost": {
-        "cloth": 24,
-        "scrap": 10
+        "cloth": 10,
+        "steelBar": 5
       },
       "give": {
         "gear": "paddedLegs"
@@ -674,9 +673,8 @@
     {
       "bench": 2,
       "cost": {
-        "cloth": 20,
-        "parts": 2,
-        "scrap": 46
+        "cloth": 12,
+        "steelBar": 8
       },
       "give": {
         "gear": "heavyVest"
@@ -805,9 +803,8 @@
     {
       "bench": 2,
       "cost": {
-        "parts": 2,
-        "scrap": 24,
-        "wood": 10
+        "steelBar": 6,
+        "wood": 8
       },
       "give": {
         "weapon": "doubleBitAxe"
@@ -821,9 +818,9 @@
       "bench": 2,
       "cost": {
         "cloth": 4,
-        "fiber": 8,
-        "parts": 2,
-        "sticks": 10
+        "parts": 1,
+        "steelBar": 2,
+        "sticks": 8
       },
       "give": {
         "weapon": "compoundBow"
@@ -836,8 +833,7 @@
     {
       "bench": 2,
       "cost": {
-        "fiber": 2,
-        "scrap": 8,
+        "steelBar": 2,
         "wood": 4
       },
       "give": {
@@ -910,7 +906,7 @@
       "bench": 2,
       "cost": {
         "parts": 2,
-        "scrap": 16,
+        "steelBar": 4,
         "wood": 4
       },
       "give": {
@@ -940,7 +936,7 @@
       "bench": 2,
       "cost": {
         "cloth": 4,
-        "scrap": 18
+        "steelBar": 4
       },
       "give": {
         "gear": "riotHelm"
@@ -953,8 +949,8 @@
     {
       "bench": 2,
       "cost": {
-        "cloth": 8,
-        "scrap": 6
+        "cloth": 6,
+        "steelBar": 2
       },
       "give": {
         "gear": "tacGloves"
@@ -967,8 +963,8 @@
     {
       "bench": 2,
       "cost": {
-        "cloth": 8,
-        "scrap": 10
+        "cloth": 6,
+        "steelBar": 3
       },
       "give": {
         "gear": "combatBoots"
@@ -1083,6 +1079,88 @@
       "name": "Katana",
       "wave": 2,
       "xp": 80
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "cloth": 2,
+        "scrap": 12,
+        "wood": 6
+      },
+      "give": {
+        "weapon": "hacksaw"
+      },
+      "id": "hacksaw",
+      "name": "Hacksaw",
+      "notes": "Chapter 2's Foothold: the tool that turns the wrecks you have walked past since minute one into Sheet Metal, and opens what is padlocked.",
+      "wave": 1,
+      "xp": 14
+    },
+    {
+      "bench": 0,
+      "cost": {
+        "sheetMetal": 1,
+        "wood": 2
+      },
+      "give": {
+        "res": {
+          "steelBar": 1
+        }
+      },
+      "id": "steelBar",
+      "name": "Steel Bar",
+      "notes": "Made at the Forge and nowhere else: `station`, like the chemistry, so no workbench tier hands it out.",
+      "station": "forge",
+      "wave": 1,
+      "xp": 3
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "cloth": 12,
+        "steelBar": 6
+      },
+      "give": {
+        "item": "packFrame",
+        "n": 1
+      },
+      "id": "packFrame",
+      "name": "Pack Frame",
+      "notes": "The first chore removed: fit it and you carry 160.",
+      "wave": 2,
+      "xp": 20
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "cloth": 2,
+        "steelBar": 3
+      },
+      "give": {
+        "gear": "oilLantern"
+      },
+      "id": "oilLantern",
+      "name": "Oil Lantern",
+      "notes": "A fill of Fuel lasts about five nights. The torch stops being a thing you remake every dusk.",
+      "wave": 2,
+      "xp": 12
+    },
+    {
+      "bench": 2,
+      "cost": {
+        "cloth": 2,
+        "scrap": 4,
+        "steelBar": 1
+      },
+      "give": {
+        "item": "repairKit",
+        "n": 2
+      },
+      "id": "repairKit",
+      "name": "Repair Kit x2",
+      "notes": "Mends the held weapon by half, anywhere. The bench is still where it comes back whole.",
+      "wave": 2,
+      "xp": 6
     }
   ],
   "shape": "list"

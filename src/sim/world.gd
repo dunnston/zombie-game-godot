@@ -463,6 +463,9 @@ func _add_car(tx: int, ty: int, rot: int) -> void:
 	})
 
 
+## A wreck: two tiles, solid, and since step D a harvest — Sheet Metal behind
+## the Hacksaw. Indexed on the prop grid under both tiles, anchored (`tx`,
+## `ty`) on the left one, which is the key a save replays it by.
 func _add_wreck(tx: int, ty: int) -> void:
 	if not in_bounds(tx, ty) or not in_bounds(tx + 1, ty):
 		return
@@ -470,7 +473,15 @@ func _add_wreck(tx: int, ty: int) -> void:
 		return
 	_block(tx, ty, 1)
 	_block(tx + 1, ty, 1)
-	props.append({"kind": "wreck", "si": rng.irange(0, 1), "rot": 0.0, "x": (tx + 1) * TILE, "y": (ty + 0.5) * TILE})
+	var wreck := {
+		"kind": "wreck", "si": rng.irange(0, 1), "rot": 0.0, "tx": tx, "ty": ty,
+		"x": (tx + 1) * TILE, "y": (ty + 0.5) * TILE,
+		"hp": 900.0, "max_hp": 900.0, "harvest": "wreck", "solid": true, "flash": 0.0,
+		"tiles": [tx, ty, tx + 1, ty],
+	}
+	props.append(wreck)
+	prop_grid[ty * W + tx] = wreck
+	prop_grid[ty * W + tx + 1] = wreck
 
 
 ## A choppable tree on one tile. 470hp is six swings of the stone Hatchet at
@@ -1549,6 +1560,15 @@ func remove_prop(prop: Dictionary) -> void:
 	chopped.append(ti)
 	if prop.solid and in_bounds(prop.tx, prop.ty):
 		blocked[ti] = 0
+	# A prop over more than one tile (a wreck) frees every tile it stood on;
+	# the save replays it by its anchor alone, which is why only the anchor
+	# went on `chopped`.
+	var tiles: Array = prop.get("tiles", [])
+	for k in range(0, tiles.size(), 2):
+		var oi: int = int(tiles[k + 1]) * W + int(tiles[k])
+		prop_grid.erase(oi)
+		if prop.solid and in_bounds(int(tiles[k]), int(tiles[k + 1])):
+			blocked[oi] = 0
 
 
 # --------------------------------------------------------------- movement --

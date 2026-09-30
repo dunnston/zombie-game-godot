@@ -18,7 +18,7 @@ func before_each() -> void:
 	# fit — a full bag here once made a level-2 Machete silently not exist.
 	p.bag = Slots.new(200)
 	p.carry_cap = 1000000.0
-	for id in ["wood", "stone", "sticks", "scrap", "cloth", "elec", "parts", "mil", "fuel", "fiber"]:
+	for id in ["wood", "stone", "sticks", "scrap", "cloth", "elec", "parts", "mil", "fuel", "fiber", "steelBar"]:
 		p.bag.add(id, 200)
 	for id in ["scrap", "parts"]:
 		eq(p.bag.count(id), 200, "the stock is all there")

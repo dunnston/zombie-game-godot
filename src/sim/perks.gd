@@ -94,6 +94,8 @@ static func _apply_attributes(p: PlayerSim) -> void:
 
 	p.melee_mul += 0.09 * r.call("str")
 	p.carry_cap += 25.0 * r.call("str")
+	# The fitted pack (step D), before the perks: a base number, not a bonus.
+	p.carry_cap += float(Config.PACK_TIERS[clampi(p.pack_tier, 0, Config.PACK_TIERS.size() - 1)])
 	p.chop_mul += 0.06 * r.call("str")
 
 	p.spread_mul *= pow(0.96, r.call("per"))

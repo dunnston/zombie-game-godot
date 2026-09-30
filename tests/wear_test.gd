@@ -19,7 +19,7 @@ func before_each() -> void:
 
 
 func _stock(n := 400) -> void:
-	for id in ["wood", "stone", "sticks", "fiber", "scrap", "cloth", "elec", "parts", "mil", "med"]:
+	for id in ["wood", "stone", "sticks", "fiber", "scrap", "cloth", "elec", "parts", "mil", "med", "steelBar", "sheetMetal"]:
 		p.bag.add(id, n)
 
 
@@ -277,18 +277,18 @@ func test_mending_costs_a_share_of_the_recipe_scaled_by_the_damage() -> void:
 	var bench := sim.structs.place(sim, "workbench", plot.x + 2, plot.y, p)
 	ok(sim.structs.upgrade_bench(sim, bench, p), "a Machete is chapter 2 work")
 	_hold("machete", Wear.max_of("machete") / 2)
-	# The Machete costs 24 scrap and 1 weapon part. Half gone, at a half
-	# share, is 24 * 0.5 * 0.5 = 6 scrap.
+	# The Machete costs 4 Steel Bar, 2 wood and 1 cloth (step D). Half gone,
+	# at a half share, is 4 * 0.5 * 0.5 = 1 bar.
 	var cost := Wear.repair_cost(p.hotbar, 0)
-	eq(cost.get("scrap", 0), 6)
-	# A part is 1 * 0.5 * 0.5 = 0.25, which rounds away — a scratch does not
-	# cost a weapon part, exactly as it does not on a wall.
-	ok(not cost.has("parts"), "the trimming a light repair would not use")
+	eq(cost.get("steelBar", 0), 1)
+	# The cloth is 1 * 0.5 * 0.5 = 0.25, which rounds away — a scratch does
+	# not cost the trimming, exactly as it does not on a wall.
+	ok(not cost.has("cloth"), "the trimming a light repair would not use")
 
-	var scrap := p.count_res("scrap")
+	var bars := p.count_res("steelBar")
 	ok(Actions.repair_weapon(sim, p, "hotbar", 0, 2))
 	eq(Wear.left(p.hotbar, 0), Wear.max_of("machete"), "back to new")
-	eq(p.count_res("scrap"), scrap - 6, "and it was paid for")
+	eq(p.count_res("steelBar"), bars - 1, "and it was paid for")
 
 
 func test_the_repair_bill_ignores_the_building_discount() -> void:
@@ -306,7 +306,7 @@ func test_the_repair_bill_ignores_the_building_discount() -> void:
 func test_a_repair_is_never_free() -> void:
 	_stock()
 	_hold("machete", Wear.max_of("machete") - 1)     # one swing's worth
-	eq(Wear.repair_cost(p.hotbar, 0).get("scrap", 0), 1,
+	eq(Wear.repair_cost(p.hotbar, 0).get("steelBar", 0), 1,
 		"the main material is always at least one")
 
 

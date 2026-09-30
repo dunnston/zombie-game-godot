@@ -2878,6 +2878,29 @@ increase hotbar size?")
 - `tools/test`: 785 tests, 18049 asserts, 0 failures. `--all` adds the slow
   tier; `tools/smoke`: 101 checkpoints, 0 failures.
 
+## Progression step D — steel (`feat/steel`, 2026-09-30)
+
+- [x] Sheet Metal, Steel Bar; the Hacksaw; the Forge and its station recipe
+      (`tools/steel.gd`)
+- [x] Wrecks on the prop grid, two tiles, cut with the Hacksaw; the save
+      replays the anchor
+- [x] Chapter 2 recipes recosted in Steel Bar; `WAVES[2].kit` on the bar
+- [x] Pack Frame (`pack_tier`), Oil Lantern, Repair Kit
+- [x] `steel_test.gd`; the smoke's wreck and forge leg (written; not run
+      at the end — the owner needed the screen)
+- [ ] Padlocked sheds — with the shutters and sealed crates, one pass, later
+- [x] `PROJECT.md`
+
+### Review
+
+- The wrecks were the cheapest possible "thing you have walked past": no
+  new world generation, just indexing what was already there.
+- The pack ladder exists now, so the open question from step A is live:
+  Strength (+25 a rank) and Pack Mule (+70) against a Pack Frame worth 60.
+  Left as it is for the first playtest; one comment in `PACK_TIERS`.
+- The Oil Lantern needed no light code: the flashlight's battery path and
+  the light dictionary already did everything a lantern is.
+
 ## Progression step B — guidance (`feat/guidance`, 2026-09-30)
 
 - [x] `Discovery`: facts on `GameSim.known`, the known set derived; pockets

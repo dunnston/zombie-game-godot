@@ -1176,6 +1176,89 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 	await smoke.frames(6)
 	await smoke.checkpoint("tree_felled")
 
+	# Chapter 2's material (step D): a wreck cut up with the Hacksaw, through
+	# the real swing, and Sheet Metal into a Steel Bar at a Forge. The wreck
+	# is worn down first — nine hundred points at fourteen a swing is a minute
+	# of sawing, which is right in play and useless here.
+	var wreck := smoke_nearest_prop(p.pos, func(pr): return String(pr.get("kind", "")) == "wreck")
+	if wreck.is_empty():
+		smoke.fail("no wreck in the world to cut")
+	else:
+		var wat := Vector2(wreck.x, wreck.y)
+		p.pos = sim.world.unstick(wat + Vector2(0, 48), p.r)
+		camera.position = p.pos
+		# The bar is full by now and the player is past the carry ceiling, so
+		# a found saw would land on the ground: the hatchet's slot becomes the
+		# saw's directly. This leg is about the wreck, not the pack.
+		p.hotbar.take("axe", 1)
+		p.hotbar.add("hacksaw", 1)
+		var saw_slot := p.hotbar_index("hacksaw")
+		if saw_slot < 0:
+			smoke.fail("the hacksaw did not reach the hotbar")
+		else:
+			p.slot = saw_slot
+		wreck.hp = 30.0
+		var metal_before := p.count_carried("sheetMetal")
+		var cuts := 0
+		while not wreck.get("gone", false) and cuts < 60:
+			cuts += 1
+			p.stam = p.max_stam
+			smoke_aim(wat)
+			await smoke.frames(1)
+			Input.action_press("fire")
+			await smoke.frames(3)
+			Input.action_release("fire")
+			await smoke.frames(3)
+		if not wreck.get("gone", false):
+			smoke.fail("the wreck would not come apart after %d cuts (hp %.0f)" % [cuts, wreck.hp])
+		if not sim.world.prop_at_tile(int(wreck.tx) + 1, int(wreck.ty)).is_empty():
+			smoke.fail("the cut wreck still occupies its far tile")
+		# The pack is past the ceiling by now, so the metal lands at your feet
+		# rather than being destroyed: count it wherever it went.
+		var metal_now := p.count_carried("sheetMetal")
+		for pile in sim.pickups:
+			if String(pile.get("id", "")) == "sheetMetal":
+				metal_now += int(pile.get("n", 0))
+		if metal_now <= metal_before:
+			smoke.fail("cutting the wreck gave no Sheet Metal")
+		await smoke.frames(6)
+		await smoke.checkpoint("wreck_cut")
+		# The Forge, and a bar out of it.
+		sim.structs.bench_tier = maxi(sim.structs.bench_tier, int(Config.STRUCTURES.forge.tier))
+		_smoke_pocket({"stone": 40, "scrap": 30, "wood": 20, "sheetMetal": 4})
+		var forge_tile := Vector2i(-1, -1)
+		var forge_why := "no tiles tried"
+		for fi in [3, 4, -3, -4, 5, -5]:
+			for fj in [0, -1, 1, 2, -2]:
+				var ft := Vector2i(int(p.pos.x / 32) + fi, int(p.pos.y / 32) + fj)
+				_smoke_stand_at(Vector2(ft.x * 32 + 16, ft.y * 32 + 48))
+				if sim.world.is_blocked_px(p.pos.x, p.pos.y, sim.structs):
+					continue
+				var fcan := sim.structs.can_place(sim, "forge", ft.x, ft.y, p)
+				if fcan.ok:
+					forge_tile = ft
+					break
+				forge_why = String(fcan.reason)
+			if forge_tile.x >= 0:
+				break
+		if forge_tile.x < 0:
+			smoke.fail("nowhere to put a Forge (last refusal: %s)" % forge_why)
+		else:
+			sim.structs.place(sim, "forge", forge_tile.x, forge_tile.y, p)
+			await smoke.frames(2)
+			if not Crafting.stations_at(sim, p).has("forge"):
+				smoke.fail("standing beside the Forge, the Forge is not in reach")
+			var bars_before := p.count_carried("steelBar")
+			var bar := Crafting.recipe("steelBar")
+			if not Discovery.recipe_known(sim, bar):
+				smoke.fail("building the Forge did not bring the Steel Bar recipe")
+			if not Crafting.craft(sim, p, bar, 0):
+				smoke.fail("the Forge would not make a bar: %s" % Crafting.status(sim, p, bar, 0).reason)
+			elif p.count_carried("steelBar") != bars_before + 1:
+				smoke.fail("one Sheet Metal in and no Steel Bar out")
+			await smoke.frames(3)
+			await smoke.checkpoint("forge_bar")
+
 	# Gathering is offered last, only when nothing else wants the key, so the
 	# stick has to be one with no car, container or neighbour beside it —
 	# otherwise this measures the priority order rather than the gather.

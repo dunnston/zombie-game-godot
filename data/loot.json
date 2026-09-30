@@ -272,6 +272,12 @@
           "max": 1,
           "min": 1,
           "w": 8
+        },
+        {
+          "id": "weapon:hacksaw",
+          "max": 1,
+          "min": 1,
+          "w": 3
         }
       ],
       "id": "toolbox"
@@ -1855,6 +1861,12 @@
         },
         {
           "id": "weapon:maul",
+          "max": 1,
+          "min": 1,
+          "w": 3
+        },
+        {
+          "id": "weapon:hacksaw",
           "max": 1,
           "min": 1,
           "w": 3

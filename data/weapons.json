@@ -37,6 +37,9 @@
     "dur": {
       "type": "int"
     },
+    "hacksaw": {
+      "type": "bool"
+    },
     "hammer": {
       "type": "bool"
     },
@@ -1638,6 +1641,29 @@
         "wood": 3
       },
       "stagger": 0.55,
+      "tier": 2,
+      "tool": true
+    },
+    {
+      "arc": 0.7,
+      "cd": 0.5,
+      "chop_mul": 1.0,
+      "color": "#a8b0b8",
+      "crit": 0.03,
+      "crit_mul": 1.8,
+      "dmg": 14.0,
+      "dur": 600,
+      "hacksaw": true,
+      "id": "hacksaw",
+      "kind": "melee",
+      "knock": 60.0,
+      "name": "Hacksaw",
+      "noise": 70.0,
+      "range": 44.0,
+      "salvage": {
+        "scrap": 6
+      },
+      "stagger": 0.15,
       "tier": 2,
       "tool": true
     }
