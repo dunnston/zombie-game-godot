@@ -80,6 +80,14 @@ func _draw() -> void:
 				draw_line(at, end, Color(red, 0.16), 56.0)
 				draw_line(at, at + d * float(tl.dist) * k, Color(red, 0.32), 56.0)
 				draw_line(end + d.orthogonal() * 28.0, end - d.orthogonal() * 28.0, Color(red, 0.85), 3.0)
+			"hook":
+				# The lane, as thin as the hook: the fill runs *back* toward
+				# him, which is the way you will go if you are still in it.
+				var wide: float = float(tl.width) * 2.0
+				var end := at + d * float(tl.dist)
+				draw_line(at, end, Color(red, 0.14), wide)
+				draw_line(end, end - d * float(tl.dist) * k, Color(red, 0.34), wide)
+				draw_circle(end, 7.0, Color(red, 0.9))
 			"dodgeball":
 				var n: int = tl.n
 				for i in range(n):

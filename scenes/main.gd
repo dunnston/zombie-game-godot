@@ -1346,6 +1346,9 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 	# the pack is long since full by this point in the run, so what was in
 	# it goes to the stash first.
 	_smoke_pocket({"scrap": 180, "elec": 180, "parts": 180, "med": 60, "wood": 180, "cloth": 40})
+	# The rung wants the Butcher's Saw (step E); this leg is about the button.
+	sim.known.held["butcherSaw"] = true
+	sim.known.dirty = true
 	var wb_origin := p.pos
 	var wb_tile := Vector2i(-1, -1)
 	var wb_why := "no tiles tried"

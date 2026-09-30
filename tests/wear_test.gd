@@ -21,6 +21,7 @@ func before_each() -> void:
 func _stock(n := 400) -> void:
 	for id in ["wood", "stone", "sticks", "fiber", "scrap", "cloth", "elec", "parts", "mil", "med", "steelBar", "sheetMetal"]:
 		p.bag.add(id, n)
+	give_keys(sim)
 
 
 func _hold(id: String, wear := -1) -> Dictionary:

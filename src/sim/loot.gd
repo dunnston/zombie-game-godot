@@ -594,8 +594,16 @@ static func _roll_boss_drop(sim: GameSim, e: EnemySim, table: Array) -> void:
 
 
 static func _roll_enemy_drop(sim: GameSim, e: EnemySim) -> void:
-	if e.def.get("boss", false) and e.def.has("loot_table"):
-		_roll_boss_drop(sim, e, Config.LOOT.get(String(e.def.loot_table), []))
+	if e.def.get("boss", false):
+		# What a boss promises on the first kill, ever — its key item, the
+		# weapon the plan names — is given, not rolled, and only until it has
+		# been held once (`Discovery`): the second Butcher drops no second Saw.
+		for id in Config.BOSSES.get(e.type, {}).get("first_drop", []):
+			if not sim.known.held.has(String(id)):
+				spawn_entry_pickup(sim, e.pos + Vector2(sim.loot_rng.frange(-12.0, 12.0), sim.loot_rng.frange(-12.0, 12.0)),
+					item_entry_id(String(id)), 1)
+		if e.def.has("loot_table"):
+			_roll_boss_drop(sim, e, Config.LOOT.get(String(e.def.loot_table), []))
 		return
 	# A person was carrying things, and a named table says what. Two rolls off
 	# the same weighted picker a cupboard uses, so a body is loot the same way

@@ -104,6 +104,14 @@ static func title(kind: String) -> String:
 	return String(Config.INSTANCES.get(kind, {}).get("name", kind)).capitalize()
 
 
+## What the room at the back is called in a sentence: the gym, the killing
+## floor. `arena_name` on the instance, or the School's for want of one.
+static func arena_name(sim: GameSim) -> String:
+	if sim.instance == null:
+		return "the gym"
+	return String(sim.instance.def.get("arena_name", "the gym"))
+
+
 ## Why `p` cannot go in, or "". The prompt and the key both ask this, so they
 ## can never disagree.
 static func refusal(sim: GameSim, p: PlayerSim, kind: String) -> String:
@@ -347,7 +355,7 @@ func unlock(sim: GameSim, f: Dictionary) -> bool:
 	for tile: Vector2i in f.tiles:
 		sim.world.blocked[tile.y * Config.WORLD_TILES + tile.x] = 0
 	sim.world_version += 1
-	sim.notify("The chains come off. Something in the gym heard that", "#d8c98a", true)
+	sim.notify("The chains come off. Something in %s heard that" % arena_name(sim), "#d8c98a", true)
 	sim.emit({"t": "unlocked", "x": f.x, "y": f.y})
 	return true
 

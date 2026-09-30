@@ -26,6 +26,7 @@ func _stock(n := 400) -> void:
 	p.carry_cap = 1000000.0
 	for id in ["wood", "stone", "sticks", "scrap", "cloth", "elec", "parts", "mil", "fuel", "ammoP"]:
 		p.bag.add(id, n)
+	give_keys(sim)
 
 
 func _build(type: String, tx: int, ty: int) -> Dictionary:

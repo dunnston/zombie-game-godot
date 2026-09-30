@@ -773,7 +773,7 @@ func bench_upgrade_refusal(sim: GameSim, s: Dictionary, p: PlayerSim) -> String:
 		return "Already at the top"
 	var spec: Dictionary = Config.BENCH_TIERS[int(s.tier) + 1]
 	var key := String(spec.get("key", ""))
-	if not key.is_empty() and p.count_carried(key) <= 0:
+	if not key.is_empty() and not Discovery.has_key(sim, key):
 		return "Needs the %s" % Items.name_of(key)
 	if not p.can_afford(sim, spec.cost):
 		return "Need %s" % cost_label(spec.cost)
