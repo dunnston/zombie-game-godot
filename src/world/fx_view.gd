@@ -19,6 +19,11 @@ func on_event(ev: Dictionary) -> void:
 		"hit":
 			_blood(Vector2(ev.x, ev.y), Vector2(ev.dx, ev.dy), 12 if ev.crit else 7)
 			_text(Vector2(ev.x, ev.y - ev.r), str(roundi(ev.dmg)), Color("#ffe08a") if ev.crit else Color.WHITE, 15 if ev.crit else 12)
+		"dealt":
+			# The Target Range's (`TargetRange.note_dealt`): bleed draws no
+			# `hit`, so its summed ticks are numbered here, in the wound's red.
+			if String(ev.kind) == "bleed":
+				_text(Vector2(ev.x, ev.y - float(ev.r)), str(roundi(ev.dmg)), Color("#e0605a"), 12)
 		"kill":
 			_blood(Vector2(ev.x, ev.y), Vector2.ZERO, 16)
 		"stagger":

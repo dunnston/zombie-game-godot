@@ -55,6 +55,8 @@ var dark := false
 ## until they leave, and whether a weapon's uses are spent in here.
 var range_held := {}
 var range_wear := false
+## Targets that went down, waiting to be put back: {type, post, t}.
+var range_respawn: Array[Dictionary] = []
 
 
 ## Exchanges every map field with `held`. Entering, leaving, and the two sides
@@ -207,6 +209,9 @@ func _interior(day: int) -> Dictionary:
 ## standing-population spawner is what makes the town never quiet, and a
 ## dungeon has to be clearable (§7).
 func _populate(sim: GameSim) -> void:
+	if kind == "range":
+		TargetRange.populate(sim)
+		return
 	if not def.has("boss"):
 		return
 	var tier := int(def.tier)
@@ -258,6 +263,9 @@ func tick(sim: GameSim, dt: float) -> void:
 		leave(sim, outcome)
 		return
 	t += dt
+	# Before the dead are culled: a target that fell this step is noticed here.
+	if kind == "range":
+		TargetRange.tick(sim, dt)
 	# Nothing culls the dead in here — the spawner that does is not running.
 	var list := sim.enemies.list
 	for i in range(list.size() - 1, -1, -1):

@@ -253,6 +253,138 @@ static func _sorted(ids: Array, table: Dictionary) -> Array:
 	return out
 
 
+# ---------------------------------------------------- targets and rooms --
+
+## Every enemy type the range puts up, bosses left out (owner, 2026-09-29).
+## Off the table, so a new type is in the range the day it exists.
+static func types() -> Array[String]:
+	var out: Array[String] = []
+	for type: String in Config.ENEMIES:
+		if not bool(Config.ENEMIES[type].get("boss", false)):
+			out.append(type)
+	return out
+
+
+## The targets and the live rooms, as they are when you walk in.
+static func populate(sim: GameSim) -> void:
+	reset_targets(sim)
+	refill_rooms(sim)
+
+
+## Where the targets stand: a line across the far end of the lane, facing
+## back down it, spread evenly from wall to wall.
+static func target_line_x(world: World) -> float:
+	return (world.range_lane.end.x - 2.5) * float(Config.TILE)
+
+
+static func target_post(world: World, i: int, n: int) -> Vector2:
+	var lane := world.range_lane
+	var span := float(lane.size.y * Config.TILE)
+	return Vector2(target_line_x(world), lane.position.y * float(Config.TILE) + span * (i + 0.5) / float(n))
+
+
+## The floor a live room's enemies are held on: the room's inside, short of
+## the row in front of its doorway, so nothing follows you out (in pixels).
+static func leash_of(room: Rect2i) -> Rect2:
+	var tile := float(Config.TILE)
+	var inside := Rect2i(room.position + Vector2i.ONE, room.size - Vector2i(2, 3))
+	return Rect2(Vector2(inside.position) * tile, Vector2(inside.size) * tile)
+
+
+static func _spawn_target(sim: GameSim, type: String, at: Vector2) -> EnemySim:
+	var e := sim.enemies.spawn(type, at)
+	if e != null:
+		e.passive = true
+		e.post = at
+		# Facing back down the lane, at whoever is shooting.
+		e.angle = PI
+	return e
+
+
+## Every target back on its post at full health, and nothing waiting.
+static func reset_targets(sim: GameSim) -> void:
+	_remove(sim, true)
+	sim.instance.range_respawn.clear()
+	var list := types()
+	for i in range(list.size()):
+		_spawn_target(sim, list[i], target_post(sim.world, i, list.size()))
+
+
+## Each live room emptied and filled again: one type to a room, in the
+## order `types` gives, `Config.RANGE.room_count` of it, on its leash.
+static func refill_rooms(sim: GameSim) -> void:
+	_remove(sim, false)
+	var list := types()
+	var tile := float(Config.TILE)
+	for i in range(mini(list.size(), sim.world.range_rooms.size())):
+		var room: Rect2i = sim.world.range_rooms[i]
+		var leash := leash_of(room)
+		var n := int(Config.RANGE.room_count)
+		for k in range(n):
+			var at := Vector2(leash.position.x + leash.size.x * (k + 1) / float(n + 1), leash.position.y + 2.0 * tile)
+			var e := sim.enemies.spawn(list[i], at)
+			if e != null:
+				e.leash = leash
+
+
+## Takes the targets (or the live rooms' enemies) off the map outright:
+## not killed, so nothing counts it as a death and no target is queued back.
+static func _remove(sim: GameSim, targets: bool) -> void:
+	var list := sim.enemies.list
+	for i in range(list.size() - 1, -1, -1):
+		if list[i].passive == targets:
+			list.remove_at(i)
+
+
+## A blow a player dealt in the range, for the damage panel: a `dealt` event
+## carrying the seat, which the host sends only to that seat's guest, so each
+## player's panel is their own hits. Bleed is summed and reported every
+## `RANGE.bleed_report` seconds, or at once on the tick that kills.
+static func note_dealt(sim: GameSim, e: EnemySim, dmg: float, source: Variant, crit: bool, kind: String) -> void:
+	if not (source is PlayerSim):
+		return
+	var seat := (source as PlayerSim).seat
+	if kind == "bleed":
+		e.range_bleed += dmg
+		e.range_bleed_seat = seat
+		if e.hp <= 0.0:
+			_report_bleed(sim, e)
+		return
+	_report(sim, e, seat, dmg, crit, kind)
+
+
+static func _report(sim: GameSim, e: EnemySim, seat: int, dmg: float, crit: bool, kind: String) -> void:
+	sim.emit({"t": "dealt", "seat": seat, "id": e.id, "type": e.type, "dmg": dmg, "hp": maxf(0.0, e.hp),
+		"max": e.max_hp, "kind": kind, "crit": crit, "x": e.pos.x, "y": e.pos.y, "r": e.r})
+
+
+static func _report_bleed(sim: GameSim, e: EnemySim) -> void:
+	if e.range_bleed > 0.0:
+		_report(sim, e, e.range_bleed_seat, e.range_bleed, false, "bleed")
+	e.range_bleed = 0.0
+	e.range_bleed_t = 0.0
+
+
+## A target that went down is put back on its post `target_respawn` later.
+## Called from `Instance.tick` before it culls the dead, so a target that
+## fell this step is seen here exactly once.
+static func tick(sim: GameSim, dt: float) -> void:
+	var inst := sim.instance
+	for e in sim.enemies.list:
+		if e.range_bleed > 0.0 and not e.dead:
+			e.range_bleed_t += dt
+			if e.range_bleed_t >= float(Config.RANGE.bleed_report) or e.bleed_t <= 0.0:
+				_report_bleed(sim, e)
+		if e.dead and e.passive:
+			inst.range_respawn.append({"type": e.type, "post": e.post, "t": float(Config.RANGE.target_respawn)})
+	for i in range(inst.range_respawn.size() - 1, -1, -1):
+		var r: Dictionary = inst.range_respawn[i]
+		r.t = float(r.t) - dt
+		if float(r.t) <= 0.0:
+			inst.range_respawn.remove_at(i)
+			_spawn_target(sim, String(r.type), r.post)
+
+
 # -------------------------------------------------------------- controls --
 
 ## A range control, from F1 — on the host, or sent by a guest and run here by
@@ -283,6 +415,14 @@ static func control(sim: GameSim, p: PlayerSim, verb: String, a := {}) -> bool:
 			return true
 		"level":
 			return set_level(sim, p, int(a.get("d", 1)))
+		"reset":
+			reset_targets(sim)
+			sim.notify("RANGE  targets reset", "#b7e08a")
+			return true
+		"refill":
+			refill_rooms(sim)
+			sim.notify("RANGE  live rooms refilled", "#b7e08a")
+			return true
 	return false
 
 
