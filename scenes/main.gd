@@ -801,6 +801,28 @@ func smoke_nearest_prop(at: Vector2, pred: Callable) -> Dictionary:
 ## Puts the player exactly here and leaves them there. `p.pos = x` on its own
 ## keeps whatever velocity the last leg left, and the player then drifts out
 ## of reach of the thing they were teleported to before the key is pressed.
+## Stock the pack for a bill. Bills are paid from the pack and nowhere else
+## (`PlayerSim.bill_stash`), and by the middle of the run the pack is full,
+## so everything in it is moved to the stash first and the materials go in
+## on top. Weight is not the question — `add` is not `add_capped` — and an
+## overloaded smoke player walks by teleport anyway.
+func _smoke_pocket(bill: Dictionary) -> void:
+	var p := sim.players[0]
+	if sim.stash == null:
+		sim.stash = Slots.new(Config.STASH_SLOTS)
+	var held: Dictionary = p.bag.entries()
+	for id in held:
+		var n: int = held[id]
+		var took: int = p.bag.take(id, n)
+		var kept: int = sim.stash.add(id, took)
+		if kept < took:
+			Loot.spawn_entry_pickup(sim, p.pos, Loot.item_entry_id(id), took - kept)
+	for id in bill:
+		var got: int = p.bag.add(id, int(bill[id]))
+		if got < int(bill[id]):
+			push_error("smoke: the pack took %d of %d %s" % [got, bill[id], id])
+
+
 func _smoke_stand_at(at: Vector2) -> void:
 	var p := sim.players[0]
 	p.pos = at
@@ -1147,7 +1169,7 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 	await smoke.frames(2)
 	if p.using.is_empty():
 		smoke.fail("G did not start a dose")
-	await smoke.frames(140)
+	await smoke.until(func() -> bool: return p.using.is_empty())
 	if p.count_carried("serum") > 0:
 		smoke.fail("the dose finished without spending the serum")
 	if p.mutation >= before_mut - 1.0:
@@ -1164,26 +1186,18 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 	await smoke.frames(2)
 	if p.using.is_empty():
 		smoke.fail("F did not start a meal")
-	await smoke.frames(120)
+	await smoke.until(func() -> bool: return p.using.is_empty())
 	if not p.effects.has("fed"):
 		smoke.fail("the meal finished and no buff arrived")
 	await smoke.checkpoint("ate")
 
-	# The Chemistry Station, built where the player stands, and the recipe it
-	# unlocks appearing in the pack's CRAFT tab.
-	# Into the stash, not the pack: thirty slots are long since full by this
-	# point in the run, and `add` on a full grid quietly does nothing — which
-	# is what "Not enough materials" meant the first time this leg ran.
-	if sim.stash == null:
-		sim.stash = Slots.new(Config.STASH_SLOTS)
-	for id in ["scrap", "elec", "parts", "med", "wood"]:
-		sim.stash.add(id, 60)
-
 	# The workbench: E opens it and spends nothing; the upgrade is a button in
 	# there with its price on it. Built well away from the Chemistry Station
-	# below, so the two never compete for the key.
-	for id in ["scrap", "elec", "parts", "wood"]:
-		sim.stash.add(id, 120)
+	# below, so the two never compete for the key. Stocked into the pack,
+	# because the pack is what pays now (the strict start, 2026-09-30) — and
+	# the pack is long since full by this point in the run, so what was in
+	# it goes to the stash first.
+	_smoke_pocket({"scrap": 180, "elec": 180, "parts": 180, "med": 60, "wood": 180})
 	var wb_origin := p.pos
 	var wb_tile := Vector2i(-1, -1)
 	var wb_why := "no tiles tried"
@@ -1258,8 +1272,9 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 		await smoke.tap("inventory")
 		await smoke.frames(2)
 	_smoke_stand_at(wb_origin)
-	for id in ["scrap", "elec", "parts", "med", "wood"]:
-		sim.stash.add(id, 60)
+	# The Chemistry Station, built where the player stands, and the recipe it
+	# unlocks appearing in the pack's CRAFT tab.
+	_smoke_pocket({"scrap": 60, "elec": 60, "parts": 60, "med": 60, "wood": 60})
 	sim.structs.bench_tier = 2
 	# Somewhere it will actually fit: the ground the player happens to be
 	# stood on is as likely to be a wall or a tree as not.

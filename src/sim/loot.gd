@@ -436,8 +436,14 @@ static func stash_or_drop(sim: GameSim, id: String, n: int, at: Vector2) -> int:
 
 # --------------------------------------------------------------- backpacks --
 
-## Everything the player was carrying, dropped where they fell. You keep the
-## starting weapon, so a respawn is never completely toothless.
+## What was in the pack, dropped where the player fell. **What they wear and
+## the hotbar stay on them** (owner, 2026-09-30): the walk back is for what
+## you were hauling, and you make it armed and armoured. It used to be
+## everything, which made the run back the most dangerous minute in the game
+## for the player least equipped to have it.
+##
+## A hotbar with no weapon on it still gets the starting one, so a respawn is
+## never completely toothless.
 static func drop_backpack(sim: GameSim, p: PlayerSim) -> Dictionary:
 	var held := {}
 	# Condition has to be read off the slots before they are cleared, and it
@@ -450,36 +456,34 @@ static func drop_backpack(sim: GameSim, p: PlayerSim) -> Dictionary:
 	# Levels flatten the same way and in the same direction: the lower of two,
 	# so dying can never level anything up.
 	var levels := {}
-	for cont in [p.bag, p.hotbar]:
-		var entries: Dictionary = cont.entries()
-		for id in entries:
-			held[id] = held.get(id, 0) + entries[id]
-		for i in range(cont.size()):
-			var wid: String = cont.id_at(i)
-			if Wear.wears(wid):
-				var uses := Wear.left(cont, i)
-				worn[wid] = mini(int(worn.get(wid, uses)), uses)
-				var lv := Upgrade.level(cont, i)
-				levels[wid] = mini(int(levels.get(wid, lv)), lv)
-	for slot in p.equip:
-		var id: String = p.equip[slot]
-		if not id.is_empty():
-			held[id] = held.get(id, 0) + 1
-	var keep: String = p.start_weapon
-	if held.has(keep):
-		held[keep] -= 1
-		if held[keep] <= 0:
-			held.erase(keep)
+	var entries: Dictionary = p.bag.entries()
+	for id in entries:
+		held[id] = held.get(id, 0) + entries[id]
+	for i in range(p.bag.size()):
+		var wid: String = p.bag.id_at(i)
+		if Wear.wears(wid):
+			var uses := Wear.left(p.bag, i)
+			worn[wid] = mini(int(worn.get(wid, uses)), uses)
+			var lv := Upgrade.level(p.bag, i)
+			levels[wid] = mini(int(levels.get(wid, lv)), lv)
+	# Nothing to fight with on the bar: the starting weapon, out of the pack
+	# if one is in there and out of thin air if not.
+	var armed := false
+	for i in range(p.hotbar.size()):
+		if Config.WEAPONS.has(p.hotbar.id_at(i)):
+			armed = true
+			break
+	var keep := ""
+	if not armed:
+		keep = p.start_weapon
+		if held.has(keep):
+			held[keep] -= 1
+			if held[keep] <= 0:
+				held.erase(keep)
 
 	p.bag.clear_all()
-	p.hotbar.clear_all()
-	for slot in p.equip:
-		p.equip[slot] = ""
-	p.hotbar.add(keep, 1)
-	p.slot = 0
-	# Losing your armour has to actually cost you the mitigation, and the
-	# light that went into the pack has to stop being lit.
-	Equipment.after_equip_change(p)
+	if not keep.is_empty():
+		p.hotbar.add(keep, 1)
 
 	if held.is_empty():
 		return {}
@@ -488,9 +492,10 @@ static func drop_backpack(sim: GameSim, p: PlayerSim) -> Dictionary:
 	sim.backpacks.append(pack)
 	# The rounds went into the pack with the gun. Leaving them on the player
 	# would hand a freshly found replacement the dead one's magazine, and
-	# would mean the saved value could never be restored on recovery.
+	# would mean the saved value could never be restored on recovery. A gun
+	# of the same kind still on the hotbar keeps its own.
 	for id in held:
-		if id != keep:
+		if id != keep and p.hotbar.count(id) == 0:
 			p.mag.erase(id)
 	return pack
 

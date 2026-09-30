@@ -73,6 +73,17 @@ func frames(n: int) -> void:
 		await get_tree().process_frame
 
 
+## Wait until the game says something happened, with a cap. A count of
+## process frames is a count of nothing on a 144Hz monitor: the sim steps at
+## 60, so a 1.6s channel needs 96 physics steps however many frames that is.
+func until(done: Callable, cap := 400) -> bool:
+	for i in range(cap):
+		if done.call():
+			return true
+		await get_tree().process_frame
+	return done.call()
+
+
 func fail(msg: String) -> void:
 	failures += 1
 	printerr("SMOKE FAIL " + msg)

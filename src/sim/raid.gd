@@ -274,7 +274,7 @@ func _finish(sim: GameSim, repelled_: bool) -> void:
 		if e.raid:
 			e.raid = false
 
-	sim.emit({"t": "raid_end", "repelled": repelled_, "share": share})
+	sim.emit({"t": "raid_end", "repelled": repelled_, "share": share, "reward": reward})
 	var tint := "#b7e08a" if repelled_ else "#d9c46a"
 	sim.notify("%s %s" % [spec.name, "REPELLED" if repelled_ else "OVER"], tint, true)
 	var parts: Array[String] = []

@@ -341,13 +341,20 @@ func test_nothing_can_be_built_in_here() -> void:
 
 
 func test_the_stash_is_out_of_reach_inside() -> void:
+	# Since the strict start it is out of reach in town too (`bill_stash`);
+	# what this keeps honest is that the pack still pays in here and that
+	# walking out changes nothing about it.
 	sim.stash = Slots.new(Config.STASH_SLOTS)
 	sim.stash.add("wood", 100)
-	ok(p.can_afford(sim, {"wood": 10}), "paid from the stash in town")
+	ok(not p.can_afford(sim, {"wood": 10}), "the stash does not pay in town")
+	p.bag.add("wood", 10)
+	ok(p.can_afford(sim, {"wood": 10}), "the pack does")
 	_enter()
-	ok(not p.can_afford(sim, {"wood": 10}), "not in here")
+	ok(not p.can_afford(sim, {"wood": 100}), "and the stash is not reachable in here either")
+	ok(p.can_afford(sim, {"wood": 10}), "what you carried in still counts")
 	Instance.walk_out(sim, p)
-	ok(p.can_afford(sim, {"wood": 10}), "and there again when you are out")
+	ok(p.can_afford(sim, {"wood": 10}))
+	ok(not p.can_afford(sim, {"wood": 100}), "and out again the stash is still not a pocket")
 
 
 func test_the_haul_is_closed_outside() -> void:

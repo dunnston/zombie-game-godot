@@ -164,7 +164,9 @@ static func play_raid(sim: GameSim, p: PlayerSim, index: int, weapon := "rifle",
 			break
 	return {"seconds": sim.time - t0, "done": sim.raid == null, "kills": sim.stats.kills,
 		"repelled": sim.raids_done == index + 1 and events_of(sim, "raid_end").back().repelled,
-		"reward": p.count_res("scrap")}
+		# What the raid paid, off its own event: a payout to a player at the
+		# carry cap lands at their feet, so the pack is not where to count it.
+		"reward": int(events_of(sim, "raid_end").back().get("reward", {}).get("scrap", 0)) if sim.raid == null else 0}
 
 
 ## The standard compound the prototype measured raids against: an 11x11

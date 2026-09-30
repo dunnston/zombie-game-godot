@@ -316,13 +316,39 @@ static func scaled_cost(cost: Dictionary, mul := 1.0) -> Dictionary:
 	return out
 
 
-## What is available to spend: the pack, plus the base's shared stash. A
-## wall you are building beside your stash may be paid for out of it.
+## What a bill of this player's may draw on besides the pack — the one place
+## that decides it, for a recipe, a wall, a repair, a bed and a fuel tank
+## alike.
+##
+## Nothing, at the start (owner, 2026-09-30, `tasks/progression-plan.md`):
+## you carry what you spend. The stash used to pay from anywhere in the world,
+## which gave the biggest convenience in the game away with the first Supply
+## Stash and left nothing to earn. The Storage Link (step F) and the Field
+## Radio (step H) widen this, and they widen it here.
+##
+## This is the player's pocket only. Survivors, turrets and upkeep feed from
+## `sim.stash` directly: that is the base's economy and it has not changed.
+func bill_stash(_sim: GameSim) -> Slots:
+	return null
+
+
+## What is available to spend: the pack, plus whatever `bill_stash` allows.
 func total_res(sim: GameSim, id: String) -> int:
 	var n := bag.count(id)
-	if sim != null and sim.stash != null:
-		n += sim.stash.count(id)
+	var stash := bill_stash(sim)
+	if stash != null:
+		n += stash.count(id)
 	return n
+
+
+## Takes up to `n` of something for a bill: the pack first, then whatever
+## `bill_stash` allows. Returns how many it got.
+func take_for_bill(sim: GameSim, id: String, n: int) -> int:
+	var got := bag.take(id, n)
+	var stash := bill_stash(sim)
+	if got < n and stash != null:
+		got += stash.take(id, n - got)
+	return got
 
 
 func can_afford(sim: GameSim, cost: Dictionary, mul := 1.0) -> bool:
@@ -332,13 +358,10 @@ func can_afford(sim: GameSim, cost: Dictionary, mul := 1.0) -> bool:
 	return true
 
 
-## Spends from the pack first, then the stash. Assumes `can_afford` passed.
+## Assumes `can_afford` passed.
 func spend(sim: GameSim, cost: Dictionary, mul := 1.0) -> void:
 	for id in cost:
-		var need := ceili(cost[id] * mul)
-		need -= bag.take(id, need)
-		if need > 0 and sim != null and sim.stash != null:
-			sim.stash.take(id, need)
+		take_for_bill(sim, id, ceili(cost[id] * mul))
 
 
 # ---------------------------------------------------------------- weapons --

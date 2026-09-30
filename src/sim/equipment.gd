@@ -340,9 +340,7 @@ static func toggle_light(sim: GameSim, p: PlayerSim) -> bool:
 	if p.light_fuel <= 0.0:
 		if not g.has("battery"):
 			return false                      # a spent torch is gone already
-		var got := p.bag.take(g.battery, 1)
-		if got == 0 and sim.stash != null:
-			got = sim.stash.take(g.battery, 1)
+		var got := p.take_for_bill(sim, g.battery, 1)
 		if got == 0:
 			sim.notify("%s is flat — it needs a battery" % g.name, "#c96a5a")
 			return false

@@ -31,6 +31,15 @@ func _hold(id: String, wear := -1) -> Dictionary:
 	return Config.WEAPONS[id]
 
 
+## A worn weapon in the pack: what a death actually drops now that the bar
+## stays on you.
+func _pack(id: String, wear := -1) -> void:
+	p.bag.clear_all()
+	p.bag.slots[0] = {"id": id, "n": 1}
+	if wear >= 0:
+		p.bag.set_wear_at(0, wear)
+
+
 func _recipe(id: String) -> Dictionary:
 	for r in Config.RECIPES:
 		if r.id == id:
@@ -427,7 +436,7 @@ func test_a_broken_weapon_dropped_on_the_ground_stays_broken() -> void:
 func test_wear_goes_into_the_pack_you_drop_and_comes_back_with_it() -> void:
 	# Otherwise walking back to your own corpse would be the cheapest bench
 	# in the game.
-	_hold("machete", 7)
+	_pack("machete", 7)
 	var pack := Loot.drop_backpack(sim, p)
 	ok(not pack.is_empty(), "there was something to drop")
 	eq(int(pack.wear.get("machete", -1)), 7, "the wear went with it")
@@ -447,7 +456,7 @@ func test_a_flattened_backpack_keeps_the_worse_of_two() -> void:
 	# `held` is a flat id -> count and always has been, so two Machetes come
 	# back as one condition. Keeping the worse of them means the flattening
 	# can never quietly mend something.
-	_hold("machete", 60)
+	_pack("machete", 60)
 	p.bag.add("machete", 1, 9)
 	var pack := Loot.drop_backpack(sim, p)
 	eq(int(pack.wear.get("machete", -1)), 9, "the worse one sets the price")

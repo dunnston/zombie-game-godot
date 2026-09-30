@@ -96,28 +96,29 @@ func test_a_stack_moves_between_containers() -> void:
 # ------------------------------------------------------------------ weight --
 
 func test_capacity_is_weight_and_it_counts_the_hotbar_too() -> void:
-	# 225 units of comfortable budget: the 200 base plus the 25 that Strength 2
+	# 100 units of comfortable budget: the 75 base plus the 25 that Strength 2
 	# is worth, because every survivor starts one rank above the tables'
-	# baseline — and 337.5 of ceiling, since the cap went soft (2026-09-15).
-	# A rifle on the hotbar weighs 6 of it, and the pack has to know that or
-	# the weight bar and the loot rules disagree.
-	near(p.carry_cap, 225.0, 0.01)
-	near(p.carry_limit(), 337.5, 0.01, "the ceiling is the cap times overload_mul")
+	# baseline — and 150 of ceiling, since the cap went soft (2026-09-15).
+	# It was 200 and 225 until the strict start (owner, 2026-09-30). A rifle
+	# on the hotbar weighs 6 of it, and the pack has to know that or the
+	# weight bar and the loot rules disagree.
+	near(p.carry_cap, 100.0, 0.01)
+	near(p.carry_limit(), 150.0, 0.01, "the ceiling is the cap times overload_mul")
 	p.hotbar.clear_all()
 	p.hotbar.add("rifle", 1)
-	near(p.pack_allowance(), 331.5, 0.01, "the rifle is off the pack's budget")
-	var took := p.bag.add_capped("stone", 146, p.pack_allowance())
-	eq(took, 146, "stone is 1.5 each: 146 is 219 units, inside the comfortable cap")
+	near(p.pack_allowance(), 144.0, 0.01, "the rifle is off the pack's budget")
+	var took := p.bag.add_capped("stone", 62, p.pack_allowance())
+	eq(took, 62, "stone is 1.5 each: 62 is 93 units, inside the comfortable cap")
 	ok(not p.overloaded(), "and the bar has not passed full")
 	ok(p.carried_weight() <= p.carry_cap)
 
 
 func test_a_pack_that_is_full_by_weight_takes_nothing_more() -> void:
 	# Past the cap you are overburdened, not refused; the ceiling is what
-	# refuses. 225 x 1.5 = 337.5 of ceiling, and stone is 1.5 each.
+	# refuses. 100 x 1.5 = 150 of ceiling, and stone is 1.5 each.
 	p.bag.clear_all()
 	p.hotbar.clear_all()
-	eq(p.bag.add_capped("stone", 400, p.pack_allowance()), 225, "225 x 1.5 is 337.5 of 337.5")
+	eq(p.bag.add_capped("stone", 400, p.pack_allowance()), 100, "100 x 1.5 is 150 of 150")
 	ok(p.overloaded(), "and that is well past the comfortable cap")
 	eq(p.bag.add_capped("wood", 10, p.pack_allowance()), 0, "nothing fits under the ceiling")
 	ok(p.carried_weight() <= p.carry_limit())

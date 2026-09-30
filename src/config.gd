@@ -66,7 +66,12 @@ const PLAYER := {
 	"stam_swing": 2.0,
 	"stam_chop_mul": 3.0,
 	"stam_chop_delay": 1.1,
-	"carry_cap": 200.0,
+	# 75, and 100 on a starting survivor once Strength 2 has added its 25
+	# (owner, 2026-09-30): it was 200. A small pack is one of the chores the
+	# start is made of, and the Pack Frame, Hiking Pack and Rucksack are what
+	# take it away (`tasks/progression-plan.md`). `STAT_BASE` holds the same
+	# number and `progression_test` keeps the two together.
+	"carry_cap": 75.0,
 	# The cap is soft (owner, 2026-09-15): you may load up to this much of it
 	# and walk home overburdened — winded, no sprint and no dash until the
 	# weight comes off — rather than being told a rifle will not fit. Past this
@@ -432,7 +437,7 @@ const PERKS := [
 ## would be a silent no-op: `progression_test` asserts every key resolves.
 const STAT_BASE := {
 	"max_hp": 100.0, "max_stam": 100.0, "stam_regen": 20.0,
-	"carry_cap": 200.0, "pickup_range": 46.0,
+	"carry_cap": 75.0, "pickup_range": 46.0,
 
 	"melee_mul": 1.0, "gun_mul": 1.0, "reload_mul": 1.0, "fire_rate_mul": 1.0,
 	# Guns use fire_rate_mul; melee and tools use swing_rate_mul. Above 1.0 is
