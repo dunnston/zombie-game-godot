@@ -27,7 +27,7 @@ func on_event(ev: Dictionary) -> String:
 			tells.append({"move": String(ev.move), "id": int(ev.id), "at": Vector2(ev.x, ev.y),
 				"to": Vector2(ev.tx, ev.ty), "dur": maxf(0.01, float(ev.dur)), "t": 0.0,
 				"r": float(ev.get("r", 0.0)), "dist": float(ev.get("dist", 0.0)),
-				"fan": float(ev.get("fan", 0.0)), "n": int(ev.get("n", 1))})
+				"width": float(ev.get("width", 0.0)), "fan": float(ev.get("fan", 0.0)), "n": int(ev.get("n", 1))})
 			return String(ev.move)
 		"boss_stunned":
 			stuns.append({"id": int(ev.id), "t": float(ev.dur), "max": float(ev.dur)})
