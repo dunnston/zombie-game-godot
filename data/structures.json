@@ -266,7 +266,7 @@
       "threat": 0.5,
       "tier": 1,
       "wall": true,
-      "wave": 5
+      "wave": 1
     },
     {
       "cost": {
@@ -280,7 +280,7 @@
       "threat": 1.0,
       "tier": 1,
       "wall": true,
-      "wave": 5
+      "wave": 1
     },
     {
       "cost": {
@@ -296,7 +296,7 @@
       "threat": 1.0,
       "tier": 1,
       "wall": true,
-      "wave": 5
+      "wave": 1
     },
     {
       "cost": {
@@ -340,8 +340,8 @@
       "name": "Gate",
       "solid": true,
       "threat": 1.5,
-      "tier": 2,
-      "wave": 5
+      "tier": 1,
+      "wave": 1
     },
     {
       "cost": {
