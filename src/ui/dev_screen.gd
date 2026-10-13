@@ -104,6 +104,7 @@ func _build_catalogue() -> void:
 		# Seeing an interrupt land needs something mid-swing to interrupt,
 		# which is a fight you have to arrange. This is that fight, on demand.
 		["rock", "Stagger and open up everything near you", "world"],
+		["floor", "Knock down every walker and runner near you", "world"],
 		# A potato is nine minutes and corn is eighteen, which is right in
 		# play and useless at a keyboard trying to see what a harvest feels
 		# like — or whether a row of beds reads at a glance.
@@ -291,6 +292,14 @@ func _verb(id: String) -> void:
 					rocked += 1
 				Damage.bleed_enemy(e, 6.0, player)
 			sim.notify("DEV  %d rocked and bleeding" % rocked, "#d9c46a")
+		"floor":
+			# The real writer, so what this shows is the real crawl: slower, can
+			# be hit, and up again in `Config.CRAWL.time`.
+			var floored := 0
+			for e in sim.enemies.list:
+				if not e.dead and e.pos.distance_squared_to(player.pos) <= 600.0 * 600.0 and Damage.knock_down(e):
+					floored += 1
+			sim.notify("DEV  %d knocked down" % floored, "#d9c46a")
 		"human":
 			Mutation.suppress(sim, player, Config.MUTATION.max)
 		"res":

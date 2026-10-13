@@ -546,3 +546,20 @@ it is one with a level and a condition on it, run against the old code first.
   believing an exit code.
 - A `var world` in a test file shadows `TestCase.world` and fails to parse;
   the runner reports it as a failed file, not a failed test.
+
+## 2026-10-13 (the animation pass)
+
+- A mutation test that edits a constant with `sed` edits every line that
+  spells it: `"speed_mul": 0.35` was on three lines and the "revert" put two
+  of them back to the wrong value. Check `git diff` after any scripted edit
+  to shared config, and mutate by line number, not by pattern.
+- A headless script that loads a model sees the *imported* copy in
+  `.godot/imported`, not the file on disk: after rewriting a GLB, run
+  `--import` before measuring anything. The first check of the new models
+  came back with the old skeletons.
+- Mixamo exports are not in place unless asked: a walk carried 1.6 m of hips
+  travel in 1 s. Measure root motion in metres (the FBX loads 179× small, so
+  a two-decimal print says 0.00 for everything) and hold X/Z, keep Y.
+- Changing how often a sim rolls anything on a shared RNG stream moves every
+  later sequence and fails tests that never mention the feature. A new
+  mechanic's rolls get a stream of their own (`Enemies.crawl_rng`).

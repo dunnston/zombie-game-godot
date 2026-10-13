@@ -128,6 +128,10 @@ func test_a_staggered_enemy_neither_walks_nor_swings() -> void:
 	run(sim, 0.5)
 	ok(rocked.aggro and control.aggro, "both are hunting")
 	gt(Damage.stagger_enemy(sim, rocked, 1.5), 0.0)
+	# A stagger can also floor it (`Config.CRAWL.chance`); this is about the
+	# stagger alone, so it is kept on its feet. tests/crawl_test.gd has the rest.
+	rocked.crawl_t = 0.0
+	rocked.atk_range = float(rocked.def.atk_range)
 	var r0 := rocked.pos.distance_to(p.pos)
 	var c0 := control.pos.distance_to(p.pos)
 	run(sim, 1.0)

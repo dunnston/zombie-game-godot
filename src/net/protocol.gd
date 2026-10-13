@@ -33,7 +33,9 @@ extends RefCounted
 ## 11: the Target Range — the `range` command, the `range` map kind and the
 ## `wear` switch on the `inst` record. A protocol-10 guest would be sent into
 ## a map kind it has no layout for.
-const PROTOCOL := 13
+## 14: knocked down — enemy flags `EF_CRAWL` and `EF_GETUP`. A protocol-13
+## guest would see a body crawl at a third of its speed while standing up.
+const PROTOCOL := 14
 
 const RELIABLE := 1
 const STATE := 2
@@ -55,6 +57,8 @@ const EF_BURN := 8
 const EF_WINDUP := 16
 const EF_STAGGER := 32
 const EF_BLEED := 64
+const EF_CRAWL := 128
+const EF_GETUP := 256
 
 ## Vehicle flags.
 const VF_DESTROYED := 1
@@ -467,6 +471,8 @@ static func pack_enemies(sim: GameSim, centre: Vector2, radius: float) -> Packed
 		# that it is losing blood, so one bit each is the whole cost.
 		if e.stagger_t > 0.0: f |= EF_STAGGER
 		if e.bleed_t > 0.0: f |= EF_BLEED
+		if e.crawl_t > 0.0: f |= EF_CRAWL
+		if e.getup_t > 0.0: f |= EF_GETUP
 		out.append(float(e.id))
 		out.append(float(types.find(e.type)))
 		out.append(r1(e.pos.x))

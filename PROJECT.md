@@ -332,14 +332,17 @@ it always had. `Config.STAGE` is `"3d"`; `--stage=2d` is the game as it was.
   boxes (2.2 m, 2.8 m, 0.8 m) topped with their own atlas art. `repaint`
   changes one cell and flattens one box. 167 ms at boot.
 - **`ActorModel`** and **`Actors3D`**: a rigged GLB per player and per
-  enemy that has one (`Models.ENEMY_MODELS`: walker, runner), a capsule at
+  enemy that has one (`Models.ENEMY_MODELS`: walker, runner, coach), a capsule at
   the 2D radius in the 2D colour for the rest; state read from the sim
   exactly as `PlayerView` and `EnemyView` read it (dead, downed, dash,
   swing, reload, wind-up, stagger, moving) and played as a clip, the walk
   and run paced to the ground; hurt, burn and bleed as an additive overlay;
   i-frames as a blink; a seat ring under every player. Root motion is
-  stripped from the clips that carry it (`strip_root`), since the sim
-  moves the body. A dead enemy's model plays its fall and lies there for
+  out of every clip at build time (`tools/build_anims.gd`, 2026-10-13; the
+  sim moves the body) and the speed each cycle was animated at is stored in
+  the clip, so playback is paced against the ground without a table.
+  A walker or runner knocked down (`Config.CRAWL`) plays hurt, crawls, then
+  gets up; a dead crawler slumps where it crawled. A dead enemy's model plays its fall and lies there for
   the corpse's 45 s. The weapon is a bar on the right hand bone until the
   owner's props arrive.
 - **`Structures3D`**: a piece with a model in `Models.STRUCTURE_MODELS`
@@ -2392,6 +2395,9 @@ Phases 1–4 respecting it.
 | 2026-10-13 | Models in git LFS; the owner's inbox folders are not the project's | Tens of megabytes per export and re-exported often: plain history would never shrink again. `Meshy Models/` is where exports land and `assets/models/` is what the game loads, under game names, so a re-export is a copy and a commit, never a rename in code. | Yes |
 | 2026-10-13 | Enemy → model is a view table, not content; kinds without a model are capsules | Notion owns what exists and what it costs; which mesh draws it is the stage's business. A capsule at the 2D radius in the 2D colour keeps the whole loop playable while the owner makes the rest, which is pillar 5 applied to a conversion. | Yes, one table |
 | 2026-10-13 | Armour is rigid props on bones, and the base character is clothed | Layered clothing on generated meshes means weight transfer, body masking and clipping per piece, the hardest problem in any character pipeline, for a difference that cannot be seen at 70 px on screen (pillar 4). A helmet on the head bone can. | Yes |
+| 2026-10-13 | **Clips are baked, not imported: one mesh-only GLB and one `AnimationLibrary` per character, from the owner's Mixamo FBX exports** (`tools/build_anims.gd`) | An FBX per clip is 8 MB and the owner exports dozens; a library of the clips is a megabyte. Baking is where the facts that used to live in a table go into the clip itself: root motion held at the first frame, the speed a cycle was animated at and the second a blow lands as metas, the FBX's 1/179 scale multiplied through so the body is in real metres and a prop on its hand is a real size. The Mixamo rigs replaced the Meshy ones, so `Models` says which clip plays for which state and nothing else. | Yes: edit the manifest, run the tool |
+| 2026-10-13 | A boss's 3D body is cued by its events, never by its script | The same reason `BossView` draws from events: a guest's boss has no script. `boss_tell` plays the move's clip with its strike fitted to the tell, so the slam lands on screen when it lands in the sim, on the host and on a guest alike. | Yes |
+| 2026-10-13 | Knocked down is a sim rule, not a pose (`Config.CRAWL`) | The owner asked for crawlers; a crawl that moved at walking speed with a standing hitbox would lie about what it is. A floored zombie is slower and shorter-reaching, can still be hit, and gets up; a few ambient spawns start down for good. Rolled on a stream of its own so no other sequence moved. Bosses never go down. | Yes, one table |
 | 2026-09-30 | **Recipes arrive in waves, and what is known is derived from facts** (`Discovery`): held, crafted, built, raid, bench | The plan's three-goal test: the next thing has to be visible without a quest log, and never more than eight things at once. Deriving rather than storing is what lets a table change move a recipe between waves without a save migration. | Yes: `reveal_all` on start, or `wave` 1 on every row |
 | 2026-09-30 | **The workbench ladder**: five tiers in one table, and a tier is everything a chapter unlocks — recipes, buildables, the raid ceiling, the weapon level cap, the crew's jobs | The progression plan: the next thing to do has to be visible, and a ladder with one rung above the first bench cannot show it. Raids following the bench is pillar 6 made a choice. | Yes: the table, and `raid_cap` returning the top for every tier |
 | 2026-09-30 | **The strict start**: bills are paid from the pack only, carry starts at 100, and dying drops the pack but not what you wear or the hotbar | The progression plan (`tasks/progression-plan.md`): the early game needs chores for progress to remove, and the stash paying from anywhere had given the biggest one away with the first Supply Stash. Death softened because the walk back should be for the haul, made armed. | Yes: `bill_stash` returns `sim.stash`, two consts, and `drop_backpack` |
@@ -3210,6 +3216,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-10-13 | **The animation pass.** The owner's Mixamo clips on Mixamo rigs for the player, walker, runner and the Coach, baked by `tools/build_anims.gd` into `assets/models/**.glb` + `assets/anims/*.res`; `Models` tables by state; `ActorModel` plays a library, `clip_speed`, `clip_strike`, cross-fades; `Actors3D.on_event` cues a boss's moves, stun, roar and wake, and the floor before it; `Config.CRAWL`, `Damage.knock_down`, `EnemySim.crawl_t` / `getup_t`, `Enemies.crawl_rng`, ambient crawlers; `EF_CRAWL` / `EF_GETUP` (protocol 14); dev **floor**. `crawl_test` (9), `models_test` (5). `tools/test`: 927 tests, 0 failures |
 | 2026-10-13 | **The 3D stage** (`tasks/3d-conversion.md` phase 2). `Stage3D` and the `*_3d` views under `src/stage/`; `Units`; `Models` (player, walker, runner; nine structure models fitted by `StaticModel`); `TerrainRenderer.cell_art` shared by both stages; `Config.STAGE` → `"3d"`, `CAMERA3D`, `STAGE3D`, `STAGE_UNITS`; `TileArt.texture`; the 3D smoke leg and `tools/smoke.cmd` running both stages. `units_test` (3), `terrain_art_test` (4). `tools/test`: 913 tests, 0 failures |
 | 2026-10-13 | **A stage is what draws the world** (phase 1). `Stage` and `Stage2D` (`src/stage/`); `main.gd` through the seam; `LocalInput.gather` takes the cursor as a world point; `Config.STAGE`. `stage_test` (4). Behaviour-identical: the smoke's state dumps match `main`'s checkpoint for checkpoint |
 | 2026-09-30 | **Basic walls and the Gate from the start** (owner). Barricade, Wood Wall and Stone Wall move from wave 5 (Defence, the first raid warning) to wave 1; the Gate from tier 2 wave 5 to tier 1 wave 1. The Supply Stash, Bunk and the rest keep their waves. `discovery_test` updated to the new first day. `tools/test`: 902 tests, 0 failures |

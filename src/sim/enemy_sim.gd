@@ -42,6 +42,13 @@ var slow_t := 0.0
 var stagger_t := 0.0
 var stagger_cd := 0.0
 
+## On the ground (`Config.CRAWL`): seconds left crawling, which is infinite for
+## a body that spawned that way, and then seconds spent getting up. While
+## getting up it does nothing, as when rocked. `Damage.knock_down` writes
+## them and `Enemies.tick_ai` spends them.
+var crawl_t := 0.0
+var getup_t := 0.0
+
 ## Bleeding. `bleed_dps` is the rate of the deepest wound it is carrying and
 ## `bleed_by` is who opened it, so a kill that lands seconds later still pays
 ## its XP and its drops to the right person. `Damage.bleed_enemy` is the one
