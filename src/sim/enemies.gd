@@ -582,6 +582,18 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 			e.last_pos = e.pos
 			continue
 
+		# ------------------------------------------------------------ feeding --
+		# Over somebody who just died (`Damage.kill_player`): bent over the
+		# body for a while, facing it, going nowhere. A hit ends it.
+		if e.feed_t > 0.0:
+			e.feed_t = maxf(0.0, e.feed_t - dt)
+			if e.feed_at != e.pos:
+				e.angle = (e.feed_at - e.pos).angle()
+			e.vel *= exp(-7.5 * dt)
+			e.pos = world.move_circle(e.pos, e.vel * dt, e.r, structs)
+			e.last_pos = e.pos
+			continue
+
 		# ---------------------------------------------------------- targeting --
 		var d_player2 := INF if p == null else e.pos.distance_squared_to(p.pos)
 		# Crouching halves what they notice; carrying a light (Phase 3) does

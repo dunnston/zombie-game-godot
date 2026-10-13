@@ -35,7 +35,10 @@ extends RefCounted
 ## a map kind it has no layout for.
 ## 14: knocked down — enemy flags `EF_CRAWL` and `EF_GETUP`. A protocol-13
 ## guest would see a body crawl at a third of its speed while standing up.
-const PROTOCOL := 14
+## 15: the player flag `PF_SHOT` (a round just left the barrel) and the enemy
+## flag `EF_FEED` (bent over a body). A protocol-14 guest would see nobody
+## fire and the horde stand upright over the dead.
+const PROTOCOL := 15
 
 const RELIABLE := 1
 const STATE := 2
@@ -59,6 +62,7 @@ const EF_STAGGER := 32
 const EF_BLEED := 64
 const EF_CRAWL := 128
 const EF_GETUP := 256
+const EF_FEED := 512
 
 ## Vehicle flags.
 const VF_DESTROYED := 1
@@ -84,6 +88,8 @@ const PF_LURCH := 2048
 ## Mid-dash, so everyone else's screen draws the burst. The dasher's own guest
 ## predicts it and does not need telling.
 const PF_DASH := 4096
+## A round just fired: the view plays the kick (the bow, its release).
+const PF_SHOT := 8192
 
 static var _enemy_types: PackedStringArray = PackedStringArray()
 static var _item_ids: PackedStringArray = PackedStringArray()
@@ -418,6 +424,7 @@ static func pack_player(p: PlayerSim) -> Dictionary:
 	if p.hurt_flash > 0.0: f |= PF_HURT
 	if p.lurch_t > 0.0: f |= PF_LURCH
 	if p.dash_t > 0.0: f |= PF_DASH
+	if not p.shot.is_empty(): f |= PF_SHOT
 	# Whatever channel is running, as a fraction: searching, healing, getting
 	# somebody up, reloading. One bar on screen, whichever it is.
 	var ch := -1.0
@@ -473,6 +480,7 @@ static func pack_enemies(sim: GameSim, centre: Vector2, radius: float) -> Packed
 		if e.bleed_t > 0.0: f |= EF_BLEED
 		if e.crawl_t > 0.0: f |= EF_CRAWL
 		if e.getup_t > 0.0: f |= EF_GETUP
+		if e.feed_t > 0.0: f |= EF_FEED
 		out.append(float(e.id))
 		out.append(float(types.find(e.type)))
 		out.append(r1(e.pos.x))

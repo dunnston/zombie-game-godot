@@ -568,3 +568,26 @@ it is one with a level and a condition on it, run against the old code first.
   on the third run and the smoke took the owner's screen while he was
   typing. Until the cause is known, do not queue a windowed run behind it
   while he is at the machine; ask, or wait for him to say he is away.
+
+## 2026-10-13 (animation pass 2)
+
+- A rule that paces a clip to the ground is not a rule for choosing the
+  clip. The walk was never drawn: the body's 5 m/s was above the run
+  threshold, and the owner saw a run. Choose the gait from what the sim
+  calls it (`sprinting`, `sneaking`) and pace within a cap.
+- A view's "still busy" check must not hold a terminal pose over a body the
+  sim says is up: the player's 3.1 s death outlasts the 3 s respawn, and
+  `busy()` kept the fallen pose on the respawned body. Holding states are
+  the sim's to end.
+- `Engine.get_main_loop()` is null while the test runner's `_init` runs the
+  tests; a test that needs its nodes in a tree gets the runner's through
+  `TestCase.tree`. An AnimationPlayer resolves its tracks there and `advance`
+  stands in for the frames that never draw.
+- A test that respawns the player and then watches a zombie by the old
+  body is watching a zombie the spawner culled (nobody within `S.cull`).
+  Hold the respawn (`respawn_t`) when the body is the point.
+- The coach spawned by `Enemies.spawn` has no `brain`; the arena attaches
+  it. "Is a boss" is `def.boss`, not `brain != null`.
+- A bash heredoc holding a long Python script with triple-quoted strings
+  tripped the shell parser again (`unexpected EOF`). Scripts go through the
+  Write tool; heredocs are for a few lines.

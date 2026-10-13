@@ -479,6 +479,10 @@ func _apply_player(pr: Dictionary) -> void:
 		_was_down = p.downed
 		_was_dead = p.dead
 		_level = p.level
+		# Your own kick is the host's word: a swing is predicted (the picture
+		# only) but a shot spends a round the host counts, so the body waits
+		# for the flag (Codex, PR #75).
+		_apply_shot(p, f)
 		# No prediction while dead, down, driving or lurching: the host owns
 		# you. A guest predicting its own footsteps through a Lurch would
 		# fight the host for a second and a half and lose, visibly.
@@ -505,6 +509,7 @@ func _apply_player(pr: Dictionary) -> void:
 			p.swing = {"t": 0.0, "dur": 0.2, "angle": angle, "arc": float(w.get("arc", 1.0)), "range": float(w.get("range", 40.0)) + p.r}
 	else:
 		p.swing = {}
+	_apply_shot(p, f)
 	if at.distance_squared_to(p.pos) > 400.0 * 400.0 or p.away:
 		p.pos = at
 		p.prev_pos = at
@@ -558,6 +563,7 @@ func _apply_enemies(en: PackedFloat32Array) -> void:
 			e.bleed_t = 1.0 if f & NetProtocol.EF_BLEED else 0.0
 			e.crawl_t = 1.0 if f & NetProtocol.EF_CRAWL else 0.0
 			e.getup_t = 0.3 if f & NetProtocol.EF_GETUP else 0.0
+			e.feed_t = 1.0 if f & NetProtocol.EF_FEED else 0.0
 			if f & NetProtocol.EF_FLASH:
 				e.flash = 0.11
 			if at.distance_squared_to(e.pos) > 300.0 * 300.0:
@@ -759,6 +765,16 @@ func _predict_self(dt: float) -> void:
 			me.pos = _auth
 		elif err > 0.5:
 			me.pos = me.pos.lerp(_auth, Util.smooth(Config.NET.lerp_rate, dt))
+
+
+## A round just fired, from the flag: one kick per rise of it. Nobody ticks
+## a mirrored `shot`, so the flag going down is what clears it.
+static func _apply_shot(p: PlayerSim, f: int) -> void:
+	if f & NetProtocol.PF_SHOT:
+		if p.shot.is_empty():
+			p.shot = {"t": 0.0, "dur": 0.3, "bow": bool(p.weapon().get("bow", false))}
+	else:
+		p.shot = {}
 
 
 ## A guest swings its own weapon locally, for the picture only. Waiting for

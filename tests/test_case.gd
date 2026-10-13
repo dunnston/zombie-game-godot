@@ -7,6 +7,11 @@ extends RefCounted
 var _failures: Array[String] = []
 var _asserts := 0
 
+## The runner's tree, for a test whose nodes must be in one (an
+## AnimationPlayer resolves its tracks there). `Engine.get_main_loop()` is
+## still null while the runner's `_init` runs the tests.
+static var tree: SceneTree
+
 static var _shared_world: World
 
 ## One generated world for the whole run. Never mutate it in a test that

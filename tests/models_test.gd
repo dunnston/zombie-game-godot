@@ -19,14 +19,18 @@ func test_every_clip_a_table_names_is_in_its_library() -> void:
 		if lib == null:
 			continue
 		for state in table.clips:
-			var clip := String(table.clips[state])
-			ok(lib.has_animation(clip), "%s: state %s wants clip '%s'" % [who, state, clip])
-			if not lib.has_animation(clip):
-				continue
-			var a := lib.get_animation(clip)
-			gt(a.length, 0.1, "%s/%s is a clip" % [who, clip])
-			if state in Models.LOOPING:
-				eq(a.loop_mode, Animation.LOOP_LINEAR, "%s/%s loops" % [who, state])
+			# A state names one clip, or the several the body takes turns with.
+			var named: Variant = table.clips[state]
+			var clips: Array = named if named is Array else [named]
+			for clip_ in clips:
+				var clip := String(clip_)
+				ok(lib.has_animation(clip), "%s: state %s wants clip '%s'" % [who, state, clip])
+				if not lib.has_animation(clip):
+					continue
+				var a := lib.get_animation(clip)
+				gt(a.length, 0.1, "%s/%s is a clip" % [who, clip])
+				if state in Models.LOOPING:
+					eq(a.loop_mode, Animation.LOOP_LINEAR, "%s/%s loops" % [who, state])
 
 
 func test_cycles_say_how_fast_they_were_animated() -> void:

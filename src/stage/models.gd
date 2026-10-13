@@ -9,12 +9,17 @@ extends RefCounted
 ##
 ## Clip names are the animation library's (`lib`, built by
 ## `tools/build_anims.gd` from the owner's Mixamo exports); a state maps to a
-## clip and a state with no clip does nothing, or borrows its nearest
-## (`ActorModel._clip_for`). Root motion is already out of every clip, and the
-## speed each cycle was animated at is in the clip (`speed` meta), so nothing
-## here says how fast a walk is. `run_over` is the speed in metres per second
-## above which a body is drawn running instead of walking. `scale` is how much
-## bigger than a person it is drawn.
+## clip, or to a list of clips the body takes turns with (two swings, two
+## deaths), and a state with no clip does nothing, or borrows its nearest
+## (`ActorModel._clip_for`). A state with a weapon family in front of it
+## (`rifle_walk`) is what the body does in that state with that kind of
+## weapon in its hands; `ActorModel` looks for the family's clip first and
+## falls back to the bare state, so a family only needs the clips that differ.
+## Root motion is already out of every clip, and the speed each cycle was
+## animated at is in the clip (`speed` meta), so nothing here says how fast a
+## walk is. `run_over` is the speed in metres per second above which an enemy
+## is drawn running instead of walking. `scale` is how much bigger than a
+## person it is drawn.
 
 const CHARACTERS := "res://assets/models/characters/"
 const ENEMIES := "res://assets/models/enemies/"
@@ -26,13 +31,27 @@ const PLAYER := {
 	"lib": ANIMS + "player.res",
 	"clips": {
 		"idle": "idle", "walk": "walk", "run": "run", "attack": "attack",
-		"hurt": "hurt", "die": "die", "downed": "downed", "dash": "dash",
-		"shoot": "shoot", "collect": "collect", "throw": "throw",
-		# No sneak or reload in the exports yet: sneaking borrows the walk, and a
-		# reload leaves whatever was playing.
+		"hurt": "hurt", "die": "die", "downed": "downed", "jump": "jump",
+		"crouch": "crouch", "shoot": "shoot", "collect": "collect", "throw": "throw",
+		# With a long gun, a handgun or a bow in hand. Every gun fires with the
+		# rifle's kick; the bow has its own release, its draw is its reload,
+		# and it is the one weapon with an equip and a disarm.
+		"rifle_idle": "rifle_idle", "rifle_walk": "rifle_walk", "rifle_run": "rifle_run",
+		"pistol_idle": "pistol_idle", "pistol_walk": "pistol_walk", "pistol_run": "pistol_run",
+		"bow_idle": "bow_idle", "bow_walk": "bow_walk", "bow_run": "bow_run",
+		"bow_shoot": "bow_shoot", "bow_reload": "bow_reload",
+		"bow_equip": "bow_equip", "bow_disarm": "bow_disarm",
+		# No crouched walk, no swing with a weapon in it and no gun reload in
+		# the exports yet: sneaking on the move borrows the walk, every melee
+		# weapon swings like a fist, and a gun's reload leaves whatever was
+		# playing.
 	},
 	"hand": "mixamorig:RightHand",
 }
+
+## The guns a body holds in one hand. Everything else that fires is carried
+## like a rifle.
+const HANDGUNS := ["pistol", "sixShooter", "machinePistol", "compactSmg", "smg"]
 
 ## The two zombies share a body of states. A walker is drawn running above
 ## 1.2 m/s because its walk clip is a 0.3 m/s shamble and it moves at 1.9;
@@ -41,15 +60,17 @@ const ENEMY_MODELS := {
 	"walker": {
 		"scene": ENEMIES + "walker.glb",
 		"lib": ANIMS + "walker.res",
-		"clips": {"idle": "idle", "walk": "walk", "run": "run", "attack": "attack", "hurt": "hurt",
-			"die": "die", "crawl": "crawl", "getup": "getup", "bite_low": "bite_low", "die_low": "crawl"},
+		"clips": {"idle": "idle", "walk": "walk", "run": "run", "attack": ["attack", "bite"], "hurt": "hurt",
+			"die": ["die", "die2"], "eat": "eat", "crawl": "crawl", "getup": "getup", "bite_low": "bite_low",
+			"die_low": "crawl"},
 		"run_over": 1.2,
 	},
 	"runner": {
 		"scene": ENEMIES + "runner.glb",
 		"lib": ANIMS + "runner.res",
-		"clips": {"idle": "idle", "walk": "walk", "run": "run", "attack": "attack", "hurt": "hurt",
-			"die": "die", "crawl": "crawl_fast", "getup": "getup", "bite_low": "bite_low", "die_low": "crawl_fast"},
+		"clips": {"idle": "idle", "walk": "walk", "run": "run", "attack": ["attack", "bite"], "hurt": "hurt",
+			"die": ["die", "die2"], "eat": "eat", "crawl": "crawl_fast", "getup": "getup", "bite_low": "bite_low",
+			"die_low": "crawl_fast"},
 		"run_over": 3.0,
 	},
 	"coach": {
@@ -81,7 +102,7 @@ const STRUCTURE_MODELS := {
 }
 
 ## Which states loop, and which hold their last frame when they end.
-const LOOPING := ["idle", "walk", "run", "sneak", "crawl", "stun"]
+const LOOPING := ["idle", "walk", "run", "crouch", "crawl", "stun"]
 const HOLDING := ["die", "downed", "die_low", "getup", "asleep"]
 ## Which states are a clip's first frame, held: a dead crawler slumped where it
 ## was, a boss on the gym floor before anyone walks in.
@@ -89,6 +110,16 @@ const FROZEN := ["die_low", "asleep"]
 
 static var _scenes := {}
 static var _libs := {}
+
+
+## The clip family a weapon puts the body in: "bow", "pistol", "rifle", or ""
+## for hands and everything swung.
+static func family_of(w: Dictionary) -> String:
+	if w.get("bow", false):
+		return "bow"
+	if String(w.get("kind", "")) == "gun":
+		return "pistol" if String(w.get("id", "")) in HANDGUNS else "rifle"
+	return ""
 
 
 ## A clip library, loaded once; null when it is not built, which leaves a body

@@ -226,6 +226,7 @@ var crafting := {}
 ## then, which is what made tap-to-drive unreachable. {car, t, dur} or empty.
 var car_hold := {}
 var swing := {}                  # {t, dur, angle, arc, range} for the view
+var shot := {}                   # {t, dur, bow}: the last round fired, for the view
 var recoil := 0.0
 var recoil_dir := 1.0
 var needs_hint_at := -99.0
@@ -615,6 +616,7 @@ func tick(sim: GameSim, dt: float) -> void:
 		# the threat now. `Damage.tick_downed` is where the clock runs out.
 		vel = Vector2.ZERO
 		swing = {}
+		shot = {}
 		reloading = {}
 		using = {}
 		searching = {}
@@ -670,6 +672,10 @@ func tick(sim: GameSim, dt: float) -> void:
 		swing.t += dt
 		if swing.t >= swing.dur:
 			swing = {}
+	if not shot.is_empty():
+		shot.t += dt
+		if shot.t >= shot.dur:
+			shot = {}
 
 	# Aim, with the recoil kick on top.
 	angle = atan2(it.aim.y - pos.y, it.aim.x - pos.x) + recoil * recoil_dir
