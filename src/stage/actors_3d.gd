@@ -12,9 +12,14 @@ extends Node3D
 const CORPSE_LIFE := 45.0
 const CORPSE_FADE := 6.0
 const STEPS_PER_SEC := 60.0
-## The dash is 0.18 s of movement; the hop drawn over it takes this long,
-## so it reads as a jump rather than a flicker.
-const JUMP_TIME := 0.7
+## The dash is 0.18 s of movement; the roll drawn over it takes this long,
+## so it reads as a roll rather than a flicker. The jump has its own clock
+## (`Config.JUMP`) and the clip is fitted to that.
+const ROLL_TIME := 0.6
+## The slowest a swing plays. The clip is paced to the weapon's cooldown so
+## a fast pipe is a fast slash, but a slow sledge never drags below the
+## clip's own speed.
+const SWING_RATE_MIN := 1.0
 ## How much faster than it was animated a cycle may play before the feet
 ## blur: a walk is a walk even on a body that covers 5 m/s.
 const WALK_PACE := 1.8
@@ -132,7 +137,7 @@ func _frame_players(dt: float) -> void:
 			node.add_ring(Color(Config.PLAYER.colors[p.seat % Config.PLAYER.colors.size()]))
 			add_child(node)
 			_players[p.seat] = node
-			_pmem[p.seat] = {"dash": 0.0, "shot": -1.0, "held": p.held_id(),
+			_pmem[p.seat] = {"dash": 0.0, "jump": 0.0, "shot": -1.0, "swing": -1.0, "held": p.held_id(),
 				"fam": Models.family_of(p.weapon()), "dead": p.dead, "at": Vector3.ZERO, "yaw": 0.0}
 		_update_player(node, p, dt)
 	for seat in _players.keys():
@@ -157,11 +162,16 @@ func _update_player(node: ActorModel, p: PlayerSim, _dt: float) -> void:
 	node.hold(Color(w.get("color", "#2b2b2b")), 0.62 if w.kind == "gun" else 0.5)
 
 	# The edges, read every frame whatever else happens so none is left
-	# pending from before a death.
-	var jumped := p.dash_t > float(m.dash)
+	# pending from before a death. A clock that rose is a fresh start; a
+	# clip clock (`swing.t`, `shot.t`) that went back is one.
+	var rolled := p.dash_t > float(m.dash)
 	m.dash = p.dash_t
+	var jumped := p.jump_t > float(m.jump)
+	m.jump = p.jump_t
 	var fired := not p.shot.is_empty() and (float(m.shot) < 0.0 or float(p.shot.t) < float(m.shot))
 	m.shot = float(p.shot.t) if not p.shot.is_empty() else -1.0
+	var swung := not p.swing.is_empty() and (float(m.swing) < 0.0 or float(p.swing.t) < float(m.swing))
+	m.swing = float(p.swing.t) if not p.swing.is_empty() else -1.0
 	var held := p.held_id()
 	var changed := held != String(m.held)
 	var was_fam := String(m.fam)
@@ -187,10 +197,17 @@ func _update_player(node: ActorModel, p: PlayerSim, _dt: float) -> void:
 		return
 	var speed := Units.m((p.pos - p.prev_pos).length()) * STEPS_PER_SEC
 	var moving := speed > 0.3
-	if jumped or (node.state == "jump" and node.busy()):
-		node.play("jump", _fit(node, "jump", JUMP_TIME), jumped, 0.1)
+	if rolled or (node.state == "roll" and node.busy()):
+		# Sprint + Space: the burst is 0.18 s; the roll is drawn over ROLL_TIME.
+		node.play("roll", _fit(node, "roll", ROLL_TIME), rolled, 0.1)
+	elif jumped or (node.state == "jump" and node.busy()):
+		node.play("jump", _fit(node, "jump", float(Config.JUMP.time)), jumped, 0.1)
 	elif not p.swing.is_empty():
-		node.play("attack", _fit(node, "attack", float(p.swing.dur)), false, 0.1, fam)
+		# Paced to the weapon's cooldown, never slower than the clip: the
+		# whole slash fits between one swing and the next, and a second
+		# swing restarts it from the top (`swung`).
+		var cd := float(w.get("cd", 0.5)) * p.swing_rate_mul
+		node.play("attack", maxf(SWING_RATE_MIN, _fit(node, "attack", cd, fam)), swung, 0.1, fam)
 	elif fired:
 		# Every gun kicks like the rifle; the bow has its own release.
 		node.play("shoot", _fit(node, "shoot", maxf(0.25, float(p.shot.dur)), fam), true, 0.05, fam)
@@ -204,6 +221,9 @@ func _update_player(node: ActorModel, p: PlayerSim, _dt: float) -> void:
 		node.play("disarm", _fit(node, "disarm", 0.6, was_fam), true, 0.1, was_fam)
 	elif node.busy():
 		pass
+	elif p.dance_t > 0.0:
+		# X: the Thriller, looped for as long as the sim lets it run.
+		node.play("dance", 1.0, false, 0.3)
 	elif p.sneaking:
 		# Ctrl: down on one knee while still. There is no crouched walk in
 		# the exports, so a sneak on the move is the walk at its half pace.

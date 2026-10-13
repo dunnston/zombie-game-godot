@@ -591,3 +591,23 @@ it is one with a level and a condition on it, run against the old code first.
 - A bash heredoc holding a long Python script with triple-quoted strings
   tripped the shell parser again (`unexpected EOF`). Scripts go through the
   Write tool; heredocs are for a few lines.
+
+## 2026-10-13 (bodies, the jump, the roll, the dance)
+
+- `AnimationPlayer.play(name)` on the clip already assigned keeps its
+  position unless it had reached the end. Every "restart" the stage asked
+  for mid-clip — the second swing of a fast weapon, a shot on a shot — had
+  never restarted anything. A test that seeks to the middle and asks for
+  the restart is what showed it; `ActorModel.play` seeks to 0 now.
+- Holding two bodies apart by moving one of them turns the other into a
+  bulldozer: a rolling player held solid pushed the zombie ahead of it for
+  130 px instead of going through. Anything that is meant to pass through
+  has to be exempt on *both* halves of the rule, and the rule needs one
+  predicate (`Enemies.solid`) rather than two lists.
+- A collision rule has to be checked against every scripted move that
+  crosses a body: the Coach's charge went through the player into the wall
+  and the hold-off stopped it a body short. `boss_test` caught it; the sim's
+  own tests are the regression suite for a view-motivated change.
+- A zombie held off in reach while its cooldown runs reads as "stuck" to
+  the stuck rescue (it wants to move and cannot). Any rule that stops a
+  body on purpose has to tell the rescue so.

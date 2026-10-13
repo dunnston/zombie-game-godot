@@ -503,6 +503,11 @@ func _apply_player(pr: Dictionary) -> void:
 	# view reads it off the step they just took.
 	p.dash_t = 0.1 if f & NetProtocol.PF_DASH else 0.0
 	p.dash_dir = Vector2.ZERO
+	# In the air, or dancing: the stage starts the hop on the rise of the
+	# clock and loops the dance while it stands. Nobody ticks these here,
+	# so the flag going down is what ends them.
+	p.jump_t = 0.1 if f & NetProtocol.PF_JUMP else 0.0
+	p.dance_t = 1.0 if f & NetProtocol.PF_DANCE else 0.0
 	if f & NetProtocol.PF_SWING:
 		if p.swing.is_empty():
 			var w := p.weapon()
@@ -758,7 +763,10 @@ func _predict_self(dt: float) -> void:
 		me.cycle_slot(me.intent.wheel)
 	_predict_swing(dt)
 	var rooted := not me.using.is_empty() or not me.reviving.is_empty()
-	me.move(sim.world, dt, rooted, sim.structs)
+	me.move(sim.world, dt, rooted, sim.structs, sim.enemies)
+	# Your own hop and dance answer at once, by the same rule the host runs
+	# (`PlayerSim.step_moves`); the host's flag agrees a round trip later.
+	me.step_moves(dt, rooted)
 	if _auth != Vector2.INF:
 		var err := _auth.distance_to(me.pos)
 		if err > Config.NET.snap_over:

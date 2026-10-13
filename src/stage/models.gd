@@ -30,8 +30,13 @@ const PLAYER := {
 	"scene": CHARACTERS + "player.glb",
 	"lib": ANIMS + "player.res",
 	"clips": {
-		"idle": "idle", "walk": "walk", "run": "run", "attack": "attack",
-		"hurt": "hurt", "die": "die", "downed": "downed", "jump": "jump",
+		"idle": "idle", "walk": "walk", "run": "run",
+		# Every melee weapon swings the sword slash, at a zombie or a tree;
+		# bare hands punch.
+		"attack": "attack", "fists_attack": "punch",
+		"hurt": "hurt", "die": "die", "downed": "downed",
+		# Space, Sprint + Space, X.
+		"jump": "jump", "roll": "roll", "dance": "dance",
 		"crouch": "crouch", "shoot": "shoot", "collect": "collect", "throw": "throw",
 		# With a long gun, a handgun or a bow in hand. Every gun fires with the
 		# rifle's kick; the bow has its own release, its draw is its reload,
@@ -102,7 +107,7 @@ const STRUCTURE_MODELS := {
 }
 
 ## Which states loop, and which hold their last frame when they end.
-const LOOPING := ["idle", "walk", "run", "crouch", "crawl", "stun"]
+const LOOPING := ["idle", "walk", "run", "crouch", "crawl", "stun", "dance"]
 const HOLDING := ["die", "downed", "die_low", "getup", "asleep"]
 ## Which states are a clip's first frame, held: a dead crawler slumped where it
 ## was, a boss on the gym floor before anyone walks in.
@@ -112,13 +117,15 @@ static var _scenes := {}
 static var _libs := {}
 
 
-## The clip family a weapon puts the body in: "bow", "pistol", "rifle", or ""
-## for hands and everything swung.
+## The clip family a weapon puts the body in: "bow", "pistol", "rifle",
+## "fists" for bare hands, or "" for everything swung.
 static func family_of(w: Dictionary) -> String:
 	if w.get("bow", false):
 		return "bow"
 	if String(w.get("kind", "")) == "gun":
 		return "pistol" if String(w.get("id", "")) in HANDGUNS else "rifle"
+	if String(w.get("id", "")) == "fists":
+		return "fists"
 	return ""
 
 

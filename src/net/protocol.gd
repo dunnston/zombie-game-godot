@@ -38,7 +38,10 @@ extends RefCounted
 ## 15: the player flag `PF_SHOT` (a round just left the barrel) and the enemy
 ## flag `EF_FEED` (bent over a body). A protocol-14 guest would see nobody
 ## fire and the horde stand upright over the dead.
-const PROTOCOL := 15
+## 16: the intent edges `jump` and `dance` and the player flags `PF_JUMP` and
+## `PF_DANCE`. A protocol-15 host would drop a guest's Space and X on the
+## floor; a protocol-15 guest would see nobody hop or dance.
+const PROTOCOL := 16
 
 const RELIABLE := 1
 const STATE := 2
@@ -90,6 +93,9 @@ const PF_LURCH := 2048
 const PF_DASH := 4096
 ## A round just fired: the view plays the kick (the bow, its release).
 const PF_SHOT := 8192
+## In the air (Space) and dancing (X): clocks on the body, for the clip.
+const PF_JUMP := 16384
+const PF_DANCE := 32768
 
 static var _enemy_types: PackedStringArray = PackedStringArray()
 static var _item_ids: PackedStringArray = PackedStringArray()
@@ -272,6 +278,8 @@ static func pack_intent(it: Intent, with_edges := true) -> Dictionary:
 		if it.suppress: f |= 512
 		if it.eat: f |= 1024
 		if it.dash: f |= 2048
+		if it.jump: f |= 4096
+		if it.dance: f |= 8192
 	var out := {"mx": snappedf(it.mx, 0.01), "my": snappedf(it.my, 0.01),
 		"ax": roundi(it.aim.x), "ay": roundi(it.aim.y), "f": f,
 		"s": it.slot if with_edges else -1, "w": it.wheel if with_edges else 0}
@@ -298,6 +306,8 @@ static func unpack_intent(p: Dictionary, into: Intent) -> Intent:
 	into.suppress = bool(f & 512)
 	into.eat = bool(f & 1024)
 	into.dash = bool(f & 2048)
+	into.jump = bool(f & 4096)
+	into.dance = bool(f & 8192)
 	into.slot = clampi(int(p.get("s", -1)), -1, Config.PLAYER.hotbar_slots - 1)
 	into.wheel = clampi(int(p.get("w", 0)), -1, 1)
 	into.build_action = ""
@@ -425,6 +435,8 @@ static func pack_player(p: PlayerSim) -> Dictionary:
 	if p.lurch_t > 0.0: f |= PF_LURCH
 	if p.dash_t > 0.0: f |= PF_DASH
 	if not p.shot.is_empty(): f |= PF_SHOT
+	if p.jump_t > 0.0: f |= PF_JUMP
+	if p.dance_t > 0.0: f |= PF_DANCE
 	# Whatever channel is running, as a fraction: searching, healing, getting
 	# somebody up, reloading. One bar on screen, whichever it is.
 	var ch := -1.0

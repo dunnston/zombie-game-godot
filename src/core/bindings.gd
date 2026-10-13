@@ -12,7 +12,11 @@ const KEYS := {
 	"move_right": [KEY_D, KEY_RIGHT],
 	"sprint": [KEY_SHIFT],
 	"sneak": [KEY_CTRL],
-	"dash": [KEY_SPACE],
+	# Space alone is the jump; with Sprint held it is the roll (the dash:
+	# `LocalInput` reads the chord). One key the player already has rather
+	# than a chord of its own, so Controls can rebind it without a chord editor.
+	"jump": [KEY_SPACE],
+	"dance": [KEY_X],
 	"interact": [KEY_E],
 	"reload": [KEY_R],
 	"use_heal": [KEY_Q],
@@ -67,7 +71,8 @@ const ACTIONS := [
 	{"id": "move_right", "name": "Right", "group": "Move"},
 	{"id": "sprint", "name": "Sprint", "group": "Move"},
 	{"id": "sneak", "name": "Sneak", "group": "Move"},
-	{"id": "dash", "name": "Dash", "group": "Move"},
+	{"id": "jump", "name": "Jump (with Sprint: roll)", "group": "Move"},
+	{"id": "dance", "name": "Dance", "group": "Move"},
 	{"id": "reload", "name": "Reload", "group": "Fight"},
 	{"id": "slot1", "name": "Slot 1", "group": "Fight"},
 	{"id": "slot2", "name": "Slot 2", "group": "Fight"},

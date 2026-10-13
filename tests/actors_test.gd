@@ -110,15 +110,82 @@ func test_the_bow_is_drawn_from_the_back_and_put_away() -> void:
 	eq(_me().clip, "bow_disarm", "and puts it away for something else")
 
 
-func test_space_is_a_jump() -> void:
+func test_sprint_and_space_is_a_roll() -> void:
 	p.intent.dash = true
 	_play(DT)
 	gt(p.dash_t, 0.0, "the dash began")
+	eq(_me().state, "roll")
+	eq(_me().clip, "roll")
+	# The roll outlives the burst: it is drawn over ROLL_TIME, not 0.18 s.
+	_play(float(Config.DASH.time) + 0.05)
+	eq(_me().state, "roll", "still rolling after the burst")
+
+
+func test_space_is_a_jump_and_nothing_else() -> void:
+	var at := p.pos
+	var stam := p.stam
+	p.intent.jump = true
+	_play(DT)
+	gt(p.jump_t, 0.0, "the jump began")
 	eq(_me().state, "jump")
 	eq(_me().clip, "jump")
-	# The hop outlives the burst: it is drawn over JUMP_TIME, not 0.18 s.
-	_play(float(Config.DASH.time) + 0.05)
-	eq(_me().state, "jump", "still in the air after the burst")
+	eq(p.dash_t, 0.0, "and no burst with it")
+	eq(p.pos, at, "a hop goes nowhere on its own")
+	ok(p.stam >= stam, "and costs nothing")
+	ok(int(NetProtocol.pack_player(p).n[NetProtocol.PL_FLAGS]) & NetProtocol.PF_JUMP, "and your friends see it")
+	# The clip is fitted to the sim's clock, so the body lands when the sim
+	# says it has.
+	near(_me().anim.speed_scale, _me().clip_length("jump") / float(Config.JUMP.time), 0.01)
+	_play(float(Config.JUMP.time) + DT)
+	eq(p.jump_t, 0.0, "down again")
+
+
+func test_x_is_the_dance_until_you_do_anything() -> void:
+	p.intent.dance = true
+	_play(DT)
+	gt(p.dance_t, 0.0, "the dance began")
+	eq(_me().state, "dance")
+	eq(_me().clip, "dance")
+	ok(_me().anim.get_animation("dance").loop_mode == Animation.LOOP_LINEAR, "and it loops")
+	ok(int(NetProtocol.pack_player(p).n[NetProtocol.PL_FLAGS]) & NetProtocol.PF_DANCE, "and your friends see it")
+	_play(1.0)
+	eq(_me().state, "dance", "still dancing a second on")
+	p.intent.mx = 1.0
+	_play(DT)
+	eq(p.dance_t, 0.0, "a step ends it")
+	ok(not (int(NetProtocol.pack_player(p).n[NetProtocol.PL_FLAGS]) & NetProtocol.PF_DANCE), "for them too")
+	_play(0.1)
+	eq(_me().state, "walk", "and the walk takes over")
+
+
+func test_a_melee_swing_is_the_slash_at_a_zombie_and_at_a_tree() -> void:
+	_hold("pipe")
+	_play(0.1)
+	p.intent.fire = true
+	_play(DT)
+	ok(not p.swing.is_empty(), "the pipe swung")
+	eq(_me().state, "attack")
+	eq(_me().clip, "attack", "the sword slash, not the punch")
+	# Paced to the pipe's cooldown, so the whole clip fits before the next
+	# swing, and never slower than the clip itself.
+	var cd := float(Config.WEAPONS.pipe.cd) * p.swing_rate_mul
+	near(_me().anim.speed_scale, maxf(1.0, _me().clip_length("attack") / cd), 0.01)
+	# A second swing starts the slash over rather than letting it run on.
+	p.intent.fire = false
+	_play(cd + DT)
+	_me().anim.seek(0.5, true)
+	p.intent.fire = true
+	_play(DT)
+	ok(_me().anim.current_animation_position < 0.3, "restarted from the top on the second swing (at %.2f)" % _me().anim.current_animation_position)
+	# Bare hands punch.
+	p.intent.fire = false
+	for i in p.hotbar.size():
+		p.hotbar.slots[i] = {}
+	p.attack_cd = 0.0
+	_play(0.1)
+	p.intent.fire = true
+	_play(DT)
+	eq(_me().clip, "punch", "fists are the punch")
 
 
 func test_ctrl_is_a_crouch() -> void:
