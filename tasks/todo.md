@@ -3253,3 +3253,79 @@ The owner's playtest of the animation pass, five items:
   the owner's: the slash's pace against the pipe, the roll over 0.6 s, the
   jump over 0.9 s, X for the dance (rebindable in Controls), and whether
   Sprint + Space is the right chord for the roll.
+
+## Facing follows the feet, the mouse when still, the attack when it lands (2026-10-13)
+
+The owner, after playing V Rising: you look where you walk, or where you
+swing; the mouse only has your eyes when you are standing still. Today
+`PlayerSim.angle` is the cursor, always (`player_sim.gd:694`), so a player
+backing away from a zombie walks backward facing it, and a player walking
+past the mouse walks sideways.
+
+### The rule (one place, run by host and guest alike)
+
+`angle` stays the body's facing, and everything that reads it — the swing
+arc, the muzzle, the dash from a standstill, both views, the wire — is
+unchanged. What changes is how it is chosen, in a new `PlayerSim.face(dt)`
+that `tick` and `NetGuest._predict_self` both call:
+
+1. **Attacking: the cursor.** Fire held or pressed, a swing or a shot in
+   flight: `angle` = toward `intent.aim`, and `face_hold` is reset to
+   `Config.PLAYER.face_hold` (0.35 s) so the body does not whip back to the
+   feet the frame a click ends.
+2. **Still holding:** while `face_hold > 0`, the cursor.
+3. **Moving: the feet.** The intent direction (`mx, my`) while any move key
+   is down; the roll's `dash_dir` while rolling.
+4. **Idle: the cursor.**
+
+Recoil rides on top as now. Driving is untouched (the car owns `angle`).
+The sim turns instantly, so a shot goes where the mouse is on the tick it is
+fired; `ActorModel.face` turns the body toward the sim's angle at a capped
+rate (`TURN_RATE`, ~900°/s) so a reversal reads as a turn, not a pop.
+
+### Answered (owner, 2026-10-13)
+
+**Remove the move-toward-cursor scheme.** WASD is the screen's up, down,
+left and right, always, as in V Rising: the only scheme in which "the mouse
+behind you while you walk forward" can happen. The MOVE TOWARD CURSOR row,
+`KeyBinds.move_to_cursor`, `LocalInput.heading/aim_heading/steer`,
+`PLAYER.cursor_deadzone`, `local_input_test.gd`, the setting test and the
+`walked_to_cursor` smoke checkpoint all go.
+
+### Plan
+
+- [x] 1. Remove the scheme: `KeyBinds` (the var, setter, save, load, reset),
+      the Controls row and its action (`MenuScreen`), `LocalInput` (the
+      heading and the turn), `Config.PLAYER.cursor_deadzone`, the smoke
+      checkpoint and the two tests.
+- [x] 2. `Config.PLAYER.face_hold`; `PlayerSim.face_hold`,
+      `PlayerSim.face(dt, rooted)`; `tick` and `NetGuest._predict_self`
+      call it instead of the atan2 line.
+- [x] 3. `ActorModel.face(angle, dt)` turns at `TURN_RATE` when given a dt
+      and snaps otherwise (enemies, corpses, first placement).
+- [x] 4. Tests (`player_facing_test.gd`): walking east with the cursor west
+      faces east; stopping faces west; a click while walking faces the
+      cursor and the shot goes there; the hold outlasts the click; a roll
+      faces its burst; rooted faces the cursor; a guest's prediction agrees
+      with the host.
+- [x] 5. `tools/test`; the smoke's real-mouse checkpoint rewritten for the
+      rule (`faced_the_feet_then_the_mouse`); PROJECT.md (a §4 section, a
+      note on the 2026-09-15 section, a decision row); PR.
+
+### Review
+
+- The rule is one function on the sim, run by the host's tick and the
+  guest's prediction, placed before `Combat` so the arc and the muzzle
+  read a body already turned to the mouse. Nothing that consumed `angle`
+  changed. The view turns the body (`ActorModel.TURN_RATE`); the sim does
+  not, so a shot is never behind the mouse.
+- The smoke's dash step still pressed the `dash` action PR #76 removed, so
+  the 2D leg was red on main at checkpoint 03; it presses Sprint + Space now.
+- The scheme removal is a net deletion: 5 files lose code, one old
+  `binds.json` key is read past by the rule that already skipped removed
+  actions (pinned in `saves_slots_test`).
+- `tools/test`: 955 tests, 0 failures (6 new in `player_facing_test`, 1 in
+  `net_test`, 5 gone with the scheme). The smoke ran when the machine was
+  idle; its result is in the PR.
+- The feel is the owner's: `face_hold` (0.35 s) and `TURN_RATE` (a half
+  turn in 0.2 s) are the two numbers to tune.

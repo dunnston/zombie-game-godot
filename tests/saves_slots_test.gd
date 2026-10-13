@@ -297,24 +297,15 @@ func test_a_binding_for_an_action_that_no_longer_exists_is_dropped() -> void:
 	# An old binds file naming something this build removed must not crash the
 	# boot, and must not register a phantom action.
 	var f := FileAccess.open(KeyBinds.STORE, FileAccess.WRITE)
-	f.store_string(JSON.stringify({"a_removed_action": [KEY_Z], "map": [KEY_N]}))
+	# `move_to_cursor` is the setting the scheme of 2026-09-15 kept here
+	# until it went (2026-10-13): a file that still has it is read past it.
+	f.store_string(JSON.stringify({"a_removed_action": [KEY_Z], "map": [KEY_N], "move_to_cursor": false}))
 	f.close()
 	KeyBinds.load_binds()
 	ok(not KeyBinds.custom.has("a_removed_action"))
 	eq(KeyBinds.codes_for("map"), [KEY_N], "and the real one still took")
 
 
-func test_move_to_cursor_is_on_by_default_and_remembered_when_off() -> void:
-	KeyBinds.load_binds()
-	ok(KeyBinds.move_to_cursor, "a machine that never chose gets the cursor scheme")
-	KeyBinds.rebind("map", KEY_N)
-	KeyBinds.set_move_to_cursor(false)
-	KeyBinds.load_binds()
-	ok(not KeyBinds.move_to_cursor, "off survives a reload")
-	eq(KeyBinds.codes_for("map"), [KEY_N], "and riding in the binds file costs the binds nothing")
-	ok(not KeyBinds.custom.has("move_to_cursor"), "nor is it mistaken for an action")
-	KeyBinds.reset_all()
-	ok(KeyBinds.move_to_cursor, "Reset to defaults turns it back on")
 
 
 func test_prompts_are_built_from_the_bindings() -> void:

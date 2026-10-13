@@ -611,3 +611,10 @@ it is one with a level and a condition on it, run against the old code first.
 - A zombie held off in reach while its cooldown runs reads as "stuck" to
   the stuck rescue (it wants to move and cannot). Any rule that stops a
   body on purpose has to tell the rescue so.
+
+## 2026-10-13 (facing)
+
+- A test that puts the cursor a body-length away and then walks the body
+  is testing geometry it did not mean to: 30 px of walking moved the angle
+  to the cursor by 0.26 rad. Put a test cursor far away (1e4 px) unless
+  the distance is the point.

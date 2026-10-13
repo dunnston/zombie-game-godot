@@ -104,11 +104,6 @@ func _ready() -> void:
 	if Smoke.enabled:
 		NetPrefs.STORE = "user://smoke/net.json"
 		DisplayPrefs.STORE = "user://smoke/display.json"
-		# The script walks by compass — "hold Right, you went east" — and the
-		# real mouse is wherever it was left, so the keys are the screen's
-		# until the step that tests the other scheme turns it on. Set, never
-		# saved: the owner's choice stays in their binds file.
-		KeyBinds.move_to_cursor = false
 	else:
 		DisplayPrefs.apply()
 	prefs = NetPrefs.load()
@@ -267,7 +262,7 @@ func _physics_process(dt: float) -> void:
 	# An open panel owns the mouse: you can still walk, but a click belongs to
 	# the screen you are looking at rather than to the gun in your hand.
 	var screen_up := inventory.visible or map.open or (build_bar.open and build_bar.menu)
-	LocalInput.gather(intent, stage.cursor_world(), inventory.visible or build_bar.open or map.open, screen_up, typing, me)
+	LocalInput.gather(intent, stage.cursor_world(), inventory.visible or build_bar.open or map.open, screen_up, typing)
 	if build_bar.placing():
 		# Reload has nothing to do while a hammer is out, so its key turns the
 		# piece — one key the player already knows, rather than a second
@@ -1812,19 +1807,18 @@ func _smoke_clear_lane(from: Vector2, length: float) -> Vector2:
 	return Vector2.INF
 
 
-## Move-toward-cursor, through the real mouse and the real keys: the cursor put
-## east of you turns Forward east and Back west, which in the compass scheme
-## would have been north and south. East because that is the way
+## Facing, through the real mouse and the real keys: with the cursor east of
+## you, Left walks west and you look where you walk; let go and you look at
+## the mouse again (`PlayerSim.face`). East because that is the way
 ## `_smoke_clear_lane` measures open ground.
-func _smoke_move_to_cursor(smoke: Node) -> void:
+func _smoke_facing(smoke: Node) -> void:
 	var p := sim.players[0]
 	var lane := _smoke_clear_lane(p.pos, 260.0)
 	if lane == Vector2.INF:
-		smoke.fail("no open ground near the camp to walk toward the cursor")
+		smoke.fail("no open ground near the camp to walk away from the cursor")
 		return
-	_smoke_stand_at(lane + Vector2(130.0, 0.0))
+	_smoke_stand_at(lane + Vector2(200.0, 0.0))
 	await smoke.frames(20)
-	KeyBinds.move_to_cursor = true
 	var vp := get_viewport()
 	# The camera follows you, so a cursor held still on screen stays east of
 	# you in the world however far you walk.
@@ -1834,19 +1828,23 @@ func _smoke_move_to_cursor(smoke: Node) -> void:
 	var off := stage.cursor_world() - p.pos
 	if off.x < 150.0 or absf(off.y) > 60.0:
 		smoke.fail("the mouse could not be put east of the player: offset %s" % off)
-	for step in [["move_up", 1.0], ["move_down", -1.0]]:
-		var before := p.pos
-		# Held for time, not frames: forty frames at 144Hz is a third of the
-		# walk they are at 60.
-		Input.action_press(String(step[0]))
-		await get_tree().create_timer(0.45).timeout
-		Input.action_release(String(step[0]))
-		await smoke.frames(4)
-		var d := p.pos - before
-		if d.x * float(step[1]) < 50.0 or absf(d.y) > absf(d.x) * 0.3:
-			smoke.fail("%s with the cursor east went %s, not %s" % [step[0], d, "east" if float(step[1]) > 0.0 else "west"])
-	await smoke.checkpoint("walked_to_cursor")
-	KeyBinds.move_to_cursor = false
+	var before := p.pos
+	# Held for time, not frames: forty frames at 144Hz is a third of the
+	# walk they are at 60.
+	Input.action_press("move_left")
+	await get_tree().create_timer(0.45).timeout
+	var walking := p.angle
+	Input.action_release("move_left")
+	await smoke.frames(4)
+	var d := p.pos - before
+	if d.x > -50.0 or absf(d.y) > absf(d.x) * 0.3:
+		smoke.fail("Left with the cursor east went %s, not west" % d)
+	if absf(angle_difference(walking, PI)) > 0.2:
+		smoke.fail("walking west with the cursor east, the body faced %.2f, not west" % walking)
+	await smoke.frames(30)
+	if absf(angle_difference(p.angle, 0.0)) > 0.2:
+		smoke.fail("standing still with the cursor east, the body faced %.2f, not east" % p.angle)
+	await smoke.checkpoint("faced_the_feet_then_the_mouse")
 
 
 ## The scripted session: walk, sprint, photograph the districts, then fight.
@@ -1885,16 +1883,19 @@ func smoke_run(smoke: Node) -> void:
 		Input.action_press("move_right")
 		# Held until a physics step has seen it, not for a fixed three frames:
 		# at 144Hz three frames can pass with no physics step in them, and the
-		# check below then asks before the game has. Holding cannot dash twice —
+		# check below then asks before the game has. Sprint + Space is the roll
+		# since PR #76 (Space alone is the jump). Holding cannot roll twice —
 		# the dash reads the edge.
-		Input.action_press("dash")
+		Input.action_press("sprint")
+		Input.action_press("jump")
 		var heard := false
 		for i in range(30):
 			await smoke.frames(1)
 			if p.dash_cd > 0.0:
 				heard = true
 				break
-		Input.action_release("dash")
+		Input.action_release("jump")
+		Input.action_release("sprint")
 		Input.action_release("move_right")
 		# Two questions, two messages: was the key heard, and did the burst go.
 		if not heard:
@@ -1931,7 +1932,7 @@ func smoke_run(smoke: Node) -> void:
 		smoke.fail("the sprint key restarted the winded clock: %.2f -> %.2f" % [was, p.winded_t])
 	await smoke.checkpoint("winded_bar")
 	Stamina.refill(p)
-	await _smoke_move_to_cursor(smoke)
+	await _smoke_facing(smoke)
 	await _smoke_guidance(smoke)
 	for spot in [["suburbs", 118, 120], ["market_row", 200, 158], ["downtown", 262, 172],
 			["farms", 30, 140], ["lake_lodge", 190, 52], ["forest", 60, 30], ["junkyard", 190, 270]]:

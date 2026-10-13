@@ -316,6 +316,40 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### You look where you walk (2026-10-13)
+
+The owner, after V Rising: you look where you are going, or where you are
+swinging; the mouse has your eyes only when you stand still. Until now
+`PlayerSim.angle` was the cursor, always, so backing away from a zombie was
+walking backward facing it, and walking past the mouse was a sidestep.
+
+- **The rule is the sim's** (`PlayerSim.face`, run by `tick` and by a
+  guest's `_predict_self`): at the cursor while you attack — fire held or
+  pressed, a swing or a shot in flight — and for `PLAYER.face_hold`
+  (0.35 s) after the last one, so a swing does not end with the body
+  whipping back to the feet; where your feet take you while you walk (the
+  intent) or roll (`dash_dir`); at the cursor when you stand still or are
+  rooted (healing, reviving). Recoil rides on top. It runs before `Combat`,
+  so the arc and the muzzle, which read `angle`, go where the mouse is on
+  the tick you click.
+- **The body turns; the sim does not.** `ActorModel.face(angle, dt)` turns
+  the player's body toward the sim's angle at `TURN_RATE` (a half turn in a
+  fifth of a second). The sim's angle is instant, so a shot is never a frame
+  behind the mouse. Enemies and corpses are put where they are, as before.
+- **The move-toward-cursor scheme is gone.** It was the one scheme in which
+  the mouse could never be behind you while you walked forward, which is
+  the whole point. WASD is the screen's up, down, left and right; the MOVE
+  TOWARD CURSOR row, `KeyBinds.move_to_cursor`, `LocalInput.heading`,
+  `PLAYER.cursor_deadzone` and `local_input_test.gd` went with it. An old
+  `binds.json` that still says `move_to_cursor` is read past it like any
+  removed action.
+- `player_facing_test.gd` (6): the feet, the cursor when still, the click
+  that turns you and sends the round the same way, the hold after a swing,
+  a roll with the keys let go, rooted. `net_test` has a guest whose
+  prediction agrees with the host. The smoke's real-mouse checkpoint
+  (`faced_the_feet_then_the_mouse`) replaces `walked_to_cursor`: cursor
+  east, Left walks west looking west, let go and you look east.
+
 ### The 3D stage (2026-10-13)
 
 `tasks/3d-conversion.md`, phases 1 and 2: the game drawn in 3D on the sim
@@ -1058,6 +1092,9 @@ from the one place anybody crafts.
   and the line, and screenshots `craft_in_progress` and `craft_done`.
 
 ### Move toward the cursor (2026-09-15)
+
+**Removed 2026-10-13** (*You look where you walk*, above): WASD is the
+screen's up, down, left and right again, always. Kept for the record.
 
 The owner: the mouse chose where you looked and had no say in where you
 went. Now it does.
@@ -2452,6 +2489,7 @@ Phases 1–4 respecting it.
 
 | Date | Decision | Why | Reversible? |
 | --- | --- | --- | --- |
+| 2026-10-13 | **You look where you walk, at the mouse when still, and at the mouse when you attack** (`PlayerSim.face`, `PLAYER.face_hold`); **the move-toward-cursor scheme is removed** | Owner, after V Rising. One rule in the sim so the swing arc, the muzzle, both views and a guest's prediction agree; the body turns on the view (`ActorModel.TURN_RATE`) so the sim can turn on the spot and a shot is never behind the mouse. The scheme went because in it the mouse could never be behind you while you walked forward, which is the feel asked for | The rule is one function; the scheme is in `git log -S move_to_cursor` |
 | 2026-10-13 | **Bodies are solid to each other, each half moving only its own body; a rolling player and a charging boss go through** (`Enemies._hold_off_players`, `Enemies.hold_off`, `Enemies.solid`) | Owner: zombies walked through the player and bit from inside. A hard set-back to touching distance rather than a velocity push, because the bite plays from where the body is and a soft push leaves it half inside. Each side moves itself so neither shoves the other and a guest can predict its own half. Held solid, a roll bulldozed the zombie ahead of it and a charge never reached its wall, so both are let through | Yes: two calls |
 | 2026-10-13 | **Space is a jump; the dash is the roll, on Sprint + Space** (`LocalInput`, `Config.JUMP`) | Owner: the dash drawn as a hop looked wrong, and Space should just jump. A chord of two keys the player already has rather than a binding of its own, so Controls needs no chord editor. The jump is cosmetic (pillar 3): a key that did something would be a system to finish | Yes |
 | 2026-10-13 | **X is the dance** (`Config.DANCE`, `PlayerSim.step_moves`) | Owner's Thriller. One rule for what ends it, run by host and guest alike, with a 60 s cap so a walked-away keyboard does not dance for ever | Yes: the key is in Controls |

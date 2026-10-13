@@ -755,14 +755,16 @@ func _predict_self(dt: float) -> void:
 	me.attack_cd = maxf(0.0, me.attack_cd - dt)
 	me.invuln = maxf(0.0, me.invuln - dt)
 	me.hurt_flash = maxf(0.0, me.hurt_flash - dt)
-	me.angle = atan2(me.intent.aim.y - me.pos.y, me.intent.aim.x - me.pos.x)
+	# Where you look, by the host's rule (`PlayerSim.face`): the feet, the
+	# cursor, or the attack. Before the swing, which reads the angle.
+	var rooted := not me.using.is_empty() or not me.reviving.is_empty()
+	me.face(dt, rooted)
 	# The hotbar answers at once; the host's echo agrees a round trip later.
 	if me.intent.slot >= 0:
 		me.select_slot(me.intent.slot)
 	if me.intent.wheel != 0:
 		me.cycle_slot(me.intent.wheel)
 	_predict_swing(dt)
-	var rooted := not me.using.is_empty() or not me.reviving.is_empty()
 	me.move(sim.world, dt, rooted, sim.structs, sim.enemies)
 	# Your own hop and dance answer at once, by the same rule the host runs
 	# (`PlayerSim.step_moves`); the host's flag agrees a round trip later.

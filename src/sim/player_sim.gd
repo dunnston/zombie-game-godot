@@ -20,7 +20,11 @@ var pos := Vector2.ZERO
 var prev_pos := Vector2.ZERO
 var vel := Vector2.ZERO
 var r: float = Config.PLAYER.r
+## Where the body looks (`face`): east is 0, south a quarter turn. The swing
+## arc, the muzzle and both views read it; `face_hold` is how long the
+## cursor keeps it after the last attack.
 var angle := 0.0
+var face_hold := 0.0
 
 # What a point has been spent on. These two dictionaries and the worn gear
 # are the *whole* build: every number below them is derived from these by
@@ -690,13 +694,12 @@ func tick(sim: GameSim, dt: float) -> void:
 		if shot.t >= shot.dur:
 			shot = {}
 
-	# Aim, with the recoil kick on top.
-	angle = atan2(it.aim.y - pos.y, it.aim.x - pos.x) + recoil * recoil_dir
+	# Healing roots you in place, and so does getting somebody up.
+	var rooted := not using.is_empty() or not reviving.is_empty()
+	face(dt, rooted)
 	if recoil < 0.001:
 		recoil_dir = 1.0 if sim.rng.chance(0.5) else -1.0
 
-	# Healing roots you in place, and so does getting somebody up.
-	var rooted := not using.is_empty() or not reviving.is_empty()
 	move(world, dt, rooted, sim.structs, sim.enemies)
 	if dash_began:
 		sim.emit({"t": "dash", "seat": seat, "x": pos.x, "y": pos.y, "dx": dash_dir.x, "dy": dash_dir.y})
@@ -781,6 +784,31 @@ func _build(sim: GameSim, it: Intent) -> void:
 			var s := sim.structs.at_tile(t.x, t.y)
 			if not s.is_empty():
 				sim.structs.demolish(sim, s, self)
+
+
+## Where the body looks this step (owner, 2026-10-13, after V Rising): at
+## the cursor while you attack and for `face_hold` after, where your feet
+## take you while you walk or roll, and at the cursor when you stand still.
+## So backing away from a zombie turns your back on it, and a click while
+## you walk past the mouse turns you to the mouse for the swing — which is
+## why this runs before `Combat`: the arc and the muzzle read `angle`.
+## Rooted (healing, reviving) counts as standing. Recoil rides on top. Its
+## own step, like `move`, because a guest runs it to predict itself.
+func face(dt: float, rooted := false) -> void:
+	var it := intent
+	face_hold = maxf(0.0, face_hold - dt)
+	var attacking := it.fire or it.fire_pressed or not swing.is_empty() or not shot.is_empty()
+	if attacking:
+		face_hold = float(Config.PLAYER.face_hold)
+	var feet := Vector2(it.mx, it.my)
+	if dash_t > 0.0:
+		feet = dash_dir
+	var at_cursor := attacking or face_hold > 0.0 or rooted or feet == Vector2.ZERO
+	if at_cursor:
+		angle = atan2(it.aim.y - pos.y, it.aim.x - pos.x)
+	else:
+		angle = feet.angle()
+	angle += recoil * recoil_dir
 
 
 ## Stamina, speed and the actual step, from the movement half of the intent.
