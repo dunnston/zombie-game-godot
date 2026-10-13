@@ -147,13 +147,13 @@ func frame() -> void:
 
 
 func snap(pos: Vector2) -> void:
-	focus = pos
+	focus = _within_world(pos)
 	_place_camera()
 
 
 func follow(dt: float, p: PlayerSim, boss_: EnemySim, shake: float) -> void:
 	var f := frame_for(p, cursor_world(), boss_)
-	focus = focus.lerp(f.focus, Util.smooth(Config.CAMERA.follow, dt))
+	focus = _within_world(focus.lerp(f.focus, Util.smooth(Config.CAMERA.follow, dt)))
 	var want := float(Config.CAMERA3D.distance) / float(f.zoom_mul)
 	_dist = lerpf(_dist, want, Util.smooth(5.0, dt))
 	_place_camera()
@@ -164,6 +164,14 @@ func follow(dt: float, p: PlayerSim, boss_: EnemySim, shake: float) -> void:
 	else:
 		camera.h_offset = 0.0
 		camera.v_offset = 0.0
+
+
+## The 2D camera had limits at the world's edges; this is the same promise.
+## The focus stays `CAMERA3D.edge` metres inside the town, so the ground
+## quad fills the view and the background colour is never the horizon.
+static func _within_world(pos: Vector2) -> Vector2:
+	var edge := float(Config.CAMERA3D.edge) * Config.STAGE_UNITS
+	return Vector2(clampf(pos.x, edge, Config.WORLD_SIZE - edge), clampf(pos.y, edge, Config.WORLD_SIZE - edge))
 
 
 func _place_camera() -> void:

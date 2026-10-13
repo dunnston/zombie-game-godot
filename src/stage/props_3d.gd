@@ -27,8 +27,10 @@ func rebuild() -> void:
 	_kinds.clear()
 	var lists := {}
 	for p in sim.world.props:
-		if p.has("tiles") or p.get("gone", false):
-			# A car is `Vehicles3D`'s, as the 2D stage leaves it to VehicleView.
+		# A wreck spans two tiles and carries `tiles` for it; it is still a
+		# prop (solid, harvestable for Sheet Metal) and is drawn here. Cars
+		# are not in this list at all: `Vehicles3D` draws `sim.cars`.
+		if p.get("gone", false):
 			continue
 		var kind := _kind_of(p)
 		if not lists.has(kind):

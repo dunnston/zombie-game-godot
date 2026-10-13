@@ -362,7 +362,7 @@ const STAGE_UNITS := 32.0
 ## metres from the point it looks at, south of it looking north so north is
 ## up on screen as it is in 2D. `follow`, `lead` and the arena pull-out are
 ## `CAMERA`'s. `distance` plays the part zoom does: the arena divides it.
-const CAMERA3D := {"pitch": 52.0, "fov": 30.0, "distance": 30.0, "lead_mul": 1.0}
+const CAMERA3D := {"pitch": 52.0, "fov": 30.0, "distance": 30.0, "edge": 12.0}
 
 ## The 3D stage's shapes, in metres: how tall a house wall, a roof block and
 ## a fence stand, and how far above the ground a carried light floats.
