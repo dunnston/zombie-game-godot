@@ -2251,7 +2251,10 @@ src/
   config.gd          ALL tunables and content tables. One file to balance.
   sim/               RefCounted simulation classes. No nodes, no Input.
                      Everything here runs headless and is unit-tested.
-  world/             nodes that draw the sim: tile layers, entities, camera
+  stage/             the Stage seam: stage.gd is what main asks of whatever
+                     draws the world; stage_2d.gd is the 2D game (the views
+                     below, the Camera2D). A Stage3D stands in the same place.
+  world/             the 2D views: tile layers, entities, lights, local input
   ui/                every screen, as Control nodes: ui.gd (the look: tokens,
                      fonts, the Theme, builders), chrome.gd (the frame),
                      ui_screen.gd (sections + refreshers), kit/ (slot, meter,
@@ -2321,6 +2324,7 @@ Phases 1–4 respecting it.
 
 | Date | Decision | Why | Reversible? |
 | --- | --- | --- | --- |
+| 2026-10-13 | **A `Stage` is what draws the world** (`src/stage/`): main owns the sim, the wire, the menus and the screens, and asks the stage to build, follow, convert the cursor and take every event | The first step of the 3D conversion (`tasks/3d-conversion.md`), and a refactor with no behaviour in it: the seventy lines that built the views, the camera maths and the fan-out of events moved out of `main.gd` unchanged, so a 3D stage can stand where the 2D one does and the smoke's 94 checkpoints prove nothing else moved. `Config.STAGE` picks; `--stage=` overrides, which is how the smoke keeps running the stage it was written for. | Yes: the seam costs nothing to keep |
 | 2026-10-13 | **The game goes 3D, behind a flag, on the same sim** (`tasks/3d-conversion.md`) | The sprite route failed on animation volume: five directions × every clip × every weapon, consistent frame to frame, and neither a scripted puppet nor paint over one reached the turnaround's quality in motion. A rigged model animates once and faces any way, and the owner now has a pipeline that makes them. The sim never touched a node and the UI never touched the world, so what changes is `src/world/` and ~120 lines of `main.gd`; the map, the rules, the screens and the wire are the same game. | Yes: `Config.STAGE`, then `tasks/rollback-to-2d.md`, then the `2d-final` tag |
 | 2026-10-13 | 32 px = 1 m; sim `y` is 3D `z`; the camera is perspective at ~50°, south of you looking north | A 1.70 m model is a 54 px person, which is what `PLAYER.r` 13 px always meant. North stays up so every compass instinct from 2D, and every smoke leg that walks by compass, still holds. The bible's 3/4 view is the look the references were painted in. | Yes, `Config.CAMERA3D` and `Units` |
 | 2026-10-13 | Models in git LFS; the owner's inbox folders are not the project's | Tens of megabytes per export and re-exported often: plain history would never shrink again. `Meshy Models/` is where exports land and `assets/models/` is what the game loads, under game names, so a re-export is a copy and a commit, never a rename in code. | Yes |

@@ -1,8 +1,9 @@
 extends Node2D
-## The root scene. Builds the simulation and the nodes that draw it, gathers
+## The root scene. Builds the simulation and the stage that draws it, gathers
 ## the local player's intent every physics step, ticks the sim, drains its
-## events into the effects and the HUD, and moves the camera. Nothing here
-## changes game state except through Intent.
+## events into the stage and the HUD, and tells the stage whom to follow.
+## Nothing here changes game state except through Intent, and nothing here
+## knows how the world is drawn: that is the stage's (`src/stage/`).
 
 const WORLD_SEED := 20240917
 ## The slot the smoke run writes to, deliberately outside `Saves.MAX_SLOTS`.
@@ -11,24 +12,9 @@ const WORLD_SEED := 20240917
 const SMOKE_SLOT := 93
 
 var sim: GameSim
-var terrain: TerrainRenderer
-var props_below: PropRenderer
-var props_above: PropRenderer
-var enemy_view: EnemyView
-var pickup_view: PickupView
-var structure_view: StructureView
-var instance_view: InstanceView
-var boss_view: BossView
-var fx: FxView
-var noise_lens: NoiseLensView
-## The camera's ordinary zoom, from the viewport; a boss's arena pulls out
-## from it and walking out puts it back.
-var _zoom := 1.0
-var lights: LightView
-var survivor_view: SurvivorView
-var vehicle_view: VehicleView
-var player_view: PlayerView
-var camera: Camera2D
+## What draws the world and holds the camera: `Stage2D` or `Stage3D`, by
+## `Stage.pick()`. Main never reaches past it to a view.
+var stage: Stage
 var hud: Hud
 var map: MapScreen
 var ears: SfxView
@@ -58,7 +44,6 @@ var _join_t := 0.0
 ## An in-process guest the smoke run pumps through a loopback, so the
 ## co-op path is exercised by the real scene without a second machine.
 var smoke_guest: NetGuest = null
-var _shake_rng := RandomNumberGenerator.new()
 
 ## The slot this game belongs to, or -1 for a run with no home. Autosave and
 ## QUIT TO TITLE both need to know where to write, and "nowhere" is a real
@@ -76,63 +61,13 @@ func _ready() -> void:
 	sim.new_game(WORLD_SEED)
 	var t1 := Time.get_ticks_msec()
 
-	terrain = TerrainRenderer.new()
-	add_child(terrain)
-	terrain.build(sim.world)
+	# The stage is the first child: everything it draws sits under the HUD's
+	# layer, and its own canvas layer (the noise lens) shares that layer's
+	# index, so tree order is what keeps the HUD on top.
+	stage = _make_stage()
+	add_child(stage)
+	stage.build()
 	var t2 := Time.get_ticks_msec()
-
-	props_below = PropRenderer.new(sim, false)
-	add_child(props_below)
-	pickup_view = PickupView.new(sim)
-	add_child(pickup_view)
-	structure_view = StructureView.new(sim)
-	add_child(structure_view)
-	instance_view = InstanceView.new(sim)
-	add_child(instance_view)
-	enemy_view = EnemyView.new(sim)
-	add_child(enemy_view)
-	boss_view = BossView.new(sim)
-	add_child(boss_view)
-	vehicle_view = VehicleView.new(sim)
-	add_child(vehicle_view)
-	survivor_view = SurvivorView.new(sim)
-	add_child(survivor_view)
-	player_view = PlayerView.new(sim)
-	add_child(player_view)
-	props_above = PropRenderer.new(sim, true)
-	add_child(props_above)
-	fx = FxView.new(sim)
-	add_child(fx)
-	# Last of the world nodes: its CanvasModulate darkens the whole canvas and
-	# its lights add back on top of that.
-	lights = LightView.new(sim)
-	add_child(lights)
-
-	camera = Camera2D.new()
-	var C := Config.CAMERA
-	var vp := get_viewport_rect().size
-	var z := clampf(vp.y / C.view_height, C.min_zoom, C.max_zoom)
-	camera.zoom = Vector2(z, z)
-	_zoom = z
-	camera.limit_left = 0
-	camera.limit_top = 0
-	camera.limit_right = Config.WORLD_SIZE
-	camera.limit_bottom = Config.WORLD_SIZE
-	camera.position = sim.players[0].pos
-	add_child(camera)
-	camera.make_current()
-	# Half the screen's diagonal in world pixels: the spawn ring sits beyond it.
-	sim.view_radius = vp.length() / 2.0 / z
-
-	# The noise lens sits over the world on a layer of its own that follows the
-	# camera: the night's CanvasModulate tints only the canvas it is on, so a
-	# ring drawn down there went black with everything else. Added before the
-	# HUD's layer, which shares its index, so the HUD still draws on top.
-	var lens_layer := CanvasLayer.new()
-	lens_layer.follow_viewport_enabled = true
-	add_child(lens_layer)
-	noise_lens = NoiseLensView.new()
-	lens_layer.add_child(noise_lens)
 
 	var layer := CanvasLayer.new()
 	add_child(layer)
@@ -147,7 +82,7 @@ func _ready() -> void:
 	layer.add_child(inventory)
 	build_bar = BuildBar.new(sim)
 	layer.add_child(build_bar)
-	structure_view.build_bar = build_bar
+	stage.attach_build_bar(build_bar)
 	# The tabs along the top of every full screen switch between them here,
 	# so the pack, the map and the build menu are one screen to the player.
 	map.navigate.connect(_goto)
@@ -189,7 +124,18 @@ func _ready() -> void:
 		menu.visible = false
 	else:
 		_enter_title()
-	print("boot: world %d ms, terrain %d ms, props %d, containers %d" % [t1 - t0, t2 - t1, sim.world.props.size(), sim.world.containers.size()])
+	print("boot: world %d ms, %s stage %d ms, props %d, containers %d" % [t1 - t0, Stage.pick(), t2 - t1, sim.world.props.size(), sim.world.containers.size()])
+
+
+## The stage `Stage.pick()` names. An unknown word is a typo in a const or
+## on a command line, and the 2D game is the answer that always exists.
+func _make_stage() -> Stage:
+	var which := Stage.pick()
+	match which:
+		"2d":
+			return Stage2D.new(sim)
+	push_error("no stage called '%s'; running 2d" % which)
+	return Stage2D.new(sim)
 
 
 func _physics_process(dt: float) -> void:
@@ -319,14 +265,14 @@ func _physics_process(dt: float) -> void:
 	# An open panel owns the mouse: you can still walk, but a click belongs to
 	# the screen you are looking at rather than to the gun in your hand.
 	var screen_up := inventory.visible or map.open or (build_bar.open and build_bar.menu)
-	LocalInput.gather(intent, self, inventory.visible or build_bar.open or map.open, screen_up, typing, me)
+	LocalInput.gather(intent, stage.cursor_world(), inventory.visible or build_bar.open or map.open, screen_up, typing, me)
 	if build_bar.placing():
 		# Reload has nothing to do while a hammer is out, so its key turns the
 		# piece — one key the player already knows, rather than a second
 		# binding on R that the controls screen would call a conflict.
 		if Input.is_action_just_pressed("reload"):
 			build_bar.rotate()
-		build_bar.update_hover(get_global_mouse_position())
+		build_bar.update_hover(stage.cursor_world())
 		# One click, one action — except REPAIR, which is meant to be swept
 		# along a wall. It only fires on a piece that is actually damaged, so
 		# holding it over one already fixed does nothing.
@@ -392,12 +338,11 @@ func _guest_step(dt: float, idle := false) -> void:
 func _after_guest_step() -> void:
 	if net_guest.world_dirty:
 		net_guest.world_dirty = false
-		props_below.rebuild()
-		props_above.rebuild()
+		stage.rebuild_props()
 	# A house wall the host had punched through arrives as a tile change, so
-	# the terrain layers have to be told too — one tile each, where it stands.
+	# the terrain has to be told too — one tile each, where it stands.
 	for t in net_guest.broken_tiles:
-		terrain.repaint(sim.world, t.x, t.y)
+		stage.repaint(t.x, t.y)
 	net_guest.broken_tiles.clear()
 	if net_guest.status != "joined":
 		# The mirror is a stale copy of somebody else's world: back to the
@@ -446,14 +391,9 @@ func _load_slot(which: int) -> bool:
 	# the scene stops redrawing a closed bar.
 	if build_bar.open:
 		build_bar.toggle()
-	# The world is a new object. The terrain layers and the prop renderers
-	# both cached the old one — the props by bucketing its dictionaries, so
-	# without this the view goes on drawing a container the restored world
-	# says is still full.
-	terrain.build(sim.world)
-	props_below.rebuild()
-	props_above.rebuild()
-	camera.position = p.pos
+	# The world is a new object and the stage cached the old one.
+	stage.rebuild()
+	stage.snap(p.pos)
 	sim.notify("Loaded", "#b7e08a", true)
 	return true
 
@@ -470,10 +410,8 @@ func _rebuild_views(keep_local := false) -> void:
 	if build_bar.open:
 		build_bar.toggle()
 	map.open = false
-	terrain.build(sim.world)
-	props_below.rebuild()
-	props_above.rebuild()
-	camera.position = p.pos
+	stage.rebuild()
+	stage.snap(p.pos)
 
 
 ## Everything that has to know which player is this machine's. One place,
@@ -481,14 +419,11 @@ func _rebuild_views(keep_local := false) -> void:
 ## guest's screen from the host's body.
 func _set_local(p: PlayerSim) -> void:
 	me = p
-	player_view.local = p
+	stage.set_local(p)
 	hud.player = p
 	inventory.player = p
 	build_bar.player = p
 	map.player = p
-	structure_view.player = p
-	props_below.player = p
-	props_above.player = p
 	ears.player = p
 	if dev != null:
 		dev.player = p
@@ -530,14 +465,7 @@ func _process(dt: float) -> void:
 			# The map under everybody changed: every view that cached the old
 			# one is rebuilt, the way a load rebuilds them.
 			_rebuild_views(true)
-		elif ev.t == "wall_broken":
-			# One tile of the town is rubble now. Repainted where it stands —
-			# rebuilding the terrain layers is 80ms and a horde breaks several.
-			terrain.repaint(sim.world, int(ev.tx), int(ev.ty))
-		fx.on_event(ev)
-		noise_lens.on_event(ev)
-		boss_view.on_event(ev)
-		lights.on_event(ev)
+		stage.on_event(ev)
 		hud.on_event(ev)
 		inventory.on_event(ev)
 		ears.on_event(ev)
@@ -547,26 +475,16 @@ func _process(dt: float) -> void:
 		net_host.on_events_cleared()
 	_refresh_net_lines()
 	NetDoor.reap()
-	fx.tick(dt)
-	noise_lens.tick(dt)
-	boss_view.tick(dt)
-	lights.tick()
+	stage.tick(dt)
 	hud.tick(dt)
 	shake = maxf(0.0, shake - dt * 22.0)
-	_update_camera(dt)
-	props_below.queue_redraw()
-	props_above.queue_redraw()
-	pickup_view.queue_redraw()
-	structure_view.queue_redraw()
-	instance_view.queue_redraw()
+	# Leads toward the cursor so you can see what you are aiming at; the
+	# boss nearest you is what an arena frames.
+	stage.follow(dt, me, hud._boss_near(me), shake)
+	stage.frame()
 	build_bar.refresh()
 	inventory.tick()
 	inventory.refresh()
-	enemy_view.queue_redraw()
-	boss_view.queue_redraw()
-	player_view.queue_redraw()
-	fx.queue_redraw()
-	noise_lens.queue_redraw()
 	# A full screen covers the HUD rather than showing it through its scrim:
 	# the pack is not a place to read your health bar from, and two layers of
 	# text at 28% is how a screen becomes unreadable.
@@ -607,39 +525,6 @@ func _goto(to: String) -> void:
 				build_bar.show_menu()
 
 
-## Leads toward the cursor so you can see what you are aiming at.
-func _update_camera(dt: float) -> void:
-	var p := me
-	var C := Config.CAMERA
-	var mouse := get_global_mouse_position()
-	# The camera follows where the player is *drawn*, not where the last
-	# physics step left them — otherwise the world judders under a smooth
-	# player instead of the player juddering across a smooth world.
-	var at := Util.render_pos(p.prev_pos, p.pos)
-	var lead := Vector2(
-		clampf((mouse.x - at.x) * C.lead, -C.lead_max, C.lead_max),
-		clampf((mouse.y - at.y) * C.lead, -C.lead_max, C.lead_max))
-	# A boss's room is a fight you have to see the whole of — a slam whose
-	# edge is off screen is not a mechanic (§8.4) — so the camera pulls out
-	# while you are in it, and frames the fight rather than you: pulled toward
-	# the boss, because with it at the far end of the gym and the camera on
-	# you, the top of its ring was under the HUD. It eases back when you leave.
-	var focus := at + lead
-	var want := _zoom
-	var ar: Rect2i = sim.world.arena
-	if ar.size.x > 0 and Rect2(Vector2(ar.position) * Config.TILE, Vector2(ar.size) * Config.TILE).has_point(at):
-		want = _zoom * float(C.arena_zoom)
-		var boss := hud._boss_near(p)
-		if boss != null:
-			focus += (boss.pos - at) * float(C.arena_frame)
-	camera.position = camera.position.lerp(focus, Util.smooth(C.follow, dt))
-	camera.zoom = camera.zoom.lerp(Vector2(want, want), Util.smooth(5.0, dt))
-	if shake > 0.0:
-		camera.offset = Vector2(_shake_rng.randf_range(-shake, shake), _shake_rng.randf_range(-shake, shake))
-	else:
-		camera.offset = Vector2.ZERO
-
-
 # ------------------------------------------------------------------ smoke --
 
 func smoke_state() -> Dictionary:
@@ -660,7 +545,7 @@ func smoke_teleport(tx: int, ty: int) -> void:
 	var p := sim.players[0]
 	p.pos = sim.world.unstick(Vector2(tx * 32 + 16, ty * 32 + 16), p.r)
 	p.vel = Vector2.ZERO
-	camera.position = p.pos
+	stage.snap(p.pos)
 
 
 ## Points the mouse at a world position, so aim goes through the real path.
@@ -669,8 +554,7 @@ func smoke_teleport(tx: int, ty: int) -> void:
 ## point on the canvas goes through the stretch to become a point in the
 ## window — which is where `warp_mouse` and a parsed event both live.
 func smoke_aim(world_pos: Vector2) -> void:
-	var screen := get_viewport().get_canvas_transform() * world_pos
-	Input.warp_mouse(get_viewport().get_screen_transform() * screen)
+	Input.warp_mouse(get_viewport().get_screen_transform() * stage.to_screen(world_pos))
 
 
 ## A click at a screen position, fed through the real input pipeline so it
@@ -781,7 +665,7 @@ func smoke_stand_beside(c: Dictionary) -> bool:
 		return false
 	p.pos = best
 	p.vel = Vector2.ZERO
-	camera.position = p.pos
+	stage.snap(p.pos)
 	return true
 
 
@@ -952,7 +836,7 @@ func smoke_farm(smoke: Node) -> void:
 		b.seed = seeds[i]
 		b.grow = Farming.grow_time(b) * [0.05, 0.45, 0.8, 1.0][i]
 	_smoke_stand_at(beds[0].pos + Vector2(0, -44))
-	camera.position = p.pos
+	stage.snap(p.pos)
 	await smoke.frames(4)
 	if Farming.stage(beds[0]) != 0 or Farming.stage(beds[3]) != 3:
 		smoke.fail("the row is not at four different stages")
@@ -1044,7 +928,7 @@ func smoke_structure_art(smoke: Node) -> void:
 		if s.is_empty():
 			smoke.fail("a piece of the art layout would not go down")
 	_smoke_stand_at(Vector2(origin.x + size.x / 2.0, origin.y + size.y + 1.5) * 32)
-	camera.position = Vector2(origin.x + size.x / 2.0, origin.y + size.y / 2.0) * 32
+	stage.snap(Vector2(origin.x + size.x / 2.0, origin.y + size.y / 2.0) * 32)
 	sim.world_version += 1
 	await smoke.frames(20)
 	if not made[19].powered:
@@ -1086,7 +970,7 @@ func smoke_structure_art(smoke: Node) -> void:
 	if not build_bar.check.ok:
 		smoke.fail("the long bed ghost cannot go down: %s" % build_bar.check.reason)
 	await smoke.checkpoint("long_bed_ghost")
-	await smoke_click(get_viewport().get_canvas_transform() * spot)
+	await smoke_click(stage.to_screen(spot))
 	# Wherever it landed: the camera leans toward the cursor, so the tile under
 	# a warped click can be one over from the tile aimed at. Which way it lies
 	# is the question here, not which tile.
@@ -1143,7 +1027,7 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 		return
 	var at := Vector2(tree.x, tree.y)
 	p.pos = sim.world.unstick(at + Vector2(0, 44), p.r)
-	camera.position = p.pos
+	stage.snap(p.pos)
 	smoke_aim(at)
 	# A hatchet, so the swing is a chop rather than a bounce.
 	Loot.give_entry(sim, p, {"id": "weapon:axe", "n": 1})
@@ -1187,7 +1071,7 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 	else:
 		var wat := Vector2(wreck.x, wreck.y)
 		p.pos = sim.world.unstick(wat + Vector2(0, 48), p.r)
-		camera.position = p.pos
+		stage.snap(p.pos)
 		# The bar is full by now and the player is past the carry ceiling, so
 		# a found saw would land on the ground: the hatchet's slot becomes the
 		# saw's directly. This leg is about the wreck, not the pack.
@@ -1275,7 +1159,7 @@ func smoke_chop_and_gather(smoke: Node) -> void:
 		smoke.fail("no hand-gatherable prop standing on its own to pick up")
 		return
 	p.pos = sim.world.unstick(Vector2(stick.x, stick.y), p.r)
-	camera.position = p.pos
+	stage.snap(p.pos)
 	await smoke.frames(3)
 	var target := Interact.best_target(sim, p)
 	if String(target.get("kind", "")) != "gather":
@@ -1615,7 +1499,7 @@ func smoke_school(smoke: Node) -> void:
 		return
 	p.god_mode = true
 	_smoke_stand_at(door.stand)
-	camera.position = p.pos
+	stage.snap(p.pos)
 	await smoke.frames(3)
 	var offered := String(Interact.best_target(sim, p).get("kind", ""))
 	if offered != "instance_door":
@@ -1661,7 +1545,7 @@ func smoke_school(smoke: Node) -> void:
 		elif String(f.kind) == "exit":
 			exit = f
 	_smoke_stand_at(Vector2(chained.x, chained.y + 44.0))
-	camera.position = p.pos
+	stage.snap(p.pos)
 	await smoke.frames(3)
 	if not await _smoke_press_until(smoke, "interact", func() -> bool: return chained.open, 60):
 		smoke.fail("E with the key did not unchain the gym")
@@ -1670,7 +1554,7 @@ func smoke_school(smoke: Node) -> void:
 	# The stand-in, on its feet, and then put down: the way out is what this
 	# leg is about, and PR C is the fight.
 	_smoke_stand_at(Vector2(chained.x, chained.y - 90.0))
-	camera.position = p.pos
+	stage.snap(p.pos)
 	await smoke.frames(4)
 	await smoke.checkpoint("school_boss")
 
@@ -1705,7 +1589,7 @@ func smoke_school(smoke: Node) -> void:
 			smoke.fail("the gym has no breaker")
 		else:
 			_smoke_stand_at(breaker.stand)
-			camera.position = p.pos
+			stage.snap(p.pos)
 			await smoke.frames(3)
 			if not await _smoke_press_until(smoke, "interact", func() -> bool: return not inst.dark, 60):
 				smoke.fail("E at the breaker did not put the lights back")
@@ -1716,7 +1600,7 @@ func smoke_school(smoke: Node) -> void:
 		smoke.fail("the boss is down and the School is not cleared")
 
 	_smoke_stand_at(Vector2(exit.x, exit.y + 44.0))
-	camera.position = p.pos
+	stage.snap(p.pos)
 	await smoke.frames(3)
 	if not await _smoke_press_until(smoke, "interact", func() -> bool: return sim.instance == null, 60):
 		smoke.fail("the exit did not let you out")
@@ -1730,7 +1614,7 @@ func smoke_school(smoke: Node) -> void:
 	await smoke.checkpoint("school_out")
 	p.god_mode = false
 	_smoke_stand_at(back)
-	camera.position = p.pos
+	stage.snap(p.pos)
 	await smoke.frames(2)
 
 
@@ -1783,7 +1667,7 @@ func _smoke_school_together(smoke: Node, gp: PlayerSim) -> void:
 	_smoke_stand_at(back)
 	gp.pos = sim.world.unstick(back + Vector2(64, 0), gp.r)
 	gp.prev_pos = gp.pos
-	camera.position = p.pos
+	stage.snap(p.pos)
 	await smoke.frames(6)
 
 
@@ -1828,10 +1712,10 @@ func _smoke_move_to_cursor(smoke: Node) -> void:
 	var vp := get_viewport()
 	# The camera follows you, so a cursor held still on screen stays east of
 	# you in the world however far you walk.
-	var screen := vp.get_final_transform() * (vp.get_canvas_transform() * (p.pos + Vector2(260.0, 0.0)))
+	var screen := vp.get_final_transform() * stage.to_screen(p.pos + Vector2(260.0, 0.0))
 	Input.warp_mouse(screen)
 	await smoke.frames(2)
-	var off := get_global_mouse_position() - p.pos
+	var off := stage.cursor_world() - p.pos
 	if off.x < 150.0 or absf(off.y) > 60.0:
 		smoke.fail("the mouse could not be put east of the player: offset %s" % off)
 	for step in [["move_up", 1.0], ["move_down", -1.0]]:
@@ -2033,7 +1917,7 @@ func smoke_run(smoke: Node) -> void:
 		# notices, several legs before the pistol and the axe also miss.
 		smoke.fail("the ghost says the wall cannot go there: %s (aimed at %s, cursor is at %s, focus=%s)"
 			% [build_bar.check.reason, spot, get_viewport().get_mouse_position(), get_window().has_focus()])
-	await smoke_click(get_viewport().get_canvas_transform() * spot)
+	await smoke_click(stage.to_screen(spot))
 	await smoke.frames(3)
 	var wall := sim.structs.at_tile(tile.x, tile.y)
 	if wall.is_empty():
@@ -2089,7 +1973,7 @@ func smoke_run(smoke: Node) -> void:
 		build_bar.select_card("demolish")
 		smoke_aim(wall.pos)
 		await smoke.frames(3)
-		await smoke_click(get_viewport().get_canvas_transform() * wall.pos)
+		await smoke_click(stage.to_screen(wall.pos))
 		await smoke.frames(3)
 		if not sim.structs.at_tile(tile.x, tile.y).is_empty():
 			smoke.fail("DEMOLISH left the wall standing")
@@ -2368,15 +2252,17 @@ func smoke_run(smoke: Node) -> void:
 		smoke.fail("F2 did not turn the noise overlay on")
 	Sound.make_noise(sim, p.pos.x, p.pos.y, 180.0, p, "gun")
 	await smoke.frames(3)
-	if noise_lens.rings.is_empty():
+	# The lens is the 2D stage's: this leg only runs there.
+	var s2 := stage as Stage2D
+	if s2.noise_lens.rings.is_empty():
 		smoke.fail("a noise with the overlay on drew no ring")
-	if noise_lens.get_canvas_layer_node() == lights.get_canvas_layer_node():
+	if s2.noise_lens.get_canvas_layer_node() == s2.lights.get_canvas_layer_node():
 		smoke.fail("the noise lens shares the night's canvas and will be tinted black")
 	await smoke.checkpoint("noise_lens_night")
 	await smoke.tap("noise_debug")
 	await smoke.frames(2)
-	if Sound.debug or not noise_lens.rings.is_empty():
-		smoke.fail("F2 did not turn the noise overlay off (debug %s, %d rings)" % [Sound.debug, noise_lens.rings.size()])
+	if Sound.debug or not s2.noise_lens.rings.is_empty():
+		smoke.fail("F2 did not turn the noise overlay off (debug %s, %d rings)" % [Sound.debug, s2.noise_lens.rings.size()])
 
 	# A torch in the off-hand. Worn, not struck: the dark strikes it, which is
 	# the behaviour the owner's second playtest asked for, and this is the only
@@ -2441,8 +2327,7 @@ func smoke_run(smoke: Node) -> void:
 		sim.world.props.append(prop)
 		sim.world.prop_grid[fty * Config.WORLD_TILES + ftx + i] = prop
 		sim.fire.ignite_prop(sim, prop)
-	props_above.rebuild()
-	props_below.rebuild()
+	stage.rebuild_props()
 	await smoke.frames(6)
 	if sim.fire.list.size() < 4:
 		smoke.fail("the treeline did not catch: %d alight" % sim.fire.list.size())
@@ -3164,15 +3049,13 @@ func _enter_guest_world() -> void:
 	role = "guest"
 	slot = -1
 	Actions.guest = net_guest
-	terrain.build(sim.world)
-	props_below.rebuild()
-	props_above.rebuild()
+	stage.rebuild()
 	inventory.visible = false
 	if build_bar.open:
 		build_bar.toggle()
 	map.open = false
 	_set_local(net_guest.me)
-	camera.position = me.pos
+	stage.snap(me.pos)
 	menu.net.status = ""
 	_leave_title()
 

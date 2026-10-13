@@ -349,6 +349,12 @@ const NET := {
 ## edge of a slam ring is on screen (§8.4 of the instanced-dungeon note), and
 ## `arena_frame` is how far toward the boss it leans, so the fight is framed
 ## rather than just you.
+## Which stage draws the world: "2d" (the game as it always was) or "3d"
+## (the same town standing up, `tasks/3d-conversion.md`). `--stage=` on the
+## command line overrides it; `Stage.pick()` is the one reader. Going back to
+## 2D is this one word (`tasks/rollback-to-2d.md`).
+const STAGE := "2d"
+
 const CAMERA := {"follow": 7.5, "view_height": 580.0, "min_zoom": 0.9, "max_zoom": 2.6, "lead": 0.22, "lead_max": 170.0,
 	"arena_zoom": 0.72, "arena_frame": 0.4}
 

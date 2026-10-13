@@ -25,11 +25,14 @@ static var heading := -PI / 2.0
 ## default). `typing` is true while a search field has the caret: every
 ## letter is the field's, so nothing walks, sprints or dashes at all.
 ##
+## `cursor` is where the mouse points in the world, which only the stage
+## knows (`Stage.cursor_world`): it is the aim, and what the keys turn toward.
+##
 ## `player` is who the keys walk, for turning them toward the cursor. The
 ## intent that leaves here is always in world directions — the sim, the wire
 ## and a guest's prediction never learn which scheme you play with — and a
 ## car is steered by the keys as they are, so driving is never turned.
-static func gather(intent: Intent, node: Node2D, ui_capture := false, screen_nav := false, typing := false, player: PlayerSim = null) -> void:
+static func gather(intent: Intent, cursor: Vector2, ui_capture := false, screen_nav := false, typing := false, player: PlayerSim = null) -> void:
 	var v := Vector2.ZERO
 	if typing:
 		v = Vector2.ZERO
@@ -40,7 +43,7 @@ static func gather(intent: Intent, node: Node2D, ui_capture := false, screen_nav
 	if player != null and KeyBinds.move_to_cursor and player.driving_id <= 0:
 		# A panel's cursor is pointing at the panel, not at the street.
 		if not ui_capture:
-			heading = aim_heading(player.pos, node.get_global_mouse_position(), heading)
+			heading = aim_heading(player.pos, cursor, heading)
 		v = steer(v, heading)
 	intent.mx = v.x
 	intent.my = v.y
@@ -56,7 +59,7 @@ static func gather(intent: Intent, node: Node2D, ui_capture := false, screen_nav
 		return
 	intent.fire = Input.is_action_pressed("fire")
 	intent.interact_held = Input.is_action_pressed("interact")
-	intent.aim = node.get_global_mouse_position()
+	intent.aim = cursor
 	if Input.is_action_just_pressed("fire"):
 		intent.fire_pressed = true
 	if Input.is_action_just_pressed("interact"):
