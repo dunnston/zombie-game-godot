@@ -48,4 +48,6 @@ either.
 
 | PR | Added | Changed |
 | --- | --- | --- |
-| A — rollback point and the models | this file, `tasks/3d-conversion.md`, `assets/models/**` (LFS), `.gitattributes` LFS rule, `.gdignore` in the inbox folders, `zombie-game-style-bible.md`, `Zombie Game Art/` | `.gitignore`, `CLAUDE.md`, `PROJECT.md` |
+| A — rollback point and the models (#71) | this file, `tasks/3d-conversion.md`, `assets/models/**` (LFS), `.gitattributes` LFS rule, `.gdignore` in the inbox folders, `zombie-game-style-bible.md`, `Zombie Game Art/` | `.gitignore`, `CLAUDE.md`, `PROJECT.md` |
+| B — the Stage seam (#72) | `src/stage/stage.gd`, `src/stage/stage_2d.gd`, `tests/stage_test.gd` | `scenes/main.gd`, `src/world/local_input.gd`, `Config.STAGE`, `PROJECT.md` |
+| C — Stage3D | `src/stage/stage_3d.gd`, `units.gd`, `models.gd`, `actor_model.gd`, `actors_3d.gd`, `static_model.gd`, `terrain_3d.gd`, `structures_3d.gd`, `props_3d.gd`, `pickups_3d.gd`, `vehicles_3d.gd`, `survivors_3d.gd`, `doors_3d.gd`, `lights_3d.gd`, `fx_3d_overlay.gd`, `boss_3d_overlay.gd`, `labels_3d.gd`, `shaders/`, `assets/models/structures/**`, `tests/units_test.gd`, `tests/terrain_art_test.gd` | `Config.STAGE` → `"3d"`, `CAMERA3D`, `STAGE3D`, `STAGE_UNITS`; `TerrainRenderer.cell_art` (keep: the 2D painter uses it); `TileArt.texture`; the `_smoke_3d` leg and the `Stage3D` case in `main.gd`; `tools/smoke.cmd` and `.sh`; `PROJECT.md` |

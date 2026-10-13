@@ -99,7 +99,7 @@ mesh. Origin at the point that meets the bone.
 the three models under game names; `.gdignore` on the inbox folders; the
 style bible and reference art committed; this file; the CLAUDE.md trigger.
 
-### Phase 1 — the Stage seam (PR B, 2D only, behaviour identical)
+### Phase 1 — the Stage seam ✔ (PR B, #72; 2D only, behaviour identical)
 
 `main.gd` stops knowing how the world is drawn.
 
@@ -122,9 +122,12 @@ style bible and reference art committed; this file; the CLAUDE.md trigger.
 - Proof: the smoke's JSON state dumps before and after match checkpoint for
   checkpoint.
 
-### Phase 2 — the first playable 3D stage (PR C)
+### Phase 2 — the first playable 3D stage ✔ (PR C)
 
-`Config.STAGE := "3d"`.
+`Config.STAGE := "3d"`. Built as planned with two changes: the ground is
+one quad and a cell texture rather than a hundred chunk meshes (cheaper to
+build and to draw), and the owner's first nine static props went straight
+into `Structures3D` through `StaticModel.fit` rather than waiting for phase 3.
 
 - `Units`: `to3(v2, h := 0.0)`, `to2(v3)`, `yaw(angle)`.
 - `Stage3D`: `WorldEnvironment` + `DirectionalLight3D` following
