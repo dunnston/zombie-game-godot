@@ -134,6 +134,8 @@ func _make_stage() -> Stage:
 	match which:
 		"2d":
 			return Stage2D.new(sim)
+		"3d":
+			return Stage3D.new(sim)
 	push_error("no stage called '%s'; running 2d" % which)
 	return Stage2D.new(sim)
 
@@ -527,6 +529,114 @@ func _goto(to: String) -> void:
 
 # ------------------------------------------------------------------ smoke --
 
+## The 3D stage, end to end in a minute: the town stands, the player is a
+## rigged model that walks the compass, two zombies arrive as their models
+## and one as a capsule, the pistol kills one, the build ghost shows, the
+## night comes and the torch lights it. A screenshot at every step, so the
+## stage can be read as well as asserted on.
+func _smoke_3d(smoke: Node) -> void:
+	var s3 := stage as Stage3D
+	if s3 == null:
+		smoke.fail("the 3d leg is running on a stage that is not Stage3D")
+		return
+	var p := sim.players[0]
+	smoke_teleport(120, 160)
+	sim.enemies.list.clear()
+	await smoke.frames(20)
+	await smoke.checkpoint("3d_spawn")
+	var me3: ActorModel = s3.actors._players.get(p.seat)
+	if me3 == null or me3.anim == null or me3.skeleton == null:
+		smoke.fail("the player has no rigged model on the 3D stage")
+	# The compass: north is up on screen here as it is in 2D, so the keys
+	# walk the same way, and the model walks (or runs) while they are held.
+	for step: Array in [["move_right", Vector2(1, 0)], ["move_down", Vector2(0, 1)], ["move_left", Vector2(-1, 0)], ["move_up", Vector2(0, -1)]]:
+		var before: Vector2 = p.pos
+		Input.action_press(step[0])
+		await smoke.frames(15)
+		if me3 != null and not (me3.state in ["walk", "run"]):
+			smoke.fail("%s held and the model is '%s', not walking" % [step[0], me3.state])
+		await smoke.frames(15)
+		Input.action_release(step[0])
+		var moved: Vector2 = p.pos - before
+		if moved.dot(step[1]) < 40.0:
+			smoke.fail("%s moved the player by %s" % [step[0], moved])
+	# The body coasts to a stop before the clip does.
+	await smoke.frames(25)
+	await smoke.checkpoint("3d_walked")
+	if me3 != null and me3.state != "idle":
+		smoke.fail("standing still, the model is '%s' rather than idle" % me3.state)
+	# Two zombies that have models, one kind that does not.
+	var walker := sim.enemies.spawn("walker", p.pos + Vector2(220, 0), true)
+	var runner := sim.enemies.spawn("runner", p.pos + Vector2(40, -210), false)
+	var brute := sim.enemies.spawn("brute", p.pos + Vector2(-250, 30), false)
+	await smoke.frames(4)
+	for pair: Array in [[walker, "walker"], [runner, "runner"]]:
+		var n: ActorModel = s3.actors._enemies.get((pair[0] as EnemySim).id)
+		if n == null or n.anim == null:
+			smoke.fail("the %s did not arrive as its model" % pair[1])
+	var bn: ActorModel = s3.actors._enemies.get(brute.id)
+	if bn == null or bn.anim != null:
+		smoke.fail("a brute has no model yet and should stand as a capsule")
+	await smoke.frames(16)
+	await smoke.checkpoint("3d_zombies")
+	# The pistol, aimed through the stage's cursor, kills the walker; its
+	# body stays where it fell. The six-weapon kit, as the 2D fight leg has.
+	sim.give_test_kit(p)
+	await smoke.tap("slot4")
+	if p.weapon().id != "pistol":
+		smoke.fail("slot 4 should be the pistol, holding %s" % p.weapon().id)
+	var frames := 0
+	Input.action_press("fire")
+	while not walker.dead and frames < 300:
+		smoke_aim(walker.pos)
+		await smoke.frames(1)
+		frames += 1
+	Input.action_release("fire")
+	if not walker.dead:
+		smoke.fail("the walker survived %d frames of pistol fire (hp %.0f)" % [frames, walker.hp])
+	if sim.stats.kills < 1:
+		smoke.fail("no kill was counted")
+	await smoke.frames(30)
+	if not s3.actors._corpses.has(walker.id):
+		smoke.fail("the dead walker left no body on the stage")
+	await smoke.checkpoint("3d_walker_shot")
+	# Build mode, through the real screen as the 2D leg goes: the card, PLACE,
+	# and the ghost stands on the hovered tile.
+	build_bar.toggle()
+	await smoke.frames(3)
+	var card_at := build_bar.card_centre("woodWall")
+	if card_at == Vector2.ZERO:
+		smoke.fail("the build menu shows no Wood Wall card")
+	else:
+		await smoke_click(card_at)
+		await smoke.frames(3)
+		await smoke_click(build_bar.button_centre("place"))
+		await smoke.frames(3)
+	if not build_bar.placing():
+		smoke.fail("choosing the Wood Wall and PLACE did not go to placement")
+	for i in range(8):
+		smoke_aim(p.pos + Vector2(96, 0))
+		await smoke.frames(2)
+	if not s3.structures._ghost.visible:
+		smoke.fail("placing a wall shows no ghost on the 3D stage")
+	await smoke.checkpoint("3d_build_ghost")
+	build_bar.toggle()
+	await smoke.frames(2)
+	# Night, and the torch the dark lights.
+	sim.clock.t = 0.82
+	sim.clock.phase = "day"
+	p.bag.add("gear:torch", 1)
+	p.equip["offhand"] = "torch"
+	Equipment.after_equip_change(p)
+	await smoke.frames(10)
+	if not sim.clock.is_dark():
+		smoke.fail("0.82 through the day is not dark (alpha %.2f)" % sim.clock.darkness().alpha)
+	if not p.lit:
+		smoke.fail("the dark did not light the torch")
+	if s3.lights._used < 1:
+		smoke.fail("a lit torch put no light on the 3D stage")
+	await smoke.checkpoint("3d_night_torch")
+
 func smoke_state() -> Dictionary:
 	var p := sim.players[0]
 	var loc := sim.world.location_at_px(p.pos.x, p.pos.y)
@@ -709,15 +819,21 @@ func _smoke_pocket(bill: Dictionary) -> void:
 
 
 ## Guidance (step B), through the real screens: a fresh run's build menu
-## knows the Workbench and nothing else; picking up a stone brings the
+## knows the Workbench, the basic walls and the Gate (PR #70) and nothing
+## else; picking up a stone brings the
 ## hatchet to the C tab wearing NEW; pinning it puts what it still needs on
 ## the HUD, with where to look. Then everything is revealed, because the rest
 ## of the run builds chapter 3 pieces at minute two.
 func _smoke_guidance(smoke: Node) -> void:
 	var p := sim.players[0]
 	var known := Discovery.known_keys(sim)
-	if known != [Discovery.build_key("workbench")]:
-		smoke.fail("a fresh run knows more than the Workbench: %s" % str(known))
+	known.sort()
+	var first: Array = []
+	for id in ["workbench", "barricade", "woodWall", "stoneWall", "gate"]:
+		first.append(Discovery.build_key(id))
+	first.sort()
+	if known != first:
+		smoke.fail("a fresh run knows more than the first bench, the basic walls and the Gate: %s" % str(known))
 	if Crafting.visible_recipes(p, 0, {}, sim).size() != 0:
 		smoke.fail("the C tab has recipes before anything was picked up")
 	p.bag.add("stone", 1)
@@ -1735,6 +1851,12 @@ func _smoke_move_to_cursor(smoke: Node) -> void:
 
 ## The scripted session: walk, sprint, photograph the districts, then fight.
 func smoke_run(smoke: Node) -> void:
+	# The 3D stage has a short leg of its own; the ninety-odd checkpoints
+	# below were written against the 2D one and run there (`tools/smoke.cmd`
+	# passes `--stage=2d`, then runs this leg in a second window).
+	if Stage.pick() == "3d":
+		await _smoke_3d(smoke)
+		return
 	var p := sim.players[0]
 	var start := p.pos
 	await smoke.checkpoint("spawn")

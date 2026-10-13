@@ -26,6 +26,21 @@ static func coords(key: String) -> Vector2i:
 	return _coords[key]
 
 
+## The atlas itself, for a stage that samples it in a shader rather than
+## through a TileMapLayer. Nearest-filtered by the stage; the cells are
+## `TILE` square, `COLS` across, as many rows as the keys needed.
+static func texture() -> Texture2D:
+	if _tileset == null:
+		_build()
+	return (_tileset.get_source(0) as TileSetAtlasSource).texture
+
+
+## Columns and rows of the atlas, as a shader wants them.
+static func atlas_cells() -> Vector2:
+	var size := texture().get_size()
+	return Vector2(size.x / TILE, size.y / TILE)
+
+
 static func _build() -> void:
 	var keys: Array[String] = []
 	for t in range(T.size()):

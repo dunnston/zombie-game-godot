@@ -31,19 +31,20 @@ func _init() -> void:
 
 
 ## The atlas coordinates, looked up once: string formatting per tile is slow,
-## and `repaint` wants the same table `build` used.
-var _tv := []
-var _water: Array[Vector2i] = []
-var _fence: Array[Vector2i] = []
-var _side: Array[Vector2i] = []
-var _roadh: Array[Vector2i] = []
-var _roadv: Array[Vector2i] = []
-var _wall: Array[Vector2i] = []
-var _roof: Array[Vector2i] = []
-var _shadow_c := Vector2i.ZERO
+## and `repaint` wants the same table `build` used. Static, because the 3D
+## stage reads the same cells through `cell_art` without a renderer.
+static var _tv := []
+static var _water: Array[Vector2i] = []
+static var _fence: Array[Vector2i] = []
+static var _side: Array[Vector2i] = []
+static var _roadh: Array[Vector2i] = []
+static var _roadv: Array[Vector2i] = []
+static var _wall: Array[Vector2i] = []
+static var _roof: Array[Vector2i] = []
+static var _shadow_c := Vector2i.ZERO
 
 
-func _tables() -> void:
+static func _tables() -> void:
 	if not _tv.is_empty():
 		return
 	for t in range(T.size()):
@@ -90,15 +91,27 @@ func repaint(world: World, tx: int, ty: int) -> void:
 
 
 func _paint(world: World, tx: int, ty: int) -> void:
+	var art := cell_art(world, tx, ty)
+	var cell := Vector2i(tx, ty)
+	if art.standing:
+		walls.set_cell(cell, 0, art.cell)
+		shadow.set_cell(cell, 0, _shadow_c)
+	else:
+		ground.set_cell(cell, 0, art.cell)
+
+
+## Which atlas cell a tile is drawn as, and whether it stands up: the one
+## answer both stages draw from, so the 3D town is the 2D town's picture.
+## `standing` is a wall or a roof (the 2D wall layer, a 3D block);
+## `t` is the terrain, for a stage that wants a fence lower than a wall.
+static func cell_art(world: World, tx: int, ty: int) -> Dictionary:
+	_tables()
 	var i := ty * W + tx
 	var t := world.tiles[i]
-	var cell := Vector2i(tx, ty)
 	if t == T.WALL or t == T.ROOF:
 		var hw := Util.hash2(tx * 3, ty * 7)
 		var art := _wall if t == T.WALL else _roof
-		walls.set_cell(cell, 0, art[0 if hw <= 0.5 else (1 if hw <= 0.78 else 2)])
-		shadow.set_cell(cell, 0, _shadow_c)
-		return
+		return {"cell": art[0 if hw <= 0.5 else (1 if hw <= 0.78 else 2)], "standing": true, "t": t}
 	var h := Util.hash2(tx, ty)
 	var c: Vector2i
 	if t == T.WATER:
@@ -131,7 +144,7 @@ func _paint(world: World, tx: int, ty: int) -> void:
 		c = _roadv[_variant(t, h)]
 	else:
 		c = _tv[t][_variant(t, h)]
-	ground.set_cell(cell, 0, c)
+	return {"cell": c, "standing": false, "t": t}
 
 
 static func _parapet(world: World, tx: int, ty: int) -> int:

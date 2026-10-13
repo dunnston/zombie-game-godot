@@ -307,6 +307,66 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### The 3D stage (2026-10-13)
+
+`tasks/3d-conversion.md`, phases 1 and 2: the game drawn in 3D on the sim
+it always had. `Config.STAGE` is `"3d"`; `--stage=2d` is the game as it was.
+
+- **`Units`** (`src/stage/units.gd`): 32 px is a metre, sim `y` is 3D `z`,
+  and `yaw` turns a glTF character's +Z onto a sim angle. The one place
+  the arithmetic lives; `units_test` holds the compass.
+- **`Terrain3D`**: the ground is one quad over the town whose shader looks
+  every tile up in a 320×320 cell texture built from
+  `TerrainRenderer.cell_art` — the choice `_paint` always made, split out
+  so both stages draw the same picture — and samples the same atlas
+  `TileArt` bakes at boot. Walls, roofs and fences are one MultiMesh of
+  boxes (2.2 m, 2.8 m, 0.8 m) topped with their own atlas art. `repaint`
+  changes one cell and flattens one box. 167 ms at boot.
+- **`ActorModel`** and **`Actors3D`**: a rigged GLB per player and per
+  enemy that has one (`Models.ENEMY_MODELS`: walker, runner), a capsule at
+  the 2D radius in the 2D colour for the rest; state read from the sim
+  exactly as `PlayerView` and `EnemyView` read it (dead, downed, dash,
+  swing, reload, wind-up, stagger, moving) and played as a clip, the walk
+  and run paced to the ground; hurt, burn and bleed as an additive overlay;
+  i-frames as a blink; a seat ring under every player. Root motion is
+  stripped from the clips that carry it (`strip_root`), since the sim
+  moves the body. A dead enemy's model plays its fall and lies there for
+  the corpse's 45 s. The weapon is a bar on the right hand bone until the
+  owner's props arrive.
+- **`Structures3D`**: a piece with a model in `Models.STRUCTURE_MODELS`
+  (workbench, chemistry station, chest, locker, generator, bedroll, bunk,
+  the beds, turret — the owner's first nine props) is that model fitted to
+  its tiles by its bounds (`StaticModel.fit`), base on the ground; the
+  rest are boxes in `StructureView.COLORS` that damage darkens and a hit
+  lights. The build ghost is a translucent box on the hovered tile.
+- **`Props3D`**: eleven thousand props as a MultiMesh per shape (trunk and
+  canopy, cone, sphere, box, crate), felled and looted states refreshed a
+  few times a second. **`Pickups3D`**, **`Vehicles3D`**, **`Survivors3D`**,
+  **`Doors3D`**: boxes and capsules at sim size in the 2D colours.
+- **`Lights3D`**: a sun and an ambient that follow `sim.clock.canvas_tint`,
+  an OmniLight3D pool for torches, fires and floodlights, a SpotLight3D for
+  the flashlight and headlights, a muzzle flash with a life.
+- **The overlay**: `Fx3DOverlay` and `Boss3DOverlay` are `FxView` and
+  `BossView` with only `_draw` replaced — every event and every clock is
+  the parent's — projecting each point through the camera, so a slam ring
+  lies on the ground; `Labels3D` is every name, bar and word the 2D views
+  drew beside a body, at the top of that body on screen.
+- **The camera** (`Config.CAMERA3D`): perspective, 52° down, 30 m back,
+  south of the focus looking north; `Stage.frame_for` is the lead, the
+  follow and the arena pull-out both stages share, the arena dividing the
+  distance here as it multiplied the zoom there. The cursor is the camera's
+  ray through the mouse meeting the ground; `to_screen` is the inverse.
+- **Smoke**: `tools/smoke.cmd` runs the 94 checkpoints on `--stage=2d`,
+  then `_smoke_3d` on `--stage=3d` into `.smoke/3d/`: the rigged player
+  walks the compass, two zombies arrive as their models and a brute as a
+  capsule, the pistol kills the walker and its body stays, the build ghost
+  shows, night falls and the torch lights it.
+
+Not yet (`tasks/3d-conversion.md`, phase 3): a wall between the camera and
+you does not fade; the toon and outline look; weapon and armour props; crops
+in their beds; the Target Range's floor paint; the noise lens; an Idle clip
+for the player (the export has none, so frame 0 of the walk holds).
+
 ### The Butcher (2026-09-30)
 
 Step E of `tasks/progression-plan.md`: chapter 1's boss, and the first
@@ -2244,7 +2304,9 @@ src/
                      Everything here runs headless and is unit-tested.
   stage/             the Stage seam: stage.gd is what main asks of whatever
                      draws the world; stage_2d.gd is the 2D game (the views
-                     below, the Camera2D). A Stage3D stands in the same place.
+                     below, the Camera2D); stage_3d.gd and the *_3d.gd views
+                     are the same town standing up (units.gd, models.gd,
+                     actor_model.gd, terrain_3d.gd with shaders/, the overlay)
   world/             the 2D views: tile layers, entities, lights, local input
   ui/                every screen, as Control nodes: ui.gd (the look: tokens,
                      fonts, the Theme, builders), chrome.gd (the frame),
@@ -3134,6 +3196,8 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-10-13 | **The 3D stage** (`tasks/3d-conversion.md` phase 2). `Stage3D` and the `*_3d` views under `src/stage/`; `Units`; `Models` (player, walker, runner; nine structure models fitted by `StaticModel`); `TerrainRenderer.cell_art` shared by both stages; `Config.STAGE` → `"3d"`, `CAMERA3D`, `STAGE3D`, `STAGE_UNITS`; `TileArt.texture`; the 3D smoke leg and `tools/smoke.cmd` running both stages. `units_test` (3), `terrain_art_test` (4). `tools/test`: 913 tests, 0 failures |
+| 2026-10-13 | **A stage is what draws the world** (phase 1). `Stage` and `Stage2D` (`src/stage/`); `main.gd` through the seam; `LocalInput.gather` takes the cursor as a world point; `Config.STAGE`. `stage_test` (4). Behaviour-identical: the smoke's state dumps match `main`'s checkpoint for checkpoint |
 | 2026-09-30 | **Basic walls and the Gate from the start** (owner). Barricade, Wood Wall and Stone Wall move from wave 5 (Defence, the first raid warning) to wave 1; the Gate from tier 2 wave 5 to tier 1 wave 1. The Supply Stash, Bunk and the rest keep their waves. `discovery_test` updated to the new first day. `tools/test`: 902 tests, 0 failures |
 | 2026-09-30 | **Guidance** (progression step B). `Discovery` (facts on `GameSim.known`, the known set derived; `tick` reads pockets; hooks in `Crafting.craft`, `Structures.place`/`upgrade_bench`, `Raid.start`); `wave` on every recipe and buildable and `found` on every material (`tools/waves.gd`; Padded Leggings to II, Fuel to III); `Config.WAVES` triggers; `visible_recipes` and the build menu filtered to what is known; NEW badges off `PlayerSim.seen`; PIN TO HUD and the HUD's pinned card (`Hud.pin_lines`); the locked upgrade row with `key`/`hint`; save **v13** (facts, seen, pinned); protocol **12** (`known` on the world diff); dev *Reveal every recipe and buildable*. `discovery_test.gd` (13 tests). Smoke: `guidance_new_recipe`, `guidance_pinned`. `tools/test`: 865 tests, 0 failures; `--all` and smoke green |
 | 2026-09-30 | **The Butcher** (progression step E). `INSTANCES.barn` and `World._gen_barn` (a yard, the floor, three stalls, the killing floor, four pens); `BOSSES.butcher` with the new `hook` move (`Boss._hook`, `boss_hook` event, its lane drawn in `BossView`) and `first_drop`; the Butcher's body, the Butcher's Saw and `butcherDrops` (`tools/butcher.gd`); `Loot._roll_enemy_drop` gives a boss's `first_drop` once ever; `Discovery.has_key` and `key:<id>` among the known keys; `BENCH_TIERS[2].key` / `hint`; `INSTANCES.*.recommends` on the door panel; `arena_name` for the leave panel and the chain notice; dungeon doors on the town map; `World.past_fingerprints`; spawn tiles dropped under a shell; `BRAIN_DROPS.butcher`; dev *Walk into Hollow Creek Barn*; `tools/parse_check.gd`. `butcher_test.gd` (7 tests). `tools/test`: 882 tests, 0 failures. Smoke not run (owner's screen); every script parses headless |

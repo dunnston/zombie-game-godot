@@ -529,3 +529,20 @@ scrap has nothing on the slot to lose.
 onto an empty slot or a part-used stack of the same id — `move` swaps
 otherwise. Count-and-recreate is only for material, and the test that proves
 it is one with a level and a condition on it, run against the old code first.
+
+## 2026-10-13 (the 3D conversion)
+
+- A bone name with a colon does not survive Godot's glTF import:
+  `mixamorig:RightHand` is `mixamorig_RightHand` in the Skeleton3D. Look
+  the bone up, fall back to the underscore form, and warn rather than
+  attach to bone -1 (the first headless boot caught it as a warning).
+- Read the clips before trusting them: `Roll_Dodge_1` and `Running_Reload`
+  carry metres of hip translation and the walk cycles carry none. A GLB's
+  JSON chunk answers that in a node one-liner before any code is written,
+  and it decided where root motion is stripped.
+- From Git Bash, `cmd.exe /c tools\smoke.cmd` runs nothing: MSYS rewrites
+  `/c` as a drive path and cmd opens a prompt that exits 0. Call
+  `bash tools/smoke.sh`, and check the output folder's timestamps before
+  believing an exit code.
+- A `var world` in a test file shadows `TestCase.world` and fails to parse;
+  the runner reports it as a failed file, not a failed test.
