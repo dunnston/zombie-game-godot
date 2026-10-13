@@ -95,9 +95,23 @@ func add_ring(color: Color, r_mul := 1.3) -> void:
 	add_child(ring)
 
 
-## Faces a sim angle: east is 0, south a quarter turn.
-func face(angle: float) -> void:
-	rotation.y = Units.yaw(angle)
+## How fast a body turns toward where the sim says it looks, in radians a
+## second: a half turn in a fifth of a second. The sim turns on the spot, so
+## a shot goes where the mouse is on the tick it is fired; the body catches
+## up over a few frames so a reversal reads as a turn rather than a pop.
+const TURN_RATE := 5.0 * PI
+
+
+## Faces a sim angle: east is 0, south a quarter turn. With a `dt` the body
+## turns toward it at `TURN_RATE`; without one it is put there, which is the
+## first frame, a corpse, and every enemy (the sim already steers them).
+func face(angle: float, dt := 0.0) -> void:
+	var want := Units.yaw(angle)
+	if dt <= 0.0:
+		rotation.y = want
+		return
+	var d := angle_difference(rotation.y, want)
+	rotation.y += clampf(d, -TURN_RATE * dt, TURN_RATE * dt)
 
 
 ## Plays a state from the table, as the clip for `family` (a rifle's walk)

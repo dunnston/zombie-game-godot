@@ -301,6 +301,28 @@ func test_the_guest_walks_and_both_ends_agree_where_it_is() -> void:
 	near(guest.me.hp, 50.0, 0.2)
 
 
+func test_a_guest_looks_where_the_host_says_it_looks() -> void:
+	# `PlayerSim.face` on both ends: walking east with the cursor to the
+	# north, you look east; stop and you look north. The guest predicts it
+	# from its own intent and the host derives it from the same intent.
+	var t := _table()
+	var guest: NetGuest = t.guest
+	var gp: PlayerSim = t.gp
+	var plot := TestCase.tile_centre(TestCase.clear_plot(6))
+	gp.pos = plot
+	guest.me.pos = plot
+	guest.me.intent.mx = 1.0
+	guest.me.intent.aim = plot + Vector2(0, -1e4)
+	_pump(t, 0.5)
+	near(angle_difference(gp.angle, 0.0), 0.0, 0.05, "the host faces the guest east, where it walks")
+	near(angle_difference(guest.me.angle, 0.0), 0.0, 0.05, "and the guest's prediction agrees")
+	guest.me.intent.mx = 0.0
+	guest.me.intent.aim = guest.me.pos + Vector2(0, -1e4)
+	_pump(t, 0.5)
+	near(angle_difference(gp.angle, -PI / 2.0), 0.0, 0.05, "standing, the host faces the guest at its cursor")
+	near(angle_difference(guest.me.angle, -PI / 2.0), 0.0, 0.05, "and so does the guest")
+
+
 func test_a_silent_guest_holds_nothing() -> void:
 	var t := _table()
 	var gp: PlayerSim = t.gp

@@ -94,9 +94,11 @@ const PLAYER := {
 	# How long E must stay down beside a car before it opens the boot instead
 	# of driving. Long enough that an ordinary tap is never read as a hold.
 	"boot_hold": 0.35,
-	# Move-toward-cursor: a cursor this close to you no longer turns your
-	# heading, so walking over it does not spin you round. About a body width.
-	"cursor_deadzone": 24.0,
+	# Facing (`PlayerSim.face`): you look where you walk, at the cursor when
+	# you stand still, and at the cursor while you attack. `face_hold` is how
+	# long the cursor keeps your eyes after the last attack, so a swing does
+	# not end with the body whipping back to the feet.
+	"face_hold": 0.35,
 	"invuln_after_hit": 0.32,
 	"respawn_time": 3.0,
 	"downed_time": 30.0,
