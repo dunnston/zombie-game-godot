@@ -563,3 +563,8 @@ it is one with a level and a condition on it, run against the old code first.
 - Changing how often a sim rolls anything on a shared RNG stream moves every
   later sequence and fails tests that never mention the feature. A new
   mechanic's rolls get a stream of their own (`Enemies.crawl_rng`).
+- The idle gate is not to be trusted from a background shell: a loop on
+  `GetLastInputInfo` that had held twice earlier in the day passed at once
+  on the third run and the smoke took the owner's screen while he was
+  typing. Until the cause is known, do not queue a windowed run behind it
+  while he is at the machine; ask, or wait for him to say he is away.
