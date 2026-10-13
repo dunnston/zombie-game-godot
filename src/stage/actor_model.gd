@@ -122,12 +122,18 @@ func play(s: String, speed := 1.0, restart := false, blend := 0.2, family := "",
 			return
 		if s in Models.HOLDING:
 			return
+	var same := c == clip
 	state = s
 	clip = c
 	anim.speed_scale = speed
 	# `blend` seconds of cross-fade from whatever pose it was in: a body that
 	# is knocked down collapses into the crawl instead of snapping to it.
 	anim.play(c, blend)
+	# `play` on the clip already assigned keeps its place unless it had
+	# reached the end, so a restart mid-clip — the second swing of a fast
+	# weapon — is a seek, not a play.
+	if same and restart:
+		anim.seek(0.0, true)
 	if s in Models.FROZEN:
 		anim.seek(0.0, true)
 		anim.pause()

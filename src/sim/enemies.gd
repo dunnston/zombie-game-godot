@@ -856,7 +856,10 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 		# somewhere counts as stuck. (The prototype compared against a fixed
 		# 1.1px per step, which a walking brute never exceeded.)
 		var moved := e.pos.distance_to(e.last_pos)
-		if (e.aggro or e.raid) and moved < speed * quarter_speed_dt:
+		# Held off a player it can reach is not stuck: it is where it wants
+		# to be, waiting on its cooldown. Counted, the hold-off below would
+		# have every zombie at your side sidestep each 0.7 s.
+		if (e.aggro or e.raid) and not player_in_reach and moved < speed * quarter_speed_dt:
 			e.stuck_t += dt
 			if e.stuck_t > 0.7:
 				# Punch whatever player-built thing is adjacent; otherwise
@@ -887,6 +890,68 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 		e.last_pos = e.pos
 
 	_hold_leashes()
+	_hold_off_players(sim)
+
+
+## Bodies are solid to each other (owner, 2026-10-13: a zombie that walked
+## into you bit from inside you). After everything has moved, each enemy
+## that ended up inside a player is set back to touching distance, through
+## `move_circle` so a wall still holds. The player's half is `hold_off`,
+## from `PlayerSim.move`. Each half moves only its own body, so a player
+## held by a horde is held, and a horde is not shoved about by a player.
+## A walker's reach (`atk_range` + your radius) clears the touching
+## distance (its radius + yours) with room to spare, so one held off still
+## bites. Over `list` rather than the hash, which a guest never builds.
+##
+## Two things go through: a rolling player (the i-frames are for going
+## through the horde, and a body held solid would bulldoze the zombie ahead
+## of it instead) and a charging boss (`Boss`: the charge is meant to go
+## through you and into the wall). Neither half holds either.
+func _hold_off_players(sim: GameSim) -> void:
+	for p in sim.players:
+		if p.dead or p.away or p.dash_t > 0.0:
+			continue
+		for e in list:
+			if not solid(e):
+				continue
+			var out := push_apart(e.pos, e.r, p.pos, p.r)
+			if out != Vector2.ZERO:
+				e.pos = sim.world.move_circle(e.pos, out, e.r, sim.structs)
+
+
+## A player's body kept out of every solid enemy's, by moving the player:
+## the other half of `_hold_off_players`. Returns where `pos` ends up.
+func hold_off(world: World, pos: Vector2, r: float, structs: Structures) -> Vector2:
+	for e in list:
+		if not solid(e):
+			continue
+		var out := push_apart(pos, r, e.pos, e.r)
+		if out != Vector2.ZERO:
+			pos = world.move_circle(pos, out, r, structs)
+	return pos
+
+
+## Whether this is a body to walk into: not the dead, not the range's
+## targets on their posts, and not a boss mid-charge.
+static func solid(e: EnemySim) -> bool:
+	if e.dead or e.passive:
+		return false
+	return e.brain == null or e.brain.state != "charge"
+
+
+## How far a body at `at` must move to be touching, not inside, a body at
+## `other`: zero when they are already apart. Two bodies exactly on top of
+## each other part eastward, so there is always a way out.
+static func push_apart(at: Vector2, r: float, other: Vector2, r_other: float) -> Vector2:
+	var want := r + r_other
+	var dv := at - other
+	var d2 := dv.length_squared()
+	if d2 >= want * want:
+		return Vector2.ZERO
+	if d2 < 0.0001:
+		return Vector2(want, 0.0)
+	var d := sqrt(d2)
+	return dv * ((want - d) / d)
 
 
 ## Everything on a leash back inside it (`EnemySim.leash`, the Target Range's

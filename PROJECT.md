@@ -348,8 +348,12 @@ it always had. `Config.STAGE` is `"3d"`; `--stage=2d` is the game as it was.
   its own idle, walk and run, the rifle's kick on every shot, the bow's
   release, its draw as its reload, and an equip and a disarm when the bow
   changes hands; a state the family has no clip for falls back to the bare
-  one. Space's dash is drawn as a hop (`JUMP_TIME`), Ctrl's sneak as a
-  kneel while still. A state may name several clips and the body takes
+  one. Every melee weapon swings the sword slash, at a zombie or a tree,
+  paced to the weapon's cooldown and restarted on the next swing; bare
+  hands punch. Space's jump is the jump clip fitted to `Config.JUMP`,
+  Sprint + Space's roll is the roll drawn over `ROLL_TIME`, X's dance loops
+  while the sim says so, Ctrl's sneak is a kneel while still (*Bodies, a
+  jump, a roll and a dance*, below). A state may name several clips and the body takes
   turns: a zombie's swipe and its neck bite, two deaths by id. A zombie
   over a player who just died plays `eat` for the meal (`Config.FEED`), and
   the dead player's body stays where it fell for the corpse's 45 s once they
@@ -392,9 +396,50 @@ it always had. `Config.STAGE` is `"3d"`; `--stage=2d` is the game as it was.
 Not yet (`tasks/3d-conversion.md`, phase 3): a wall between the camera and
 you does not fade; the toon and outline look; weapon and armour props; crops
 in their beds; the Target Range's floor paint; the noise lens; a crouched
-walk, a swing with a weapon in it and a gun's reload (no such clips in the
-inbox: sneaking on the move borrows the walk, every melee weapon swings like
-a fist, a gun reloads without a clip).
+walk and a gun's reload (no such clips in the inbox: sneaking on the move
+borrows the walk, a gun reloads without a clip).
+
+### Bodies, a jump, a roll and a dance (2026-10-13)
+
+The owner's first look at the animated bodies, four items.
+
+- **Bodies are solid to each other.** Zombies walked through the player and
+  bit from inside the body. Now, after everything has moved, every enemy
+  that ended up inside a player is set back to touching distance
+  (`Enemies._hold_off_players`) and every player out of every enemy
+  (`Enemies.hold_off`, from `PlayerSim.move`, so a guest predicts it too),
+  both through `World.move_circle` so a wall still holds. Each half moves
+  only its own body: a player held by a horde is held, and a horde is not
+  shoved about. A walker's reach (26 px + yours) clears the touching distance
+  (12 + 13) with room to spare, so one held off still bites; held off and
+  waiting on its cooldown it is not "stuck", so the stuck rescue no longer
+  has it sidestep every 0.7 s. Two things go through: a rolling player
+  (i-frames are for going through the horde; held solid it bulldozed the
+  zombie ahead of it) and a charging boss (the charge is meant to go through
+  you and into the wall). `Enemies.solid` is the one place that says what
+  a body to walk into is. `bodies_test` (5).
+- **Space is a jump, Sprint + Space is the roll.** The dash drawn as a hop
+  read wrong. The dash is unchanged in the sim (`Config.DASH`, `Intent.dash`,
+  `PlayerSim.dash_t`; only its refusals say "roll" now) and moves to the
+  chord: `LocalInput` reads Space with Sprint held as the roll and Space
+  alone as the jump, so Controls rebinds both with the keys it already has.
+  The jump (`Intent.jump`, `PlayerSim.jump_t`, `Config.JUMP`) is a clock on
+  the body and nothing else: it costs nothing, goes nowhere and stops
+  nothing; it is drawn as the jump clip cut to its crouch, air and landing
+  and fitted to the clock.
+- **X is the dance** (`Intent.dance`, `PlayerSim.dance_t`, `Config.DANCE`):
+  the owner's *Thriller Part 2*, looped, from a standstill with nothing
+  going on, until you move, swing, fire, reload, use, roll or jump, or are
+  hit. `PlayerSim.step_moves` is the one rule for both; a guest runs it to
+  predict itself as it runs `move`, and `PF_JUMP` / `PF_DANCE` carry both to
+  everyone else (protocol 16).
+- **The swing is the sword slash**, for every melee weapon and every chop at
+  a tree (a chop is a swing; `Combat.melee_attack` is the one place that
+  decides which), cut to the moment of the blow and paced to the weapon's
+  cooldown rather than squeezed into the swing's quarter second, never slower
+  than the clip; a second swing restarts it (`ActorModel.play` seeks, because
+  `AnimationPlayer.play` on the clip already assigned keeps its place). Bare
+  hands keep the punch (`fists_attack`).
 
 ### The Butcher (2026-09-30)
 
@@ -1410,7 +1455,8 @@ in town first. `tasks/instanced-dungeons.md` §8.3 is the argument — without a
 fast committed move with invulnerability in it, a phase boss collapses into
 kiting in a circle, and stamina alone is a blunt dodge.
 
-- **Space, 130px in 0.18s** (`Config.DASH`), in the direction you are moving
+- **Sprint + Space (Space alone is a jump since 2026-10-13), 130px in
+  0.18s** (`Config.DASH`), in the direction you are moving
   or, from a standstill, toward the cursor — a dodge from a standstill has to
   go somewhere you chose, and the mouse is the only direction you have given.
   It covers exactly `dist` whatever the frame rate: the last step is cut to
@@ -2406,6 +2452,9 @@ Phases 1–4 respecting it.
 
 | Date | Decision | Why | Reversible? |
 | --- | --- | --- | --- |
+| 2026-10-13 | **Bodies are solid to each other, each half moving only its own body; a rolling player and a charging boss go through** (`Enemies._hold_off_players`, `Enemies.hold_off`, `Enemies.solid`) | Owner: zombies walked through the player and bit from inside. A hard set-back to touching distance rather than a velocity push, because the bite plays from where the body is and a soft push leaves it half inside. Each side moves itself so neither shoves the other and a guest can predict its own half. Held solid, a roll bulldozed the zombie ahead of it and a charge never reached its wall, so both are let through | Yes: two calls |
+| 2026-10-13 | **Space is a jump; the dash is the roll, on Sprint + Space** (`LocalInput`, `Config.JUMP`) | Owner: the dash drawn as a hop looked wrong, and Space should just jump. A chord of two keys the player already has rather than a binding of its own, so Controls needs no chord editor. The jump is cosmetic (pillar 3): a key that did something would be a system to finish | Yes |
+| 2026-10-13 | **X is the dance** (`Config.DANCE`, `PlayerSim.step_moves`) | Owner's Thriller. One rule for what ends it, run by host and guest alike, with a 60 s cap so a walked-away keyboard does not dance for ever | Yes: the key is in Controls |
 | 2026-10-13 | **A `Stage` is what draws the world** (`src/stage/`): main owns the sim, the wire, the menus and the screens, and asks the stage to build, follow, convert the cursor and take every event | The first step of the 3D conversion (`tasks/3d-conversion.md`), and a refactor with no behaviour in it: the seventy lines that built the views, the camera maths and the fan-out of events moved out of `main.gd` unchanged, so a 3D stage can stand where the 2D one does and the smoke's 94 checkpoints prove nothing else moved. `Config.STAGE` picks; `--stage=` overrides, which is how the smoke keeps running the stage it was written for. | Yes: the seam costs nothing to keep |
 | 2026-10-13 | **The game goes 3D, behind a flag, on the same sim** (`tasks/3d-conversion.md`) | The sprite route failed on animation volume: five directions × every clip × every weapon, consistent frame to frame, and neither a scripted puppet nor paint over one reached the turnaround's quality in motion. A rigged model animates once and faces any way, and the owner now has a pipeline that makes them. The sim never touched a node and the UI never touched the world, so what changes is `src/world/` and ~120 lines of `main.gd`; the map, the rules, the screens and the wire are the same game. | Yes: `Config.STAGE`, then `tasks/rollback-to-2d.md`, then the `2d-final` tag |
 | 2026-10-13 | 32 px = 1 m; sim `y` is 3D `z`; the camera is perspective at ~50°, south of you looking north | A 1.70 m model is a 54 px person, which is what `PLAYER.r` 13 px always meant. North stays up so every compass instinct from 2D, and every smoke leg that walks by compass, still holds. The bible's 3/4 view is the look the references were painted in. | Yes, `Config.CAMERA3D` and `Units` |
@@ -2610,7 +2659,8 @@ Detail and checkboxes are in `tasks/todo.md`. This is the shape.
    it. The questions: is 130px far enough to leave a bite's reach and short
    enough that it is not a teleport; is 30 stamina a real cost or a free
    escape; is 0.9s between dashes right; does the after-image read in a
-   crowd; and is Space the right key. Then the School: `tasks/todo.md`,
+   crowd; and is Sprint + Space the right chord (Space alone is the jump
+   since 2026-10-13). Then the School: `tasks/todo.md`,
    *Instanced dungeons*, PR B.
 0. **Hand the garden to the crew.** The Farmer job: a fifth `JOBS` row and a
    `_farmer_step` beside `_scavenger_step` — walk to the driest planted bed in
@@ -3235,6 +3285,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-10-13 | **Bodies collide, Space jumps, Sprint + Space rolls, X dances, the swing is the sword slash.** `Enemies._hold_off_players` / `hold_off` / `solid` / `push_apart`, the stuck rescue ignores a zombie held off in reach; `Intent.jump` / `dance`, `PlayerSim.jump_t` / `dance_t` / `step_moves`, `Config.JUMP` / `DANCE`, `PF_JUMP` / `PF_DANCE` (protocol 16), a guest predicts both; `KeyBinds` `jump` (Space) and `dance` (X), `LocalInput` reads Sprint + Space as the roll; `tools/build_anims`: `attack` = Stable Sword Outward Slash cut to the blow (`strike` 0.3), `punch`, `roll` = Stand To Roll, `dance` = Thriller Part 2, the jump cut to its air; `Models.family_of` "fists", `fists_attack`; `Actors3D` roll / jump / dance / the swing paced to the cooldown and restarted on its edge (`ActorModel.play` seeks on a same-clip restart). `bodies_test` (5), `actors_test` +3. `tools/test`: 954 tests, 0 failures |
 | 2026-10-13 | **Animation pass 2: the player's weapons, the zombies' moves.** The gait from the sim's flags (`WALK_PACE`, `RUN_PACE`, `SNEAK_PACE`); clip families per weapon (`Models.family_of`, `ActorModel.play(family, variant)`): rifle, pistol and bow idle/walk/run, `shoot` / `bow_shoot`, `bow_reload`, `bow_equip` / `bow_disarm`; `jump` on the dash, `crouch` on the sneak; `PlayerSim.shot` (`PF_SHOT`); a player's body left where they died; a zombie's swipe and neck bite in turns, two deaths, `eat` over the dead (`Config.FEED`, `EnemySim.feed_t`, `Damage._feed_on`, `EF_FEED`, protocol 15); any boss cue marks it awake (Codex, PR #74). `actors_test` (14), `feed_test` (4). `tools/test`: 945 tests, 0 failures |
 | 2026-10-13 | **The animation pass.** The owner's Mixamo clips on Mixamo rigs for the player, walker, runner and the Coach, baked by `tools/build_anims.gd` into `assets/models/**.glb` + `assets/anims/*.res`; `Models` tables by state; `ActorModel` plays a library, `clip_speed`, `clip_strike`, cross-fades; `Actors3D.on_event` cues a boss's moves, stun, roar and wake, and the floor before it; `Config.CRAWL`, `Damage.knock_down`, `EnemySim.crawl_t` / `getup_t`, `Enemies.crawl_rng`, ambient crawlers; `EF_CRAWL` / `EF_GETUP` (protocol 14); dev **floor**. `crawl_test` (9), `models_test` (5). `tools/test`: 927 tests, 0 failures |
 | 2026-10-13 | **The 3D stage** (`tasks/3d-conversion.md` phase 2). `Stage3D` and the `*_3d` views under `src/stage/`; `Units`; `Models` (player, walker, runner; nine structure models fitted by `StaticModel`); `TerrainRenderer.cell_art` shared by both stages; `Config.STAGE` → `"3d"`, `CAMERA3D`, `STAGE3D`, `STAGE_UNITS`; `TileArt.texture`; the 3D smoke leg and `tools/smoke.cmd` running both stages. `units_test` (3), `terrain_art_test` (4). `tools/test`: 913 tests, 0 failures |

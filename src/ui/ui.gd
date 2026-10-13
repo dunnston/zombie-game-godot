@@ -218,7 +218,7 @@ static func build_theme() -> Theme:
 		t.set_color("font_color", name, st[4])
 
 	# Buttons: four boxes each, differing only in fill and border. Focus is
-	# never drawn by the engine: every button is FOCUS_NONE (Space is the dash,
+	# never drawn by the engine: every button is FOCUS_NONE (Space is the jump,
 	# and a focused button would take it), and keyboard selection is drawn as
 	# the selected state instead, so the two can never stack.
 	_button(t, "Primary", "display", 600, 22, 0.1,
@@ -482,7 +482,7 @@ static func expand(c: Control, horizontal := true, vertical := false) -> Control
 	return c
 
 
-## A button that never takes keyboard focus. Space is the dash and Enter is
+## A button that never takes keyboard focus. Space is the jump and Enter is
 ## the screen's own commit, and a focused engine button would take both.
 static func button(text: String, variation: String, pressed: Callable = Callable()) -> Button:
 	var b := Button.new()

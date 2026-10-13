@@ -150,12 +150,12 @@ func _refused(why: String) -> void:
 func test_winded_you_cannot_dash_and_are_told_so() -> void:
 	p.winded = true
 	p.stam = p.max_stam * 0.4
-	_refused("Too winded to dash")
+	_refused("Too winded to roll")
 
 
 func test_short_of_stamina_it_is_refused_rather_than_half_done() -> void:
 	p.stam = float(D.stam) - 1.0
-	_refused("Not enough stamina to dash")
+	_refused("Not enough stamina to roll")
 
 
 func test_not_in_the_middle_of_healing() -> void:

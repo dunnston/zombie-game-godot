@@ -50,13 +50,19 @@ static func gather(intent: Intent, cursor: Vector2, ui_capture := false, screen_
 	intent.sprint = Input.is_action_pressed("sprint") and not typing
 	intent.sneak = Input.is_action_pressed("sneak") and not typing
 	# Movement, so it answers with a panel open like the keys above: getting
-	# out of the way is not something a pack screen should stop.
-	if Input.is_action_just_pressed("dash") and not typing:
-		intent.dash = true
+	# out of the way is not something a pack screen should stop. Space with
+	# Sprint held is the roll; Space alone is the jump.
+	if Input.is_action_just_pressed("jump") and not typing:
+		if intent.sprint:
+			intent.dash = true
+		else:
+			intent.jump = true
 	if ui_capture:
 		intent.fire = false
 		intent.interact_held = false
 		return
+	if Input.is_action_just_pressed("dance") and not typing:
+		intent.dance = true
 	intent.fire = Input.is_action_pressed("fire")
 	intent.interact_held = Input.is_action_pressed("interact")
 	intent.aim = cursor

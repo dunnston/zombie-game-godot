@@ -96,6 +96,14 @@ var dash_dir := Vector2.ZERO
 var dash_refused := ""
 ## True for the one step a dash began on, so `tick` announces it once.
 var dash_began := false
+## The jump and the dance (`Config.JUMP`, `Config.DANCE`): seconds left of
+## each. Clocks on the body and nothing else — the stage plays the clip, the
+## sim moves on — kept here so a guest's friends see them (`PF_JUMP`,
+## `PF_DANCE`). `*_began` is the one step each started on, for `tick` to say.
+var jump_t := 0.0
+var dance_t := 0.0
+var jump_began := false
+var dance_began := false
 var speed_mul := 1.0
 var melee_mul := 1.09
 var gun_mul := 1.0
@@ -572,6 +580,11 @@ func tick(sim: GameSim, dt: float) -> void:
 	# of those returns, so there is no branch that forgets.
 	if dash_t > 0.0 and (away or dead or downed or driving_id > 0):
 		dash_t = 0.0
+	# The same for the jump and the dance: a body on the ground, or behind a
+	# wheel, is doing neither, and must not come back up mid-hop.
+	if (jump_t > 0.0 or dance_t > 0.0) and (away or dead or downed or driving_id > 0):
+		jump_t = 0.0
+		dance_t = 0.0
 	# Above the same returns for the same reason: it is `Crafting.tick` that
 	# decides parked, dead and downed stop the work, in one place.
 	if not crafting.is_empty():
@@ -684,12 +697,17 @@ func tick(sim: GameSim, dt: float) -> void:
 
 	# Healing roots you in place, and so does getting somebody up.
 	var rooted := not using.is_empty() or not reviving.is_empty()
-	move(world, dt, rooted, sim.structs)
+	move(world, dt, rooted, sim.structs, sim.enemies)
 	if dash_began:
 		sim.emit({"t": "dash", "seat": seat, "x": pos.x, "y": pos.y, "dx": dash_dir.x, "dy": dash_dir.y})
 	if not dash_refused.is_empty():
 		sim.notify(dash_refused, "#8a8f84")
 		dash_refused = ""
+	step_moves(dt, rooted)
+	if jump_began:
+		sim.emit({"t": "jump", "seat": seat, "x": pos.x, "y": pos.y})
+	if dance_began:
+		sim.emit({"t": "dance", "seat": seat, "x": pos.x, "y": pos.y})
 
 	if not using.is_empty():
 		using.t += dt
@@ -767,7 +785,7 @@ func _build(sim: GameSim, it: Intent) -> void:
 
 ## Stamina, speed and the actual step, from the movement half of the intent.
 ## Separate from tick so a guest can run exactly this to predict itself.
-func move(world: World, dt: float, rooted := false, structs: Structures = null) -> void:
+func move(world: World, dt: float, rooted := false, structs: Structures = null, enemies: Enemies = null) -> void:
 	var it := intent
 	var P := Config.PLAYER
 	var moving := it.mx != 0.0 or it.my != 0.0
@@ -820,9 +838,45 @@ func move(world: World, dt: float, rooted := false, structs: Structures = null) 
 	if not moving:
 		vel *= exp(-11.0 * dt)
 	pos = world.move_circle(pos, vel * dt, r, structs)
+	# Bodies are solid to each other: you stop at a zombie as it stops at
+	# you (`Enemies.hold_off`). Not on a roll — `_dash_step` never comes
+	# here — because the i-frames are for going through the horde.
+	if enemies != null:
+		pos = enemies.hold_off(world, pos, r, structs)
 
 
-## Why a dash cannot happen now, or "" when it can. Downed, dead and driving
+## The jump and the dance, from the intent: `Config.JUMP` and `Config.DANCE`
+## are clocks on the body and nothing else. Its own step, like `move`,
+## because a guest runs it to predict itself and the rule for what ends a
+## dance has to be written once. What starts is announced by `tick`.
+##
+## A jump is dropped mid-air, mid-roll and while rooted; it ends a dance. A
+## dance starts from a standstill with nothing in hand being used, and ends
+## the moment you do anything — move, roll, jump, swing, fire, reload,
+## use — or anything is done to you (`hurt_flash`: a guest learns of a hit
+## by the flag that sets it, so both ends read the same field).
+func step_moves(dt: float, rooted: bool) -> void:
+	var it := intent
+	jump_began = false
+	dance_began = false
+	jump_t = maxf(0.0, jump_t - dt)
+	dance_t = maxf(0.0, dance_t - dt)
+	var moving := it.mx != 0.0 or it.my != 0.0
+	var acting := rooted or dash_t > 0.0 or not swing.is_empty() or not shot.is_empty() \
+		or not reloading.is_empty() or it.fire or it.fire_pressed or it.reload or it.use \
+		or it.eat or it.suppress or it.interact_held or hurt_flash > 0.0
+	if it.jump and jump_t <= 0.0 and dash_t <= 0.0 and not rooted:
+		jump_t = float(Config.JUMP.time)
+		jump_began = true
+		dance_t = 0.0
+	if dance_t > 0.0 and (moving or acting or jump_t > 0.0):
+		dance_t = 0.0
+	elif it.dance and dance_t <= 0.0 and jump_t <= 0.0 and not moving and not acting:
+		dance_t = float(Config.DANCE.time)
+		dance_began = true
+
+
+## Why a roll cannot happen now, or "" when it can. Downed, dead and driving
 ## never reach `move`, so they need no line here.
 func _dash_refusal(rooted: bool) -> String:
 	if lurch_t > 0.0:
@@ -830,11 +884,11 @@ func _dash_refusal(rooted: bool) -> String:
 	if rooted:
 		return "Not in the middle of that"
 	if overloaded():
-		return "Too heavy to dash — drop something"
+		return "Too heavy to roll — drop something"
 	if winded:
-		return "Too winded to dash"
+		return "Too winded to roll"
 	if stam < float(Config.DASH.stam):
-		return "Not enough stamina to dash"
+		return "Not enough stamina to roll"
 	return ""
 
 

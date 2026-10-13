@@ -3190,3 +3190,66 @@ equipping a weapon should animate. Plus Codex on PR #74: a guest that missed
   Sword Slash*, and *Reloading* would fill the three slots in the manifest.
 - Space is still the dash (i-frames, a burst of 130 px) drawn as a jump,
   and Ctrl is still the sneak drawn as a crouch: the sim did not change.
+
+## Bodies collide, Space jumps, Sprint+Space rolls, X dances (2026-10-13)
+
+The owner's playtest of the animation pass, five items:
+
+- Zombies walk through the player, so the bite plays from inside the body.
+- Space's dash drawn as a hop reads wrong. Space should be a jump and
+  nothing else; the roll (the dash: i-frames, the burst) moves to a chord.
+- The pipe swing (the Punching clip at 4x) looks weird: use *Stable Sword
+  Outward Slash* for every melee weapon, trees included (a chop is a swing).
+- A key for the Thriller dance (*Thriller Part 2*).
+
+### Decisions
+
+- **Bodies are solid to each other.** An enemy is pushed out of every
+  living player after it moves (`Enemies.step`), and a player out of every
+  living enemy after it moves (`PlayerSim.move`), both through
+  `World.move_circle` so a wall still holds. A walker's reach (26 px + 13)
+  clears the touching distance (12 + 13), so a zombie held off still bites.
+  The roll passes through: i-frames are for going through the horde.
+- **The roll is Sprint + Space.** One chord of two keys the player already
+  has, so it is rebindable without a chord editor. The sim keeps the name
+  `dash`; only what the player sees says "roll".
+- **A jump is cosmetic** (`Intent.jump`, `PlayerSim.jump_t`,
+  `Config.JUMP`): a hop that costs nothing and changes nothing, a one-shot
+  on the body. The dance (`Intent.dance`, `PlayerSim.dance_t`,
+  `Config.DANCE`) is the same with a longer clock, cut short by moving,
+  swinging, firing, rolling, jumping or being hit. Both cross the wire as
+  edges and flags (protocol 16) so a guest's friends see them.
+- **X is the dance** until the owner picks a key: it is in Controls.
+
+### Plan
+
+- [x] 1. `build_anims`: `attack` = Stable Sword Outward Slash (cut to the
+      swing, `strike` measured), `roll` = Stand To Roll, `dance` = Thriller
+      Part 2, `jump` kept. Rebuild the player library.
+- [x] 2. Sim: enemy–player and player–enemy separation; `jump` and `dance`
+      edges, clocks, events; roll refusals say "roll"; wire flags and
+      intent bits, protocol 16; a guest predicts its own jump and dance.
+- [x] 3. Input: `jump` on Space (Sprint held makes it the roll); `dance` on X.
+      Controls screen rows.
+- [x] 4. `Actors3D`: roll on the dash's first step (`ROLL_TIME`), jump on
+      the jump's, dance while `dance_t`, the swing restarted on its own
+      edge and paced to the weapon's cooldown.
+- [x] 5. Tests: collision (`bodies_test`), jump and dance
+      clocks and cancels, wire round trip, input chord, the body's states.
+- [x] 6. `tools/test`, PROJECT.md, `3d-conversion.md`, PR.
+
+### Review
+
+- The clips were measured, not eyeballed: a probe over the baked library
+  printed the hips' height and the arm's angular speed per 0.1 s, which is
+  where the slash's blow (0.9 s in), the roll's tuck (1.0–1.9 s) and the
+  jump's air (0.7–1.3 s) came from. The cuts are in the manifest.
+- `bodies_test` (5) asserts on the sim: parted to touching distance, you
+  stop at a zombie, a roll comes out the far side, one held off still
+  bites and never fidgets, the dead and the range's targets are walked
+  over. `actors_test` (+3) reads the state, clip, rate and restart the
+  body decides, and the wire flags. `boss_test` caught the charge.
+- `tools/test`: 954 tests, 0 failures. The 3D smoke leg and the feel are
+  the owner's: the slash's pace against the pipe, the roll over 0.6 s, the
+  jump over 0.9 s, X for the dance (rebindable in Controls), and whether
+  Sprint + Space is the right chord for the roll.

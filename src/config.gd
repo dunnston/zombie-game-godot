@@ -303,6 +303,18 @@ const DASH := {
 	"cd": 0.9,
 }
 
+## Space: a jump (owner, 2026-10-13: Space was the dash drawn as a hop, and
+## read wrong; the dash is the roll now, on Sprint + Space). A clock on the
+## body and nothing else — it costs nothing, clears nothing and stops
+## nothing (pillar 3: the hop is for the look of it). `time` is how long
+## one takes; the stage fits the clip to it, and a press mid-air is dropped.
+const JUMP := {"time": 0.9}
+
+## X: the dance (the owner's Thriller). `time` is the longest it runs on
+## its own; moving, swinging, firing, rolling, jumping or being hit ends it
+## sooner, and the stage loops the clip until the sim says stop.
+const DANCE := {"time": 60.0}
+
 # --------------------------------------------------------------- co-op --
 
 ## Phase 5. The host runs the simulation exactly as solo does; guests send

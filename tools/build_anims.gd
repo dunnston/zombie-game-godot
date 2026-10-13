@@ -46,18 +46,24 @@ const CHARS := {
 			"idle": {"src": LOCO + "idle.fbx", "loop": true},
 			"walk": {"src": LOCO + "walking.fbx", "loop": true},
 			"run": {"src": LOCO + "running.fbx", "loop": true},
-			"attack": {"src": "Main Character/Punching.fbx"},
+			# Every melee weapon, and every chop at a tree, is this one slash;
+			# bare hands keep the punch (`fists_attack`).
+			"attack": {"src": "Main Character/Stable Sword Outward Slash.fbx", "range": [0.6, 1.5], "strike": 0.3},
+			"punch": {"src": "Main Character/Punching.fbx"},
 			"hurt": {"src": "Main Character/Hit To Body.fbx"},
 			"die": {"src": BOW + "standing death backward 01.fbx"},
 			"downed": {"src": BOW + "standing death forward 01.fbx"},
-			"dash": {"src": BOW + "standing dodge forward.fbx"},
+			# Sprint + Space: the dash (i-frames, the burst) is drawn as a roll.
+			"roll": {"src": "Main Character/Stand To Roll.fbx", "range": [0.85, 2.05]},
+			# X: the Thriller, looped for as long as the sim lets it run.
+			"dance": {"src": "Main Character/Thriller Part 2.fbx", "loop": true},
 			"collect": {"src": "Main Character/Pick Fruit.fbx"},
 			"throw": {"src": "Main Character/Throw Object.fbx"},
 			"shoot": {"src": SHOOT + "firing rifle.fbx"},
 			"aim": {"src": SHOOT + "rifle aiming idle.fbx", "loop": true},
-			# Space: the dash is drawn as a hop. Ctrl: sneaking still is a kneel
+			# Space: a jump, and nothing else. Ctrl: sneaking still is a kneel
 			# (the only crouch in the inbox; there is no crouched walk yet).
-			"jump": {"src": LOCO + "jump.fbx"},
+			"jump": {"src": LOCO + "jump.fbx", "range": [0.4, 1.75]},
 			"crouch": {"src": PISTOL + "pistol kneeling idle.fbx", "loop": true},
 			# A weapon family's own gait: what the body does with a rifle, a
 			# handgun or a bow in its hands. `Actors3D` picks the family from

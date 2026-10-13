@@ -139,7 +139,7 @@ func test_overburdened_winds_you_until_the_weight_comes_off() -> void:
 	_run(p, 2.0)
 	ok(not p.sprinting, "sprinted while overburdened")
 	ok(p.winded, "the debuff ended while the weight was still on")
-	eq(p._dash_refusal(false), "Too heavy to dash — drop something", "the dash said something else")
+	eq(p._dash_refusal(false), "Too heavy to roll — drop something", "the dash said something else")
 	p.bag.take("stone", 400)
 	ok(not p.overloaded(), "the stone is still on the bill")
 	p.intent.sprint = false
