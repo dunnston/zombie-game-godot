@@ -104,6 +104,15 @@ These settle arguments. When a decision is close, the pillar wins.
 browser prototype had, and several things it did not. What is left is the
 owner playing it — alone, and then with a friend.
 
+**And it is going 3D (2026-10-13).** The owner has a model pipeline
+(Astra, Meshy, Tripo, Blender) and three rigged, animated characters in
+`assets/models/`. The conversion is `tasks/3d-conversion.md`: a `Stage`
+seam so `main.gd` stops knowing how the world is drawn, then a `Stage3D`
+on the same map with the same sim, UI and co-op, behind `Config.STAGE`.
+The 2D game is tagged `2d-final` and `tasks/rollback-to-2d.md` is the way
+back. Phase 0 (the rollback point and the models) is done; the seam is
+next.
+
 **Other people at the table.** A game can be hosted from the pause menu or
 the title screen, and joined from the title with an address, a name and an
 optional password. Up to four. The host runs the simulation exactly as solo
@@ -2378,6 +2387,11 @@ Phases 1–4 respecting it.
 | Date | Decision | Why | Reversible? |
 | --- | --- | --- | --- |
 | 2026-10-13 | **A `Stage` is what draws the world** (`src/stage/`): main owns the sim, the wire, the menus and the screens, and asks the stage to build, follow, convert the cursor and take every event | The first step of the 3D conversion (`tasks/3d-conversion.md`), and a refactor with no behaviour in it: the seventy lines that built the views, the camera maths and the fan-out of events moved out of `main.gd` unchanged, so a 3D stage can stand where the 2D one does and the smoke's 94 checkpoints prove nothing else moved. `Config.STAGE` picks; `--stage=` overrides, which is how the smoke keeps running the stage it was written for. | Yes: the seam costs nothing to keep |
+| 2026-10-13 | **The game goes 3D, behind a flag, on the same sim** (`tasks/3d-conversion.md`) | The sprite route failed on animation volume: five directions × every clip × every weapon, consistent frame to frame, and neither a scripted puppet nor paint over one reached the turnaround's quality in motion. A rigged model animates once and faces any way, and the owner now has a pipeline that makes them. The sim never touched a node and the UI never touched the world, so what changes is `src/world/` and ~120 lines of `main.gd`; the map, the rules, the screens and the wire are the same game. | Yes: `Config.STAGE`, then `tasks/rollback-to-2d.md`, then the `2d-final` tag |
+| 2026-10-13 | 32 px = 1 m; sim `y` is 3D `z`; the camera is perspective at ~50°, south of you looking north | A 1.70 m model is a 54 px person, which is what `PLAYER.r` 13 px always meant. North stays up so every compass instinct from 2D, and every smoke leg that walks by compass, still holds. The bible's 3/4 view is the look the references were painted in. | Yes, `Config.CAMERA3D` and `Units` |
+| 2026-10-13 | Models in git LFS; the owner's inbox folders are not the project's | Tens of megabytes per export and re-exported often: plain history would never shrink again. `Meshy Models/` is where exports land and `assets/models/` is what the game loads, under game names, so a re-export is a copy and a commit, never a rename in code. | Yes |
+| 2026-10-13 | Enemy → model is a view table, not content; kinds without a model are capsules | Notion owns what exists and what it costs; which mesh draws it is the stage's business. A capsule at the 2D radius in the 2D colour keeps the whole loop playable while the owner makes the rest, which is pillar 5 applied to a conversion. | Yes, one table |
+| 2026-10-13 | Armour is rigid props on bones, and the base character is clothed | Layered clothing on generated meshes means weight transfer, body masking and clipping per piece, the hardest problem in any character pipeline, for a difference that cannot be seen at 70 px on screen (pillar 4). A helmet on the head bone can. | Yes |
 | 2026-09-30 | **Recipes arrive in waves, and what is known is derived from facts** (`Discovery`): held, crafted, built, raid, bench | The plan's three-goal test: the next thing has to be visible without a quest log, and never more than eight things at once. Deriving rather than storing is what lets a table change move a recipe between waves without a save migration. | Yes: `reveal_all` on start, or `wave` 1 on every row |
 | 2026-09-30 | **The workbench ladder**: five tiers in one table, and a tier is everything a chapter unlocks — recipes, buildables, the raid ceiling, the weapon level cap, the crew's jobs | The progression plan: the next thing to do has to be visible, and a ladder with one rung above the first bench cannot show it. Raids following the bench is pillar 6 made a choice. | Yes: the table, and `raid_cap` returning the top for every tier |
 | 2026-09-30 | **The strict start**: bills are paid from the pack only, carry starts at 100, and dying drops the pack but not what you wear or the hotbar | The progression plan (`tasks/progression-plan.md`): the early game needs chores for progress to remove, and the stash paying from anywhere had given the biggest one away with the first Supply Stash. Death softened because the walk back should be for the haul, made armed. | Yes: `bill_stash` returns `sim.stash`, two consts, and `drop_backpack` |
