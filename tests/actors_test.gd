@@ -221,6 +221,12 @@ func test_a_zombie_bends_down_to_eat_you() -> void:
 	_play(DT)
 	eq(actors.enemy_node(w.id).state, "eat")
 	eq(actors.enemy_node(w.id).clip, "eat")
+	# Hit mid-meal: the sim ends it at once, and so does the body, however
+	# much of the clip was left.
+	Damage.damage_enemy(sim, w, 1.0, plot)
+	eq(w.feed_t, 0.0)
+	_play(DT)
+	ne(actors.enemy_node(w.id).state, "eat", "looked up when hit")
 
 
 func test_half_the_horde_dies_the_other_way() -> void:

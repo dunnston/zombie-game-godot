@@ -317,7 +317,10 @@ func _update_enemy(node: ActorModel, e: EnemySim, dt: float) -> void:
 		node.play("eat", _fit(node, "eat", float(Config.FEED.time)))
 	elif swinging:
 		node.play(swing, _fit(node, swing, maxf(0.3, float(e.windup) * 1.6), "", int(m.swings)), true, 0.2, "", int(m.swings))
-	elif node.busy():
+	elif node.busy() and node.state != "eat":
+		# A meal is the sim's clock, not the clip's: hit, it looks up at once
+		# (`feed_t` is zero) rather than finishing its five seconds bent over
+		# a body it is already walking away from (Codex, PR #75).
 		pass
 	elif down:
 		node.play("crawl", _pace(node, "crawl", speed))

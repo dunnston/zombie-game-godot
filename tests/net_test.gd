@@ -752,6 +752,21 @@ func test_a_guest_learns_winded_from_the_flag_and_swings_slow() -> void:
 	near(g.me.swing_rate_mul, 1.0, 0.001, "and the penalty is gone with it")
 
 
+func test_a_guest_sees_its_own_shot_from_the_flag() -> void:
+	# A swing is predicted, a shot is not (the host counts the round), so the
+	# kick on a guest's own body has to come down the wire like anyone else's.
+	var t := _table()
+	var g: NetGuest = t.guest
+	var gp: PlayerSim = t.gp
+	ok(g.me.shot.is_empty(), "nothing fired yet")
+	gp.shot = {"t": 0.0, "dur": 5.0, "bow": false}
+	_pump(t, 0.2)
+	ok(not g.me.shot.is_empty(), "the guest's own body kicks")
+	gp.shot = {}
+	_pump(t, 0.2)
+	ok(g.me.shot.is_empty(), "and stops when the host says the cycle is over")
+
+
 func test_a_guests_winded_countdown_is_the_hosts_own_clock() -> void:
 	# The owner's report: the countdown never reached zero. A guest used to
 	# estimate the clock from the flag, so whenever its estimate ran out first
