@@ -3013,3 +3013,43 @@ is added. Each is the chore a later step's item removes.
   from the flake.
 - Open: Strength and Pack Mule's carry bonuses are now large against a base
   of 75; decide when the Pack Frame lands (step D).
+
+---
+
+## The 3D conversion (2026-10-13)
+
+Plan: `tasks/3d-conversion.md`. Way back: `tasks/rollback-to-2d.md`.
+Notion card: *3D conversion* on Ideas & Roadmap.
+
+### PR A — rollback point and the models
+
+- [x] `sprite-pipeline` closed with one commit, pushed, no PR
+- [x] `2d-final` tag and `2d` branch at `main` (b7e61a6), pushed
+- [x] LFS for `assets/models/**` and the reference art; the three GLBs under
+      game names (`player`, `walker`, `runner`) with Godot's import sidecars
+- [x] `Meshy Models/` is an inbox: gitignored, `.gdignore`. `Zombie Game Art/`
+      committed with `.gdignore`, its stray `.import` files gone
+- [x] `tasks/rollback-to-2d.md`, `tasks/3d-conversion.md`, the CLAUDE.md
+      trigger, PROJECT.md §3 and §6
+- [x] `tools\test`, PR, Codex threads, merge
+
+### PR B — the Stage seam (2D only, behaviour identical)
+
+- [ ] `src/stage/stage.gd` (the interface, `Stage.pick`) and `stage_2d.gd`
+- [ ] `main.gd` through the seam: `snap`, `cursor_world`, `to_screen`,
+      `on_event`, `tick`, `frame`, `repaint`, `rebuild`, `set_local`
+- [ ] `LocalInput.gather` takes the cursor as a world point
+- [ ] `Config.STAGE := "2d"`; `tests/stage_test.gd`
+- [ ] Smoke JSON dumps diffed against `main`, checkpoint for checkpoint
+
+### PR C — Stage3D, the first playable
+
+- [ ] `Units`, `Config.CAMERA3D`, `Config.STAGE := "3d"`
+- [ ] `TerrainRenderer.cell_art` shared; `Terrain3D` chunks off the atlas
+- [ ] `ActorModel` + `Actors3D`: player and the two zombies animated, capsules
+      for the rest, the weapon bar on the hand bone
+- [ ] `Structures3D`, `Props3D`, `Pickups3D`, `Vehicles3D`, `Survivors3D`,
+      `Bosses3D` as placeholders of the right size
+- [ ] `Fx3D` + `Overlay2D`, `Lights3D`, day and night
+- [ ] The 3D smoke leg; `tools\smoke.cmd` runs 2D then 3D
+- [ ] `units_test`, `terrain_art_test`; PROJECT.md §3 §4 §5 §6 §11

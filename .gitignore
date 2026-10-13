@@ -21,3 +21,7 @@ tools/_*.gd.uid
 # Source archives dropped in the project root; the UI mockups are already
 # extracted into tasks/ui-redesign-handoff/
 *.zip
+
+# The owner's model inbox: raw Meshy exports land here and are copied into
+# assets/models/ under game names. Its .gdignore keeps Godot from importing them twice.
+Meshy Models/

@@ -1,0 +1,2 @@
+# The reference paintings the style bible points at: large, never edited, so LFS.
+*.png filter=lfs diff=lfs merge=lfs -text
