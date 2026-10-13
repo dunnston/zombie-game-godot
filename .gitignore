@@ -21,3 +21,7 @@ tools/_*.gd.uid
 # Source archives dropped in the project root; the UI mockups are already
 # extracted into tasks/ui-redesign-handoff/
 *.zip
+
+# Sprite renders: per-frame scratch the packer deletes; kept out in case a run dies
+art/render/**/.frames*/
+art/comfy.log

@@ -1,0 +1,13 @@
+{
+ "character": "player",
+ "animation": "turnaround",
+ "direction": "N",
+ "frames": 1,
+ "fps": 1,
+ "loop": false,
+ "size": 128,
+ "anchor": [
+  64.0,
+  100.2
+ ]
+}

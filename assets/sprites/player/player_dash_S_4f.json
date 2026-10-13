@@ -1,0 +1,17 @@
+{
+ "character": "player",
+ "animation": "dash",
+ "direction": "S",
+ "frames": 4,
+ "fps": 20,
+ "loop": false,
+ "size": 128,
+ "anchor": [
+  64.0,
+  100.2
+ ],
+ "painted": true,
+ "denoise": 0.5,
+ "ipadapter_weight": 0.8,
+ "seed": 7
+}

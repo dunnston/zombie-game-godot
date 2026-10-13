@@ -1,0 +1,13 @@
+{
+ "character": "player",
+ "animation": "walk",
+ "direction": "N",
+ "frames": 8,
+ "fps": 10,
+ "loop": true,
+ "size": 128,
+ "anchor": [
+  64.0,
+  100.2
+ ]
+}

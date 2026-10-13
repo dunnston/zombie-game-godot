@@ -529,3 +529,22 @@ scrap has nothing on the slot to lose.
 onto an empty slot or a part-used stack of the same id — `move` swaps
 otherwise. Count-and-recreate is only for material, and the test that proves
 it is one with a level and a condition on it, run against the old code first.
+
+## 2026-10-01 (sprite pipeline)
+
+- A puppet of script primitives is a camera and pipeline test, not a
+  character. The owner's words: "example blocks... looks nothing like the
+  reference, I would never use these in a game." Say the fidelity ceiling
+  out loud before building, show the mannequin as a mannequin, and do not
+  present a primitive figure as a model candidate for approval.
+- "Build the character in Blender" from an owner who paints references with
+  AI means the painted look. Scripted geometry cannot reach it; a repaint
+  pass or an artist's mesh is the missing last step. Lead with that.
+- The repaint route (Blender puppet as skeleton, SDXL + IP-Adapter paint
+  over it) was also rejected: "comical ... abandon this idea." Frames that
+  look fine one at a time still read as a stiff puppet in motion, and the
+  owner judges the set as a whole against the reference art, not frame by
+  frame. Do not propose generated character animation again; the bar is
+  the turnaround's quality in motion, and neither scripted 3D nor paint
+  over it reaches it. Ask what the owner wants to do before building a
+  third variant.

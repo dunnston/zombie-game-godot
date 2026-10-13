@@ -1,0 +1,13 @@
+{
+ "character": "player",
+ "animation": "run",
+ "direction": "E",
+ "frames": 8,
+ "fps": 12,
+ "loop": true,
+ "size": 128,
+ "anchor": [
+  64.0,
+  100.2
+ ]
+}

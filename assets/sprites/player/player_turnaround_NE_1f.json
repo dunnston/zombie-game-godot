@@ -1,0 +1,17 @@
+{
+ "character": "player",
+ "animation": "turnaround",
+ "direction": "NE",
+ "frames": 1,
+ "fps": 1,
+ "loop": false,
+ "size": 128,
+ "anchor": [
+  64.0,
+  100.2
+ ],
+ "painted": true,
+ "denoise": 0.5,
+ "ipadapter_weight": 0.8,
+ "seed": 7
+}

@@ -1,0 +1,13 @@
+{
+ "character": "player",
+ "animation": "idle",
+ "direction": "E",
+ "frames": 6,
+ "fps": 6,
+ "loop": true,
+ "size": 128,
+ "anchor": [
+  64.0,
+  100.2
+ ]
+}

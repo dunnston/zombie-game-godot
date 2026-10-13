@@ -1,0 +1,13 @@
+{
+ "character": "player",
+ "animation": "dash",
+ "direction": "E",
+ "frames": 4,
+ "fps": 20,
+ "loop": false,
+ "size": 128,
+ "anchor": [
+  64.0,
+  100.2
+ ]
+}
