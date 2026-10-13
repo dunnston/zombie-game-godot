@@ -3035,21 +3035,38 @@ Notion card: *3D conversion* on Ideas & Roadmap.
 
 ### PR B — the Stage seam (2D only, behaviour identical)
 
-- [ ] `src/stage/stage.gd` (the interface, `Stage.pick`) and `stage_2d.gd`
-- [ ] `main.gd` through the seam: `snap`, `cursor_world`, `to_screen`,
+- [x] `src/stage/stage.gd` (the interface, `Stage.pick`) and `stage_2d.gd`
+- [x] `main.gd` through the seam: `snap`, `cursor_world`, `to_screen`,
       `on_event`, `tick`, `frame`, `repaint`, `rebuild`, `set_local`
-- [ ] `LocalInput.gather` takes the cursor as a world point
-- [ ] `Config.STAGE := "2d"`; `tests/stage_test.gd`
-- [ ] Smoke JSON dumps diffed against `main`, checkpoint for checkpoint
+- [x] `LocalInput.gather` takes the cursor as a world point
+- [x] `Config.STAGE := "2d"`; `tests/stage_test.gd`
+- [x] Smoke: the same 105 checkpoints as `main`, 0 failures (the JSON dumps
+      are not a diffable proof: positions drift with the frame rate)
 
 ### PR C — Stage3D, the first playable
 
-- [ ] `Units`, `Config.CAMERA3D`, `Config.STAGE := "3d"`
-- [ ] `TerrainRenderer.cell_art` shared; `Terrain3D` chunks off the atlas
-- [ ] `ActorModel` + `Actors3D`: player and the two zombies animated, capsules
+- [x] `Units`, `Config.CAMERA3D`, `Config.STAGE := "3d"`
+- [x] `TerrainRenderer.cell_art` shared; `Terrain3D`: one quad and a cell
+      texture off the atlas, the blocks one MultiMesh (not chunks: cheaper)
+- [x] `ActorModel` + `Actors3D`: player and the two zombies animated, capsules
       for the rest, the weapon bar on the hand bone
-- [ ] `Structures3D`, `Props3D`, `Pickups3D`, `Vehicles3D`, `Survivors3D`,
-      `Bosses3D` as placeholders of the right size
-- [ ] `Fx3D` + `Overlay2D`, `Lights3D`, day and night
-- [ ] The 3D smoke leg; `tools\smoke.cmd` runs 2D then 3D
-- [ ] `units_test`, `terrain_art_test`; PROJECT.md §3 §4 §5 §6 §11
+- [x] `Structures3D` (nine of the owner's props fitted by `StaticModel`),
+      `Props3D`, `Pickups3D`, `Vehicles3D`, `Survivors3D`, `Doors3D`
+- [x] `Fx3DOverlay`, `Boss3DOverlay`, `Labels3D`; `Lights3D`, day and night
+- [x] The 3D smoke leg; `tools\smoke.cmd` runs 2D then 3D
+- [x] `units_test`, `terrain_art_test`; PROJECT.md §4 §5 §11
+
+### Review
+
+- Three PRs, one seam. The 2D stage never changed behaviour: 105 checkpoints,
+  0 failures on the seam, and the 3D leg green on the first full run after
+  three setup fixes (the kit, the real PLACE click, the equip hook).
+- Two facts read off the GLBs before any code: the models face +Z, and the
+  dash and reload clips carry metres of root motion. Both became one line
+  each (`Units.yaw`, `strip_root`).
+- The smoke cannot be diffed on its JSON: positions drift with the frame
+  rate from the first checkpoint. Same checkpoints, same outcomes, is the proof.
+- A MultiMesh instance colour is linear and the palette is sRGB. One
+  `srgb_to_linear` and the trees were green.
+- Open: a wall between the camera and you hides you (phase 3, first);
+  the toon look; the player's Idle; crops and the range paint in 3D.
