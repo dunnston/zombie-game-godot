@@ -2242,7 +2242,10 @@ src/
   config.gd          ALL tunables and content tables. One file to balance.
   sim/               RefCounted simulation classes. No nodes, no Input.
                      Everything here runs headless and is unit-tested.
-  world/             nodes that draw the sim: tile layers, entities, camera
+  stage/             the Stage seam: stage.gd is what main asks of whatever
+                     draws the world; stage_2d.gd is the 2D game (the views
+                     below, the Camera2D). A Stage3D stands in the same place.
+  world/             the 2D views: tile layers, entities, lights, local input
   ui/                every screen, as Control nodes: ui.gd (the look: tokens,
                      fonts, the Theme, builders), chrome.gd (the frame),
                      ui_screen.gd (sections + refreshers), kit/ (slot, meter,
@@ -2312,6 +2315,7 @@ Phases 1–4 respecting it.
 
 | Date | Decision | Why | Reversible? |
 | --- | --- | --- | --- |
+| 2026-10-13 | **A `Stage` is what draws the world** (`src/stage/`): main owns the sim, the wire, the menus and the screens, and asks the stage to build, follow, convert the cursor and take every event | The first step of the 3D conversion (`tasks/3d-conversion.md`), and a refactor with no behaviour in it: the seventy lines that built the views, the camera maths and the fan-out of events moved out of `main.gd` unchanged, so a 3D stage can stand where the 2D one does and the smoke's 94 checkpoints prove nothing else moved. `Config.STAGE` picks; `--stage=` overrides, which is how the smoke keeps running the stage it was written for. | Yes: the seam costs nothing to keep |
 | 2026-09-30 | **Recipes arrive in waves, and what is known is derived from facts** (`Discovery`): held, crafted, built, raid, bench | The plan's three-goal test: the next thing has to be visible without a quest log, and never more than eight things at once. Deriving rather than storing is what lets a table change move a recipe between waves without a save migration. | Yes: `reveal_all` on start, or `wave` 1 on every row |
 | 2026-09-30 | **The workbench ladder**: five tiers in one table, and a tier is everything a chapter unlocks — recipes, buildables, the raid ceiling, the weapon level cap, the crew's jobs | The progression plan: the next thing to do has to be visible, and a ladder with one rung above the first bench cannot show it. Raids following the bench is pillar 6 made a choice. | Yes: the table, and `raid_cap` returning the top for every tier |
 | 2026-09-30 | **The strict start**: bills are paid from the pack only, carry starts at 100, and dying drops the pack but not what you wear or the hotbar | The progression plan (`tasks/progression-plan.md`): the early game needs chores for progress to remove, and the stash paying from anywhere had given the biggest one away with the first Supply Stash. Death softened because the walk back should be for the haul, made armed. | Yes: `bill_stash` returns `sim.stash`, two consts, and `drop_backpack` |
