@@ -33,6 +33,7 @@ static func damage_enemy(sim: GameSim, e: EnemySim, dmg: float, from: Vector2, k
 			return 0.0
 	e.hp -= dmg
 	e.flash = 0.11
+	e.feed_t = 0.0
 	if not no_alert:
 		e.aggro = true
 		e.alert_t = 6.0
@@ -343,9 +344,11 @@ static func kill_player(sim: GameSim, p: PlayerSim, cause := "died") -> void:
 	p.reloading = {}
 	p.using = {}
 	p.swing = {}
+	p.shot = {}
 	p.searching = {}
 	p.reviving = {}
 	sim.stats.deaths += 1
+	_feed_on(sim, p)
 	sim.emit({"t": "player_died", "seat": p.seat, "x": p.pos.x, "y": p.pos.y, "cause": cause})
 	var head := "YOU TURNED" if cause == "turned" else "YOU DIED"
 	var col := "#b07ad0" if cause == "turned" else "#e05a4a"
@@ -362,6 +365,28 @@ static func kill_player(sim: GameSim, p: PlayerSim, cause := "died") -> void:
 	# you wear and the hotbar come with you.
 	var pack := Loot.drop_backpack(sim, p)
 	sim.notify(head if pack.is_empty() else head + " — your pack is where you fell", col, true)
+
+
+## The zombies in reach of the body stop to eat it: the horde bending over
+## you is the picture of dying here. Humans, bosses and anything on the
+## ground keep doing what they were doing. The meal lasts `Config.FEED.time`
+## and a hit ends it (`damage_enemy`).
+static func _feed_on(sim: GameSim, p: PlayerSim) -> void:
+	var F := Config.FEED
+	for e in sim.enemies.list:
+		if e.dead or e.passive or e.def.get("boss", false) or e.def.get("human", false) \
+				or e.crawl_t > 0.0 or e.getup_t > 0.0:
+			continue
+		var reach: float = e.atk_range + p.r + float(F.reach)
+		if e.pos.distance_squared_to(p.pos) >= reach * reach:
+			continue
+		e.feed_t = float(F.time)
+		e.feed_at = p.pos
+		e.windup = 0.0
+		e.pending_struct = {}
+		e.pending_survivor = null
+		e.pending_wall = Vector2i(-1, -1)
+		e.atk_cd = maxf(e.atk_cd, float(F.time))
 
 
 ## Damage over time on a player: fire, and whatever else ticks every frame.

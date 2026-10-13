@@ -27,6 +27,7 @@ const HEIGHT := 1.7
 const LOCO := "Main Character/Locomotion Pack.zip#"
 const SHOOT := "Main Character/Shooter Pack.zip#"
 const BOW := "Main Character/Pro Longbow Pack.zip#"
+const PISTOL := "Main Character/Pistol_Handgun Locomotion Pack.zip#"
 const WZIP := "Zombie Walker Annimation/Scary Zombie Pack.zip#"
 const RZIP := "zombie runner aminations/Scary Zombie Pack (1).zip#"
 const COACH := "coach animations/"
@@ -54,6 +55,26 @@ const CHARS := {
 			"throw": {"src": "Main Character/Throw Object.fbx"},
 			"shoot": {"src": SHOOT + "firing rifle.fbx"},
 			"aim": {"src": SHOOT + "rifle aiming idle.fbx", "loop": true},
+			# Space: the dash is drawn as a hop. Ctrl: sneaking still is a kneel
+			# (the only crouch in the inbox; there is no crouched walk yet).
+			"jump": {"src": LOCO + "jump.fbx"},
+			"crouch": {"src": PISTOL + "pistol kneeling idle.fbx", "loop": true},
+			# A weapon family's own gait: what the body does with a rifle, a
+			# handgun or a bow in its hands. `Actors3D` picks the family from
+			# the weapon held and `ActorModel` falls back to the bare state.
+			"rifle_idle": {"src": SHOOT + "rifle aiming idle.fbx", "loop": true},
+			"rifle_walk": {"src": SHOOT + "walking.fbx", "loop": true},
+			"rifle_run": {"src": SHOOT + "rifle run.fbx", "loop": true},
+			"pistol_idle": {"src": PISTOL + "pistol idle.fbx", "loop": true},
+			"pistol_walk": {"src": PISTOL + "pistol walk.fbx", "loop": true},
+			"pistol_run": {"src": PISTOL + "pistol run.fbx", "loop": true},
+			"bow_idle": {"src": BOW + "standing idle 01.fbx", "loop": true},
+			"bow_walk": {"src": BOW + "standing walk forward.fbx", "loop": true},
+			"bow_run": {"src": BOW + "standing run forward.fbx", "loop": true},
+			"bow_reload": {"src": BOW + "standing draw arrow.fbx"},
+			"bow_shoot": {"src": BOW + "standing aim recoil.fbx"},
+			"bow_equip": {"src": BOW + "standing equip bow.fbx"},
+			"bow_disarm": {"src": BOW + "standing disarm bow.fbx"},
 		},
 	},
 	"walker": {
@@ -68,8 +89,11 @@ const CHARS := {
 			"bite": {"src": WZIP + "zombie neck bite.fbx"},
 			# Low to the ground: what a crawler swings with.
 			"bite_low": {"src": WZIP + "zombie biting (2).fbx"},
+			# Over a body on the ground: bends down, feeds, and stands back up.
+			"eat": {"src": WZIP + "zombie biting.fbx"},
 			"scream": {"src": WZIP + "zombie scream.fbx"},
 			"die": {"src": WZIP + "zombie death.fbx"},
+			"die2": {"src": WZIP + "zombie dying.fbx"},
 			"crawl": {"src": WZIP + "zombie crawl.fbx", "loop": true},
 			"crawl_fast": {"src": WZIP + "running crawl.fbx", "loop": true},
 			# From the Coach's rig: this body has no reaction or get-up of its own.
@@ -89,8 +113,11 @@ const CHARS := {
 			"bite": {"src": RZIP + "zombie neck bite.fbx"},
 			# Low to the ground: what a crawler swings with.
 			"bite_low": {"src": RZIP + "zombie biting (2).fbx"},
+			# Over a body on the ground: bends down, feeds, and stands back up.
+			"eat": {"src": RZIP + "zombie biting.fbx"},
 			"scream": {"src": RZIP + "zombie scream.fbx"},
 			"die": {"src": RZIP + "zombie death.fbx"},
+			"die2": {"src": RZIP + "zombie dying.fbx"},
 			"crawl": {"src": RZIP + "zombie crawl.fbx", "loop": true},
 			"crawl_fast": {"src": RZIP + "running crawl.fbx", "loop": true},
 			"hurt": {"src": COACH + "Zombie Reaction Hit.fbx"},

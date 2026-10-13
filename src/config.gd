@@ -1101,6 +1101,12 @@ const CRAWL := {
 	"spawn_chance": 0.12,
 }
 
+## A zombie in reach of a player who just died stops to feed on the body
+## for `time` seconds (`Damage.kill_player`), bent over it, going nowhere.
+## `reach` is how far past its swing it will lean over to do so, in px. A hit
+## breaks the meal. The one thing in the game a zombie stops for.
+const FEED := {"time": 5.0, "reach": 40.0}
+
 ## Bleed: what an edged weapon leaves behind.
 ##
 ## A weapon's `bleed` above is damage per second, and this is how long the

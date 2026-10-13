@@ -376,6 +376,8 @@ static func fire_gun(sim: GameSim, p: PlayerSim, w: Dictionary) -> bool:
 	# bow that lit up the treeline would give away the one thing it is for.
 	if not w.get("bow", false):
 		sim.emit({"t": "muzzle", "x": muzzle.x, "y": muzzle.y, "a": p.angle, "w": w.id})
+	# For the body: the kick, or the bow's release, over the weapon's cycle.
+	p.shot = {"t": 0.0, "dur": float(w.cd), "bow": bool(w.get("bow", false))}
 	sim.emit({"t": "shake", "amount": w.get("shake", 1.0)})
 	# Recoil kick, so rapid fire visibly pushes the aim around.
 	p.recoil = minf(0.16, p.recoil + spread * 1.4 + 0.012)

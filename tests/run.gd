@@ -60,6 +60,7 @@ func _init() -> void:
 	var failures: Array[String] = []
 	var t0 := Time.get_ticks_msec()
 	var spy := ErrorSpy.new()
+	TestCase.tree = self
 	for path in files:
 		var script: GDScript = load(path)
 		# A file with a parse error still loads as a script object; it just

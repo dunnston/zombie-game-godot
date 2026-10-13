@@ -48,6 +48,9 @@ var stagger_cd := 0.0
 ## them and `Enemies.tick_ai` spends them.
 var crawl_t := 0.0
 var getup_t := 0.0
+## Over a body (`Config.FEED`): seconds left of the meal, and where it lies.
+var feed_t := 0.0
+var feed_at := Vector2.ZERO
 
 ## Bleeding. `bleed_dps` is the rate of the deepest wound it is carrying and
 ## `bleed_by` is who opened it, so a kill that lands seconds later still pays

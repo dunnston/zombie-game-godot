@@ -10,8 +10,11 @@ var table := {}
 var anim: AnimationPlayer
 var skeleton: Skeleton3D
 var meshes: Array[GeometryInstance3D] = []
-## The state playing now, and whether its clip is a one-shot still running.
+## The state playing now, and the library clip it resolved to: the clip is
+## what decides whether a `play` changes anything, so the same state with a
+## different weapon in hand, or the other of two swings, does.
 var state := ""
+var clip := ""
 ## Radius and height in metres, for the ring under the feet and the bars
 ## the overlay draws over the head.
 var radius := 0.4
@@ -97,64 +100,91 @@ func face(angle: float) -> void:
 	rotation.y = Units.yaw(angle)
 
 
-## Plays a state from the table. Looping states keep looping and only take
-## a new speed; a one-shot that is still running is left to finish unless
-## `restart`; a holding state (dead, downed) stays on its last frame.
-## `speed` scales playback, so a swing's clip fits the swing's duration.
-func play(s: String, speed := 1.0, restart := false, blend := 0.2) -> void:
+## Plays a state from the table, as the clip for `family` (a rifle's walk)
+## when the table has one and as the bare state otherwise; `variant` picks
+## among a state's several clips. The clip is what is compared: a clip that
+## is already looping keeps looping and only takes a new speed; a one-shot
+## that is still running is left to finish unless `restart`; a holding state
+## (dead, downed) stays on its last frame. `speed` scales playback, so a
+## swing's clip fits the swing's duration.
+func play(s: String, speed := 1.0, restart := false, blend := 0.2, family := "", variant := 0) -> void:
 	if anim == null:
 		state = s
 		return
-	var clip := _clip_for(s)
-	if clip.is_empty():
+	var c := _clip_for(s, family, variant)
+	if c.is_empty():
 		# Nothing to show for it: whatever was playing goes on.
 		return
-	if s == state and not restart:
+	if c == clip and not restart:
 		if anim.is_playing():
+			state = s
 			anim.speed_scale = speed
 			return
 		if s in Models.HOLDING:
 			return
 	state = s
+	clip = c
 	anim.speed_scale = speed
 	# `blend` seconds of cross-fade from whatever pose it was in: a body that
 	# is knocked down collapses into the crawl instead of snapping to it.
-	anim.play(clip, blend)
+	anim.play(c, blend)
 	if s in Models.FROZEN:
 		anim.seek(0.0, true)
 		anim.pause()
 
 
+## A state's clip at its last frame, held: a body left where it fell.
+func hold_end(s: String) -> void:
+	if anim == null:
+		state = s
+		return
+	var c := _clip_for(s)
+	if c.is_empty():
+		return
+	state = s
+	clip = c
+	anim.play(c)
+	anim.seek(anim.get_animation(c).length, true)
+	anim.pause()
+
+
 ## Whether the current one-shot is still running: a swing mid-way must not
-## be cut by the walk underneath it.
+## be cut by the walk underneath it. A holding state is a pose, not a move:
+## the sim says when a body is dead or downed, and one that is up again
+## gets up at once, however much of its fall was left.
 func busy() -> bool:
-	return anim != null and anim.is_playing() and not (state in Models.LOOPING)
+	return anim != null and anim.is_playing() and not (state in Models.LOOPING) and not (state in Models.HOLDING)
+
+
+## Whether the table has anything to show for a state, in this family or bare.
+func has_clip(s: String, family := "") -> bool:
+	return not _clip_for(s, family).is_empty()
 
 
 ## How long a state's clip runs at speed 1, or 0 when there is none.
-func clip_length(s: String) -> float:
-	var clip := _clip_for(s)
-	if clip.is_empty() or anim == null:
+func clip_length(s: String, family := "", variant := 0) -> float:
+	var c := _clip_for(s, family, variant)
+	if c.is_empty():
 		return 0.0
-	return anim.get_animation(clip).length
+	return anim.get_animation(c).length
 
 
 ## The metres per second a state's clip was animated at, or 0 when it does not
 ## travel: what playback is paced against so the feet keep up with the ground.
-func clip_speed(s: String) -> float:
-	var clip := _clip_for(s)
-	if clip.is_empty() or anim == null:
+func clip_speed(s: String, family := "") -> float:
+	var c := _clip_for(s, family)
+	if c.is_empty():
 		return 0.0
-	return float(anim.get_animation(clip).get_meta("speed", 0.0))
+	return float(anim.get_animation(c).get_meta("speed", 0.0))
 
 
 ## The second of a state's clip at which its blow lands (`strike` meta), or
 ## 0 when the clip has none.
 func clip_strike(s: String) -> float:
-	var clip := _clip_for(s)
-	if clip.is_empty() or anim == null:
+	var c := _clip_for(s)
+	if c.is_empty():
 		return 0.0
-	return float(anim.get_animation(clip).get_meta("strike", 0.0))
+	return float(anim.get_animation(c).get_meta("strike", 0.0))
 
 
 ## An additive tint over the whole body: white for a hit, orange alight,
@@ -201,23 +231,33 @@ func lie_down(down: bool) -> void:
 	_capsule.position.y = radius if down else (_capsule.mesh as CapsuleMesh).height / 2.0
 
 
-func _clip_for(s: String) -> String:
+## The library clip for a state: the family's own first (`rifle_walk`), then
+## the bare state, then the nearest thing the model has. A state that names
+## several clips gives the `variant`th of them, round and round.
+func _clip_for(s: String, family := "", variant := 0) -> String:
 	var clips: Dictionary = table.get("clips", {})
-	var clip := String(clips.get(s, ""))
-	if clip.is_empty():
-		# The nearest thing the model has.
+	var named: Variant = null
+	if not family.is_empty():
+		named = clips.get(family + "_" + s)
+	if named == null:
+		named = clips.get(s)
+	if named == null:
 		match s:
 			"idle":
-				clip = String(clips.get("walk", ""))
-			"dash":
-				clip = String(clips.get("run", ""))
-			"sneak":
-				clip = String(clips.get("walk", ""))
+				named = clips.get("walk")
+			"crouch":
+				named = clips.get("idle")
 			"downed":
-				clip = String(clips.get("die", ""))
-	if clip.is_empty() or anim == null or not anim.has_animation(clip):
+				named = clips.get("die")
+	var c := ""
+	if named is Array:
+		if not (named as Array).is_empty():
+			c = String(named[posmod(variant, (named as Array).size())])
+	elif named != null:
+		c = String(named)
+	if c.is_empty() or anim == null or not anim.has_animation(c):
 		return ""
-	return clip
+	return c
 
 
 ## A player for the clips: the model's own library, baked by

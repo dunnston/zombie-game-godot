@@ -3133,3 +3133,60 @@ rig per character inside the zip packs.
 2. The Coach's clip files carry his rig and mesh; nothing else was needed.
 3. Crawling is a sim rule: `Config.CRAWL`, `Damage.knock_down`, `tests/crawl_test.gd`.
    Dev menu: **floor**. Not yet felt by the owner.
+
+---
+
+## Animation pass 2 — the player's weapons, the zombies' moves, the boss on a guest (2026-10-13)
+
+Branch `player-and-zombie-anims`, cut from `origin/main`. Owner's words: the
+walk looks like running; is the idle playing; zombies have more than one
+attack, and should eat you when you die; the player needs a death; Space
+should jump and Ctrl should crouch; shooting and the bow need their clips;
+equipping a weapon should animate. Plus Codex on PR #74: a guest that missed
+`boss_wake` sees the boss lie back down between its tells.
+
+### Findings
+
+- The walk never played: a player walks 5.5 m/s in stage units (176 px/s
+  over 32 px/m) and `Actors3D` drew "run" above 3 m/s. The walk clip is a
+  1.55 m/s stroll, so pacing it to the ground would also run it at 3.5x.
+  **Locomotion is now chosen by what the sim says** (sprinting, sneaking,
+  moving) and paced within a cap.
+- The idle, the die and the dash all played; nothing held them off. The
+  dash was a 1 s dodge squeezed into a quarter second, so it read as nothing.
+- A reload with no clip froze the body in whatever it was doing.
+- No crouch-walk, no melee-weapon swing and no gun reload in the inbox.
+
+### Plan
+
+- [x] 1. `build_anims`: player jump, crouch (pistol kneel), rifle/pistol/bow
+      locomotion sets, bow draw / release / equip / disarm; zombies' `eat`
+      (zombie biting) and a second death. Rebuild the three libraries.
+- [x] 2. `ActorModel.play` takes a weapon family and a variant; a state may
+      name several clips; the clip decides whether anything changes.
+- [x] 3. `Actors3D` player: sim flags pick the gait; jump on a dash's
+      first step; crouch while sneaking still; `shoot` / `bow_shoot` from a
+      new `p.shot`; the bow's reload is its draw; equip and disarm on a slot
+      change; a body left where you died for the zombies to eat.
+- [x] 4. Sim: `p.shot` (PF_SHOT), `Config.FEED`, `EnemySim.feed_t`,
+      `Damage.kill_player` feeds the zombies in reach, a hit breaks the meal,
+      `EF_FEED`. Protocol 15.
+- [x] 5. `Actors3D` enemies: attacks alternate between the swing and the neck
+      bite; `eat` while feeding; deaths alternate; any boss cue marks it awake.
+- [x] 6. Tests: `actors_test` asserts the state each frame picks; `feed_test`;
+      the boss cue on a guest that never saw the wake.
+- [x] 7. `tools/test` (945, 0 failures), PROJECT.md, `3d-conversion.md`, PR.
+      The 3D smoke leg is the owner's to run: the machine was in use.
+
+### Review
+
+- Every gait decision has a test that reads the state and the clip the
+  body resolved (`actors_test`, 14 tests, in the runner's tree via
+  `TestCase.tree`). The feed is a sim rule with four tests of its own.
+- Left for the owner: the 3D smoke leg (`--stage=3d`), and the feel of the
+  walk at 1.8x, the hop over the dash, the kneel, and five seconds of
+  being eaten. The inbox has no crouched walk, no armed swing and no gun
+  reload; Mixamo's *Crouched Walking*, a *Sword And Shield Slash* or *Great
+  Sword Slash*, and *Reloading* would fill the three slots in the manifest.
+- Space is still the dash (i-frames, a burst of 130 px) drawn as a jump,
+  and Ctrl is still the sneak drawn as a crouch: the sim did not change.
