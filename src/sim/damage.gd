@@ -91,7 +91,26 @@ static func stagger_enemy(sim: GameSim, e: EnemySim, secs: float, crit := false)
 	e.pending_survivor = null
 	e.blocker = {}
 	sim.emit({"t": "stagger", "x": e.pos.x, "y": e.pos.y, "r": e.r})
+	# A stagger can put it on the ground. Rolled on a stream of its own, so
+	# nothing else's sequence shifts for it.
+	if e.type in Config.CRAWL.types and sim.enemies.crawl_rng.chance(float(Config.CRAWL.chance)):
+		knock_down(e)
 	return t
+
+
+## Puts a body on the ground: it crawls, then gets up (`Config.CRAWL`). Refused
+## for anything that is not one of the kinds that goes down, anything with a
+## script (a boss), a phase shield, a target on the range, and anything already
+## down or getting up. `secs` is how long it crawls; the default is the table's.
+## The one writer of `crawl_t`, so the reach it costs is always put back.
+static func knock_down(e: EnemySim, secs := -1.0) -> bool:
+	if e == null or e.dead or e.passive or e.brain != null or e.shield_t > 0.0:
+		return false
+	if not (e.type in Config.CRAWL.types) or e.crawl_t > 0.0 or e.getup_t > 0.0:
+		return false
+	e.crawl_t = float(Config.CRAWL.time) if secs < 0.0 else secs
+	e.atk_range = float(e.def.atk_range) * float(Config.CRAWL.reach_mul)
+	return true
 
 
 ## Open a wound. The one writer of the bleed fields.

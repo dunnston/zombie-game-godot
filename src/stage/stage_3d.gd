@@ -124,6 +124,7 @@ func on_event(ev: Dictionary) -> void:
 		repaint(int(ev.tx), int(ev.ty))
 	fx.on_event(ev)
 	boss.on_event(ev)
+	actors.on_event(ev)
 	lights.on_event(ev)
 
 

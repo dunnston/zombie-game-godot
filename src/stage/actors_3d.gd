@@ -18,6 +18,19 @@ var _players := {}     # seat -> ActorModel
 var _enemies := {}     # enemy id -> ActorModel
 var _corpses := {}     # enemy id -> {node, t}
 
+## A boss's body does what its script does, learned from the script's events
+## and never from the script: a guest's copy of a boss has no script (the
+## 2026-09-10 decision that has `BossView` draw from events). Enemy id ->
+## {state, dur, t}: the clip for the move and how long the sim gives it.
+var _cues := {}
+## Bosses that have woken. One that has not lies on the gym floor.
+var _awake := {}
+
+## A boss move -> the clip its telegraph plays. The clip's `strike` is fitted
+## to the tell, so the blow lands on screen when it lands in the sim.
+const MOVE_CLIP := {"slam": "slam", "charge": "charge_wind", "dodgeball": "throw",
+	"whistle": "whistle", "hook": "attack"}
+
 
 func _init(sim_: GameSim) -> void:
 	sim = sim_
@@ -40,6 +53,39 @@ func rebuild() -> void:
 	_players.clear()
 	_enemies.clear()
 	_corpses.clear()
+	_cues.clear()
+	_awake.clear()
+
+
+## Takes one event and returns the state it cues, or "", so a test can assert
+## on the decision (the shape `BossView.on_event` has).
+func on_event(ev: Dictionary) -> String:
+	match String(ev.t):
+		"boss_wake":
+			_awake[int(ev.id)] = true
+			return _cue(int(ev.id), "wake", 1.2)
+		"boss_tell":
+			return _cue(int(ev.id), String(MOVE_CLIP.get(String(ev.move), "attack")), float(ev.dur))
+		"boss_stunned":
+			return _cue(int(ev.id), "stun", float(ev.dur))
+		"boss_phase":
+			_awake[int(ev.id)] = true
+			return _cue(int(ev.id), "roar", _transition_of(int(ev.id)))
+	return ""
+
+
+func _cue(id: int, state: String, dur: float) -> String:
+	_cues[id] = {"state": state, "dur": maxf(0.05, dur), "t": 0.0, "fresh": true}
+	return state
+
+
+## How long a boss's phase change holds it, from its table; 1.2 s for one the
+## sim no longer lists.
+func _transition_of(id: int) -> float:
+	for e in sim.enemies.list:
+		if e.id == id:
+			return float(Config.BOSSES.get(e.type, {}).get("transition", 1.2))
+	return 1.2
 
 
 # ---------------------------------------------------------------- players --
@@ -93,11 +139,11 @@ func _update_player(node: ActorModel, p: PlayerSim, _dt: float) -> void:
 		pass
 	elif speed > 0.3:
 		if p.sneaking:
-			node.play("sneak", _pace(node, "walk_speed", speed))
+			node.play("sneak", _pace(node, "walk", speed))
 		elif speed > 3.0:
-			node.play("run", _pace(node, "run_speed", speed))
+			node.play("run", _pace(node, "run", speed))
 		else:
-			node.play("walk", _pace(node, "walk_speed", speed))
+			node.play("walk", _pace(node, "walk", speed))
 	else:
 		node.play("idle")
 	if p.hurt_flash > 0.0:
@@ -129,7 +175,7 @@ func _frame_enemies(dt: float) -> void:
 			var node: ActorModel = _enemies[id]
 			_enemies.erase(id)
 			if _died_here(node):
-				node.play("die", 1.0, true)
+				node.play("die_low" if node.crawling else "die", 1.0, true)
 				node.lie_down(true)
 				node.tint(Color.TRANSPARENT)
 				_corpses[id] = {"node": node, "t": 0.0}
@@ -147,24 +193,70 @@ func _died_here(node: ActorModel) -> bool:
 	return false
 
 
-func _update_enemy(node: ActorModel, e: EnemySim, _dt: float) -> void:
+func _update_enemy(node: ActorModel, e: EnemySim, dt: float) -> void:
 	node.visible = true
 	node.position = Units.to3(Util.render_pos(e.prev_pos, e.pos))
 	node.face(e.angle)
 	var speed := Units.m((e.pos - e.prev_pos).length()) * STEPS_PER_SEC
-	if e.stagger_t > 0.0 and node.state != "hurt":
-		node.play("hurt", 1.0, true)
-	elif e.windup > 0.0 and node.state != "attack":
-		node.play("attack", _fit(node, "attack", maxf(0.3, float(e.windup) * 1.6)), true)
+	if e.def.get("boss", false) and _boss_body(node, e, speed, dt):
+		_tint_enemy(node, e)
+		return
+	var down := e.crawl_t > 0.0
+	node.crawling = down or e.getup_t > 0.0
+	# On the ground, the bite is a low one; getting up it does nothing and the
+	# clip is stretched to take exactly as long as the sim holds it there.
+	var swing := "bite_low" if down else "attack"
+	if e.getup_t > 0.0:
+		node.play("getup", _fit(node, "getup", float(Config.CRAWL.getup)))
+	elif e.stagger_t > 0.0 and node.state != "hurt":
+		node.play("hurt", _fit(node, "hurt", maxf(e.stagger_t, 0.4)), true)
+	elif e.windup > 0.0 and node.state != swing:
+		node.play(swing, _fit(node, swing, maxf(0.3, float(e.windup) * 1.6)), true)
 	elif node.busy():
 		pass
+	elif down:
+		node.play("crawl", _pace(node, "crawl", speed))
 	elif speed > 0.3:
-		if speed > 3.0:
-			node.play("run", _pace(node, "run_speed", speed))
+		if speed > float(node.table.get("run_over", 3.0)):
+			node.play("run", _pace(node, "run", speed))
 		else:
-			node.play("walk", _pace(node, "walk_speed", speed))
+			node.play("walk", _pace(node, "walk", speed))
 	else:
 		node.play("idle")
+	_tint_enemy(node, e)
+
+
+## A boss's scripted moments: the cue its last event set, played so the clip's
+## strike falls when the tell runs out, and before its first event the floor.
+## True while one of those owns the body; between them the boss walks and
+## bites like anything else.
+func _boss_body(node: ActorModel, e: EnemySim, speed: float, dt: float) -> bool:
+	var cue: Dictionary = _cues.get(e.id, {})
+	if not cue.is_empty():
+		cue.t += dt
+		if cue.t >= cue.dur:
+			_cues.erase(e.id)
+			# Whatever is left of the clip (a slam's landing) runs at its own
+			# pace, so a slow-fitted tell does not leave a slow-motion recovery.
+			node.play(cue.state, 1.0)
+			return false
+		if cue.fresh:
+			cue.fresh = false
+			var strike := node.clip_strike(cue.state)
+			var rate := 1.0
+			if strike > 0.0:
+				rate = clampf(strike / cue.dur, 0.4, 4.0)
+			elif not (cue.state in Models.LOOPING):
+				rate = _fit(node, cue.state, cue.dur)
+			node.play(cue.state, rate, true)
+		return true
+	if not _awake.has(e.id) and e.hp >= e.max_hp and speed < 0.3:
+		node.play("asleep")
+		return true
+	return false
+
+
+func _tint_enemy(node: ActorModel, e: EnemySim) -> void:
 	if e.flash > 0.0:
 		node.tint(Color(1, 1, 1, 0.7))
 	elif e.burn_t > 0.0:
@@ -197,10 +289,13 @@ static func _fit(node: ActorModel, s: String, seconds: float) -> float:
 	return clampf(len / seconds, 0.5, 4.0)
 
 
-## Playback speed so the feet keep up with the ground: the cycle was
-## animated at `key` metres per second and the body moves at `speed`.
-static func _pace(node: ActorModel, key: String, speed: float) -> float:
-	var natural := float(node.table.get(key, 1.4))
+## Playback speed so the feet keep up with the ground: the clip for `state`
+## was animated at some metres per second (it says so) and the body moves at
+## `speed`.
+static func _pace(node: ActorModel, state: String, speed: float) -> float:
+	var natural := node.clip_speed(state)
+	if natural <= 0.0:
+		natural = 1.4
 	return clampf(speed / natural, 0.6, 2.2)
 
 

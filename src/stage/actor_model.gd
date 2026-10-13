@@ -19,14 +19,12 @@ var height := 1.7
 var ring: MeshInstance3D
 var hand: BoneAttachment3D
 var hand_item: MeshInstance3D
+## Down on the ground: a body that dies like this lies where it crawled
+## rather than standing up to fall (`Actors3D` keeps it current).
+var crawling := false
 var _capsule: MeshInstance3D
 var _overlay: StandardMaterial3D
 var _tinted := Color.TRANSPARENT
-
-## Which GLBs have had their root motion stripped: the animations are
-## shared resources, so once per model is enough.
-static var _stripped := {}
-
 
 ## A rigged model from a `Models` table, or a capsule when its scene is
 ## missing. `radius_px` and `height_m` size the capsule and the ring.
@@ -38,10 +36,11 @@ func setup(table_: Dictionary, radius_px: float, height_m: float, color: Color) 
 	if ps != null:
 		var inst := ps.instantiate()
 		add_child(inst)
-		anim = _find(inst, "AnimationPlayer") as AnimationPlayer
+		if table.has("scale"):
+			inst.scale = Vector3.ONE * float(table.scale)
 		skeleton = _find(inst, "Skeleton3D") as Skeleton3D
 		_collect_meshes(inst)
-		_prepare_clips()
+		_add_clips(inst)
 		if skeleton != null and table.has("hand"):
 			# Godot's importer cannot keep a colon in a bone name, so Mixamo's
 			# "mixamorig:RightHand" arrives as "mixamorig_RightHand".
@@ -102,7 +101,7 @@ func face(angle: float) -> void:
 ## a new speed; a one-shot that is still running is left to finish unless
 ## `restart`; a holding state (dead, downed) stays on its last frame.
 ## `speed` scales playback, so a swing's clip fits the swing's duration.
-func play(s: String, speed := 1.0, restart := false) -> void:
+func play(s: String, speed := 1.0, restart := false, blend := 0.2) -> void:
 	if anim == null:
 		state = s
 		return
@@ -118,13 +117,12 @@ func play(s: String, speed := 1.0, restart := false) -> void:
 			return
 	state = s
 	anim.speed_scale = speed
-	if s == "idle" and String(table.clips.get("idle", "")).is_empty():
-		# No idle clip: the first frame of the walk, held.
-		anim.play(clip)
+	# `blend` seconds of cross-fade from whatever pose it was in: a body that
+	# is knocked down collapses into the crawl instead of snapping to it.
+	anim.play(clip, blend)
+	if s in Models.FROZEN:
 		anim.seek(0.0, true)
 		anim.pause()
-		return
-	anim.play(clip)
 
 
 ## Whether the current one-shot is still running: a swing mid-way must not
@@ -139,6 +137,24 @@ func clip_length(s: String) -> float:
 	if clip.is_empty() or anim == null:
 		return 0.0
 	return anim.get_animation(clip).length
+
+
+## The metres per second a state's clip was animated at, or 0 when it does not
+## travel: what playback is paced against so the feet keep up with the ground.
+func clip_speed(s: String) -> float:
+	var clip := _clip_for(s)
+	if clip.is_empty() or anim == null:
+		return 0.0
+	return float(anim.get_animation(clip).get_meta("speed", 0.0))
+
+
+## The second of a state's clip at which its blow lands (`strike` meta), or
+## 0 when the clip has none.
+func clip_strike(s: String) -> float:
+	var clip := _clip_for(s)
+	if clip.is_empty() or anim == null:
+		return 0.0
+	return float(anim.get_animation(clip).get_meta("strike", 0.0))
 
 
 ## An additive tint over the whole body: white for a hit, orange alight,
@@ -204,28 +220,18 @@ func _clip_for(s: String) -> String:
 	return clip
 
 
-func _prepare_clips() -> void:
-	if anim == null:
+## A player for the clips: the model's own library, baked by
+## `tools/build_anims.gd`. Its tracks are named from the skeleton's parent,
+## so that is where the player roots, wherever the importer put the skeleton.
+## The loop flags, root motion and speeds are already in the clips.
+func _add_clips(inst: Node) -> void:
+	var lib := Models.library(String(table.get("lib", "")))
+	if lib == null or skeleton == null:
 		return
-	var path := String(table.get("scene", ""))
-	var strip: Array = table.get("strip_root", [])
-	var clips: Dictionary = table.get("clips", {})
-	for s in clips:
-		var clip := String(clips[s])
-		if clip.is_empty() or not anim.has_animation(clip):
-			continue
-		var a := anim.get_animation(clip)
-		a.loop_mode = Animation.LOOP_LINEAR if s in Models.LOOPING else Animation.LOOP_NONE
-	if _stripped.has(path):
-		return
-	_stripped[path] = true
-	for clip in strip:
-		if not anim.has_animation(String(clip)):
-			continue
-		var a := anim.get_animation(String(clip))
-		for i in range(a.get_track_count() - 1, -1, -1):
-			if a.track_get_type(i) == Animation.TYPE_POSITION_3D and String(a.track_get_path(i)).ends_with("Hips"):
-				a.remove_track(i)
+	anim = AnimationPlayer.new()
+	inst.add_child(anim)
+	anim.root_node = anim.get_path_to(skeleton.get_parent())
+	anim.add_animation_library("", lib)
 
 
 static func _find(n: Node, cls: String) -> Node:

@@ -556,6 +556,8 @@ func _apply_enemies(en: PackedFloat32Array) -> void:
 			# above zero.
 			e.stagger_t = 0.3 if f & NetProtocol.EF_STAGGER else 0.0
 			e.bleed_t = 1.0 if f & NetProtocol.EF_BLEED else 0.0
+			e.crawl_t = 1.0 if f & NetProtocol.EF_CRAWL else 0.0
+			e.getup_t = 0.3 if f & NetProtocol.EF_GETUP else 0.0
 			if f & NetProtocol.EF_FLASH:
 				e.flash = 0.11
 			if at.distance_squared_to(e.pos) > 300.0 * 300.0:

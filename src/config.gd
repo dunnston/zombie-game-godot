@@ -1083,6 +1083,24 @@ const STAGGER := {
 	"min": 0.12,
 }
 
+## Knocked down, not dead (owner, 2026-10-13). A stagger that lands on one of
+## `types` can put it on the ground with `chance`: it crawls at `speed_mul`
+## of its speed and swings at `reach_mul` of its reach for `time` seconds,
+## then spends `getup` getting up, doing nothing, and is a zombie again. It
+## can be hit the whole time, which is the point: a crawler is a free kill and
+## a thing to step over, not a new threat. `spawn_chance` of the walkers and
+## runners the town spawns on its own start on the ground and never get up.
+## A boss never goes down, and `Damage.knock_down` is the one writer.
+const CRAWL := {
+	"types": ["walker", "runner"],
+	"chance": 0.3,
+	"time": 6.0,
+	"getup": 3.0,
+	"speed_mul": 0.35,
+	"reach_mul": 0.7,
+	"spawn_chance": 0.12,
+}
+
 ## Bleed: what an edged weapon leaves behind.
 ##
 ## A weapon's `bleed` above is damage per second, and this is how long the

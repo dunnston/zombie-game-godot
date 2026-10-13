@@ -17,6 +17,10 @@ var list: Array[EnemySim] = []
 var corpses: Array[Dictionary] = []
 var hash := SpatialHash.new()
 var rng := Rng.new(0xBADDCAFE)
+## Who goes down and who spawns down (`Config.CRAWL`) is rolled here, on a
+## stream of its own, so the enemies' own sequence — where they wander, what
+## they spawn as — is the same with the mechanic as without it.
+var crawl_rng := Rng.new(0xC4A71)
 var seq := 0
 var spawn_accum := 0.0
 
@@ -80,7 +84,7 @@ func seed_area(sim: GameSim, at: Vector2, radius: float, count: int, min_r := 42
 		var p := at + Vector2(cos(a), sin(a)) * r
 		if sim.world.is_blocked_px(p.x, p.y):
 			continue
-		spawn(pick_type(sim.world.danger_at_px(p.x, p.y)), p)
+		_spawn_ambient(pick_type(sim.world.danger_at_px(p.x, p.y)), p)
 
 
 ## Keeps a standing population around every living player. Each is the
@@ -153,7 +157,17 @@ func tick_spawning(sim: GameSim, dt: float) -> void:
 		var type := pick_type(maxi(tier, spot_tier))
 		if sim.world.circle_hits_solid(spot.x, spot.y, Config.ENEMIES[type].r, sim.structs):
 			continue
-		spawn(type, spot)
+		_spawn_ambient(type, spot)
+
+
+## A spawn the town makes on its own: a few of the walkers and runners start on
+## the ground and crawl at you, for good (`Config.CRAWL.spawn_chance`). Raids,
+## bosses, tests and the dev menu go through `spawn` and are never crawlers.
+func _spawn_ambient(type: String, at: Vector2) -> EnemySim:
+	var e := spawn(type, at)
+	if e != null and type in Config.CRAWL.types and crawl_rng.chance(float(Config.CRAWL.spawn_chance)):
+		Damage.knock_down(e, INF)
+	return e
 
 
 func rebuild_spatial() -> void:
@@ -535,6 +549,15 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 			e.last_pos = e.pos
 			continue
 
+		# --------------------------------------------------------- on the ground --
+		# Time passes while it is down whatever else is happening to it; when it
+		# is up it spends a moment doing so (below, after the stagger).
+		if e.crawl_t > 0.0:
+			e.crawl_t = maxf(0.0, e.crawl_t - dt)
+			if e.crawl_t == 0.0:
+				e.atk_range = float(e.def.atk_range)
+				e.getup_t = float(Config.CRAWL.getup)
+
 		# ----------------------------------------------------------- staggered --
 		# Rocked, and doing nothing about anything until it is over: no
 		# targeting, no step of its own, no swing. Before the human branches
@@ -546,6 +569,14 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 		# rocked should look like being hit, not like being paused.
 		if e.stagger_t > 0.0:
 			e.stagger_t = maxf(0.0, e.stagger_t - dt)
+			e.vel *= exp(-7.5 * dt)
+			e.pos = world.move_circle(e.pos, e.vel * dt, e.r, structs)
+			e.last_pos = e.pos
+			continue
+
+		# Getting up: the same nothing as being rocked, without the knock-back.
+		if e.getup_t > 0.0:
+			e.getup_t = maxf(0.0, e.getup_t - dt)
 			e.vel *= exp(-7.5 * dt)
 			e.pos = world.move_circle(e.pos, e.vel * dt, e.r, structs)
 			e.last_pos = e.pos
@@ -775,6 +806,8 @@ func tick_ai(sim: GameSim, dt: float) -> void:
 		e.angle += clampf(angle_delta(e.angle, move_angle), -9.0 * dt, 9.0 * dt)
 
 		var speed: float = e.speed * night.speed
+		if e.crawl_t > 0.0:
+			speed *= float(Config.CRAWL.speed_mul)
 		if e.slow_t > 0.0:
 			speed *= 0.45
 		if not e.aggro and not e.raid:

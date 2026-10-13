@@ -58,6 +58,11 @@ func _draw_enemy(e: EnemySim) -> void:
 	# ticks every frame and deliberately emits nothing at all.
 	if e.bleed_t > 0.0:
 		dark = dark.lerp(Color("#7a1414"), 0.45)
+	# On the ground (`Config.CRAWL`): dimmer, so a crawler is picked out of a
+	# crowd at a glance. The 3D stage has the real pose.
+	if e.crawl_t > 0.0 or e.getup_t > 0.0:
+		body = body.darkened(0.3)
+		dark = dark.darkened(0.2)
 	var dir := Vector2.from_angle(e.angle)
 	var side := dir.orthogonal()
 	var bob := sin(e.anim) * 1.5

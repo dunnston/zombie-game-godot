@@ -57,12 +57,28 @@ owner has chosen 3D for good.
 
 | Game name | Meshy export | Rig | Clips |
 | --- | --- | --- | --- |
-| `assets/models/characters/player.glb` | Rugged Trailblazer | Mixamo, 66 joints, 15.8k tris | Walking, Running, Sneaky_Walk_inplace, Run_and_Shoot, Running_Reload, Roll_Dodge_1 (dash), Left_Short_Hook_from_Guard (melee), Collect_Object, Archery_Shot ×3, Block3, Slap_Reaction, Jumping_Down, Regular_Jump, Dead, sleep, Gangnam_Groove. **No Idle** — re-export with one; frame 0 of Walking holds until then |
-| `assets/models/enemies/walker.glb` | Undead Clown Charge | Mixamo, 72 joints, 15.3k tris | Idle_02, Walking, Unsteady_Walk, Running, Left_Hook_from_Guard, Left_Slash, Heavy_Hammer_Swing, Step_Forward_and_Push, Hit_Reaction ×2, Gunshot_Reaction, Zombie_Scream, Dead |
-| `assets/models/enemies/runner.glb` | Ravenous Undead Charger | Mixamo, 36 joints, 15.8k tris | Idle_02, Walking, Unsteady_Walk, Slow_Orc_Walk, Running, Left_Hook_from_Guard, Zombie_Scream, Dead, Fall_Dead_from_Abdominal_Injury |
+**Replaced 2026-10-13 by the Mixamo-rigged characters and the owner's own
+clips.** The Meshy exports' own rigs and animations are gone; each character is
+now its Mixamo auto-rig from the owner's packs, baked by `tools/build_anims.gd`
+from `Meshy Models/Animations/` into a mesh-only GLB and a clip library:
 
-All three: 1.70 m tall, feet at the origin, one mesh, one material, three
-textures, glTF forward (-Z).
+| Game name | Character | Rig | Library | Clips (state → file) |
+| --- | --- | --- | --- | --- |
+| `characters/player.glb` | Rugged Trailblazer v2 | 52 bones | `anims/player.res` | idle, walk, run (Locomotion); attack (Punching); hurt (Hit To Body); die, downed, dash (Pro Longbow: death back / forward, dodge forward); shoot, aim (Shooter); collect (Pick Fruit); throw. **No sneak, no reload** |
+| `enemies/walker.glb` | Undead Clown | 46 bones | `anims/walker.res` | idle, walk, run, attack, bite, bite_low, scream, die, crawl, crawl_fast; hurt and getup are the Coach's clips, retargeted by bone name |
+| `enemies/runner.glb` | Ravenous Undead | 34 bones | `anims/runner.res` | the same as the walker |
+| `enemies/coach.glb` | Undead Coach | 52 bones | `anims/coach.res` | idle, walk, run, attack, hurt, die, wake, slam, charge_wind, charge_go, stun, throw, whistle, roar, agony, scream, shove |
+
+All four: 1.70 m tall in real metres (the FBX importer's scale is multiplied
+through the skeleton, skin and clips), feet at the origin, one mesh, one
+material, one (albedo) texture, glTF forward (+Z). Root motion is held at the
+first frame's X and Z in every clip (Y kept: a death drops the hips to 10 cm);
+the distance it travelled is the clip's `speed` meta, which is what playback
+is paced against. The Coach is drawn 1.5× a person.
+
+**To change a clip or add one:** edit the manifest at the top of
+`tools/build_anims.gd`, then `<godot> --headless --path . -s tools/build_anims.gd`
+and `--import` (a script run alone sees the stale imported GLB).
 
 ## Asset conventions (for the owner's pipeline)
 

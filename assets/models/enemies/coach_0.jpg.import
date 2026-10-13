@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bipcsjywf16s2"
-path="res://.godot/imported/walker_Image_2.jpg-f30dfc1d686df8402fe13aeabae00dbf.ctex"
+uid="uid://y4yop3ayyurk"
+path="res://.godot/imported/coach_0.jpg-0274be95c357feecaa10a2b4b6d19207.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "4cb79b0057ffb0aa7685c70b722f6d19"
+"md5": "02c0e9cd0bfe46c269e5848a9dc0be6f"
 }
 
 [deps]
 
-source_file="res://assets/models/enemies/walker_Image_2.jpg"
-dest_files=["res://.godot/imported/walker_Image_2.jpg-f30dfc1d686df8402fe13aeabae00dbf.ctex"]
+source_file="res://assets/models/enemies/coach_0.jpg"
+dest_files=["res://.godot/imported/coach_0.jpg-0274be95c357feecaa10a2b4b6d19207.ctex"]
 
 [params]
 

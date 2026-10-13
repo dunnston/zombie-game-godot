@@ -3070,3 +3070,66 @@ Notion card: *3D conversion* on Ideas & Roadmap.
   `srgb_to_linear` and the trees were green.
 - Open: a wall between the camera and you hides you (phase 3, first);
   the toon look; the player's Idle; crops and the range paint in 3D.
+
+---
+
+## Animation pass — the owner's Mixamo exports (2026-10-13)
+
+Branch `new-animations`, cut from `origin/main`. Owner's words: the current
+animations suck; replace them with the new Mixamo ones, add a crawl for
+knocked-down zombies, and let some zombies start on the ground.
+
+Inbox (ignored, not the project's): `Meshy Models/{Main Character,
+Zombie Walker Annimation, zombie runner aminations, coach animations}`.
+Every folder is FBX **with skin**, one clip per file, plus a `*_Mixamo.fbx`
+rig per character inside the zip packs.
+
+### Findings so far
+
+- Clips never go in the GLBs by hand: Godot imports each FBX; one tool pulls
+  every clip out into an `AnimationLibrary` (`.res`) per character, and
+  `ActorModel` adds that library to the model's `AnimationPlayer`. Clip names
+  are then the Mixamo file names, in one table in `models.gd`.
+- Mixamo bone names are shared across characters, so one clip plays on any rig
+  with the `mixamorig:` skeleton. The walker (72 joints) and runner (36 joints)
+  differ, so the tool must report which tracks fail to resolve per rig.
+- **The Coach has no rig yet.** `Meshy Models/` holds only a static OBJ/PNG of
+  him (`Undead_Coach_Mixamo.zip`, `Meshy_AI_Undead_Coach_*_obj.zip`). His 19
+  clips are skinned to *some* Mixamo character. Until there is a rigged Coach
+  `.glb`/`.fbx` he stays a capsule.
+- No file is named crawl. Candidates: `Zombie Transition.fbx`, `Zombie Stand Up.fbx`.
+
+### Plan
+
+- [x] 0. Inspect: headless Godot script lists every clip, length, track count,
+      root-motion distance (hips position) and unresolved bone paths per FBX.
+      Output a table into this file. Decide the strip-root list from it.
+- [x] 1. `tools/build_anims.gd`: FBX -> one `AnimationLibrary` per character
+      under `assets/anims/` (`player`, `walker`, `runner`, `coach`), clips
+      renamed to game names, loop flags set, root motion stripped. Idempotent.
+- [x] 2. `models.gd`: clips table per kind points at library clips. New
+      states: `crawl` (loops), `getup` (one-shot), `downed_z` (hold on face),
+      plus boss states `slam`, `charge`, `stun`, `throw`, `whistle`, `roar`.
+      `ActorModel` loads the library; missing clip still falls back.
+- [x] 3. Player: Locomotion pack (idle, walk, run), Shooter pack (strafe),
+      pistol / longbow aim sets for the gun and bow states, `Punching` for
+      melee, `Hit To Body` for hurt, `Pick Fruit` for harvest, `Throw Object`.
+      The player finally gets an Idle (open item in 3d-conversion.md).
+- [x] 4. Walker and runner: Idle, Walk (Mutant / Zombie), Run, hit, die, scream.
+- [x] 5. Knocked down, not dead: `stagger_t` is the sim's stun. A zombie that
+      is knocked down plays `downed_z`, crawls (`crawl`) toward its target at
+      reduced speed, then `getup`. **Needs a sim rule** (below).
+- [x] 6. Crawlers that spawn: some ambient spawns start downed. Sim-side flag
+      on the enemy, mirrored to guests, with a test.
+- [x] 7. Coach: states mapped to `Boss` moves via the telegraph events.
+      `Actors3D.on_event`: the tell cues the clip with its strike fitted to
+      the tell, stun and roar held for their length, the floor before the wake.
+- [ ] 8. `tools/test` green (927). The 3D smoke leg only (the 2D leg is a waste of
+      time right now: owner, 2026-10-13), PROJECT.md updated, PR to `main`.
+
+### Answered (owner, 2026-10-13)
+
+1. The crawl is in the Scary Zombie pack (`zombie crawl`, `running crawl`).
+2. The Coach's clip files carry his rig and mesh; nothing else was needed.
+3. Crawling is a sim rule: `Config.CRAWL`, `Damage.knock_down`, `tests/crawl_test.gd`.
+   Dev menu: **floor**. Not yet felt by the owner.
