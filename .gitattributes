@@ -1,2 +1,8 @@
 # Normalize EOL for all files that Git considers text files.
 * text=auto eol=lf
+
+# Rigged, animated character models from the owner's Meshy pipeline: tens of
+# megabytes each and re-exported often, so they live in LFS rather than history.
+assets/models/**/*.glb filter=lfs diff=lfs merge=lfs -text
+assets/models/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+assets/models/**/*.png filter=lfs diff=lfs merge=lfs -text

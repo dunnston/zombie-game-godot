@@ -23,6 +23,17 @@ nothing here is JavaScript except two tools (`server/`, the room-code broker;
 `server/`, set `Config.NET.broker`, run `tools\test --all`. Triggers: "switch
 to WebRTC", "room codes", "UPnP didn't work", "my friend can't connect",
 "no port forwarding".
+## The 3D conversion (2026-10-13) and the way back to 2D
+
+**The game is going 3D behind a flag.** `tasks/3d-conversion.md` is the
+plan and the asset conventions; the stage in play is `Config.STAGE`
+(`--stage=2d` / `--stage=3d` override it). Both stages stay in the game
+until the owner chooses. Models come from the owner's Meshy pipeline into
+`Meshy Models/` (an inbox, ignored) and are copied under game names into
+`assets/models/` (git LFS). Triggers for the rollback: "go back to 2D",
+"undo the 3D", "pick up where 2D left off" — read `tasks/rollback-to-2d.md`
+and do the first step only unless told otherwise. `2d-final` is the tag.
+
 - The Godot MCP (`run_project`, `get_debug_output`) reads `GODOT_PATH` from `~/.claude.json`.
 - **Content lives in `data/`** and is edited with the local editor: the owner
   double-clicks `Content Editor.cmd` in the project folder (it calls
