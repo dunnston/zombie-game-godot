@@ -3386,3 +3386,34 @@ The same kit is to dress the player's base walls later.
 - [ ] 7. PROJECT.md, `tasks/3d-conversion.md`, PR to `main`.
 - [ ] Later (not this PR): base walls dressed with the kit, chimneys,
       hip roofs, the toon/outline shader, dormers.
+
+### The owner played it (2026-10-13, later)
+
+Three things, and a change of order. "Roofs inside roofs": the tour
+(`--smoke --tour`, `.smoke/tour1/`) and a plan dump showed two causes: a
+partition segment cut off by its own gaps (the hardware store's middle
+wall, `rect (205,142) 7×2`) is a component of its own and got a roof and
+windows; and the military compound and the junkyard are WALL rings with
+buildings inside, so the ring got a roof over everything. The walls "still
+don't quite look like" Synty: the painted siding reads as fine stripes at
+the game's distance, and a 2.2 m storey is short beside Synty's 3 m. A
+built wood wall was "still a pillar": base walls were not in the PR.
+Also found: the doorway canopy takes the siding colour (`custom.rgb`),
+not the roof's; the tour's walls never placed (no materials in the bag).
+
+**The owner's call: make every part first, in Blender, to open and view,
+and only then build the scene.** `tools/build_kit.py` now writes 42 parts
+(`parts.blend`, `parts.glb`, `parts_sheet.png`): 3 m storeys, 0.25 m
+walls, lapped siding as geometry, cut-outs with window and door inserts,
+roof slopes, ridge, gables, flat roof, dormer, chimney, porch, floors,
+framing, the base wood wall. `kit.glb` (the six-piece first kit) stays
+until `Buildings3D` is rebuilt on the parts. PR #78 is a draft meanwhile.
+
+- [ ] Owner reviews `parts.blend`; parts added, resized or recoloured on request.
+- [ ] Rebuild `BuildingPlan` / `Buildings3D` on the parts: a component
+      that is not a closed ring is a partition (cores only, no roof); a
+      closed ring containing other rings is a yard wall (no roof, no
+      windows); `STAGE3D.wall_h` 3.0; thin walls and what collision does
+      about them; the canopy's roof colour; built walls as
+      `wood_wall_1m` runs joined by `wood_wall_post`.
+- [ ] The tour gives the player materials before it builds.

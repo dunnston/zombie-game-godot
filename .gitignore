@@ -26,3 +26,6 @@ tools/_*.gd.uid
 # assets/models/ under game names. Its .gdignore keeps Godot from importing them twice.
 Meshy Models/*
 !Meshy Models/.gdignore
+
+# Blender save backups
+*.blend1
