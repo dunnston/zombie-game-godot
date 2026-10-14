@@ -3513,6 +3513,11 @@ floor.
 - [x] `tools\lab.cmd <id> [--shot]`, `tools\import_layout.cmd <package> <id> [--floor=N]`
 - [x] `tools/import_layout.gd`: metres → tiles, names → kinds, the report
 - [x] `tests/layout_test.gd`
-- [ ] Owner looks at `draft01_ground` and `draft01_upper` in the lab
+- [x] The editor: `scenes/layouts/`, paint walls on a GridMap, drag pieces
+      from the palette, Export / Check / Load on the root (`LayoutScene`,
+      `LayoutProp`, `LayoutFile`, `tools/make_layout_palette`)
+- [x] Clean corners (panels stop short, flush posts, dividers as post and
+      arms); a building dressed whole whatever its doorways cut
+- [ ] Owner lays out a house in the editor and walks it in the lab
 - [ ] Wire layouts into the town's lots once there are enough (rotation and
       mirroring at stamp time give eight variants of each)

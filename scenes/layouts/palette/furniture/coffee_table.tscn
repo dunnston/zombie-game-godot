@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_l7lnl"]
+
+[node name="coffee_table" type="Node3D" unique_id=214568446]
+script = ExtResource("1_l7lnl")
+kind = "coffee_table"
+variant = 0

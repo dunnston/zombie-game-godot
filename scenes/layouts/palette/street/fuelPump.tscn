@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_jy0m1"]
+
+[node name="fuelPump" type="Node3D" unique_id=1071804209]
+script = ExtResource("1_jy0m1")
+kind = "fuelPump"
+variant = 0

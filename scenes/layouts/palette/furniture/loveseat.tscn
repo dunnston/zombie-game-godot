@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_a6if6"]
+
+[node name="loveseat" type="Node3D" unique_id=1340878799]
+script = ExtResource("1_a6if6")
+kind = "loveseat"
+variant = 0

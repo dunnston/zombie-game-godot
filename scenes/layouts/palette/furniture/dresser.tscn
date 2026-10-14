@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_ml7s2"]
+
+[node name="dresser" type="Node3D" unique_id=1155091624]
+script = ExtResource("1_ml7s2")
+kind = "dresser"
+variant = 0

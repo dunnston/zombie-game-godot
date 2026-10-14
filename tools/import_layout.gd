@@ -18,36 +18,12 @@ extends SceneTree
 ## `Layout.playable`), so the report says whether the house works before
 ## anyone walks it.
 
-const TABLE := "layouts"
-const PATH := DataTable.DIR + TABLE + ".json"
+const PATH := LayoutFile.PATH
 ## The plan's facing letters in quarter turns from south (`Furnish.DIRS`).
 const FACING := {"S": 0, "E": 1, "N": 2, "W": 3}
 ## An opening is never narrower than the town's doorways.
 const MIN_OPENING := 2
 
-## The table as a new file is born: the schema, no rows. A field named
-## here is what a row may carry; see `Layout` for what each means.
-const SCHEMA := {
-	"fields": {
-		"use": {"type": "string"},
-		"floor": {"type": "string", "one_of": ["wood", "tile", "dirt", "gravel"]},
-		"map": {"type": "list<string>"},
-		"things": {"type": "list<object>", "fields": {
-			"what": {"type": "string"},
-			"container": {"type": "string", "ref": "CONTAINERS"},
-			"kind": {"type": "string"},
-			"x": {"type": "int"},
-			"y": {"type": "int"},
-			"w": {"type": "int"},
-			"h": {"type": "int"},
-			"d": {"type": "int"},
-			"solid": {"type": "bool"},
-		}},
-	},
-	"notes": "Hand-laid buildings (Layout). `map` is one string per row of tiles: # wall, . floor, + a doorway in the outer wall, - an opening in a partition, space for nothing. A thing is its top-left tile `x`,`y` in the map, `w` across its face and `h` deep in tiles, `d` the way it faces in quarter turns from south (0 S, 1 E, 2 N, 3 W); `container` makes it a searchable container of that kind, `kind` \"wall\" hangs it on a wall tile facing the room, `solid` false lets you walk over it. Rows are written by tools/import_layout from a plan in metres and looked at in the lab (tools/lab) before the town stamps them.",
-	"rows": [],
-	"shape": "by_id",
-}
 
 ## What the plan calls a thing -> what the game stands there. Matched on
 ## the lowercased name, exact first, then by the first entry whose key the
@@ -175,7 +151,7 @@ func _init() -> void:
 		return
 	# A first run makes the table before Config loads it, so the load is quiet.
 	if not FileAccess.file_exists(PATH):
-		_save(SCHEMA.duplicate(true))
+		LayoutFile.save(LayoutFile.SCHEMA.duplicate(true))
 	var text := _read_plan(plan)
 	if text.is_empty():
 		printerr("could not read a house_layout.json from %s" % plan)
@@ -197,7 +173,7 @@ func _init() -> void:
 	_write(row)
 	# The table was loaded before the row existed; stamp the row as the
 	# game will to ask Furnish's rule of the whole house.
-	Config.LAYOUTS = DataTable.load_table(TABLE)
+	LayoutFile.refresh()
 	var world := World.new(1, "lab:" + id)
 	var playable := not world.buildings.is_empty() and Layout.playable(world, world.buildings[0])
 	print("")
@@ -589,28 +565,6 @@ static func _room_open(row: Dictionary, taken: Dictionary, placing: Rect2i, room
 	return true
 
 
-## The row into the table, replacing one with its id, through the encoder.
+## The row into the table (`LayoutFile`, the one writer).
 static func _write(row: Dictionary) -> void:
-	var doc: Dictionary
-	if FileAccess.file_exists(PATH):
-		var got := DataTable.decode(FileAccess.get_file_as_string(PATH))
-		for e in got.errors:
-			printerr("%s: %s" % [PATH, e])
-		doc = got.doc
-	else:
-		doc = SCHEMA.duplicate(true)
-	var rows: Array = doc.rows
-	var placed := false
-	for i in range(rows.size()):
-		if rows[i].get("id") == row.id:
-			rows[i] = row
-			placed = true
-	if not placed:
-		rows.append(row)
-	_save(doc)
-
-
-static func _save(doc: Dictionary) -> void:
-	var f := FileAccess.open(PATH, FileAccess.WRITE)
-	f.store_string(DataTable.encode(doc))
-	f.close()
+	LayoutFile.write(row)

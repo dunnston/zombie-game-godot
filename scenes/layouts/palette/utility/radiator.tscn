@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_i1d0b"]
+
+[node name="radiator" type="Node3D" unique_id=1888608710]
+script = ExtResource("1_i1d0b")
+kind = "radiator"
+variant = 0

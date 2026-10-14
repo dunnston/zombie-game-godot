@@ -3379,58 +3379,67 @@ categories and fourteen weapon classes, each with what it is for).
   item's Look card; a buildable's menu picture is `art/structures/<id>.png`.
   No file, the placeholder draws.
 
-### House layouts — `data/layouts.json`, `tools\import_layout`, `tools\lab`
+### House layouts — `scenes/layouts/` in the Godot editor, `data/layouts.json`, `tools\lab`
 
 The furnishing recipes (`Furnish`, `Config.ROOMS`) put the right things in
-the right rooms and still looked random (owner, 2026-10-14), so houses are
-laid out by hand and the generator stamps them. A layout is **data, not a
-Godot scene**: everything in a house is sim state (a fridge is a container
-the save finds by its tile, a bed blocks a shot, a guest builds the room
-from the seed), so the source of truth is a tile grid in
-`data/layouts.json` and the stage draws it as it draws everything.
+the right rooms and still looked random, and a plan imported from metres
+was "garbage" (owner, 2026-10-14): **houses are laid out by hand in the
+Godot editor**, and the generator stamps them. What the game stamps is
+still data (`data/layouts.json`): everything in a house is sim state (a
+fridge is a container the save finds by its tile, a bed blocks a shot, a
+guest builds the room from the seed). The scene is what you edit; the row
+is what the game reads; one button makes the row from the scene.
 
-- **The row** (`Layout`): `map`, one string per row of tiles — `#` wall,
-  `.` floor, `+` a doorway in the outer wall, `-` an opening in a
-  partition, a space for nothing; `things`, each its top-left tile `x`,`y`,
-  `w` across its face and `h` deep, `d` facing in quarter turns from south
-  (0 S, 1 E, 2 N, 3 W), and either `what` (a `PropModels.THINGS` kind) or
-  `container` (a `CONTAINERS` kind); `kind: "wall"` hangs a piece on a wall
-  tile facing the room; `solid: false` for a rug. One tile is one metre.
-- **The plan comes from the owner's drafts**, a `house_layout.json` in
-  metres (rooms as wall-centreline bounds, openings, objects with a centre,
-  a footprint and a facing) in a `.zip` with its floor plan. **`.\tools\import_layout.cmd <plan.zip> <id> [--floor=N]`**
-  turns one floor into a row: every wall line of the plan is a tile of its
-  own and a room keeps its whole metres between two lines (the game's
-  walls are a metre thick, the plan's fifteen centimetres, so snapping
-  centrelines straight to tiles made a 2.2 m powder room one tile wide);
-  openings are the town's two tiles wide where the wall has room; every
-  object is mapped by its name (`NAMES` in the script) and stands where its
-  centre falls, shifted a tile when that is a wall, never through a wall
-  into the next room, never where it would seal the room or strand a
-  cabinet (Furnish's rule, at import time); a thing with no mapping, no
-  room, or mounted up a wall is reported and left out. The plan's front is
-  the map's bottom row, so the door faces the street. A floor with no way
-  in (an upper storey — the game has one) gets the front door, and a
-  stairwell becomes a nook off the hall. The report prints every decision,
-  the map, and whether the house is playable.
-- **The lab.** **`.\tools\lab.cmd <id>`** runs the real game on a lawn with
-  that one layout on it, peaceful (`GameSim.peaceful`: no spawner, no
-  Threat, no raids), the party at its door: walk in, search the fridge,
-  check the roof comes off. `--shot` photographs it from inside into
-  `.lab\<id>.png` and quits, which is how a session looks without taking
-  the screen for long. The lab is `World` layout `lab:<id>`
-  (`_generate_lab`) and `main.gd --lab=<id>`; what it shows is exactly
-  what `Layout.stamp` will put in the town.
-- **The checks** run in `layout_test` over every row in the table:
-  `Layout.problems` (the map's shape, a door that leads somewhere,
-  everything on floor or hung on a wall, nothing on top of anything) and
-  `Layout.playable` (every floor tile reaches every other, every solid
-  piece can be reached from beside it). A bad layout fails the test
-  instead of being quietly fixed at runtime.
-- **Not yet:** the town's lots still use the recipes. Wiring layouts in
-  (pick a layout by `use` and footprint; rotation and mirroring at stamp
-  time give eight variants of each) is the step after the owner has
-  confirmed enough of them in the lab.
+**Laying out a house (the owner's loop):**
+
+1. In the Godot editor, duplicate `scenes/layouts/_template.tscn` as
+   `scenes/layouts/<id>.tscn` and open it. Set `layout_id` to `<id>` on the
+   root (and `use`, `floor_kind`).
+2. **Paint the walls** on the `Tiles` GridMap: select it, pick *wall*,
+   *floor*, *doorway* or *opening* from its palette, click and drag on the
+   ground. One cell is one metre. Doorways go in the outer wall, openings
+   in partitions.
+3. **Drag furniture in** from `scenes/layouts/palette/<place>/` (furniture,
+   kitchen, bathroom, yard, street…) into the viewport. A piece shows the
+   real model over its footprint with a yellow bar on the side it faces;
+   move it and it snaps to whole tiles, turn it (R, or the rotate gizmo)
+   and it snaps to quarter turns. Orange footprints are searchable
+   containers. A piece on the grass outside the walls is a yard piece.
+4. Press **Export to data/layouts.json** on the root. `report` says the
+   size, every problem (a bed on a wall, two things on one tile, a doorway
+   that leads nowhere) and whether the house is playable (every room
+   reachable, every container with a free tile beside it). **Check** does
+   the same without writing.
+5. `.\tools\lab.cmd <id>` walks it in the real game, alone on a lawn,
+   peaceful. **Load layout_id from data** fills a scene from an existing
+   row, to tweak one.
+
+**Under it:** `LayoutScene` (`src/edit/`, the root's `@tool` script: the
+GridMap items, `row()`, export, check, load) and `LayoutProp` (a piece:
+`kind` from the catalog, fitted the way `Props3D` fits it, the snap);
+`LayoutFile` (the one reader and writer of the table; `refresh` makes the
+game see a write — not `reload`, which is every script object's own
+method and swallowed the call); `Layout` (sim: `stamp`, `problems`,
+`playable`); `tools\make_layout_palette.cmd` regenerates the tile library,
+the palette (one scene per kind in `PropModels.THINGS` and `CONTAINERS`),
+the template and a scene per row. Run it after a new kind of prop joins
+`PropModels`. `tools\import_layout.cmd <plan.zip> <id>` still turns a plan
+in metres into a row, to be opened and fixed in the editor.
+
+**The row** (`Layout`): `map`, one string per row of tiles — `#` wall,
+`.` floor, `+` a doorway in the outer wall, `-` an opening in a partition,
+a space for nothing; `things`, each its top-left tile `x`,`y`, `w` across
+its face and `h` deep, `d` facing in quarter turns from south (0 S, 1 E,
+2 N, 3 W), and either `what` or `container`; `kind: "wall"` hangs a piece
+on a wall tile facing the room, `"yard"` stands it on the grass; `solid:
+false` for a rug. `layout_test` holds every row to `Layout.problems` and
+`Layout.playable` and to a roof, four corners and siding in the plan;
+`layout_scene_test` holds the editor to a round trip (a scene filled from
+a row gives the row back) and every saved scene to its row.
+
+**Not yet:** the town's lots still use the recipes. Wiring layouts in (pick
+by `use` and footprint; rotation and mirroring at stamp time give eight
+variants of each) is the step after the owner has enough of them.
 
 ### Syncing content from Notion
 
@@ -3527,6 +3536,7 @@ moment the parent merges.
 | 2026-10-14 | **House layouts, by hand.** The owner found the furnished houses random and wants to lay them out himself and have the town stamp them (§10 *House layouts*). A layout is data (`data/layouts.json`, `Config.LAYOUTS`): a tile map and a list of things; `Layout` stamps it, checks it (`problems`) and asks Furnish's rule of it (`playable`). `tools/import_layout` turns a plan in metres (the owner's `house_layout.json` drafts, or their `.zip`) into a row: a tile per wall line, a room keeps its whole metres, openings two wide, every object mapped by name and kept in its room and off anything it would seal, raised fixtures and the chairs that come with a table left out, a front door for a storey without one, the report says all of it. `tools/lab <id>` runs the real game peaceful on a lawn with that one house (`World` layout `lab:<id>`, `main.gd --lab`, `GameSim.peaceful`, `Stage3D.distance_mul` from `Config.LAB`); `--shot` photographs it from inside. The draft's two storeys are `draft01_ground` and `draft01_upper`. `layout_test` (4). `tools/test`: 987 tests, 0 failures |
 | 2026-10-14 | **Clean corners** (the owner, from the lab: "What is with corners on these walls? I hate them. My expectation is clean corners on all buildings"). The corner post was a trim-white square standing 1.5 cm proud of both facades and 2 cm above the wall, there to hide where two panels overlapped; room dividers were full-tile slabs that poked through each other at every junction. Now a corner is the two panels stopped a wall's thickness short of the vertex and a flush post filling the square, boards on its two outer faces (`corner_post`, turned per corner; `Piece.siding_x`), and a divider is a post at the tile's centre with an arm from each face to the tile's edge or, through a ring tile, into the outer wall's plaster (`wall_interior_post`, `wall_interior_arm`, `_arm_long`; `BuildingPlan._divider`). Built walls are arms off a flush `corner_post_built` the same way (`Structures3D._make_wall`). No two exterior faces are coplanar anywhere, so nothing flickers and nothing sticks out. `building_plan_test` asserts the posts' turns, eight short panels per house, and arms that start at a post's face. Kit rebuilt (45 parts). `tools/test`: 987 tests, 0 failures |
 | 2026-10-14 | **A building is dressed whole whatever its doorways cut** (`BuildingPlan._components`). The owner, from the lab: "look at where all the walls intersect. They are not meeting cleanly." The lab house had no siding, no windows, no roof and plaster posts at its outer corners: the plan found its components by flooding the wall tiles, and two doorways plus the hall's opening had cut the ring and dividers into two arcs that never touched, so each was a partition. Seven of the town's seventy-two generator buildings (two houses, the cabin, the hospital, three downtown) stood that way too, unnoticed. The plan now seeds one component per `World.buildings` record (every wall tile in its rectangle) before the flood finds the rest. `building_plan_test` holds every generator building to it; `layout_test` holds every layout. `tools/test`: 989 tests, 0 failures |
+| 2026-10-14 | **The layout editor** (§10 *House layouts*). The owner: the imported draft was "garbage", "I think I am going to need to build out these scenes by hand… I want to drag and drop elements on the scene and place them where they should be." `scenes/layouts/`: `_template.tscn` to duplicate, walls painted on a GridMap (wall, floor, doorway, opening), pieces dragged in from `palette/<place>/<kind>.tscn` (122, one per kind the game stands, real models fitted as the stage fits them, snapping to tiles and quarter turns), **Export** / **Check** / **Load** buttons on the root. `LayoutScene`, `LayoutProp`, `LayoutFile` (`src/edit/`); `tools/make_layout_palette`; `Layout.problems` lets a yard piece stand outside the map. Found on the way: `LayoutFile.reload()` was calling every script object's own `reload()`, never ours (renamed `refresh`). `layout_scene_test` (5). `tools/test`: 994 tests, 0 failures |
 | 2026-10-13 | **The building parts.** `tools/build_kit.py` → `parts.blend` / `parts.glb` / `parts_sheet.png` (41 parts, LFS); `FacadeArt` (palette, `STYLES`, `BUILT`), `facade.gdshader`; `BuildingPlan` (components, enclosed merge, building / yard / partition, 2 m windows, doorways, dividers, `inside`); `Buildings3D` (MultiMesh per part, a boarded gable roof per building, off indoors); `Structures3D` built walls from the panel; `Terrain3D` floor under walls, `STAGE3D` 3 m / 2.9 m; `--smoke --tour`. `building_plan_test` (6), `building_kit_test` (3). `tools/test`: 964 tests, 0 failures |
 | 2026-10-13 | **Bodies collide, Space jumps, Sprint + Space rolls, X dances, the swing is the sword slash.** `Enemies._hold_off_players` / `hold_off` / `solid` / `push_apart`, the stuck rescue ignores a zombie held off in reach; `Intent.jump` / `dance`, `PlayerSim.jump_t` / `dance_t` / `step_moves`, `Config.JUMP` / `DANCE`, `PF_JUMP` / `PF_DANCE` (protocol 16), a guest predicts both; `KeyBinds` `jump` (Space) and `dance` (X), `LocalInput` reads Sprint + Space as the roll; `tools/build_anims`: `attack` = Stable Sword Outward Slash cut to the blow (`strike` 0.3), `punch`, `roll` = Stand To Roll, `dance` = Thriller Part 2, the jump cut to its air; `Models.family_of` "fists", `fists_attack`; `Actors3D` roll / jump / dance / the swing paced to the cooldown and restarted on its edge (`ActorModel.play` seeks on a same-clip restart). `bodies_test` (5), `actors_test` +3. `tools/test`: 954 tests, 0 failures |
 | 2026-10-13 | **Animation pass 2: the player's weapons, the zombies' moves.** The gait from the sim's flags (`WALK_PACE`, `RUN_PACE`, `SNEAK_PACE`); clip families per weapon (`Models.family_of`, `ActorModel.play(family, variant)`): rifle, pistol and bow idle/walk/run, `shoot` / `bow_shoot`, `bow_reload`, `bow_equip` / `bow_disarm`; `jump` on the dash, `crouch` on the sneak; `PlayerSim.shot` (`PF_SHOT`); a player's body left where they died; a zombie's swipe and neck bite in turns, two deaths, `eat` over the dead (`Config.FEED`, `EnemySim.feed_t`, `Damage._feed_on`, `EF_FEED`, protocol 15); any boss cue marks it awake (Codex, PR #74). `actors_test` (14), `feed_test` (4). `tools/test`: 945 tests, 0 failures |

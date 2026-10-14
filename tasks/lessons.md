@@ -668,3 +668,18 @@ it is one with a level and a condition on it, run against the old code first.
   and no test looked. When the owner says a thing looks wrong, ask for the
   full picture, then check the thing is what the code thinks it is before
   polishing it; and hold the generator's buildings to the plan in a test.
+
+## The owner asked for a scene; I built a pipeline (2026-10-14)
+
+- The first message said "create individual scenes"; I argued the scene
+  could not be the source of truth and built an importer for plans in
+  metres instead. The owner's verdict on the result: "garbage… I want to
+  drag and drop elements on the scene and place them where they should
+  be." The invariant was right (the game needs tiles) and the conclusion
+  was wrong: the scene can be the thing the owner edits and the data what
+  it exports to. When the owner names a workflow, build that workflow on
+  top of the invariant, do not replace the workflow to protect it.
+- A static function named like a built-in method of the script object
+  (`reload`, `get`, `set`, `call`…) is never called: `LayoutFile.reload()`
+  ran Godot's `Script.reload()` and did nothing of ours, silently. Pick
+  names that are not on `Object`/`Script`.

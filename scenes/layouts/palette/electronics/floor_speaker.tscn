@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_d1w21"]
+
+[node name="floor_speaker" type="Node3D" unique_id=1061643961]
+script = ExtResource("1_d1w21")
+kind = "floor_speaker"
+variant = 0

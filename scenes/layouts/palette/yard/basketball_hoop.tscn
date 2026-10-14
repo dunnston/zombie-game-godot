@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_hdwna"]
+
+[node name="basketball_hoop" type="Node3D" unique_id=1904751863]
+script = ExtResource("1_hdwna")
+kind = "basketball_hoop"
+variant = 0

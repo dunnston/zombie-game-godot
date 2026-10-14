@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_w7wlc"]
+
+[node name="wheelie_bin" type="Node3D" unique_id=1912716195]
+script = ExtResource("1_w7wlc")
+kind = "wheelie_bin"
+variant = 0

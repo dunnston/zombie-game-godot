@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_ejuyu"]
+
+[node name="pantry_shelf" type="Node3D" unique_id=865002314]
+script = ExtResource("1_ejuyu")
+kind = "pantry_shelf"
+variant = 0

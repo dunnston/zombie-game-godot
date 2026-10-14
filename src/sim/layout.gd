@@ -224,6 +224,8 @@ static func problems(row: Dictionary) -> PackedStringArray:
 						out.append("%s hangs at %d,%d, which is not a wall" % [name, x, y])
 					elif not is_floor(at(row, x + DIRS[d].x, y + DIRS[d].y)):
 						out.append("%s hangs at %d,%d facing %d, where there is no floor" % [name, x, y, d])
+				elif ch == OUT and String(t.get("kind", "")) == "yard":
+					pass
 				elif ch != FLOOR:
 					var what_is := "a wall" if ch == WALL else ("outside" if ch == OUT else "a doorway")
 					out.append("%s covers %d,%d, which is %s" % [name, x, y, what_is])

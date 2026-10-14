@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_0wcve"]
+
+[node name="lunchCounter" type="Node3D" unique_id=645678370]
+script = ExtResource("1_0wcve")
+kind = "lunchCounter"
+variant = 0

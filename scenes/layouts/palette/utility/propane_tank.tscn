@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_4eut3"]
+
+[node name="propane_tank" type="Node3D" unique_id=2099588302]
+script = ExtResource("1_4eut3")
+kind = "propane_tank"
+variant = 0

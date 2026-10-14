@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_y0i5b"]
+
+[node name="dog_house" type="Node3D" unique_id=35587874]
+script = ExtResource("1_y0i5b")
+kind = "dog_house"
+variant = 0

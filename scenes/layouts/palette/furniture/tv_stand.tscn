@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_f2sij"]
+
+[node name="tv_stand" type="Node3D" unique_id=1043973337]
+script = ExtResource("1_f2sij")
+kind = "tv_stand"
+variant = 0

@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_vlbt4"]
+
+[node name="patio_set" type="Node3D" unique_id=290948017]
+script = ExtResource("1_vlbt4")
+kind = "patio_set"
+variant = 0

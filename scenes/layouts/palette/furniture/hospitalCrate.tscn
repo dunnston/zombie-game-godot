@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_18i8u"]
+
+[node name="hospitalCrate" type="Node3D" unique_id=2043612323]
+script = ExtResource("1_18i8u")
+kind = "hospitalCrate"
+variant = 0

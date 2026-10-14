@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_0h0an"]
+
+[node name="filing" type="Node3D" unique_id=433791470]
+script = ExtResource("1_0h0an")
+kind = "filing"
+variant = 0

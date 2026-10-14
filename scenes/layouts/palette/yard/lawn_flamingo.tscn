@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_0gblr"]
+
+[node name="lawn_flamingo" type="Node3D" unique_id=1745638908]
+script = ExtResource("1_0gblr")
+kind = "lawn_flamingo"
+variant = 0

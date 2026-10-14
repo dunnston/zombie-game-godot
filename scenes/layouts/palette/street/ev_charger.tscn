@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_vqg3h"]
+
+[node name="ev_charger" type="Node3D" unique_id=262219974]
+script = ExtResource("1_vqg3h")
+kind = "ev_charger"
+variant = 0

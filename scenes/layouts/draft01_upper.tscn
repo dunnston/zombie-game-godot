@@ -1,0 +1,170 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_scene.gd" id="1_b7rg3"]
+[ext_resource type="MeshLibrary" path="res://scenes/layouts/tiles.tres" id="2_lwxcy"]
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="3_ivn4t"]
+
+[node name="draft01_upper" type="Node3D" unique_id=1564334742]
+script = ExtResource("1_b7rg3")
+layout_id = "draft01_upper"
+
+[node name="Tiles" type="GridMap" parent="." unique_id=589404054]
+mesh_library = ExtResource("2_lwxcy")
+cell_size = Vector3(1, 1, 1)
+data = {
+"cells": PackedInt32Array(0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0, 4, 0, 0, 5, 0, 0, 6, 0, 0, 7, 0, 0, 8, 0, 0, 9, 0, 0, 10, 0, 0, 11, 0, 0, 12, 0, 0, 13, 0, 0, 14, 0, 0, 0, 1, 0, 1, 1, 1, 2, 1, 1, 3, 1, 1, 4, 1, 1, 5, 1, 0, 6, 1, 1, 7, 1, 1, 8, 1, 0, 9, 1, 1, 10, 1, 1, 11, 1, 1, 12, 1, 1, 13, 1, 1, 14, 1, 0, 0, 2, 0, 1, 2, 1, 2, 2, 1, 3, 2, 1, 4, 2, 1, 5, 2, 3, 6, 2, 1, 7, 2, 1, 8, 2, 3, 9, 2, 1, 10, 2, 1, 11, 2, 1, 12, 2, 1, 13, 2, 1, 14, 2, 0, 0, 3, 0, 1, 3, 1, 2, 3, 1, 3, 3, 1, 4, 3, 1, 5, 3, 3, 6, 3, 1, 7, 3, 1, 8, 3, 3, 9, 3, 1, 10, 3, 1, 11, 3, 1, 12, 3, 1, 13, 3, 1, 14, 3, 0, 0, 4, 0, 1, 4, 1, 2, 4, 1, 3, 4, 1, 4, 4, 1, 5, 4, 0, 6, 4, 3, 7, 4, 3, 8, 4, 0, 9, 4, 1, 10, 4, 1, 11, 4, 1, 12, 4, 1, 13, 4, 1, 14, 4, 0, 0, 5, 0, 1, 5, 1, 2, 5, 1, 3, 5, 1, 4, 5, 1, 5, 5, 0, 6, 5, 1, 7, 5, 1, 8, 5, 0, 9, 5, 1, 10, 5, 1, 11, 5, 1, 12, 5, 1, 13, 5, 1, 14, 5, 0, 0, 6, 0, 1, 6, 0, 2, 6, 0, 3, 6, 0, 4, 6, 0, 5, 6, 0, 6, 6, 1, 7, 6, 1, 8, 6, 0, 9, 6, 3, 10, 6, 3, 11, 6, 0, 12, 6, 3, 13, 6, 3, 14, 6, 0, 0, 7, 0, 1, 7, 1, 2, 7, 1, 3, 7, 1, 4, 7, 1, 5, 7, 0, 6, 7, 1, 7, 7, 1, 8, 7, 0, 9, 7, 1, 10, 7, 1, 11, 7, 0, 12, 7, 1, 13, 7, 1, 14, 7, 0, 0, 8, 0, 1, 8, 1, 2, 8, 1, 3, 8, 1, 4, 8, 1, 5, 8, 3, 6, 8, 1, 7, 8, 1, 8, 8, 0, 9, 8, 1, 10, 8, 1, 11, 8, 0, 12, 8, 1, 13, 8, 1, 14, 8, 0, 0, 9, 0, 1, 9, 1, 2, 9, 1, 3, 9, 1, 4, 9, 1, 5, 9, 3, 6, 9, 1, 7, 9, 1, 8, 9, 0, 9, 9, 0, 10, 9, 0, 11, 9, 0, 12, 9, 0, 13, 9, 0, 14, 9, 0, 0, 10, 0, 1, 10, 1, 2, 10, 1, 3, 10, 1, 4, 10, 1, 5, 10, 0, 6, 10, 1, 7, 10, 1, 8, 10, 3, 9, 10, 1, 10, 10, 1, 11, 10, 1, 12, 10, 1, 13, 10, 1, 14, 10, 0, 0, 11, 0, 1, 11, 1, 2, 11, 1, 3, 11, 1, 4, 11, 1, 5, 11, 0, 6, 11, 1, 7, 11, 1, 8, 11, 3, 9, 11, 1, 10, 11, 1, 11, 11, 1, 12, 11, 1, 13, 11, 1, 14, 11, 0, 0, 12, 0, 1, 12, 0, 2, 12, 0, 3, 12, 0, 4, 12, 0, 5, 12, 0, 6, 12, 2, 7, 12, 2, 8, 12, 0, 9, 12, 0, 10, 12, 0, 11, 12, 0, 12, 12, 0, 13, 12, 0, 14, 12, 0)
+}
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=452980875]
+transform = Transform3D(0.8660254, -0.40957603, 0.28678823, 0, 0.57357645, 0.81915206, -0.5, -0.7094065, 0.49673176, 0, 0, 0)
+shadow_enabled = true
+
+[node name="bed_single" type="Node3D" parent="." unique_id=610671845]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 2.5, 0, 11)
+script = ExtResource("3_ivn4t")
+kind = "bed_single"
+variant = 0
+
+[node name="nightstand" type="Node3D" parent="." unique_id=1105080331]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 1.5, 0, 11.5)
+script = ExtResource("3_ivn4t")
+kind = "nightstand"
+variant = 0
+
+[node name="desk" type="Node3D" parent="." unique_id=1157385291]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 4.5, 0, 11.5)
+script = ExtResource("3_ivn4t")
+kind = "desk"
+variant = 0
+
+[node name="dresser" type="Node3D" parent="." unique_id=1140768592]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 1.5, 0, 8.5)
+script = ExtResource("3_ivn4t")
+kind = "dresser"
+variant = 0
+
+[node name="wardrobe" type="Node3D" parent="." unique_id=1464163237]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 0, 7.5)
+script = ExtResource("3_ivn4t")
+kind = "wardrobe"
+variant = 0
+
+[node name="bed_single2" type="Node3D" parent="." unique_id=676382158]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 0, 2)
+script = ExtResource("3_ivn4t")
+kind = "bed_single"
+variant = 0
+
+[node name="nightstand2" type="Node3D" parent="." unique_id=1219237434]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 1.5, 0, 1.5)
+script = ExtResource("3_ivn4t")
+kind = "nightstand"
+variant = 0
+
+[node name="desk2" type="Node3D" parent="." unique_id=1296085351]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 0, 1.5)
+script = ExtResource("3_ivn4t")
+kind = "desk"
+variant = 0
+
+[node name="dresser2" type="Node3D" parent="." unique_id=378884699]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 1.5, 0, 5.5)
+script = ExtResource("3_ivn4t")
+kind = "dresser"
+variant = 0
+
+[node name="wardrobe2" type="Node3D" parent="." unique_id=1293053335]
+transform = Transform3D(1.1924881e-08, 0, -1, 0, 1, 0, 1, 0, 1.1924881e-08, 4.5, 0, 3.5)
+script = ExtResource("3_ivn4t")
+kind = "wardrobe"
+variant = 0
+
+[node name="bed_double" type="Node3D" parent="." unique_id=929424044]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11, 0, 2)
+script = ExtResource("3_ivn4t")
+kind = "bed_double"
+variant = 0
+
+[node name="nightstand3" type="Node3D" parent="." unique_id=482224823]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 9.5, 0, 1.5)
+script = ExtResource("3_ivn4t")
+kind = "nightstand"
+variant = 0
+
+[node name="nightstand4" type="Node3D" parent="." unique_id=1861435343]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 13.5, 0, 1.5)
+script = ExtResource("3_ivn4t")
+kind = "nightstand"
+variant = 0
+
+[node name="dresser3" type="Node3D" parent="." unique_id=268409826]
+transform = Transform3D(1.1924881e-08, 0, -1, 0, 1, 0, 1, 0, 1.1924881e-08, 13.5, 0, 3.5)
+script = ExtResource("3_ivn4t")
+kind = "dresser"
+variant = 0
+
+[node name="cabinet" type="Node3D" parent="." unique_id=534169411]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 6.5, 0, 11.5)
+script = ExtResource("3_ivn4t")
+kind = "cabinet"
+variant = 0
+
+[node name="bench" type="Node3D" parent="." unique_id=980639157]
+transform = Transform3D(1.1924881e-08, 0, -1, 0, 1, 0, 1, 0, 1.1924881e-08, 7.5, 0, 8)
+script = ExtResource("3_ivn4t")
+kind = "bench"
+variant = 0
+
+[node name="bathtub" type="Node3D" parent="." unique_id=1069942888]
+transform = Transform3D(1.1924881e-08, 0, -1, 0, 1, 0, 1, 0, 1.1924881e-08, 13, 0, 10.5)
+script = ExtResource("3_ivn4t")
+kind = "bathtub"
+variant = 0
+
+[node name="toilet" type="Node3D" parent="." unique_id=601122094]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.5, 0, 10.5)
+script = ExtResource("3_ivn4t")
+kind = "toilet"
+variant = 0
+
+[node name="vanity" type="Node3D" parent="." unique_id=1901990122]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 9.5, 0, 11.5)
+script = ExtResource("3_ivn4t")
+kind = "vanity"
+variant = 0
+
+[node name="mirror" type="Node3D" parent="." unique_id=704543329]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 10.5, 0, 12.5)
+script = ExtResource("3_ivn4t")
+kind = "mirror"
+variant = 0
+
+[node name="shower" type="Node3D" parent="." unique_id=2093903449]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 9.5, 0, 8.5)
+script = ExtResource("3_ivn4t")
+kind = "shower"
+variant = 0
+
+[node name="toilet2" type="Node3D" parent="." unique_id=1609551563]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 10.5, 0, 8.5)
+script = ExtResource("3_ivn4t")
+kind = "toilet"
+variant = 0
+
+[node name="vanity2" type="Node3D" parent="." unique_id=731524285]
+transform = Transform3D(1.1924881e-08, 0, -1, 0, 1, 0, 1, 0, 1.1924881e-08, 10.5, 0, 7.5)
+script = ExtResource("3_ivn4t")
+kind = "vanity"
+variant = 0
+
+[node name="wardrobe3" type="Node3D" parent="." unique_id=1217015349]
+transform = Transform3D(1.1924881e-08, 0, -1, 0, 1, 0, 1, 0, 1.1924881e-08, 13.5, 0, 8.5)
+script = ExtResource("3_ivn4t")
+kind = "wardrobe"
+variant = 0
+
+[node name="bookshelf" type="Node3D" parent="." unique_id=220842067]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 12.5, 0, 8.5)
+script = ExtResource("3_ivn4t")
+kind = "bookshelf"
+variant = 0

@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_ive6k"]
+
+[node name="swing_set" type="Node3D" unique_id=740227333]
+script = ExtResource("1_ive6k")
+kind = "swing_set"
+variant = 0

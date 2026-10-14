@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_dmrqk"]
+
+[node name="clothesline" type="Node3D" unique_id=93122134]
+script = ExtResource("1_dmrqk")
+kind = "clothesline"
+variant = 0
