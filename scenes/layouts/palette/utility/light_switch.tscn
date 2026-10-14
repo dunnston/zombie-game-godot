@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_6m53d"]
+
+[node name="light_switch" type="Node3D" unique_id=80885606]
+script = ExtResource("1_6m53d")
+kind = "light_switch"
+variant = 0

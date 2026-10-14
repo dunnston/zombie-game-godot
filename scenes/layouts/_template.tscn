@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_scene.gd" id="1_yjbtc"]
+[ext_resource type="MeshLibrary" path="res://scenes/layouts/tiles.tres" id="2_a14ds"]
+
+[node name="_template" type="Node3D" unique_id=1560726244]
+script = ExtResource("1_yjbtc")
+
+[node name="Tiles" type="GridMap" parent="." unique_id=345762857]
+mesh_library = ExtResource("2_a14ds")
+cell_size = Vector3(1, 1, 1)
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1694320722]
+transform = Transform3D(0.8660254, -0.40957603, 0.28678823, 0, 0.57357645, 0.81915206, -0.5, -0.7094065, 0.49673176, 0, 0, 0)
+shadow_enabled = true

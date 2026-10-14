@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_m0atq"]
+
+[node name="electronics" type="Node3D" unique_id=529506199]
+script = ExtResource("1_m0atq")
+kind = "electronics"
+variant = 0

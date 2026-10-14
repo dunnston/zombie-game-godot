@@ -106,6 +106,32 @@ func _components(world: World) -> void:
 			ring[i] = 1
 	var seen := PackedByteArray()
 	seen.resize(W * W)
+	# The generator's buildings first, each one component whatever its
+	# doorways cut (2026-10-14): two doorways and a divider's gap can split
+	# a ring into arcs that never touch, and a flood called each arc a
+	# partition and dressed the house with no facades and no roof. Seven of
+	# the town's seventy-two were drawn that way, and every house in the
+	# layout lab. Everything else (an instance's rooms, a fence of walls)
+	# is still found by the flood below.
+	for b in world.buildings:
+		var r: Rect2i = b.rect
+		var members := {}
+		var lo := Vector2i(W, W)
+		var hi := Vector2i(-1, -1)
+		for y in range(r.position.y, r.end.y):
+			for x in range(r.position.x, r.end.x):
+				var i := y * W + x
+				if ring[i] == 0 or seen[i] == 1:
+					continue
+				seen[i] = 1
+				members[i] = true
+				lo = Vector2i(mini(lo.x, x), mini(lo.y, y))
+				hi = Vector2i(maxi(hi.x, x), maxi(hi.y, y))
+		if members.is_empty():
+			continue
+		rects.append(Rect2i(lo, hi - lo + Vector2i.ONE))
+		styles.append(int(Util.hash2(lo.x * 13, lo.y * 7) * FacadeArt.HOUSE_STYLES))
+		_members.append(members)
 	for start in range(W * W):
 		if ring[start] == 0 or seen[start] == 1:
 			continue
@@ -236,7 +262,14 @@ func _dress(world: World, ri: int, house: bool) -> void:
 					parts.append({"part": "window_single", "at": mid, "dir": d, "sx": 1.0, "rect": ri})
 					k += 2
 					continue
-				parts.append({"part": "wall_1m", "at": at, "dir": d, "sx": 1.0, "rect": ri})
+				# A corner tile's panel stops a wall's thickness short of the
+				# corner: the post fills that square, flush with both faces.
+				var sx := 1.0
+				if k == 0 or k == line.size() - 1:
+					var v := Vector2(t.x + (1 if t.x == r.end.x - 1 else 0), t.y + (1 if t.y == r.end.y - 1 else 0))
+					at += (at - v).normalized() * 0.125
+					sx = 0.75
+				parts.append({"part": "wall_1m", "at": at, "dir": d, "sx": sx, "rect": ri})
 				k += 1
 				continue
 			if _is_member(ri, t):
@@ -259,12 +292,16 @@ func _dress(world: World, ri: int, house: bool) -> void:
 				var hinge := centre + left * (width / 2.0 - 0.06 - 0.5)
 				parts.append({"part": "door_open", "at": hinge, "dir": d, "sx": 1.0, "rect": ri})
 				parts.append({"part": "porch_roof_2m", "at": centre, "dir": d, "sx": width / 2.0, "rect": ri})
-	for c: Vector2i in [r.position, Vector2i(r.end.x - 1, r.position.y), Vector2i(r.position.x, r.end.y - 1), r.end - Vector2i.ONE]:
+	# The post's own faces are the -x and +z ones (west and south, unturned),
+	# so it is turned to put them outward at each corner: 3 NW, 2 NE, 0 SW, 1 SE.
+	var corners: Array = [[r.position, 3], [Vector2i(r.end.x - 1, r.position.y), 2], [Vector2i(r.position.x, r.end.y - 1), 0], [r.end - Vector2i.ONE, 1]]
+	for cd: Array in corners:
+		var c: Vector2i = cd[0]
 		if world.tile(c.x, c.y) != T.WALL:
 			continue
 		var px := c.x + (1 if c.x == r.end.x - 1 else 0)
 		var py := c.y + (1 if c.y == r.end.y - 1 else 0)
-		parts.append({"part": "corner_post", "at": Vector2(px, py), "dir": 0, "sx": 1.0, "rect": ri})
+		parts.append({"part": "corner_post", "at": Vector2(px, py), "dir": int(cd[1]), "sx": 1.0, "rect": ri})
 	# Room dividers inside a house are the house's own tiles off its ring.
 	for i in _members[ri]:
 		var t := Vector2i(i % W, i / W)
@@ -284,14 +321,30 @@ func _partition(world: World, ri: int) -> void:
 
 ## A plaster wall through the middle of its tile, run the way its
 ## neighbours go.
+## A room divider tile: a post at its centre and an arm toward each wall it
+## joins, to the tile's edge where the next divider's arm meets it, or
+## through a ring tile into the outer wall's plaster. Two runs meeting make
+## a clean corner with nothing poking past the other (the owner's deal,
+## 2026-10-14). A tile with no wall beside it is one plain panel across.
 func _divider(world: World, ri: int, t: Vector2i) -> void:
-	var across := world.tile(t.x - 1, t.y) == T.WALL or world.tile(t.x + 1, t.y) == T.WALL
-	var down := world.tile(t.x, t.y - 1) == T.WALL or world.tile(t.x, t.y + 1) == T.WALL
 	var c := Vector2(t) + Vector2(0.5, 0.5)
-	if across or not down:
+	var r := rects[ri]
+	var arms: Array = []
+	for d in range(4):
+		var n: Vector2i = t + DIRS[d]
+		if world.tile(n.x, n.y) != T.WALL:
+			continue
+		var ring := n.x == r.position.x or n.x == r.end.x - 1 or n.y == r.position.y or n.y == r.end.y - 1
+		arms.append([d, ring])
+	if arms.is_empty():
 		parts.append({"part": "wall_interior_1m", "at": c + Vector2(0.0, 0.125), "dir": 0, "sx": 1.0, "rect": ri})
-	if down:
-		parts.append({"part": "wall_interior_1m", "at": c + Vector2(0.125, 0.0), "dir": 1, "sx": 1.0, "rect": ri})
+		return
+	parts.append({"part": "wall_interior_post", "at": c, "dir": 0, "sx": 1.0, "rect": ri})
+	for a: Array in arms:
+		var d: int = a[0]
+		# The arm's +x runs out from the post: a quarter turn back from `d`
+		# (facing 0 points +x east; DIRS[1] is east).
+		parts.append({"part": "wall_interior_arm_long" if a[1] else "wall_interior_arm", "at": c + Vector2(DIRS[d]) * 0.125, "dir": (d + 3) % 4, "sx": 1.0, "rect": ri})
 
 
 ## The perimeter tiles along side `d` of `r`, in order.

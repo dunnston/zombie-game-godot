@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_71v1b"]
+
+[node name="slide" type="Node3D" unique_id=1025330743]
+script = ExtResource("1_71v1b")
+kind = "slide"
+variant = 0

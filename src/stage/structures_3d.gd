@@ -22,7 +22,7 @@ var _nodes := {}        # Vector2i tile -> {node, mesh, type, open, mat}
 var _ghost: MeshInstance3D
 var _ghost_mat: StandardMaterial3D
 var _parts := {}
-const WALL_PARTS := ["wall_upper_1m", "corner_post"]
+const WALL_PARTS := ["wall_upper_1m", "corner_post_built"]
 
 
 func _init(sim_: GameSim) -> void:
@@ -110,22 +110,27 @@ func _make_wall(s: Dictionary, node: Node3D) -> Array:
 	var out := []
 	var mask := StructureView.join_mask(sim.structs, s.tx, s.ty)
 	var hs := float(HEIGHTS.wall) / Buildings3D.KIT_H
-	# Half a panel from the centre toward each neighbour, so nothing
-	# sticks out past a corner or an end: [part, origin, facing, width].
-	# `SIDES` bits: 1 west, 2 north, 4 east, 8 south.
+	# A straight run is two half panels meeting at the centre; anything
+	# that turns, ends or branches is a flush post at the centre with an
+	# arm from each of its faces to the tile's edge, so nothing sticks out
+	# past a corner or an end (the owner's deal, 2026-10-14): [part,
+	# origin, facing, width]. `SIDES` bits: 1 west, 2 north, 4 east, 8 south.
 	var pieces: Array = []
+	var straight := mask == 0b0101 or mask == 0b1010
+	var reach := 0.5 if straight else 0.375
+	var from := 0.25 if straight else 0.3125
 	if mask == 0:
 		pieces.append(["wall_upper_1m", Vector2(0.0, 0.125), 0, 1.0])
 	if mask & 1:
-		pieces.append(["wall_upper_1m", Vector2(-0.25, 0.125), 0, 0.5])
+		pieces.append(["wall_upper_1m", Vector2(-from, 0.125), 0, reach])
 	if mask & 4:
-		pieces.append(["wall_upper_1m", Vector2(0.25, 0.125), 0, 0.5])
+		pieces.append(["wall_upper_1m", Vector2(from, 0.125), 0, reach])
 	if mask & 2:
-		pieces.append(["wall_upper_1m", Vector2(0.125, -0.25), 1, 0.5])
+		pieces.append(["wall_upper_1m", Vector2(0.125, -from), 1, reach])
 	if mask & 8:
-		pieces.append(["wall_upper_1m", Vector2(0.125, 0.25), 1, 0.5])
-	if mask != 0b0101 and mask != 0b1010:
-		pieces.append(["corner_post", Vector2.ZERO, 0, 1.0])
+		pieces.append(["wall_upper_1m", Vector2(0.125, from), 1, reach])
+	if mask != 0 and not straight:
+		pieces.append(["corner_post_built", Vector2.ZERO, 0, 1.0])
 	for pc in pieces:
 		if not _parts.has(pc[0]):
 			continue

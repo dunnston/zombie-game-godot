@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_jugns"]
+
+[node name="supplyCache" type="Node3D" unique_id=1652123037]
+script = ExtResource("1_jugns")
+kind = "supplyCache"
+variant = 0

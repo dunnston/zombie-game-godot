@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_yls3x"]
+
+[node name="sun_lounger" type="Node3D" unique_id=2094808631]
+script = ExtResource("1_yls3x")
+kind = "sun_lounger"
+variant = 0

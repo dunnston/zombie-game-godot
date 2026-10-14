@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_5i8mg"]
+
+[node name="patio_heater" type="Node3D" unique_id=1337335187]
+script = ExtResource("1_5i8mg")
+kind = "patio_heater"
+variant = 0

@@ -50,6 +50,9 @@ var structs: Structures = null
 ## The instanced dungeon being run, or null in the town. While it is set, every
 ## map field above belongs to the inside and the town is held by the Instance.
 var instance: Instance = null
+## The lab runs the town's rules with nobody coming: no spawner, no
+## Threat, no raids (`main.gd --lab`). Never true in a real game.
+var peaceful := false
 ## Instance kind -> the day it was last cleared. One clear a day.
 var cleared := {}
 
@@ -519,15 +522,15 @@ func tick(dt: float) -> void:
 	Loot.update_pickups(self, dt)
 	# Quiet decays before the spawner reads it, so a lull always ends on time.
 	quiet.tick(dt)
-	if town:
+	if not town:
+		instance.tick(self, dt)
+	elif not peaceful:
 		enemies.tick_spawning(self, dt)
 		threat.tick(self, dt)
 		if raid != null:
 			raid.tick(self, dt)
 		elif threat.raid_ready(self):
 			Raid.start(self, Raid.humans_come_for(self))
-	else:
-		instance.tick(self, dt)
 	for c in enemies.corpses:
 		c.t += dt
 	while not enemies.corpses.is_empty() and enemies.corpses[0].t > enemies.corpses[0].life:

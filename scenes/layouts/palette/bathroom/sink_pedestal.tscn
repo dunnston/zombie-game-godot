@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_gg0cl"]
+
+[node name="sink_pedestal" type="Node3D" unique_id=1134788516]
+script = ExtResource("1_gg0cl")
+kind = "sink_pedestal"
+variant = 0

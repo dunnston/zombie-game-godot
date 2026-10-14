@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_l152d"]
+
+[node name="bed_double" type="Node3D" unique_id=1771743016]
+script = ExtResource("1_l152d")
+kind = "bed_double"
+variant = 0

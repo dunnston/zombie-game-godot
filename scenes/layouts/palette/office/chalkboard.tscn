@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_mbypl"]
+
+[node name="chalkboard" type="Node3D" unique_id=548819054]
+script = ExtResource("1_mbypl")
+kind = "chalkboard"
+variant = 0

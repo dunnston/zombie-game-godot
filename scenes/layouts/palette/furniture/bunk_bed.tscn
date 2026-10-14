@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_pxeec"]
+
+[node name="bunk_bed" type="Node3D" unique_id=1846954035]
+script = ExtResource("1_pxeec")
+kind = "bunk_bed"
+variant = 0

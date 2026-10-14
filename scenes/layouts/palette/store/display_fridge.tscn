@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_gsfh8"]
+
+[node name="display_fridge" type="Node3D" unique_id=499820091]
+script = ExtResource("1_gsfh8")
+kind = "display_fridge"
+variant = 0

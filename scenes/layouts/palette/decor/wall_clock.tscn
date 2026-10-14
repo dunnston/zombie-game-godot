@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_642jq"]
+
+[node name="wall_clock" type="Node3D" unique_id=105523767]
+script = ExtResource("1_642jq")
+kind = "wall_clock"
+variant = 0

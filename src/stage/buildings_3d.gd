@@ -18,7 +18,7 @@ const OVERHANG := 0.45
 const ROOF_T := 0.12
 ## A siding board's height on the gable ends, as the parts have it.
 const BOARD := 0.25
-const PARTS := ["wall_1m", "wall_window_2m", "window_single", "wall_doorway_2m", "door_open", "porch_roof_2m", "corner_post", "wall_interior_1m"]
+const PARTS := ["wall_1m", "wall_window_2m", "window_single", "wall_doorway_2m", "door_open", "porch_roof_2m", "corner_post", "wall_interior_1m", "wall_interior_post", "wall_interior_arm", "wall_interior_arm_long"]
 
 var plan := BuildingPlan.new()
 var local: PlayerSim

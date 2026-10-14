@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_1hmfl"]
+
+[node name="laundry_basket" type="Node3D" unique_id=967150616]
+script = ExtResource("1_1hmfl")
+kind = "laundry_basket"
+variant = 0

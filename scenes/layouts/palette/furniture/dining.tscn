@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_oqcmp"]
+
+[node name="dining" type="Node3D" unique_id=2101847055]
+script = ExtResource("1_oqcmp")
+kind = "dining"
+variant = 0

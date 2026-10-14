@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_g3mvb"]
+
+[node name="bathtub" type="Node3D" unique_id=455285637]
+script = ExtResource("1_g3mvb")
+kind = "bathtub"
+variant = 0

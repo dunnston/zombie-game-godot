@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_pcbg3"]
+
+[node name="beach_chair" type="Node3D" unique_id=1536178472]
+script = ExtResource("1_pcbg3")
+kind = "beach_chair"
+variant = 0

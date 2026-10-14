@@ -3477,3 +3477,47 @@ with the existing message.
       landmark shots (camp shack, a suburb house, the farm, a classroom)
 - [ ] `tools\test`, 3D smoke leg when the machine is idle
 - [ ] PROJECT.md §4, §6, §11; `tasks/3d-conversion.md`
+
+## House layouts — authored, not rolled (`layouts`, 2026-10-14)
+
+Owner: "The placing assets in the game experiment was a total fail.
+Everything is placed so freakin randomly. Instead my new plan is to create
+individual scenes with different house layout configurations. Then once we
+have enough we can populate the map with those configs." Then: "I need an
+isolated environment to build a house layout that I can see. Then I want to
+turn that layout into data so that it can be replicated in the actual
+scene. I need to see the layout and confirm it is right before moving on
+to the next." The first draft came as a package (`House_Interior_Claude_
+Package.zip`: a two-storey plan in metres with a `house_layout.json`).
+
+**Shape.** A layout is data, not a Godot scene: everything in a house is
+sim state (a fridge is a container the save finds by tile, a bed blocks a
+shot, a guest builds the room from the seed), so the source of truth is a
+tile grid in `data/layouts.json` — an ASCII map plus a list of things with
+a tile and a facing — and the stage draws it as it draws everything. The
+lab is the real game on a lawn with one layout on it: what you see is what
+the town will stamp. The importer turns a metres package into a layout
+row; the draft's two floors become two layouts, because the game has one
+floor.
+
+- [x] `data/layouts.json` (DataTable: `use`, `floor`, `map`, `things`),
+      `Config.LAYOUTS`
+- [x] `Layout` (sim): `stamp` a layout at a tile (walls, floor, doorways,
+      things, containers, hung pieces), `problems` (static checks) and
+      `playable` (Furnish's rule: every floor tile reaches every other,
+      every solid piece can be reached)
+- [x] `World` layout `lab:<id>`: grass, a road, one layout, spawn at its door
+- [x] `main.gd`: `--lab=<id>` boots straight into that world, peaceful;
+      `--shot=<png>` photographs the house from inside and quits
+- [x] `GameSim.peaceful`: no spawner, no Threat, no raids
+- [x] `tools\lab.cmd <id> [--shot]`, `tools\import_layout.cmd <package> <id> [--floor=N]`
+- [x] `tools/import_layout.gd`: metres → tiles, names → kinds, the report
+- [x] `tests/layout_test.gd`
+- [x] The editor: `scenes/layouts/`, paint walls on a GridMap, drag pieces
+      from the palette, Export / Check / Load on the root (`LayoutScene`,
+      `LayoutProp`, `LayoutFile`, `tools/make_layout_palette`)
+- [x] Clean corners (panels stop short, flush posts, dividers as post and
+      arms); a building dressed whole whatever its doorways cut
+- [ ] Owner lays out a house in the editor and walks it in the lab
+- [ ] Wire layouts into the town's lots once there are enough (rotation and
+      mirroring at stamp time give eight variants of each)

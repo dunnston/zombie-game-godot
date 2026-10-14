@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_2puj1"]
+
+[node name="pool" type="Node3D" unique_id=1941068647]
+script = ExtResource("1_2puj1")
+kind = "pool"
+variant = 0

@@ -1,0 +1,8 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://src/edit/layout_prop.gd" id="1_uftly"]
+
+[node name="kitchen" type="Node3D" unique_id=425935559]
+script = ExtResource("1_uftly")
+kind = "kitchen"
+variant = 0
