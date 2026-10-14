@@ -111,6 +111,19 @@ class Piece:
         self.prism([(x0, -lap, z0), (x1, -lap, z0), (x1, y_back + 0.02, z0), (x0, y_back + 0.02, z0),
                     (x0, 0.0, z1), (x1, 0.0, z1), (x1, y_back + 0.02, z1), (x0, y_back + 0.02, z1)], mat)
 
+    def board_x(self, y0, y1, z0, z1, mat):
+        """A lapped board on the x = 0 plane, facing -x: the corner post's
+        second face, so a house's corner is boards meeting boards."""
+        self.prism([(-LAP, y0, z0), (0.02, y0, z0), (0.02, y1, z0), (-LAP, y1, z0),
+                    (0.0, y0, z1), (0.02, y0, z1), (0.02, y1, z1), (0.0, y1, z1)], mat)
+
+    def siding_x(self, y0, y1, z0, z1, mat):
+        """Boards on the x = 0 plane from z0 to z1 across y0..y1."""
+        z = z0
+        while z < z1 - 1e-6:
+            self.board_x(y0, y1, z, min(z + B, z1), mat)
+            z += B
+
     def siding(self, x0, x1, z0, z1, mat, holes=()):
         """Boards from z0 to z1 across x0..x1, leaving `holes`
         ((hx0, hx1, hz0, hz1)) open."""
@@ -220,9 +233,36 @@ def build_walls():
         p.box(-w / 2.0, w / 2.0, 0.0, T, 0.0, H, "plaster")
         p.box(-w / 2.0, w / 2.0, -0.02, T + 0.02, 0.0, 0.12, "trim_white")
         out.append(p.finish())
-    # A corner post, square in plan, that both facades meet in.
+    # A partition as the plan lays it (2026-10-14): a post at the tile's
+    # centre and an arm from each of its faces to the tile's edge, so two
+    # runs meet in a clean corner with nothing poking through; the long arm
+    # reaches an outer wall through the ring tile and buries its end in the
+    # wall's plaster. Baseboards stand 2 cm proud and meet end to end.
+    p = Piece("wall_interior_post")
+    p.box(-0.125, 0.125, -0.125, 0.125, 0.0, H, "plaster")
+    p.box(-0.145, 0.145, -0.145, 0.145, 0.0, 0.12, "trim_white")
+    out.append(p.finish())
+    for name, length in (("wall_interior_arm", 0.375), ("wall_interior_arm_long", 1.225)):
+        p = Piece(name)
+        p.box(0.0, length, -0.125, 0.125, 0.0, H, "plaster")
+        p.box(0.02, length, -0.145, 0.145, 0.0, 0.12, "trim_white")
+        out.append(p.finish())
+    # A corner post the two facades meet in, flush with both (the owner's
+    # deal, 2026-10-14: clean corners, nothing proud of the wall or above
+    # it). The vertex is the origin; the post fills the wall-thick square
+    # behind the y = 0 and x = 0 faces, boards on both, brick at the foot,
+    # plaster inside. The panels either side stop where it starts.
     p = Piece("corner_post")
-    p.box(-0.14, 0.14, -0.14, 0.14, 0.0, H + 0.02, "trim_white")
+    p.box(0.03, T, 0.03, T, 0.0, H, "plaster")
+    p.siding(0.0, T, 0.45, H, "siding_white")
+    p.siding_x(0.0, T, 0.45, H, "siding_white")
+    p.box(0.03, T, -0.06, 0.03, 0.0, 0.45, "brick")
+    p.box(-0.06, 0.03, -0.06, T, 0.0, 0.45, "brick")
+    out.append(p.finish())
+    # A built wall's post: the same square, siding all round, at the
+    # tile's centre where its arms meet.
+    p = Piece("corner_post_built")
+    p.box(-0.125, 0.125, -0.125, 0.125, 0.0, H, "siding_white")
     out.append(p.finish())
     # The frieze under the eave, and a skirt on its own for a plain panel.
     p = Piece("frieze_2m")

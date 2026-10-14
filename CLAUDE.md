@@ -42,7 +42,9 @@ and do the first step only unless told otherwise. `2d-final` is the tag.
   POLYGON Town Pack (owner, 2026-10-13). New parts go in that script, new
   colours in `FacadeArt`; never hand-place a house; a built base wall is the
   house panel in another material, never a part of its own; no roof is ever
-  drawn inside another building (the owner's deal).
+  drawn inside another building (the owner's deal). **Corners are clean**
+  (owner, 2026-10-14): nothing stands proud of a wall face or above its top at
+  a corner or a junction; panels stop short and a flush post fills the square.
 - **Content lives in `data/`** and is edited with the local editor: the owner
   double-clicks `Content Editor.cmd` in the project folder (it calls
   `tools\edit.cmd`; PROJECT.md §10, *Editing content*). The owner's shell is Windows

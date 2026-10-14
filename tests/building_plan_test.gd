@@ -48,6 +48,25 @@ func test_the_starter_house_is_a_building_dressed_whole() -> void:
 	eq(_parts(house, "porch_roof_2m").size(), 1)
 	eq(_parts(house, "corner_post").size(), 4)
 	eq(_parts(house, "wall_interior_1m").size(), 0)
+	# Clean corners (the owner's deal, 2026-10-14): each post is turned to
+	# put its two boarded faces outward, and the panel either side of it
+	# stops a wall's thickness short of the vertex, shifted the other way.
+	var dirs := []
+	for p in _parts(house, "corner_post"):
+		dirs.append(int(p.dir))
+	dirs.sort()
+	eq(dirs, [0, 1, 2, 3])
+	var short := 0
+	for p in _parts(house, "wall_1m"):
+		if is_equal_approx(float(p.sx), 0.75):
+			short += 1
+			var nearest := INF
+			for c in _parts(house, "corner_post"):
+				nearest = minf(nearest, (p.at as Vector2).distance_to(c.at))
+			near(nearest, 0.625, 1e-6, "a short panel spans 0.25..1.0 from its vertex, so its centre is 0.625 off, at %s" % p.at)
+		else:
+			eq(float(p.sx), 1.0)
+	eq(short, 8, "two short panels at each of four corners")
 	ok(house in plan.roofed(), "a building gets a roof")
 	ok(plan.rects.size() > 40, "the town has dozens of components, found %d" % plan.rects.size())
 
@@ -101,7 +120,19 @@ func test_a_divider_cut_off_by_its_gaps_belongs_to_its_building() -> void:
 	ok(store >= 0, "the store")
 	eq(plan.kinds[store], BuildingPlan.BUILDING)
 	ok(store in plan.roofed(), "one roof over the store")
-	ok(_parts(store, "wall_interior_1m").size() >= 20, "its dividers are plaster, %d of them" % _parts(store, "wall_interior_1m").size())
+	ok(_parts(store, "wall_interior_arm").size() >= 20, "its dividers are plaster arms, %d of them" % _parts(store, "wall_interior_arm").size())
+	# A divider is a post with an arm toward each wall it joins (never a
+	# full panel poking past the other), and the arm that meets the ring
+	# is the long one, buried in the outer wall's plaster.
+	var posts := _parts(store, "wall_interior_post")
+	ok(posts.size() >= 8, "posts at the dividers' tiles, %d" % posts.size())
+	ok(_parts(store, "wall_interior_arm_long").size() >= 2, "a divider reaches the outer wall")
+	for a in _parts(store, "wall_interior_arm") + _parts(store, "wall_interior_arm_long"):
+		var on_post := false
+		for p in posts:
+			if is_equal_approx((a.at as Vector2).distance_to(p.at), 0.125):
+				on_post = true
+		ok(on_post, "an arm starts at a post's face, %s" % a.at)
 	eq(_parts(store, "wall_doorway_2m").size(), 2)
 	eq(plan.inside(Vector2i(206, 143)), store)
 	# Nothing in the town is roofed inside something else that is roofed.
