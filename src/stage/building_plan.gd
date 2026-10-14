@@ -106,6 +106,32 @@ func _components(world: World) -> void:
 			ring[i] = 1
 	var seen := PackedByteArray()
 	seen.resize(W * W)
+	# The generator's buildings first, each one component whatever its
+	# doorways cut (2026-10-14): two doorways and a divider's gap can split
+	# a ring into arcs that never touch, and a flood called each arc a
+	# partition and dressed the house with no facades and no roof. Seven of
+	# the town's seventy-two were drawn that way, and every house in the
+	# layout lab. Everything else (an instance's rooms, a fence of walls)
+	# is still found by the flood below.
+	for b in world.buildings:
+		var r: Rect2i = b.rect
+		var members := {}
+		var lo := Vector2i(W, W)
+		var hi := Vector2i(-1, -1)
+		for y in range(r.position.y, r.end.y):
+			for x in range(r.position.x, r.end.x):
+				var i := y * W + x
+				if ring[i] == 0 or seen[i] == 1:
+					continue
+				seen[i] = 1
+				members[i] = true
+				lo = Vector2i(mini(lo.x, x), mini(lo.y, y))
+				hi = Vector2i(maxi(hi.x, x), maxi(hi.y, y))
+		if members.is_empty():
+			continue
+		rects.append(Rect2i(lo, hi - lo + Vector2i.ONE))
+		styles.append(int(Util.hash2(lo.x * 13, lo.y * 7) * FacadeArt.HOUSE_STYLES))
+		_members.append(members)
 	for start in range(W * W):
 		if ring[start] == 0 or seen[start] == 1:
 			continue

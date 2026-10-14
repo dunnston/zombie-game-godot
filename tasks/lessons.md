@@ -656,3 +656,15 @@ it is one with a level and a condition on it, run against the old code first.
   now" while one was up. Treat every windowed run as the smoke: only when
   the owner is idle or has said so, and never more than once to confirm
   what a headless check already says.
+
+## Look at the whole picture before fixing the detail (2026-10-14)
+
+- "Corners on these walls" was two things: a trim post that stood proud,
+  and, underneath, the house not being a building at all — two doorways
+  and an opening had cut its walls into arcs the plan flooded as two
+  partitions, so it had no siding, no windows and no roof. I fixed the
+  post from a 72-pixel thumbnail, confident, and the owner had to send a
+  second picture. Seven town buildings had been drawn that way all along
+  and no test looked. When the owner says a thing looks wrong, ask for the
+  full picture, then check the thing is what the code thinks it is before
+  polishing it; and hold the generator's buildings to the plan in a test.

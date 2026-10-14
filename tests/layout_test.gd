@@ -147,3 +147,19 @@ func test_the_lab_is_peaceful_and_the_party_wakes_at_the_door() -> void:
 	run(sim, 30.0)
 	eq(sim.enemies.list.size(), 0, "nobody came in thirty seconds")
 	eq(sim.raid, null, "no raid")
+
+
+func test_the_lab_house_is_dressed_as_one_building_with_a_roof() -> void:
+	for id in Config.LAYOUTS:
+		var world := _lab(id)
+		var plan := BuildingPlan.new()
+		plan.build(world)
+		var r: Rect2i = world.buildings[0].rect
+		var ri := plan.rects.find(r)
+		ok(ri >= 0, "%s: the plan has the house's rectangle" % id)
+		if ri < 0:
+			continue
+		eq(plan.kinds[ri], BuildingPlan.BUILDING, id)
+		has(Array(plan.roofed()), ri, "%s: it gets a roof" % id)
+		eq(plan.count("corner_post", ri), 4, id)
+		ok(plan.count("wall_1m", ri) + 2 * plan.count("wall_window_2m", ri) > 20, "%s: siding all round" % id)

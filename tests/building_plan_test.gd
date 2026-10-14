@@ -177,3 +177,18 @@ func test_a_broken_wall_is_a_gap_in_the_same_house() -> void:
 		if part.part == "wall_1m" and part.dir == 2:
 			ok(absf(at.x - (target.x + 0.5)) > 0.01, "the broken tile has no panel")
 		ok(part.part != "porch_roof_2m" or at.y > 152.0, "rubble gets no canopy")
+
+
+## Every building the generator stamped is drawn as one building, whatever
+## its doorways cut (2026-10-14): two doorways and a divider's gap split a
+## ring into arcs, and a flood of the walls alone called each arc a
+## partition, so seven houses stood with no siding and no roof.
+func test_every_generator_building_is_one_dressed_building() -> void:
+	var by_rect := {}
+	for i in range(plan.rects.size()):
+		by_rect[plan.rects[i]] = plan.kinds[i]
+	var bare := []
+	for b in world().buildings:
+		if by_rect.get(b.rect, "") != BuildingPlan.BUILDING:
+			bare.append("%s %s -> %s" % [b.use, b.rect, by_rect.get(b.rect, "no rect")])
+	eq(bare, [], "generator buildings the plan did not dress whole")
