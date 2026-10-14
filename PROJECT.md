@@ -316,6 +316,76 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### Furnished (2026-10-14)
+
+The owner's static props (254 Meshy exports, `assets/models/props/README.md`)
+go where they belong, and the town is dressed to be lived in: houses have
+kitchens, bathrooms and bedrooms; yards have swing sets and dog houses; the
+farms have tractors and corn; the school has lockers, rows of desks and a
+board; the woods have stumps and logs among the trees. The owner's ask:
+"logical and realistic, not random".
+
+**The sim decides what stands where; the stage decides what it looks
+like.** Furniture is solid, co-op mirrors the world from the seed, and a
+save keys a cabinet by its tile — so a bed is a prop in `World.props` and a
+fridge is a container, placed by the generator. `Furnish` (`src/sim/furnish.gd`)
+is the pass:
+
+- **Buildings are recorded.** `_building` keeps a record in `World.buildings`
+  (rect, floor, `use`, partition lines, door tiles, furnishable floor). A
+  home is `_house`, which stamps and then furnishes.
+- **Rooms and roles.** The rooms are the rectangles between the partition
+  lines. One room is a studio (a camp shack) or a cabin; two are the room
+  with the door, which cooks and sits, and the one behind, which sleeps and
+  washes; three or more give the smallest the bathroom, the door its living
+  room, the next the kitchen and the rest bedrooms; an apartment floor's
+  lattice cycles through the four. Houses nine or more tiles tall now get
+  four rooms (it was twelve), so most of the suburbs have all four.
+- **Recipes.** `Config.ROOMS` says what each role gets, in order: a piece
+  `w` across and `h` deep, stood against a wall facing in, or `free` with
+  open floor all round (the dining table, the coffee table, a shop's
+  aisles as a `run`), or on a `wall` (a painting, the clock, the board);
+  `container` makes it a searchable one, so the kitchen's fridge and the
+  bedroom's dresser are placed by the same pass that places the stove and
+  the bed. `Config.DECOR` does the same for the buildings that are not
+  homes, after `_stock` has placed their cabinets; `Config.YARD` is the
+  lot. `one_of`, `chance` and `n` roll the variety.
+- **The rule.** A piece that would cut a room's free floor in two, or leave
+  a cabinet with no free tile beside it to search from, is taken back
+  (`Furnish.still_open`). `_stock` now asks the same of every cabinet it
+  places: two could box a corner off before, and did.
+- **Doors stay clear.** Every building clears a one-tile ring and three
+  tiles out from each door (`_no_tree`), so the woodland pass can no
+  longer seal an alley — it had sealed the police armoury's. Yards are laid
+  after every building stands, keep off the grass they are not on, the
+  paths from every door, and anything else that stands.
+- **The country.** `_grow` leaves a stump or a fallen log where a tree
+  might have been; the farmsteads and the ranch each park a tractor; three
+  fields are rows of corn (walk-through, like reeds).
+- **The School's classrooms** get two rows of desks across the front half,
+  every other tile, facing the board; the back half stays open for who
+  stands there.
+
+On the stage, `PropModels` (`src/stage/prop_models.gd`) is the view table:
+prop kind, furniture `what` or container kind → a model, the **box** it is
+fitted inside (width, height, depth in metres — a Meshy export has no size
+of its own), a facing correction and an offset; a kind may list variants
+by `si`, and a thing may be several parts (a desk is the desk, a monitor
+and its chair; a nightstand carries a lamp). `StaticModel.transform_for`
+is the fit (the tightest of the three sides; turned a quarter when the
+mesh lies across its tiles; base on the ground). `Props3D` batches one
+MultiMesh per model per 32-tile chunk — a forest of real meshes needs
+culling and distance detail, which one world-sized batch cannot have —
+and keeps the primitive stand-in for any kind without a row or a file,
+so a checkout without the 1.4 GB still plays. `Vehicles3D` fits the four
+car models to the sim's car. The frozen 2D stage draws the new kinds as
+boxes.
+
+**What moved.** The generator's RNG is consumed differently from the
+suburbs on, so the map's random details reshuffled once; a save from
+before is refused by the fingerprint with its existing message. The
+container count is 662 (was 644).
+
 ### The building parts (2026-10-13)
 
 The town's buildings on the 3D stage, built from a parts kit the way
@@ -2568,6 +2638,11 @@ Phases 1–4 respecting it.
 | 2026-10-13 | 32 px = 1 m; sim `y` is 3D `z`; the camera is perspective at ~50°, south of you looking north | A 1.70 m model is a 54 px person, which is what `PLAYER.r` 13 px always meant. North stays up so every compass instinct from 2D, and every smoke leg that walks by compass, still holds. The bible's 3/4 view is the look the references were painted in. | Yes, `Config.CAMERA3D` and `Units` |
 | 2026-10-13 | Models in git LFS; the owner's inbox folders are not the project's | Tens of megabytes per export and re-exported often: plain history would never shrink again. `Meshy Models/` is where exports land and `assets/models/` is what the game loads, under game names, so a re-export is a copy and a commit, never a rename in code. | Yes |
 | 2026-10-14 | Static props live in `assets/models/props/<place>/<name>.glb`, sorted by where the thing stands, with `assets/models/props/README.md` as the catalog | Two hundred and fifty exports in one folder under Meshy's names (ten with no name at all) cannot be browsed while dressing a scene. A folder per place (`yard`, `kitchen`, `street`…) answers "what can go here"; the README keeps the Meshy export name beside each game name so a re-export still finds its file. **The `.glb`s themselves are not in git**: 1.4 GB is past the free LFS quota, so they are ignored and travel as `props.zip` (`tools\pack_props.cmd`), unzipped into `assets\models\`; the game plays without them because a missing model draws as a box. | Yes |
+| 2026-10-14 | **The sim places the furniture; the stage dresses it** (`Furnish`, `Config.ROOMS` / `DECOR` / `YARD`; `PropModels`) | A bed is solid, so it has to be in the collision bitmap (invariant 2); a guest builds the world from the seed, so what stands where has to be the generator's; a save keys a cabinet by its tile. Only the sim can own that. What a bed looks like is the stage's, the way an enemy's model is (`Models`): a view table, so the owner's exports change under game names without touching a rule. | Yes: a recipe row, a table row |
+| 2026-10-14 | A house's containers are placed by the room recipe, not drawn from a weighted table | "Houses should have kitchens and bathrooms and bedrooms" cannot come from a table that puts a fridge anywhere near a wall. The fridge is the kitchen's piece; the dresser is the bedroom's. The map's random details reshuffled once for it (the RNG is consumed differently from the suburbs on) and the `FURNISHING` rows for `house`, `cabin` and `apartment` went. | Yes |
+| 2026-10-14 | A piece that would cut a room's floor in two, or strand a cabinet, is not placed; `_stock` holds every cabinet to the same rule | The old generator could box a corner off with two cabinets, and did (the fuel stop, the armoury, a downtown office); nobody noticed because nothing stood in the corner. Furniture would have made it a room you cannot cross. One flood fill per piece, over the room, is the price. | Yes |
+| 2026-10-14 | Nothing grows against a building's walls or three tiles out from a door | The woodland pass sealed the police armoury's two-tile alley the moment the RNG moved; it had always been able to. A clear ring and a clear approach make every door reachable by construction, and the yards keep off both. | Yes |
+| 2026-10-14 | Props are batched one MultiMesh per model per 32-tile chunk, never one batch per model for the whole map | A batch is culled and given its level of detail as one thing by its bounds; a world-sized batch of eleven thousand oaks at twenty thousand triangles each would draw the far side of the map every frame. Chunks are what the terrain already does. | Yes |
 | 2026-10-13 | Enemy → model is a view table, not content; kinds without a model are capsules | Notion owns what exists and what it costs; which mesh draws it is the stage's business. A capsule at the 2D radius in the 2D colour keeps the whole loop playable while the owner makes the rest, which is pillar 5 applied to a conversion. | Yes, one table |
 | 2026-10-13 | Armour is rigid props on bones, and the base character is clothed | Layered clothing on generated meshes means weight transfer, body masking and clipping per piece, the hardest problem in any character pipeline, for a difference that cannot be seen at 70 px on screen (pillar 4). A helmet on the head bone can. | Yes |
 | 2026-10-13 | **Clips are baked, not imported: one mesh-only GLB and one `AnimationLibrary` per character, from the owner's Mixamo FBX exports** (`tools/build_anims.gd`) | An FBX per clip is 8 MB and the owner exports dozens; a library of the clips is a megabyte. Baking is where the facts that used to live in a table go into the clip itself: root motion held at the first frame, the speed a cycle was animated at and the second a blow lands as metas, the FBX's 1/179 scale multiplied through so the body is in real metres and a prop on its hand is a real size. The Mixamo rigs replaced the Meshy ones, so `Models` says which clip plays for which state and nothing else. | Yes: edit the manifest, run the tool |
@@ -3394,6 +3469,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-10-14 | **Furnished.** The owner's 254 static props on the 3D stage, where they belong (§4 *Furnished*). `Furnish` (rooms off the partitions, roles, `Config.ROOMS` / `DECOR` / `YARD` recipes, placement against walls, free and on walls, the room-stays-open rule, yards, classrooms, corn); `World.buildings`, `_house`, `add_thing` / `remove_thing`, `dressed`, stumps and logs in `_grow`, tractors, four rooms from nine tiles tall, a clear ring and door approach per building, `_stock` holds cabinets to the rule, yards laid after every building; `PropModels` (kinds, litter, things, containers, cars, variants, composites), `StaticModel.transform_for` / `fit_box` / `parts`, `Props3D` one MultiMesh per model per chunk with the stand-ins kept, `Vehicles3D` car models; the 2D stage draws the new kinds as boxes; `tools/_prop_sheet.gd` (contact sheets from the game camera; a local throwaway like the other `_` tools). The map reshuffled once (662 containers). `furnish_test` (13), `prop_models_test` (5). `tools/test`: 983 tests, 0 failures |
 | 2026-10-13 | **The building parts.** `tools/build_kit.py` → `parts.blend` / `parts.glb` / `parts_sheet.png` (41 parts, LFS); `FacadeArt` (palette, `STYLES`, `BUILT`), `facade.gdshader`; `BuildingPlan` (components, enclosed merge, building / yard / partition, 2 m windows, doorways, dividers, `inside`); `Buildings3D` (MultiMesh per part, a boarded gable roof per building, off indoors); `Structures3D` built walls from the panel; `Terrain3D` floor under walls, `STAGE3D` 3 m / 2.9 m; `--smoke --tour`. `building_plan_test` (6), `building_kit_test` (3). `tools/test`: 964 tests, 0 failures |
 | 2026-10-13 | **Bodies collide, Space jumps, Sprint + Space rolls, X dances, the swing is the sword slash.** `Enemies._hold_off_players` / `hold_off` / `solid` / `push_apart`, the stuck rescue ignores a zombie held off in reach; `Intent.jump` / `dance`, `PlayerSim.jump_t` / `dance_t` / `step_moves`, `Config.JUMP` / `DANCE`, `PF_JUMP` / `PF_DANCE` (protocol 16), a guest predicts both; `KeyBinds` `jump` (Space) and `dance` (X), `LocalInput` reads Sprint + Space as the roll; `tools/build_anims`: `attack` = Stable Sword Outward Slash cut to the blow (`strike` 0.3), `punch`, `roll` = Stand To Roll, `dance` = Thriller Part 2, the jump cut to its air; `Models.family_of` "fists", `fists_attack`; `Actors3D` roll / jump / dance / the swing paced to the cooldown and restarted on its edge (`ActorModel.play` seeks on a same-clip restart). `bodies_test` (5), `actors_test` +3. `tools/test`: 954 tests, 0 failures |
 | 2026-10-13 | **Animation pass 2: the player's weapons, the zombies' moves.** The gait from the sim's flags (`WALK_PACE`, `RUN_PACE`, `SNEAK_PACE`); clip families per weapon (`Models.family_of`, `ActorModel.play(family, variant)`): rifle, pistol and bow idle/walk/run, `shoot` / `bow_shoot`, `bow_reload`, `bow_equip` / `bow_disarm`; `jump` on the dash, `crouch` on the sneak; `PlayerSim.shot` (`PF_SHOT`); a player's body left where they died; a zombie's swipe and neck bite in turns, two deaths, `eat` over the dead (`Config.FEED`, `EnemySim.feed_t`, `Damage._feed_on`, `EF_FEED`, protocol 15); any boss cue marks it awake (Codex, PR #74). `actors_test` (14), `feed_test` (4). `tools/test`: 945 tests, 0 failures |

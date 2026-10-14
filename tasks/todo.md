@@ -3448,27 +3448,27 @@ random details reshuffle once (the generator's RNG is consumed
 differently from the suburbs on); old saves are refused by the fingerprint
 with the existing message.
 
-- [ ] Commit the catalog work from the last session (README, `.gitignore`,
+- [x] Commit the catalog work from the last session (README, `.gitignore`,
       `pack_props.cmd`, doc rows) on the new branch
-- [ ] `StaticModel`: fit into a box (footprint *and* height), the pure
+- [x] `StaticModel`: fit into a box (footprint *and* height), the pure
       transform split out; a model's meshes with their relative transforms,
       cached, for MultiMesh use
-- [ ] `PropModels` (view table): prop kind/variant → model + box + facing
+- [x] `PropModels` (view table): prop kind/variant → model + box + facing
       fix; container kind → model; car `si` → model; composites (a desk
       with its chair)
-- [ ] `Props3D`: one MultiMesh per model per 32-tile chunk (frustum culling
+- [x] `Props3D`: one MultiMesh per model per 32-tile chunk (frustum culling
       and LOD need chunks; 11k trees of real meshes cannot be one batch);
       the primitive stand-in stays for anything without a file
-- [ ] `Vehicles3D`: cars are the vehicle models; a wreck is a prop already
-- [ ] `World`: `buildings` records (rect, partitions, doors, use);
+- [x] `Vehicles3D`: cars are the vehicle models; a wreck is a prop already
+- [x] `World`: `buildings` records (rect, partitions, doors, use);
       `_house` furnishes by room; yards; stumps and logs in the woodland
       pass; the farms' tractors and corn; decor in the other building kinds
       (offices, stores, school rooms, barns, barracks)
-- [ ] `Furnish` (sim, RefCounted): room roles, recipes, placement against
+- [x] `Furnish` (sim, RefCounted): room roles, recipes, placement against
       walls facing in, and the one rule that keeps the game playable: a
       piece that would cut a room in two or strand a container is not placed
-- [ ] 2D stage draws the new kinds as boxes (it is frozen, not broken)
-- [ ] Tests: every house has a bed, a kitchen a fridge, a bathroom a
+- [x] 2D stage draws the new kinds as boxes (it is frozen, not broken)
+- [x] Tests: every house has a bed, a kitchen a fridge, a bathroom a
       toilet; every free floor tile of every building reachable from its
       door; nothing beside a doorway; yard pieces on grass and never on the
       path from the door; corn only on fields; every model path in the

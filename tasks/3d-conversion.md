@@ -208,7 +208,11 @@ into `Structures3D` through `StaticModel.fit` rather than waiting for phase 3.
 - The toon + outline shader (bible: 2–3 hard tones, `#2F292B` line).
 - Weapon props on the hand bone from the owner's pipeline.
 - Armour as rigid props (head, body, legs, feet, offhand).
-- Real meshes for containers, trees, cars, structures. **Buildings: done
+- Real meshes for containers, trees, cars, structures. **Props, containers,
+  trees and cars: done (2026-10-14)** — `PropModels` is the view table,
+  `Props3D` batches one MultiMesh per model per chunk, and `Furnish` puts
+  the furniture where it belongs (PROJECT.md §4 *Furnished*). Still a
+  stand-in: hay bales, silos, reeds. **Buildings: done
   (2026-10-13)** — the building parts (`tools/build_kit.py`, `BuildingPlan`,
   `Buildings3D`; PROJECT.md §4 *The building parts*): Synty-style facades,
   windows, door trim, corner boards, canopies and a gable roof per

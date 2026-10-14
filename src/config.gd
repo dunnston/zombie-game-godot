@@ -2159,11 +2159,6 @@ const FURNISHING := {
 	# kinds are its own (`school*` in LOOT and CONTAINERS).
 	"schoolClass": [["teacherDesk", 8], ["schoolLocker", 12], ["bookshelf", 6], ["filing", 3]],
 	"schoolCafeteria": [["lunchCounter", 18], ["fridge", 8], ["kitchen", 8], ["vending", 6]],
-	"house": [
-		["cabinet", 12], ["dresser", 14], ["wardrobe", 12], ["bookshelf", 12],
-		["nightstand", 12], ["fridge", 9], ["kitchen", 9], ["vanity", 8],
-		["desk", 6], ["toolbox", 4], ["shelf", 4],
-	],
 	"store": [
 		["shelf", 26], ["vending", 14], ["displaycase", 10], ["fridge", 12],
 		["kitchen", 8], ["cabinet", 8], ["filing", 6], ["pharmacy", 8], ["desk", 6],
@@ -2200,11 +2195,6 @@ const FURNISHING := {
 		["shelf", 22], ["toolrack", 16], ["crate", 14], ["vending", 10],
 		["fuelDrum", 10], ["fridge", 8], ["cabinet", 8], ["toolbox", 8], ["desk", 4],
 	],
-	"cabin": [
-		["cabinet", 14], ["bookshelf", 12], ["footlocker", 12], ["fridge", 10],
-		["kitchen", 8], ["wardrobe", 8], ["nightstand", 8], ["toolbox", 8],
-		["gunSafe", 7], ["shelf", 6],
-	],
 	"lumber": [
 		["logPile", 30], ["toolrack", 16], ["toolbox", 14], ["crate", 12],
 		["fuelDrum", 10], ["shelf", 6], ["desk", 6], ["cabinet", 6],
@@ -2212,11 +2202,6 @@ const FURNISHING := {
 	"junk": [
 		["toolbox", 24], ["crate", 18], ["electronics", 16], ["toolrack", 12],
 		["fuelDrum", 10], ["shelf", 8], ["filing", 6], ["desk", 6],
-	],
-	"apartment": [
-		["dresser", 14], ["wardrobe", 12], ["nightstand", 12], ["bookshelf", 10],
-		["fridge", 10], ["kitchen", 10], ["cabinet", 10], ["vanity", 8],
-		["desk", 6], ["locker", 4], ["vending", 4],
 	],
 	"office": [
 		["desk", 26], ["filing", 22], ["electronics", 12], ["vending", 10],
@@ -2237,5 +2222,299 @@ const FURNISHING := {
 	"gunshop": [
 		["displaycase", 30], ["gunSafe", 22], ["shelf", 14], ["toolrack", 12],
 		["policeLocker", 8], ["footlocker", 8], ["desk", 6],
+	],
+}
+
+## How a home is furnished, room by room (`Furnish.house`): the role a
+## room was given names a recipe, run top to bottom. An entry is a piece
+## (`what`, drawn by the stage's `PropModels`) `w` across and `h` deep in
+## tiles, stood against a wall facing in unless it is `free` (open floor
+## all round) or on a `wall`; `container` makes it a searchable one of that
+## kind instead; `solid: false` is walked through; `chance` rolls it, `n`
+## repeats it, `one_of` takes the first that fits, `run` lays several in a
+## line. A piece that would cut the room in two is simply not placed.
+const ROOMS := {
+	"kitchen": [
+		{"what": "fridge", "container": "fridge"},
+		{"what": "stove"},
+		{"what": "kitchen", "container": "kitchen", "n": [1, 2]},
+		{"what": "sink"},
+		{"what": "cabinet", "container": "cabinet", "chance": 0.5},
+		{"what": "dining", "w": 2, "h": 1, "free": true, "chance": 0.85},
+		{"what": "houseplant", "solid": false, "chance": 0.4},
+		{"what": "wall_clock", "wall": true, "chance": 0.6},
+	],
+	"living": [
+		{"what": "sofa", "w": 2},
+		{"what": "tv_stand", "w": 2},
+		{"what": "bookshelf", "container": "bookshelf", "chance": 0.8},
+		{"what": "armchair", "chance": 0.7},
+		{"what": "fireplace", "chance": 0.4},
+		{"one_of": [
+			{"what": "desk", "container": "desk", "chance": 0.5},
+			{"what": "cabinet", "container": "cabinet", "chance": 0.7},
+		]},
+		{"what": "filing", "container": "filing", "chance": 0.3},
+		{"what": "piano", "w": 2, "chance": 0.12},
+		{"what": "coffee_table", "free": true, "chance": 0.6},
+		{"what": "rug", "w": 2, "h": 2, "free": true, "solid": false, "chance": 0.5},
+		{"what": "houseplant", "solid": false, "chance": 0.5},
+		{"what": "painting", "wall": true, "n": [1, 2]},
+	],
+	"bedroom": [
+		{"one_of": [
+			{"what": "bed_double", "w": 2, "h": 2, "chance": 0.5},
+			{"what": "bed_single", "h": 2},
+			{"what": "bed_double", "w": 2, "h": 2},
+		]},
+		{"what": "nightstand", "container": "nightstand", "chance": 0.8},
+		{"one_of": [
+			{"what": "dresser", "container": "dresser", "chance": 0.6},
+			{"what": "wardrobe", "container": "wardrobe"},
+		]},
+		{"what": "bunk_bed", "h": 2, "chance": 0.2},
+		{"what": "crib", "chance": 0.15},
+		{"one_of": [
+			{"what": "desk", "container": "desk", "chance": 0.35},
+			{"what": "bookshelf", "container": "bookshelf", "chance": 0.5},
+		]},
+		{"what": "houseplant", "solid": false, "chance": 0.3},
+		{"what": "painting", "wall": true, "chance": 0.6},
+		{"what": "mirror", "wall": true, "chance": 0.3},
+	],
+	"bathroom": [
+		{"what": "toilet"},
+		{"what": "vanity", "container": "vanity"},
+		{"one_of": [
+			{"what": "bathtub", "h": 2, "chance": 0.6},
+			{"what": "shower"},
+			{"what": "bathtub", "h": 2},
+		]},
+		{"what": "washer", "chance": 0.35},
+		{"what": "dryer", "chance": 0.3},
+		{"what": "towels", "solid": false, "chance": 0.5},
+		{"what": "laundry_basket", "solid": false, "chance": 0.3},
+		{"what": "mirror", "wall": true, "chance": 0.5},
+	],
+	# A two-room house: the front room cooks and sits.
+	"living_kitchen": [
+		{"what": "fridge", "container": "fridge"},
+		{"what": "stove"},
+		{"what": "kitchen", "container": "kitchen"},
+		{"what": "sink", "chance": 0.7},
+		{"what": "sofa", "w": 2},
+		{"what": "tv_stand", "w": 2, "chance": 0.8},
+		{"what": "bookshelf", "container": "bookshelf", "chance": 0.7},
+		{"what": "armchair", "chance": 0.5},
+		{"what": "dining", "w": 2, "h": 1, "free": true, "chance": 0.7},
+		{"what": "houseplant", "solid": false, "chance": 0.4},
+		{"what": "painting", "wall": true},
+		{"what": "wall_clock", "wall": true, "chance": 0.5},
+	],
+	# ...and the back room sleeps and washes.
+	"bedroom_bath": [
+		{"one_of": [
+			{"what": "bed_double", "w": 2, "h": 2, "chance": 0.5},
+			{"what": "bed_single", "h": 2},
+			{"what": "bed_double", "w": 2, "h": 2},
+		]},
+		{"what": "nightstand", "container": "nightstand", "chance": 0.8},
+		{"one_of": [
+			{"what": "dresser", "container": "dresser", "chance": 0.6},
+			{"what": "wardrobe", "container": "wardrobe"},
+		]},
+		{"what": "toilet"},
+		{"what": "vanity", "container": "vanity"},
+		{"what": "bathtub", "h": 2, "chance": 0.5},
+		{"what": "painting", "wall": true, "chance": 0.6},
+		{"what": "mirror", "wall": true, "chance": 0.4},
+	],
+	# One room that is the whole house: a shack.
+	"studio": [
+		{"what": "bed_single", "h": 2},
+		{"what": "nightstand", "container": "nightstand", "chance": 0.6},
+		{"what": "fridge", "container": "fridge", "chance": 0.7},
+		{"what": "stove", "chance": 0.6},
+		{"what": "kitchen", "container": "kitchen", "chance": 0.6},
+		{"what": "cabinet", "container": "cabinet", "chance": 0.5},
+		{"what": "bookshelf", "container": "bookshelf", "chance": 0.4},
+		{"what": "toilet", "chance": 0.5},
+		{"what": "table_small", "free": true, "chance": 0.7},
+		{"what": "houseplant", "solid": false, "chance": 0.3},
+		{"what": "wall_clock", "wall": true, "chance": 0.4},
+	],
+	# A hunting cabin, a bunkhouse: beds, a stove, a locked box.
+	"cabin": [
+		{"one_of": [
+			{"what": "bunk_bed", "h": 2, "chance": 0.5},
+			{"what": "bed_single", "h": 2},
+		]},
+		{"what": "footlocker", "container": "footlocker"},
+		{"what": "cabinet", "container": "cabinet", "chance": 0.8},
+		{"what": "stove", "chance": 0.6},
+		{"what": "fridge", "container": "fridge", "chance": 0.6},
+		{"what": "kitchen", "container": "kitchen", "chance": 0.5},
+		{"what": "bookshelf", "container": "bookshelf", "chance": 0.4},
+		{"what": "gunSafe", "container": "gunSafe", "chance": 0.3},
+		{"what": "nightstand", "container": "nightstand", "chance": 0.4},
+		{"what": "table_small", "free": true, "chance": 0.6},
+		{"what": "space_heater", "solid": false, "chance": 0.3},
+		{"what": "painting", "wall": true, "chance": 0.4},
+	],
+}
+
+## What a building that is not a home has besides its cabinets, by its
+## FURNISHING key (`Furnish.dress`, after `_stock`): the same entries as
+## ROOMS. A shop has aisles, an office has desks, a barn a wheelbarrow.
+const DECOR := {
+	"schoolCafeteria": [
+		{"what": "dining", "w": 2, "h": 1, "free": true, "n": [3, 5]},
+		{"what": "trash_can", "solid": false, "n": [1, 2]},
+		{"what": "wall_clock", "wall": true},
+	],
+	"store": [
+		{"what": "grocery_shelf", "free": true, "run": [2, 4], "n": [2, 3]},
+		{"what": "display_fridge", "chance": 0.7},
+		{"what": "snack_display", "chance": 0.5},
+		{"what": "postcard_rack", "solid": false, "chance": 0.4},
+		{"what": "trash_can", "solid": false, "chance": 0.5},
+	],
+	"hardware": [
+		{"what": "pegboard", "n": [1, 2]},
+		{"what": "shelf_metal", "n": [1, 3]},
+		{"what": "craftsman_bench", "w": 2, "chance": 0.6},
+		{"what": "wheelbarrow", "chance": 0.5},
+		{"what": "propane_tank", "chance": 0.5},
+		{"what": "cardboard_box", "solid": false, "n": [1, 3]},
+	],
+	"pawn": [
+		{"what": "tv_retro", "chance": 0.6},
+		{"what": "floor_speaker", "chance": 0.5},
+		{"what": "painting", "wall": true, "n": [1, 2]},
+	],
+	"police": [
+		{"what": "water_cooler", "chance": 0.6},
+		{"what": "bench", "w": 2, "chance": 0.5},
+		{"what": "portrait", "wall": true, "chance": 0.7},
+		{"what": "wall_clock", "wall": true, "chance": 0.6},
+	],
+	"hospital": [
+		{"what": "bed_single", "h": 2, "n": [2, 4]},
+		{"what": "sink_pedestal", "chance": 0.5},
+		{"what": "towels", "solid": false, "chance": 0.5},
+		{"what": "wall_clock", "wall": true, "chance": 0.7},
+	],
+	"industrial": [
+		{"what": "shelf_metal", "n": [2, 4]},
+		{"what": "craftsman_bench", "w": 2, "chance": 0.5},
+		{"what": "propane_tank", "chance": 0.6},
+		{"what": "pegboard", "chance": 0.5},
+		{"what": "cardboard_box", "solid": false, "n": [2, 4]},
+	],
+	"military": [
+		{"what": "bunk_bed", "h": 2, "n": [1, 3]},
+		{"what": "shelf_metal", "chance": 0.7},
+		{"what": "propane_tank", "chance": 0.5},
+		{"what": "cardboard_box", "solid": false, "chance": 0.5},
+	],
+	"barn": [
+		{"what": "wheelbarrow", "chance": 0.7},
+		{"what": "pegboard", "chance": 0.5},
+		{"what": "propane_tank", "chance": 0.5},
+		{"what": "shelf_metal", "chance": 0.5},
+		{"what": "craftsman_bench", "w": 2, "chance": 0.4},
+	],
+	"farmstore": [
+		{"what": "pantry_shelf", "free": true, "run": [2, 3], "n": [1, 2]},
+		{"what": "wheelbarrow", "chance": 0.6},
+		{"what": "garden_pot", "solid": false, "n": [1, 3]},
+		{"what": "propane_tank", "chance": 0.5},
+	],
+	"lumber": [
+		{"what": "craftsman_bench", "w": 2, "chance": 0.7},
+		{"what": "pegboard", "chance": 0.6},
+		{"what": "shelf_metal", "chance": 0.5},
+		{"what": "cardboard_box", "solid": false, "chance": 0.4},
+	],
+	"junk": [
+		{"what": "shelf_metal", "chance": 0.6},
+		{"what": "tv_retro", "chance": 0.5},
+		{"what": "washer", "chance": 0.4},
+		{"what": "toilet", "chance": 0.3},
+		{"what": "space_heater", "solid": false, "chance": 0.4},
+		{"what": "cardboard_box", "solid": false, "n": [1, 3]},
+	],
+	"office": [
+		{"what": "water_cooler", "chance": 0.5},
+		{"what": "houseplant", "solid": false, "n": [1, 3]},
+		{"what": "portrait", "wall": true, "chance": 0.6},
+		{"what": "wall_clock", "wall": true, "chance": 0.6},
+		{"what": "cardboard_box", "solid": false, "chance": 0.3},
+	],
+	"bank": [
+		{"what": "water_cooler", "chance": 0.5},
+		{"what": "bench", "w": 2, "chance": 0.6},
+		{"what": "houseplant", "solid": false, "n": [1, 2]},
+		{"what": "portrait", "wall": true, "chance": 0.8},
+		{"what": "wall_clock", "wall": true},
+	],
+	"mall": [
+		{"what": "grocery_shelf", "free": true, "run": [2, 4], "n": [2, 4]},
+		{"what": "display_fridge", "n": [1, 2]},
+		{"what": "bench", "w": 2, "free": true, "n": [1, 3]},
+		{"what": "houseplant", "solid": false, "n": [2, 4]},
+		{"what": "trash_can", "solid": false, "n": [1, 3]},
+		{"what": "postcard_rack", "solid": false, "chance": 0.5},
+	],
+	"drugstore": [
+		{"what": "grocery_shelf", "free": true, "run": [2, 3], "n": [1, 2]},
+		{"what": "display_fridge", "chance": 0.8},
+		{"what": "snack_display", "chance": 0.5},
+	],
+	"gunshop": [
+		{"what": "pegboard", "n": [1, 2]},
+		{"what": "shelf_metal", "chance": 0.6},
+		{"what": "portrait", "wall": true, "chance": 0.5},
+	],
+}
+
+## What stands on a lot (`Furnish.yard`): the suburbs' table and the
+## country's, picked by weight. `solid: false` is a lawn ornament you walk
+## past.
+const YARD := {
+	"house": [
+		{"what": "swing_set", "w": 2, "weight": 8},
+		{"what": "slide", "w": 2, "weight": 5},
+		{"what": "trampoline", "w": 2, "h": 2, "weight": 5},
+		{"what": "pool", "w": 2, "h": 2, "weight": 5},
+		{"what": "hot_tub", "w": 2, "h": 2, "weight": 2},
+		{"what": "picnic_table", "w": 2, "weight": 8},
+		{"what": "patio_set", "w": 2, "weight": 6},
+		{"what": "sun_lounger", "weight": 3},
+		{"what": "dog_house", "weight": 7},
+		{"what": "clothesline", "weight": 6},
+		{"what": "drying_rack", "weight": 2},
+		{"what": "sandbox", "weight": 4},
+		{"what": "basketball_hoop", "weight": 5},
+		{"what": "birdbath", "weight": 4},
+		{"what": "wheelbarrow", "weight": 4},
+		{"what": "wagon", "weight": 3, "solid": false},
+		{"what": "lawn_flamingo", "weight": 4, "solid": false},
+		{"what": "garden_pot", "weight": 6, "solid": false},
+		{"what": "wheelie_bin", "weight": 6, "solid": false},
+		{"what": "patio_heater", "weight": 2},
+		{"what": "merry_go_round", "w": 2, "h": 2, "weight": 2},
+	],
+	"farm": [
+		{"what": "picnic_table", "w": 2, "weight": 6},
+		{"what": "clothesline", "weight": 8},
+		{"what": "dog_house", "weight": 7},
+		{"what": "wheelbarrow", "weight": 8},
+		{"what": "garden_pot", "weight": 5, "solid": false},
+		{"what": "kiln", "weight": 2},
+		{"what": "birdbath", "weight": 3},
+		{"what": "patio_set", "w": 2, "weight": 3},
+		{"what": "wagon", "weight": 4, "solid": false},
+		{"what": "propane_tank", "weight": 4},
 	],
 }

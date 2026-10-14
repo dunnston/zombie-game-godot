@@ -53,9 +53,10 @@ func test_the_school_stands_in_the_town_and_nothing_else_moved() -> void:
 	ok(not w.is_blocked_px(f.stand.x, f.stand.y), "somewhere to stand at the door")
 	eq(String(w.location_at_px(f.stand.x, f.stand.y).get("id", "")), "school")
 	# Stamped after the generator, so no draw on its RNG moved: the container
-	# count is the prototype's to the unit, and it is the most RNG-sensitive
-	# number the town has.
-	eq(w.containers.size(), 644, "every container where it was")
+	# count is the furnished town's to the unit (662 since the rooms were
+	# furnished, 2026-10-14; the prototype's 644 before), and it is the most
+	# RNG-sensitive number the town has.
+	eq(w.containers.size(), 662, "every container where it was")
 	ne(w.base_fingerprint, w.fingerprint(), "and the map is a different map")
 
 
