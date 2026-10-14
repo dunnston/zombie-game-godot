@@ -45,6 +45,18 @@ owner has chosen 3D for good.
   drop zone: gitignored, `.gdignore` so Godot does not import it. Game-ready
   copies live in `assets/models/` under game names. `Zombie Game Art/` is
   the reference art the bible points at: committed, `.gdignore`.
+- **Static props are sorted by where they stand** (2026-10-14):
+  `assets/models/props/<place>/<name>.glb`, thirteen places (`nature`,
+  `street`, `vehicles`, `yard`, `furniture`, `kitchen`, `bathroom`,
+  `utility`, `store`, `office`, `electronics`, `decor`, `small`), snake_case
+  names, `_2` for a variant. `assets/models/props/README.md` is the catalog:
+  every file against the Meshy export it came from, and the folder rules.
+  Every Meshy export is unit-normalised, so `StaticModel.fit` is the only
+  place a prop gets a size. **The props are not in git**: 1.4 GB is past the
+  LFS quota, so the folders and README are tracked and the `.glb`s are
+  ignored. `tools\pack_props.cmd` zips them into `props.zip` for a teammate,
+  who unzips it into `assets\models\`. A clone without them still plays: a
+  missing model draws as a box (`Models.scene` returns null).
 - **Enemy → model** is a view-side table in `src/stage/models.gd`, never
   content. Kinds without a model draw as a capsule in their 2D colour at
   their 2D radius.

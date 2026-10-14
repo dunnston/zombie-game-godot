@@ -3429,3 +3429,51 @@ until `Buildings3D` is rebuilt on the parts. PR #78 is a draft meanwhile.
   face you see; inside you stop 0.75 m short of it. To feel.
 - `tools/test`: 964 tests, 0 failures. 3D smoke leg: 8 checkpoints, 0
   failures. Tour 3 photographed eight buildings and a built wall run.
+
+## Furnished (2026-10-14) — the props go where they belong
+
+Owner: "replace the assets in my scene now with these in logical places.
+Houses should have kitchens and bathrooms and bedrooms, yards should have
+yard stuff. Trees, bushes, rocks, stumps and sticks scattered through the
+world. The farm should have the tractor and corn, the school lockers,
+school desks, executive desks; houses searchable file cabinets and
+kitchen cabinets and fridges. Not random: logical and realistic."
+
+**Shape.** The sim decides *what* stands where (it has to: furniture is
+solid, co-op mirrors the world from the seed, and a save keys containers
+by tile); the stage decides *what it looks like*. A house is furnished
+room by room from `Config.ROOMS`; its containers (fridge, dresser,
+vanity…) are placed by the same pass so a kitchen is a kitchen. The map's
+random details reshuffle once (the generator's RNG is consumed
+differently from the suburbs on); old saves are refused by the fingerprint
+with the existing message.
+
+- [ ] Commit the catalog work from the last session (README, `.gitignore`,
+      `pack_props.cmd`, doc rows) on the new branch
+- [ ] `StaticModel`: fit into a box (footprint *and* height), the pure
+      transform split out; a model's meshes with their relative transforms,
+      cached, for MultiMesh use
+- [ ] `PropModels` (view table): prop kind/variant → model + box + facing
+      fix; container kind → model; car `si` → model; composites (a desk
+      with its chair)
+- [ ] `Props3D`: one MultiMesh per model per 32-tile chunk (frustum culling
+      and LOD need chunks; 11k trees of real meshes cannot be one batch);
+      the primitive stand-in stays for anything without a file
+- [ ] `Vehicles3D`: cars are the vehicle models; a wreck is a prop already
+- [ ] `World`: `buildings` records (rect, partitions, doors, use);
+      `_house` furnishes by room; yards; stumps and logs in the woodland
+      pass; the farms' tractors and corn; decor in the other building kinds
+      (offices, stores, school rooms, barns, barracks)
+- [ ] `Furnish` (sim, RefCounted): room roles, recipes, placement against
+      walls facing in, and the one rule that keeps the game playable: a
+      piece that would cut a room in two or strand a container is not placed
+- [ ] 2D stage draws the new kinds as boxes (it is frozen, not broken)
+- [ ] Tests: every house has a bed, a kitchen a fridge, a bathroom a
+      toilet; every free floor tile of every building reachable from its
+      door; nothing beside a doorway; yard pieces on grass and never on the
+      path from the door; corn only on fields; every model path in the
+      table is in the catalog README; the fit maths
+- [ ] Render probe: contact sheets per folder from the game camera, and
+      landmark shots (camp shack, a suburb house, the farm, a classroom)
+- [ ] `tools\test`, 3D smoke leg when the machine is idle
+- [ ] PROJECT.md §4, §6, §11; `tasks/3d-conversion.md`
