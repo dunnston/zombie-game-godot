@@ -2,9 +2,11 @@ class_name Terrain3D
 extends Node3D
 ## The town, standing up. The ground is one quad over the whole world whose
 ## shader looks every tile up in a cell texture (`shaders/ground.gdshader`);
-## walls, roofs and fences are one MultiMesh of boxes topped with the same
-## atlas art (`shaders/block.gdshader`). Both read the tile's picture from
+## roof blocks (a building you cannot enter, the dark around an instance's
+## rooms) and fences are one MultiMesh of boxes topped with the same atlas
+## art (`shaders/block.gdshader`). Both read the tile's picture from
 ## `TerrainRenderer.cell_art`, so this is the 2D town's picture with height.
+## House walls are `Buildings3D`'s, dressed with the building kit.
 ##
 ## Built once from the sim's tiles; `repaint` changes one tile (a house wall
 ## broken open) without touching the rest, exactly as the 2D layers do.
@@ -64,10 +66,10 @@ func build(world: World) -> void:
 		for tx in range(W):
 			var i := ty * W + tx
 			var art := TerrainRenderer.cell_art(world, tx, ty)
-			var c: Vector2i = art.cell
+			var c: Vector2i = _ground_cell(world, tx, ty, art)
 			data[i * 2] = c.x
 			data[i * 2 + 1] = c.y
-			if art.standing or art.t == T.FENCE:
+			if art.t == T.ROOF or art.t == T.FENCE:
 				standing.append(Vector3i(tx, ty, i))
 	_cells = Image.create_from_data(W, W, false, Image.FORMAT_RG8, data)
 	_cells_tex = ImageTexture.create_from_image(_cells)
@@ -92,14 +94,37 @@ func repaint(world: World, tx: int, ty: int) -> void:
 		return
 	var i := ty * W + tx
 	var art := TerrainRenderer.cell_art(world, tx, ty)
-	var c: Vector2i = art.cell
+	var c: Vector2i = _ground_cell(world, tx, ty, art)
 	_cells.set_pixel(tx, ty, Color8(c.x, c.y, 0))
 	_cells_tex.update(_cells)
 	if _block_of.has(i):
-		if art.standing or art.t == T.FENCE:
+		if art.t == T.ROOF or art.t == T.FENCE:
 			_place_block(world, int(_block_of[i]), tx, ty)
 		else:
 			blocks.multimesh.set_instance_transform(int(_block_of[i]), Transform3D(Basis().scaled(Vector3.ZERO), Vector3(tx + 0.5, -1.0, ty + 0.5)))
+
+
+## The ground under a tile. A house wall is a thin panel on its tile's outer
+## edge now (`Buildings3D`), so the tile under it shows: it takes the floor
+## beside it, and the room runs to the wall. A wall with ground on both
+## sides takes the most indoor of them (a floor over dirt over gravel over
+## a lot), so the military hut's tiles beat the compound's gravel (Codex).
+const INDOORS := [T.FLOOR_TILE, T.FLOOR_WOOD, T.DIRT, T.GRAVEL, T.LOT]
+
+static func _ground_cell(world: World, tx: int, ty: int, art: Dictionary) -> Vector2i:
+	if int(art.t) != T.WALL:
+		return art.cell
+	var best := Vector2i(-1, -1)
+	var rank := INDOORS.size()
+	for d: Vector2i in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]:
+		var n := world.tile(tx + d.x, ty + d.y)
+		var r := INDOORS.find(n)
+		if r >= 0 and r < rank:
+			rank = r
+			best = Vector2i(tx + d.x, ty + d.y)
+	if best.x < 0:
+		return art.cell
+	return TerrainRenderer.cell_art(world, best.x, best.y).cell
 
 
 func _place_block(world: World, n: int, tx: int, ty: int) -> void:

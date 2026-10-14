@@ -534,6 +534,9 @@ func _smoke_3d(smoke: Node) -> void:
 	if s3 == null:
 		smoke.fail("the 3d leg is running on a stage that is not Stage3D")
 		return
+	if "--tour" in OS.get_cmdline_user_args():
+		await _smoke_tour(smoke, s3)
+		return
 	var p := sim.players[0]
 	smoke_teleport(120, 160)
 	sim.enemies.list.clear()
@@ -617,6 +620,26 @@ func _smoke_3d(smoke: Node) -> void:
 	await smoke.checkpoint("3d_build_ghost")
 	build_bar.toggle()
 	await smoke.frames(2)
+	# The starter house at (150, 150), dressed with the building kit: seen
+	# from the street with its roof on, then from inside with it off.
+	var house := s3.buildings.plan.inside(Vector2i(153, 153))
+	if house < 0:
+		smoke.fail("the 8x7 house at (150, 150) is not a building to the stage")
+	for piece: String in Buildings3D.PARTS:
+		if not s3.buildings._mmi.has(piece):
+			smoke.fail("the town uses no '%s' part" % piece)
+	smoke_teleport(146, 158)
+	await smoke.frames(20)
+	if house >= 0 and not s3.buildings.roof_visible(house):
+		smoke.fail("from the street the house has no roof")
+	await smoke.checkpoint("3d_house")
+	smoke_teleport(153, 153)
+	await smoke.frames(20)
+	if house >= 0 and s3.buildings.roof_visible(house):
+		smoke.fail("inside the house its roof is still on")
+	await smoke.checkpoint("3d_house_inside")
+	smoke_teleport(120, 160)
+	await smoke.frames(10)
 	# Night, and the torch the dark lights.
 	sim.clock.t = 0.82
 	sim.clock.phase = "day"
@@ -3373,3 +3396,40 @@ func rebound_pressed(code: int) -> InputEventKey:
 	ev.keycode = code
 	ev.pressed = true
 	return ev
+
+
+## `--smoke --tour`: no checks, only pictures. Stands outside and then
+## inside a handful of the town's buildings and photographs each, and lays
+## a run of built walls on the street, so the building kit can be looked
+## at without walking the whole town by hand.
+func _smoke_tour(smoke: Node, s3: Stage3D) -> void:
+	var p := sim.players[0]
+	sim.enemies.list.clear()
+	var stops := {
+		"house": Rect2i(150, 150, 8, 7), "hardware": Rect2i(196, 136, 20, 14),
+		"hospital": Rect2i(94, 192, 30, 22), "tower": Rect2i(242, 134, 18, 20),
+		"school_shell": Rect2i(116, 64, 24, 18), "warehouse": Rect2i(144, 200, 26, 20),
+		"barn": Rect2i(34, 72, 14, 10), "farmhouse": Rect2i(8, 74, 12, 9),
+	}
+	for name: String in stops:
+		var r: Rect2i = stops[name]
+		smoke_teleport(r.position.x + r.size.x / 2, r.end.y + 3)
+		await smoke.frames(20)
+		await smoke.checkpoint("tour_%s_out" % name)
+		if name == "school_shell":
+			continue
+		smoke_teleport(r.position.x + r.size.x / 2, r.position.y + r.size.y / 2)
+		await smoke.frames(20)
+		await smoke.checkpoint("tour_%s_in" % name)
+	# A run of wood walls with a corner, on the street south of the house.
+	smoke_teleport(146, 160)
+	p.bag.add("wood", 400)
+	await smoke.frames(5)
+	for t: Vector2i in [Vector2i(148, 161), Vector2i(149, 161), Vector2i(150, 161), Vector2i(151, 161), Vector2i(151, 160), Vector2i(151, 159)]:
+		smoke_clear_tile(t)
+		sim.structs.place(sim, "woodWall", t.x, t.y, p)
+	await smoke.frames(20)
+	await smoke.checkpoint("tour_built_walls")
+	sim.enemies.list.clear()
+	if s3.buildings.plan.rects.is_empty():
+		smoke.fail("the tour found no buildings")

@@ -96,6 +96,17 @@ this screen size. **One skeleton for every humanoid** (player, survivors,
 human zombies) so clips and props are shared; the Butcher gets his own.
 Export GLB with the skeleton, real-world metres, feet at the origin.
 
+**Buildings.** Not generated: `tools/build_kit.py` (Blender, headless via
+`tools\build_kit.cmd`) writes `assets/models/buildings/parts.blend` (the parts
+on a labelled grid, to open and look at), `parts.glb` (the same parts for the
+game) and `parts_sheet.png` (a render). A 3 m storey, a 0.25 m wall, a 1 m
+grid; flat colours named by swatch; clapboard as lapped boards. The stage
+lays the parts along the walls the generator made and builds the roofs
+itself (PROJECT.md §4, *The building parts*). A new part is a function in
+that script; a new look is a material swap or a row in `FacadeArt.STYLES`.
+A built base wall is the house panel in another material, never a part of
+its own.
+
 **Weapons.** One prop each. Origin at the grip, barrel or blade along -Z.
 Attached to `mixamorig:RightHand`; two-handed guns place the left hand by
 animation.
@@ -185,7 +196,12 @@ into `Structures3D` through `StaticModel.fit` rather than waiting for phase 3.
 - The toon + outline shader (bible: 2–3 hard tones, `#2F292B` line).
 - Weapon props on the hand bone from the owner's pipeline.
 - Armour as rigid props (head, body, legs, feet, offhand).
-- Real meshes for containers, trees, cars, structures.
+- Real meshes for containers, trees, cars, structures. **Buildings: done
+  (2026-10-13)** — the building parts (`tools/build_kit.py`, `BuildingPlan`,
+  `Buildings3D`; PROJECT.md §4 *The building parts*): Synty-style facades,
+  windows, door trim, corner boards, canopies and a gable roof per
+  building that comes off while you are inside. Still to come on it: the
+  base walls dressed with the kit, chimneys, hip roofs, dormers.
 - Survivors and the remaining enemy kinds as the owner generates them.
 - Butcher and Coach.
 - Day-night colour grading.

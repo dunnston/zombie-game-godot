@@ -12,6 +12,7 @@ extends Stage
 
 var world3: Node3D
 var terrain: Terrain3D
+var buildings: Buildings3D
 var actors: Actors3D
 var structures: Structures3D
 var props: Props3D
@@ -34,6 +35,7 @@ var _dist := 30.0
 var label_reach := 1400.0
 var _shake_rng := RandomNumberGenerator.new()
 var _pitch := 0.0
+var _buildings_dirty := false
 
 
 func _init(sim_: GameSim) -> void:
@@ -48,6 +50,8 @@ func _init(sim_: GameSim) -> void:
 	world3.add_child(lights)
 	terrain = Terrain3D.new()
 	world3.add_child(terrain)
+	buildings = Buildings3D.new()
+	world3.add_child(buildings)
 	props = Props3D.new(sim)
 	world3.add_child(props)
 	doors = Doors3D.new(sim)
@@ -83,6 +87,7 @@ func _init(sim_: GameSim) -> void:
 
 func build() -> void:
 	terrain.build(sim.world)
+	buildings.build(sim.world)
 	props.rebuild()
 	doors.rebuild()
 	camera.make_current()
@@ -92,6 +97,7 @@ func build() -> void:
 
 func rebuild() -> void:
 	terrain.build(sim.world)
+	buildings.build(sim.world)
 	props.rebuild()
 	doors.rebuild()
 	actors.rebuild()
@@ -104,13 +110,18 @@ func rebuild_props() -> void:
 	props.rebuild()
 
 
+## A wall broken open, on the host from its event and on a guest from the
+## host's world update (`main._after_guest_step`): the ground cell now, the
+## buildings once this tick, however many walls went in one update.
 func repaint(tx: int, ty: int) -> void:
 	terrain.repaint(sim.world, tx, ty)
+	_buildings_dirty = true
 
 
 func set_local(p: PlayerSim) -> void:
 	local = p
 	actors.local = p
+	buildings.local = p
 	labels.local = p
 
 
@@ -129,12 +140,16 @@ func on_event(ev: Dictionary) -> void:
 
 
 func tick(dt: float) -> void:
+	if _buildings_dirty:
+		_buildings_dirty = false
+		buildings.build(sim.world)
 	fx.tick(dt)
 	boss.tick(dt)
 	lights.tick(dt)
 	actors.frame(dt)
 	props.frame(dt)
 	structures.frame()
+	buildings.frame()
 	pickups.frame()
 	vehicles.frame()
 	survivors.frame()

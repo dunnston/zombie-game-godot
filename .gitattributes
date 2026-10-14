@@ -6,6 +6,7 @@
 assets/models/**/*.glb filter=lfs diff=lfs merge=lfs -text
 assets/models/**/*.jpg filter=lfs diff=lfs merge=lfs -text
 assets/models/**/*.png filter=lfs diff=lfs merge=lfs -text
+assets/models/**/*.blend filter=lfs diff=lfs merge=lfs -text
 
 # The clip libraries `tools/build_anims.gd` bakes beside them: binary, a megabyte each, rebuilt
 # whenever a clip changes.
