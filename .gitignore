@@ -44,3 +44,4 @@ assets/models/buildable_props/
 
 # Blender save backups
 *.blend1
+.lab/

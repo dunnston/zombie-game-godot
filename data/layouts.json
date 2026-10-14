@@ -1,0 +1,498 @@
+{
+  "fields": {
+    "floor": {
+      "one_of": [
+        "wood",
+        "tile",
+        "dirt",
+        "gravel"
+      ],
+      "type": "string"
+    },
+    "map": {
+      "type": "list<string>"
+    },
+    "things": {
+      "fields": {
+        "container": {
+          "ref": "CONTAINERS",
+          "type": "string"
+        },
+        "d": {
+          "type": "int"
+        },
+        "h": {
+          "type": "int"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "solid": {
+          "type": "bool"
+        },
+        "w": {
+          "type": "int"
+        },
+        "what": {
+          "type": "string"
+        },
+        "x": {
+          "type": "int"
+        },
+        "y": {
+          "type": "int"
+        }
+      },
+      "type": "list<object>"
+    },
+    "use": {
+      "type": "string"
+    }
+  },
+  "notes": "Hand-laid buildings (Layout). `map` is one string per row of tiles: # wall, . floor, + a doorway in the outer wall, - an opening in a partition, space for nothing. A thing is its top-left tile `x`,`y` in the map, `w` across its face and `h` deep in tiles, `d` the way it faces in quarter turns from south (0 S, 1 E, 2 N, 3 W); `container` makes it a searchable container of that kind, `kind` \"wall\" hangs it on a wall tile facing the room, `solid` false lets you walk over it. Rows are written by tools/import_layout from a plan in metres and looked at in the lab (tools/lab) before the town stamps them.",
+  "rows": [
+    {
+      "floor": "wood",
+      "id": "draft01_ground",
+      "map": [
+        "############++#",
+        "#....#..#.....#",
+        "#....-..#.....#",
+        "#....-..#.....#",
+        "#....#--#.....#",
+        "#....#..-.....#",
+        "#--###..-.....#",
+        "#....#..#.....#",
+        "#....#..#--#--#",
+        "#....-..#..#..#",
+        "#....-..#..#..#",
+        "#....#..#..#..#",
+        "#....#..#..#..#",
+        "######++#######"
+      ],
+      "notes": "Imported by tools/import_layout from House_Interior_Claude_Package.zip (floor 0) on 2026-10-14.",
+      "things": [
+        {
+          "d": 2,
+          "h": 1,
+          "w": 2,
+          "what": "sofa",
+          "x": 3,
+          "y": 11
+        },
+        {
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "what": "coffee_table",
+          "x": 3,
+          "y": 10
+        },
+        {
+          "d": 0,
+          "h": 1,
+          "w": 2,
+          "what": "tv_stand",
+          "x": 3,
+          "y": 7
+        },
+        {
+          "d": 1,
+          "h": 1,
+          "w": 1,
+          "what": "armchair",
+          "x": 1,
+          "y": 9
+        },
+        {
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "what": "table_small",
+          "x": 1,
+          "y": 11
+        },
+        {
+          "d": 2,
+          "h": 2,
+          "solid": false,
+          "w": 2,
+          "what": "rug",
+          "x": 2,
+          "y": 8
+        },
+        {
+          "d": 2,
+          "h": 1,
+          "w": 2,
+          "what": "dining",
+          "x": 2,
+          "y": 3
+        },
+        {
+          "container": "cabinet",
+          "d": 1,
+          "h": 1,
+          "w": 1,
+          "x": 1,
+          "y": 2
+        },
+        {
+          "container": "cabinet",
+          "d": 1,
+          "h": 1,
+          "w": 1,
+          "x": 6,
+          "y": 9
+        },
+        {
+          "d": 3,
+          "h": 1,
+          "w": 2,
+          "what": "bench",
+          "x": 7,
+          "y": 11
+        },
+        {
+          "container": "fridge",
+          "d": 3,
+          "h": 1,
+          "w": 1,
+          "x": 13,
+          "y": 7
+        },
+        {
+          "d": 3,
+          "h": 1,
+          "w": 1,
+          "what": "stove",
+          "x": 13,
+          "y": 5
+        },
+        {
+          "container": "kitchen",
+          "d": 3,
+          "h": 1,
+          "w": 1,
+          "x": 13,
+          "y": 3
+        },
+        {
+          "d": 3,
+          "h": 1,
+          "w": 1,
+          "what": "sink",
+          "x": 13,
+          "y": 2
+        },
+        {
+          "container": "kitchen",
+          "d": 3,
+          "h": 1,
+          "w": 1,
+          "x": 13,
+          "y": 1
+        },
+        {
+          "container": "kitchen",
+          "d": 0,
+          "h": 1,
+          "w": 1,
+          "x": 9,
+          "y": 1
+        },
+        {
+          "container": "kitchen",
+          "d": 0,
+          "h": 1,
+          "w": 1,
+          "x": 10,
+          "y": 1
+        },
+        {
+          "d": 3,
+          "h": 1,
+          "w": 2,
+          "what": "island",
+          "x": 10,
+          "y": 3
+        },
+        {
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "what": "toilet",
+          "x": 10,
+          "y": 12
+        },
+        {
+          "container": "vanity",
+          "d": 1,
+          "h": 1,
+          "w": 1,
+          "x": 9,
+          "y": 10
+        },
+        {
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "what": "washer",
+          "x": 12,
+          "y": 12
+        },
+        {
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "what": "dryer",
+          "x": 13,
+          "y": 12
+        },
+        {
+          "container": "cabinet",
+          "d": 3,
+          "h": 1,
+          "w": 1,
+          "x": 13,
+          "y": 10
+        },
+        {
+          "d": 2,
+          "h": 1,
+          "solid": false,
+          "w": 1,
+          "what": "laundry_basket",
+          "x": 12,
+          "y": 10
+        }
+      ],
+      "use": "house"
+    },
+    {
+      "floor": "wood",
+      "id": "draft01_upper",
+      "map": [
+        "###############",
+        "#....#..#.....#",
+        "#....-..-.....#",
+        "#....-..-.....#",
+        "#....#--#.....#",
+        "#....#..#.....#",
+        "######..#--#--#",
+        "#....#..#..#..#",
+        "#....-..#..#..#",
+        "#....-..#######",
+        "#....#..-.....#",
+        "#....#..-.....#",
+        "######++#######"
+      ],
+      "notes": "Imported by tools/import_layout from House_Interior_Claude_Package.zip (floor 1) on 2026-10-14.",
+      "things": [
+        {
+          "d": 2,
+          "h": 2,
+          "w": 1,
+          "what": "bed_single",
+          "x": 2,
+          "y": 10
+        },
+        {
+          "container": "nightstand",
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "x": 1,
+          "y": 11
+        },
+        {
+          "container": "desk",
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "x": 4,
+          "y": 11
+        },
+        {
+          "container": "dresser",
+          "d": 1,
+          "h": 1,
+          "w": 1,
+          "x": 1,
+          "y": 8
+        },
+        {
+          "container": "wardrobe",
+          "d": 0,
+          "h": 1,
+          "w": 1,
+          "x": 3,
+          "y": 7
+        },
+        {
+          "d": 0,
+          "h": 2,
+          "w": 1,
+          "what": "bed_single",
+          "x": 2,
+          "y": 1
+        },
+        {
+          "container": "nightstand",
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "x": 1,
+          "y": 1
+        },
+        {
+          "container": "desk",
+          "d": 0,
+          "h": 1,
+          "w": 1,
+          "x": 4,
+          "y": 1
+        },
+        {
+          "container": "dresser",
+          "d": 1,
+          "h": 1,
+          "w": 1,
+          "x": 1,
+          "y": 5
+        },
+        {
+          "container": "wardrobe",
+          "d": 3,
+          "h": 1,
+          "w": 1,
+          "x": 4,
+          "y": 3
+        },
+        {
+          "d": 0,
+          "h": 2,
+          "w": 2,
+          "what": "bed_double",
+          "x": 10,
+          "y": 1
+        },
+        {
+          "container": "nightstand",
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "x": 9,
+          "y": 1
+        },
+        {
+          "container": "nightstand",
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "x": 13,
+          "y": 1
+        },
+        {
+          "container": "dresser",
+          "d": 3,
+          "h": 1,
+          "w": 1,
+          "x": 13,
+          "y": 3
+        },
+        {
+          "container": "cabinet",
+          "d": 1,
+          "h": 1,
+          "w": 1,
+          "x": 6,
+          "y": 11
+        },
+        {
+          "d": 3,
+          "h": 1,
+          "w": 2,
+          "what": "bench",
+          "x": 7,
+          "y": 7
+        },
+        {
+          "d": 3,
+          "h": 2,
+          "w": 1,
+          "what": "bathtub",
+          "x": 12,
+          "y": 10
+        },
+        {
+          "d": 0,
+          "h": 1,
+          "w": 1,
+          "what": "toilet",
+          "x": 11,
+          "y": 10
+        },
+        {
+          "container": "vanity",
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "x": 9,
+          "y": 11
+        },
+        {
+          "d": 2,
+          "h": 1,
+          "kind": "wall",
+          "w": 1,
+          "what": "mirror",
+          "x": 10,
+          "y": 12
+        },
+        {
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "what": "shower",
+          "x": 9,
+          "y": 8
+        },
+        {
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "what": "toilet",
+          "x": 10,
+          "y": 8
+        },
+        {
+          "container": "vanity",
+          "d": 3,
+          "h": 1,
+          "w": 1,
+          "x": 10,
+          "y": 7
+        },
+        {
+          "container": "wardrobe",
+          "d": 3,
+          "h": 1,
+          "w": 1,
+          "x": 13,
+          "y": 8
+        },
+        {
+          "container": "bookshelf",
+          "d": 2,
+          "h": 1,
+          "w": 1,
+          "x": 12,
+          "y": 8
+        }
+      ],
+      "use": "house"
+    }
+  ],
+  "shape": "by_id"
+}

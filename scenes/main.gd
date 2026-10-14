@@ -58,7 +58,16 @@ var at_title := false
 func _ready() -> void:
 	var t0 := Time.get_ticks_msec()
 	sim = GameSim.new()
-	sim.new_game(WORLD_SEED)
+	var lab := user_arg("--lab=")
+	if lab.is_empty():
+		sim.new_game(WORLD_SEED)
+	else:
+		# The lab: one hand-laid building alone on a lawn, nobody coming
+		# (`World._generate_lab`, `toolsab.cmd`).
+		sim.start(World.new(WORLD_SEED, "lab:" + lab))
+		sim.peaceful = true
+		sim.enemies.list.clear()
+		sim.crew.rescues.clear()
 	var t1 := Time.get_ticks_msec()
 
 	# The stage is the first child: everything it draws sits under the HUD's
@@ -67,6 +76,8 @@ func _ready() -> void:
 	stage = _make_stage()
 	add_child(stage)
 	stage.build()
+	if not lab.is_empty() and stage is Stage3D:
+		(stage as Stage3D).distance_mul = float(Config.LAB.camera_mul)
 	var t2 := Time.get_ticks_msec()
 
 	var layer := CanvasLayer.new()
@@ -115,11 +126,46 @@ func _ready() -> void:
 	# The smoke run drives the game directly and has no business clicking
 	# through a title screen, so it starts in the world it was given. Everybody
 	# else gets a front door.
-	if Smoke.enabled:
+	if Smoke.enabled or not lab.is_empty():
 		menu.visible = false
 	else:
 		_enter_title()
 	print("boot: world %d ms, %s stage %d ms, props %d, containers %d" % [t1 - t0, Stage.pick(), t2 - t1, sim.world.props.size(), sim.world.containers.size()])
+	if not lab.is_empty() and not user_arg("--shot=").is_empty():
+		_lab_shot(user_arg("--shot="))
+
+
+## The value of a `--name=value` user argument, or "" when it was not given.
+static func user_arg(prefix: String) -> String:
+	for a in OS.get_cmdline_user_args():
+		if String(a).begins_with(prefix):
+			return String(a).trim_prefix(prefix)
+	return ""
+
+
+## Photographs the lab from inside its building and quits: the roof comes
+## off once the local player is indoors, and the models want a few frames
+## to load. Exit code 1 if the file could not be written, so the launcher
+## can say so.
+func _lab_shot(path: String) -> void:
+	await get_tree().process_frame
+	var b: Dictionary = sim.world.buildings[0]
+	var r: Rect2i = b.rect
+	var mid := Vector2(r.position.x + r.size.x / 2.0, r.position.y + r.size.y / 2.0)
+	var best := Vector2i(-1, -1)
+	for t: Vector2i in b.interior:
+		if sim.world.blocked[t.y * Config.WORLD_TILES + t.x]:
+			continue
+		if best.x < 0 or Vector2(t).distance_squared_to(mid) < Vector2(best).distance_squared_to(mid):
+			best = t
+	if best.x >= 0:
+		smoke_teleport(best.x, best.y)
+	for i in range(40):
+		await get_tree().process_frame
+	var img := get_viewport().get_texture().get_image()
+	var err := img.save_png(path)
+	print("LAB shot %s: %s" % [path, error_string(err)])
+	get_tree().quit(0 if err == OK else 1)
 
 
 ## The stage `Stage.pick()` names. An unknown word is a typo in a const or

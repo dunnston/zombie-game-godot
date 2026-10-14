@@ -648,3 +648,11 @@ it is one with a level and a condition on it, run against the old code first.
   furniture had to cross the room, three buildings failed. A rule that
   only furniture obeyed would have left the cabinets as the exception;
   the rule went into `_stock` too.
+
+## Windowed runs take the owner's screen (2026-10-14)
+
+- The lab's `--shot` is a windowed Godot run like the smoke: it takes the
+  focus for a few seconds. The owner said "don't run smoke tests right
+  now" while one was up. Treat every windowed run as the smoke: only when
+  the owner is idle or has said so, and never more than once to confirm
+  what a headless check already says.

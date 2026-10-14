@@ -110,6 +110,8 @@ func _init(seed_value: int = 20240917, layout_: String = "town") -> void:
 		_generate()
 		base_fingerprint = _hash()
 		_gen_instances()
+	elif layout.begins_with("lab:"):
+		_generate_lab(layout.trim_prefix("lab:"))
 	else:
 		_generate_instance()
 	_take_fingerprint()
@@ -901,6 +903,32 @@ func _door(r: Rect2i, kind: String) -> Dictionary:
 
 static func _centre_px(r: Rect2i) -> Vector2:
 	return Vector2((r.position.x + r.size.x / 2.0) * TILE, (r.position.y + r.size.y / 2.0) * TILE)
+
+
+## The lab (`toolsab.cmd`, 2026-10-14): one hand-laid building
+## (`Layout`, `Config.LAYOUTS`) alone on a lawn with a road in front, so
+## the owner can walk through a layout and confirm it before the town
+## gets it. The party wakes at its door. Nothing else is here: no
+## districts, no woods, and the sim runs it peaceful.
+func _generate_lab(id: String) -> void:
+	if not Config.LAYOUTS.has(id):
+		push_error("no layout called '%s' in data/layouts.json" % id)
+		return
+	var row: Dictionary = Config.LAYOUTS[id]
+	var sz := Layout.size(row)
+	var bx := W / 2 - sz.x / 2
+	var by := W / 2 - sz.y / 2
+	_fill(0, by + sz.y + 3, W, 1, T.SIDEWALK)
+	_fill(0, by + sz.y + 4, W, 3, T.ROAD)
+	var b := Layout.stamp(self, bx, by, id)
+	locations.append({"id": "lab", "name": id.to_upper(), "tier": 1, "rect": b.rect, "desc": "The lab.", "discovered": true})
+	spawn_tiles.clear()
+	for d: Vector2i in b.doors:
+		var t: Vector2i = d + Layout.outward(b.rect, d) * 2
+		if in_bounds(t.x, t.y):
+			spawn_tiles.append(t)
+	if spawn_tiles.is_empty():
+		spawn_tiles.append(Vector2i(bx + sz.x / 2, by + sz.y + 2))
 
 
 ## The inside of an instance. Everything outside its rooms is solid roof, the

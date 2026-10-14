@@ -28,6 +28,9 @@ var fx: Fx3DOverlay
 var boss: Boss3DOverlay
 var labels: Labels3D
 
+## The lab stands the camera further back than the game does, so a whole
+## house fits the picture (`main.gd --lab`). One everywhere else.
+var distance_mul := 1.0
 ## Where the camera looks, in sim pixels, and how far back it stands.
 var focus := Vector2.ZERO
 var _dist := 30.0
@@ -170,7 +173,7 @@ func snap(pos: Vector2) -> void:
 func follow(dt: float, p: PlayerSim, boss_: EnemySim, shake: float) -> void:
 	var f := frame_for(p, cursor_world(), boss_)
 	focus = _within_world(focus.lerp(f.focus, Util.smooth(Config.CAMERA.follow, dt)))
-	var want := float(Config.CAMERA3D.distance) / float(f.zoom_mul)
+	var want := float(Config.CAMERA3D.distance) * distance_mul / float(f.zoom_mul)
 	_dist = lerpf(_dist, want, Util.smooth(5.0, dt))
 	_place_camera()
 	if shake > 0.0:

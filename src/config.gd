@@ -377,6 +377,9 @@ const STAGE_UNITS := 32.0
 ## up on screen as it is in 2D. `follow`, `lead` and the arena pull-out are
 ## `CAMERA`'s. `distance` plays the part zoom does: the arena divides it.
 const CAMERA3D := {"pitch": 52.0, "fov": 30.0, "distance": 30.0, "edge": 12.0}
+## The layout lab (`toolsab`): how much further back its camera stands,
+## so a whole house is in the picture.
+const LAB := {"camera_mul": 1.8}
 
 ## The 3D stage's shapes, in metres: how tall a house wall, a roof block and
 ## a fence stand, and how far above the ground a carried light floats. A
@@ -2150,6 +2153,12 @@ static var LOOT: Dictionary = DataTable.load_table("loot")
 ## notes moved with it — the file's `notes`, and each row's — and the editor
 ## (`tools\edit`) is where it is changed. See `DataTable` for the rules.
 static var CONTAINERS: Dictionary = DataTable.load_table("containers")
+
+## The LAYOUTS table is data: `data/layouts.json`, one hand-laid building
+## per row (`Layout`: a tile map and a list of things), written by
+## `toolsimport_layout` from a plan in metres and looked at in the lab
+## (`toolsab`) before the town stamps it. See `DataTable` for the rules.
+static var LAYOUTS: Dictionary = DataTable.load_table("layouts")
 
 ## What furnishes each kind of building, as [kind, weight] picks. A house
 ## fills with wardrobes and a precinct with filing cabinets, so a building's
