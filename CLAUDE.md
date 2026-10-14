@@ -36,10 +36,13 @@ and do the first step only unless told otherwise. `2d-final` is the tag.
 
 - The Godot MCP (`run_project`, `get_debug_output`) reads `GODOT_PATH` from `~/.claude.json`.
 - **The town's buildings are dressed by the view** (`BuildingPlan`, `Buildings3D`)
-  with a kit built in Blender: `.	oolsuild_kit.cmd` rewrites
-  `assets/models/buildings/kit.glb` from `tools/build_kit.py`. The target look is
-  Synty's POLYGON Town Pack (owner, 2026-10-13). New wall pieces go in that
-  script, new colours in `FacadeArt.STYLES`; never hand-place a house.
+  from a parts kit built in Blender: `.\tools\build_kit.cmd` rewrites
+  `assets/models/buildings/parts.blend` (open it to see every part), `parts.glb`
+  and `parts_sheet.png` from `tools/build_kit.py`. The target look is Synty's
+  POLYGON Town Pack (owner, 2026-10-13). New parts go in that script, new
+  colours in `FacadeArt`; never hand-place a house; a built base wall is the
+  house panel in another material, never a part of its own; no roof is ever
+  drawn inside another building (the owner's deal).
 - **Content lives in `data/`** and is edited with the local editor: the owner
   double-clicks `Content Editor.cmd` in the project folder (it calls
   `tools\edit.cmd`; PROJECT.md §10, *Editing content*). The owner's shell is Windows

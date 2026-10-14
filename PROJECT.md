@@ -316,57 +316,73 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
-### The building kit (2026-10-13)
+### The building parts (2026-10-13)
 
-The town's buildings on the 3D stage, dressed the way Synty's POLYGON
-Town Pack builds a house and painted the way the bible's reference house
-is: wide clapboard facades, windows and door trim as inserts, a brick
-skirt, a frieze under the eave, corner boards, a canopy over the door and
-a shingled gable roof. The owner's brief: the 1 m wall blocks were "too
-thin and square"; the target is that pack (`tasks/todo.md`, *The building
-kit*).
+The town's buildings on the 3D stage, built from a parts kit the way
+Synty's POLYGON Town Pack builds a house: flat-coloured siding panels with
+cut-outs, windows and doors as inserts that drop into them, corner posts, a
+canopy over the door, a gable roof per building. The owner's brief: the
+1 m wall blocks were "too thin and square", the target is that pack, and
+every part was to be made in Blender and looked at before any scene was
+built (`tasks/todo.md`, *The building kit* and what followed).
 
-- **The sim is untouched.** Buildings were always rectangles of 1 m WALL
-  tiles with 2-tile doorways (`World._building`); collision is still one
-  solid tile. **`BuildingPlan`** (`src/stage/building_plan.gd`, no nodes)
-  reads them: every eight-connected run of walls is a building and its
-  bounding box its rectangle; a panel on each outward face, a window on
-  every third tile of a side (centred, never a corner, never beside a
-  doorway), trim in the reveals beside a doorway, a corner board at each
-  corner, a canopy over each doorway run, and a style (siding, trim and
-  roof colours from `FacadeArt.STYLES`) by a hash of the corner. A wall
-  chewed through is rubble that still joins its ring (`world.breached`),
-  so a breach beside a doorway cannot cut a house in two.
-- **The kit is a Blender script**, `tools/build_kit.py`
-  (`toolsuild_kit.cmd`), exported to `assets/models/buildings/kit.glb`
-  (LFS, 27 KB): `core`, `facade`, `facade_window`, `jamb`, `corner_board`,
-  `porch_roof`, boxes at exact metres with named materials and UVs that
-  tile per metre, authored at 2.2 m and scaled to `STAGE3D.wall_h`. Meshy
-  stays for props: a kit wants exact modules and shared UVs, which a
-  generator cannot give.
-- **`FacadeArt`** paints the siding, brick and shingle textures at boot
-  (128 px to the metre, nearest-filtered) as `TileArt` paints the ground,
-  grey where a house tints them; `facade.gdshader` has a `part` per
-  material name and takes a piece's colours from `INSTANCE_CUSTOM` in a
-  MultiMesh or from uniforms on a roof.
-- **`Buildings3D`**: one MultiMesh per piece for the whole town, and a
-  gable roof per building built with `SurfaceTool` from its rectangle:
-  ridge along the longer side at 30°, 0.45 m overhang, fascia in trim,
-  gable ends in siding. **A roof comes off while the local player is
-  inside its rectangle**, doorway and walls included, and goes back when
-  they leave. The whole thing is rebuilt when a wall breaks. `Terrain3D`
-  keeps the roof blocks (buildings you cannot enter, now 2.1 m so they sit
-  under the gable) and the fences, and no longer draws WALL tiles.
-- Tests: `building_plan_test` (the starter house is found as 8×7 with 24
-  cores, 28 panels, 2 jambs, 4 corners, 1 porch; windows keep their
-  rhythm; `inside`; a breach) and `building_kit_test` (every piece at its
-  size in known materials; the town uses every piece; the roof rule).
-  Smoke: `3d_house` from the street, `3d_house_inside` with the roof off.
+- **The parts are a Blender script**, `tools/build_kit.py`
+  (`toolsuild_kit.cmd`), which writes `assets/models/buildings/parts.blend`
+  (the 41 parts on a labelled grid, to open and look at), `parts.glb` (the
+  same parts for the game) and `parts_sheet.png` (a render of the grid).
+  A 3 m storey, a 0.25 m wall, a 1 m grid; clapboard is lapped boards, not
+  a texture, so flat shading draws the lines. Materials are flat colours
+  named by swatch (`PALETTE`), so a wall's look is a material swap and the
+  owner can re-skin a part in Meshy. **There are no base-wall parts:** a
+  built Wood, Stone or Metal wall is the house panel in another material
+  (the owner, twice).
+- **The sim is untouched.** Buildings are rectangles of 1 m WALL tiles
+  with doorway gaps (`World._building`); collision is one solid tile; the
+  panel sits on the tile's outer edge, 0.25 m thick, and the tile under it
+  shows the room's floor (`Terrain3D._ground_cell`).
+- **`BuildingPlan`** (`src/stage/building_plan.gd`, no nodes) reads the
+  tiles. Every eight-connected run of walls is a component with a bounding
+  rectangle; a run that does not close and lies inside another's rectangle
+  is that component's (a room divider cut off by its own gaps, the stub two
+  doorways cut off a corner of the hardware store). Then each component is
+  one of three things. A **building**: a closed ring with gaps of at most
+  four (a vehicle gate), given `wall_1m` panels on every outward face,
+  `wall_window_2m` + `window_single` pairs every fourth tile along a side
+  (centred, never a corner, never beside a doorway), `wall_doorway_2m`
+  with `door_open` on its left post and `porch_roof_2m` over each gap,
+  `corner_post` at each corner, `wall_interior_1m` dividers inside, and a
+  roof. A **yard**: a closed ring with another closed ring inside it (the
+  military compound, the junkyard), plain concrete panels and posts, no
+  windows, no roof, so nothing is drawn over the buildings in it. A
+  **partition**: anything that does not close, plaster, no roof. **No roof
+  is ever inside another roof** (the owner's deal; `building_plan_test`
+  sweeps the town for it). A breached wall is rubble that still joins its
+  ring (`world.breached`).
+- **`FacadeArt`**: the shader materials the stage swaps in for the parts'
+  swatches (`facade.gdshader`): siding, trim and roof take a house's style
+  (`STYLES`, five for houses and one for yards, picked by a hash of the
+  corner) per instance; everything else is its palette colour.
+- **`Buildings3D`**: one MultiMesh per part for the whole town; a gable
+  roof per building from its rectangle with `SurfaceTool` (ridge along the
+  longer side, 30°, 0.45 m overhang, shingle courses, fascia, gable ends
+  closed with lapped boards), **off while the local player is inside its
+  rectangle**; rebuilt whole on `wall_broken`. `Terrain3D` keeps the roof
+  blocks (now 2.9 m, under the gable) and fences.
+- **`Structures3D`**: a built wall is `wall_upper_1m` (the panel without
+  the skirt) through the middle of its tile along each way its neighbours
+  run, a `corner_post` where the run turns, ends or stands alone, in its
+  type's palette (`FacadeArt.BUILT`), remade when a neighbour arrives and
+  darkened by damage. 3 m tall, as a house wall is.
+- **Smoke**: `3d_house` / `3d_house_inside` on the 3D leg; `--smoke --tour`
+  photographs eight buildings outside and in and a run of built walls
+  (`.smoke/<out>/tour_*`), which is how this was looked at.
+- Tests: `building_plan_test` (6), `building_kit_test` (3). `tools/test`:
+  964 tests, 0 failures.
 
-Not yet: the player's base walls dressed with the kit, chimneys, hip
-roofs, dormers, interior partition walls with more than plaster, a fade
-instead of a cut when a roof comes off, and the toon/outline pass that the
-reference house's look still needs.
+Not yet: hip roofs, dormers and chimneys placed (the parts exist), the
+wide 3 m window on shop fronts, a fade instead of a cut when a roof comes
+off, the toon/outline pass, and the inside of an exterior wall, which is
+the panel's plaster back.
 
 ### You look where you walk (2026-10-13)
 
@@ -3377,7 +3393,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
-| 2026-10-13 | **The building kit.** `tools/build_kit.py` + `toolsuild_kit.cmd` → `assets/models/buildings/kit.glb` (six pieces, LFS); `FacadeArt` (siding, brick, shingle, `STYLES`), `facade.gdshader`; `BuildingPlan` (rects, faces, windows, jambs, corners, porches, `inside`); `Buildings3D` (MultiMesh per piece, a gable roof per building, off while you are inside); `Terrain3D` draws roof blocks and fences only, `STAGE3D.roof_h` 2.1; `Stage3D` wires it and rebuilds on `wall_broken`; smoke `3d_house` / `3d_house_inside`. `building_plan_test` (5), `building_kit_test` (2). `tools/test`: 962 tests, 0 failures |
+| 2026-10-13 | **The building parts.** `tools/build_kit.py` → `parts.blend` / `parts.glb` / `parts_sheet.png` (41 parts, LFS); `FacadeArt` (palette, `STYLES`, `BUILT`), `facade.gdshader`; `BuildingPlan` (components, enclosed merge, building / yard / partition, 2 m windows, doorways, dividers, `inside`); `Buildings3D` (MultiMesh per part, a boarded gable roof per building, off indoors); `Structures3D` built walls from the panel; `Terrain3D` floor under walls, `STAGE3D` 3 m / 2.9 m; `--smoke --tour`. `building_plan_test` (6), `building_kit_test` (3). `tools/test`: 964 tests, 0 failures |
 | 2026-10-13 | **Bodies collide, Space jumps, Sprint + Space rolls, X dances, the swing is the sword slash.** `Enemies._hold_off_players` / `hold_off` / `solid` / `push_apart`, the stuck rescue ignores a zombie held off in reach; `Intent.jump` / `dance`, `PlayerSim.jump_t` / `dance_t` / `step_moves`, `Config.JUMP` / `DANCE`, `PF_JUMP` / `PF_DANCE` (protocol 16), a guest predicts both; `KeyBinds` `jump` (Space) and `dance` (X), `LocalInput` reads Sprint + Space as the roll; `tools/build_anims`: `attack` = Stable Sword Outward Slash cut to the blow (`strike` 0.3), `punch`, `roll` = Stand To Roll, `dance` = Thriller Part 2, the jump cut to its air; `Models.family_of` "fists", `fists_attack`; `Actors3D` roll / jump / dance / the swing paced to the cooldown and restarted on its edge (`ActorModel.play` seeks on a same-clip restart). `bodies_test` (5), `actors_test` +3. `tools/test`: 954 tests, 0 failures |
 | 2026-10-13 | **Animation pass 2: the player's weapons, the zombies' moves.** The gait from the sim's flags (`WALK_PACE`, `RUN_PACE`, `SNEAK_PACE`); clip families per weapon (`Models.family_of`, `ActorModel.play(family, variant)`): rifle, pistol and bow idle/walk/run, `shoot` / `bow_shoot`, `bow_reload`, `bow_equip` / `bow_disarm`; `jump` on the dash, `crouch` on the sneak; `PlayerSim.shot` (`PF_SHOT`); a player's body left where they died; a zombie's swipe and neck bite in turns, two deaths, `eat` over the dead (`Config.FEED`, `EnemySim.feed_t`, `Damage._feed_on`, `EF_FEED`, protocol 15); any boss cue marks it awake (Codex, PR #74). `actors_test` (14), `feed_test` (4). `tools/test`: 945 tests, 0 failures |
 | 2026-10-13 | **The animation pass.** The owner's Mixamo clips on Mixamo rigs for the player, walker, runner and the Coach, baked by `tools/build_anims.gd` into `assets/models/**.glb` + `assets/anims/*.res`; `Models` tables by state; `ActorModel` plays a library, `clip_speed`, `clip_strike`, cross-fades; `Actors3D.on_event` cues a boss's moves, stun, roar and wake, and the floor before it; `Config.CRAWL`, `Damage.knock_down`, `EnemySim.crawl_t` / `getup_t`, `Enemies.crawl_rng`, ambient crawlers; `EF_CRAWL` / `EF_GETUP` (protocol 14); dev **floor**. `crawl_test` (9), `models_test` (5). `tools/test`: 927 tests, 0 failures |

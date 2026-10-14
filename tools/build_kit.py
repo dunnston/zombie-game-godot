@@ -173,7 +173,20 @@ def wall_panel(name, w, holes=(), siding="siding_white", skirt=True):
     p.box(hx, -hx, 0.03, T, 0.0, H, "plaster")
     p.siding(hx, -hx, 0.45 if skirt else 0.0, H, siding, holes)
     if skirt:
-        p.box(hx, -hx, -0.06, 0.03, 0.0, 0.45, "brick")
+        # The skirt stops at a hole that reaches the floor (a door).
+        spans = [(hx, -hx)]
+        for hx0, hx1, hz0, hz1 in holes:
+            if hz0 > 0.01:
+                continue
+            cut = []
+            for a, b in spans:
+                if a < hx0 - 0.06:
+                    cut.append((a, hx0 - 0.06))
+                if hx1 + 0.06 < b:
+                    cut.append((hx1 + 0.06, b))
+            spans = cut
+        for a, b in spans:
+            p.box(a, b, -0.06, 0.03, 0.0, 0.45, "brick")
     # Frame the holes: a reveal through the wall in trim.
     for hx0, hx1, hz0, hz1 in holes:
         t = 0.06
@@ -198,13 +211,15 @@ def build_walls():
     out.append(wall_panel("wall_door_2m", 2, [DOOR]).finish())
     # A whole 2 m doorway: the game's way in is two tiles wide.
     out.append(wall_panel("wall_doorway_2m", 2, [(-0.94, 0.94, 0.0, 2.4)]).finish())
+    out.append(wall_panel("wall_upper_1m", 1, skirt=False).finish())
     out.append(wall_panel("wall_upper_2m", 2, skirt=False).finish())
     out.append(wall_panel("wall_upper_window_2m", 2, [WINDOW], skirt=False).finish())
     # An interior partition: plaster both sides, no skirt, no boards.
-    p = Piece("wall_interior_2m")
-    p.box(-1.0, 1.0, 0.0, T, 0.0, H, "plaster")
-    p.box(-1.0, 1.0, -0.02, T + 0.02, 0.0, 0.12, "trim_white")
-    out.append(p.finish())
+    for w in (1, 2):
+        p = Piece("wall_interior_%dm" % w)
+        p.box(-w / 2.0, w / 2.0, 0.0, T, 0.0, H, "plaster")
+        p.box(-w / 2.0, w / 2.0, -0.02, T + 0.02, 0.0, 0.12, "trim_white")
+        out.append(p.finish())
     # A corner post, square in plan, that both facades meet in.
     p = Piece("corner_post")
     p.box(-0.14, 0.14, -0.14, 0.14, 0.0, H + 0.02, "trim_white")
@@ -263,11 +278,11 @@ def door_insert(name, mat="door_red", open_=False):
     hx0, hx1, hz0, hz1 = DOOR
     p = Piece(name)
     if open_:
-        # Hinged on the left, swung outward a quarter turn.
-        p.box(-0.06, 0.0, -1.0 - 0.0, 0.0 - 0.0, 0.0, hz1, mat)
-        p.box(-0.055, -0.005, -0.85, -0.2, 0.3, 1.0, "wood_dark")
-        p.box(-0.055, -0.005, -0.85, -0.2, 1.2, 2.0, "wood_dark")
-        p.box(-0.1, -0.06, -0.9, -0.84, 1.0, 1.08, "metal")
+        # Hinged on the hole's left edge, swung outward a quarter turn.
+        p.box(hx0, hx0 + 0.06, -1.0, 0.0, 0.0, hz1, mat)
+        p.box(hx0 + 0.005, hx0 + 0.055, -0.85, -0.2, 0.3, 1.0, "wood_dark")
+        p.box(hx0 + 0.005, hx0 + 0.055, -0.85, -0.2, 1.2, 2.0, "wood_dark")
+        p.box(hx0 + 0.06, hx0 + 0.1, -0.9, -0.84, 1.0, 1.08, "metal")
     else:
         p.box(hx0 + 0.02, hx1 - 0.02, 0.02, 0.08, 0.0, hz1 - 0.02, mat)
         p.box(hx0 + 0.12, hx1 - 0.12, -0.005, 0.02, 0.3, 1.0, "wood_dark")

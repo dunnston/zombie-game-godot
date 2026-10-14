@@ -1,38 +1,37 @@
 extends "res://tests/test_case.gd"
-## The building kit as Godot imports it (`tools/build_kit.py` →
-## `assets/models/buildings/kit.glb`) and the stage that lays it out: every
-## piece is there at its size with the materials the stage knows how to
-## replace, the town comes up as one MultiMesh per piece and a roof per
-## building, and the roof over the local player comes off.
+## The building parts as Godot imports them (`tools/build_kit.py` →
+## `assets/models/buildings/parts.glb`) and the stage that lays them out:
+## every part the stage uses is there at its size with materials the stage
+## knows how to replace, the town comes up as one MultiMesh per part and a
+## roof per building and none over a yard, and the roof over the local
+## player comes off.
 
 
-func test_the_kit_has_every_piece_at_its_size_in_known_materials() -> void:
+func test_the_parts_the_stage_uses_are_there_at_their_sizes() -> void:
 	var ps := Models.scene(Buildings3D.KIT)
-	ok(ps != null, "the kit imports")
+	ok(ps != null, "the parts import")
 	if ps == null:
 		return
 	var root := ps.instantiate()
-	for p in Buildings3D.PIECES:
+	for p in Buildings3D.PARTS + Structures3D.WALL_PARTS:
 		var n := root.find_child(p, true, false) as MeshInstance3D
-		ok(n != null and n.mesh != null, "the kit has '%s'" % p)
+		ok(n != null and n.mesh != null, "the parts have '%s'" % p)
 		if n == null or n.mesh == null:
 			continue
 		for s in range(n.mesh.get_surface_count()):
 			var m := n.mesh.surface_get_material(s)
-			ok(m != null and FacadeArt.PARTS.has(m.resource_name), "'%s' surface %d is a known material, not '%s'" % [p, s, m.resource_name if m != null else "null"])
-	var facade := root.find_child("facade", true, false) as MeshInstance3D
-	if facade != null:
-		var b := facade.get_aabb()
+			var name := m.resource_name if m != null else "null"
+			ok(m != null and (FacadeArt.PALETTE.has(name) or FacadeArt.part_of(name) != 1), "'%s' surface %d is a known material, not '%s'" % [p, s, name])
+	var wall := root.find_child("wall_1m", true, false) as MeshInstance3D
+	if wall != null:
+		var b := wall.get_aabb()
 		near(b.size.x, 1.0, 0.01)
 		near(b.size.y, Buildings3D.KIT_H, 0.01)
 		near(b.position.x, -0.5, 0.01)
-		ok(b.position.z >= -0.001 and b.end.z <= 0.25, "a facade stands proud of the face toward +z, not into the tile")
-	var core := root.find_child("core", true, false) as MeshInstance3D
-	if core != null:
-		var b := core.get_aabb()
-		near(b.position.x, -0.5, 0.01)
-		near(b.position.z, -0.5, 0.01)
-		near(b.size.z, 1.0, 0.01)
+		ok(b.end.z <= 0.1 and b.position.z >= -0.35, "a wall's body sits behind its face, toward -z: %s" % b)
+	var win := root.find_child("wall_window_2m", true, false) as MeshInstance3D
+	if win != null:
+		near(win.get_aabb().size.x, 2.0, 0.01)
 	root.free()
 
 
@@ -40,21 +39,25 @@ func test_the_town_is_dressed_and_the_roof_comes_off_indoors() -> void:
 	var sim := new_sim()
 	var b := Buildings3D.new()
 	b.build(sim.world)
-	eq(b._roofs.size(), b.plan.rects.size())
-	for p in Buildings3D.PIECES:
+	eq(b._roofs.size(), b.plan.roofed().size())
+	for p in Buildings3D.PARTS:
 		ok(b._mmi.has(p), "the town uses '%s'" % p)
 	var ri := -1
+	var yard := -1
 	for i in range(b.plan.rects.size()):
 		if b.plan.rects[i].position == Vector2i(150, 150):
 			ri = i
+		if b.plan.rects[i].position == Vector2i(206, 206):
+			yard = i
 	ok(ri >= 0, "the starter house")
+	ok(yard >= 0 and not b._roofs.has(yard), "no roof over the compound")
 	var p := sim.players[0]
 	b.local = p
 	p.pos = Vector2(153.5, 153.5) * Config.TILE
 	b.frame()
 	ok(not b.roof_visible(ri), "indoors, the roof is off")
 	var others := 0
-	for i in range(b._roofs.size()):
+	for i in b._roofs:
 		if i != ri and b.roof_visible(i):
 			others += 1
 	eq(others, b._roofs.size() - 1)
@@ -62,3 +65,22 @@ func test_the_town_is_dressed_and_the_roof_comes_off_indoors() -> void:
 	b.frame()
 	ok(b.roof_visible(ri), "outside, the roof is back")
 	b.free()
+
+
+func test_a_built_wall_is_the_house_panel_joined_by_posts() -> void:
+	var sim := new_sim()
+	var p := sim.players[0]
+	p.bag.add("wood", 400)
+	var s := Structures3D.new(sim)
+	for t: Vector2i in [Vector2i(140, 160), Vector2i(141, 160), Vector2i(142, 160), Vector2i(142, 159)]:
+		sim.world.unstick(Vector2(t) * Config.TILE, 4.0)
+		var placed := sim.structs.place(sim, "woodWall", t.x, t.y, p)
+		ok(not placed.is_empty(), "a wood wall stands at %s" % t)
+	s.frame()
+	var mid: Dictionary = s._nodes.get(Vector2i(141, 160), {})
+	ok(not mid.is_empty() and (mid.parts as Array).size() == 1, "a wall between two walls is one panel, no post")
+	var corner: Dictionary = s._nodes.get(Vector2i(142, 160), {})
+	ok(not corner.is_empty() and (corner.parts as Array).size() == 3, "a corner is two panels and a post")
+	var end: Dictionary = s._nodes.get(Vector2i(140, 160), {})
+	ok(not end.is_empty() and (end.parts as Array).size() == 2, "a run's end is a panel and a post")
+	s.free()

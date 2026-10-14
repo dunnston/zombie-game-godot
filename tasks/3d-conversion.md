@@ -97,12 +97,15 @@ human zombies) so clips and props are shared; the Butcher gets his own.
 Export GLB with the skeleton, real-world metres, feet at the origin.
 
 **Buildings.** Not generated: `tools/build_kit.py` (Blender, headless via
-`toolsuild_kit.cmd`) writes `assets/models/buildings/kit.glb`, boxes at
-exact metres on a 1 m wall tile, materials by name (siding, brick, trim,
-glass, plaster, shingle), UVs that tile per metre. The stage lays the
-pieces along the walls the generator made and builds the roofs itself. A
-new piece is a function in that script; a new look is a row in
-`FacadeArt.STYLES` or a change to its painted textures.
+`tools\build_kit.cmd`) writes `assets/models/buildings/parts.blend` (the parts
+on a labelled grid, to open and look at), `parts.glb` (the same parts for the
+game) and `parts_sheet.png` (a render). A 3 m storey, a 0.25 m wall, a 1 m
+grid; flat colours named by swatch; clapboard as lapped boards. The stage
+lays the parts along the walls the generator made and builds the roofs
+itself (PROJECT.md §4, *The building parts*). A new part is a function in
+that script; a new look is a material swap or a row in `FacadeArt.STYLES`.
+A built base wall is the house panel in another material, never a part of
+its own.
 
 **Weapons.** One prop each. Origin at the grip, barrel or blade along -Z.
 Attached to `mixamorig:RightHand`; two-handed guns place the left hand by
@@ -194,8 +197,8 @@ into `Structures3D` through `StaticModel.fit` rather than waiting for phase 3.
 - Weapon props on the hand bone from the owner's pipeline.
 - Armour as rigid props (head, body, legs, feet, offhand).
 - Real meshes for containers, trees, cars, structures. **Buildings: done
-  (2026-10-13)** — the building kit (`tools/build_kit.py`, `BuildingPlan`,
-  `Buildings3D`; PROJECT.md §4 *The building kit*): Synty-style facades,
+  (2026-10-13)** — the building parts (`tools/build_kit.py`, `BuildingPlan`,
+  `Buildings3D`; PROJECT.md §4 *The building parts*): Synty-style facades,
   windows, door trim, corner boards, canopies and a gable roof per
   building that comes off while you are inside. Still to come on it: the
   base walls dressed with the kit, chimneys, hip roofs, dormers.

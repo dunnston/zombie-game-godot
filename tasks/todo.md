@@ -3409,12 +3409,23 @@ roof slopes, ridge, gables, flat roof, dormer, chimney, porch, floors,
 framing, the base wood wall. `kit.glb` (the six-piece first kit) stays
 until `Buildings3D` is rebuilt on the parts. PR #78 is a draft meanwhile.
 
-- [ ] Owner reviews `parts.blend`; parts added, resized or recoloured on request.
-- [ ] Rebuild `BuildingPlan` / `Buildings3D` on the parts: a component
-      that is not a closed ring is a partition (cores only, no roof); a
-      closed ring containing other rings is a yard wall (no roof, no
-      windows); `STAGE3D.wall_h` 3.0; thin walls and what collision does
-      about them; the canopy's roof colour; built walls as
-      `wall_1m` in `wood_raw` / `concrete` / `metal` (the owner rejected a
-      separate palisade part: one wall, many materials).
-- [ ] The tour gives the player materials before it builds.
+- [x] Owner reviewed `parts.blend`: "mostly looks fine"; the base row went
+      (a built wall is the house panel in another material).
+- [x] `BuildingPlan` / `Buildings3D` rebuilt on the parts: enclosed runs
+      merge into their building; building / yard / partition; 2 m window
+      pairs with inserts; doorway panel, open door, canopy; dividers;
+      `STAGE3D.wall_h` 3.0; the roof colour from the style tables; built
+      walls as `wall_upper_1m` + `corner_post` in `FacadeArt.BUILT`; the
+      room's floor under a wall tile.
+- [x] The tour funds its walls. Tour 3: windows glazed, skirts stop at
+      doors, no roof inside a roof (`.smoke/tour3/`).
+
+### Review (2026-10-13, later)
+
+- The deal holds by construction: only closed rings are roofed, a closed
+  ring around other closed rings is a yard, and `building_plan_test`
+  sweeps every roofed rectangle against every other.
+- The thin wall sits on the tile's outer edge, so outside you stop at the
+  face you see; inside you stop 0.75 m short of it. To feel.
+- `tools/test`: 964 tests, 0 failures. 3D smoke leg: 8 checkpoints, 0
+  failures. Tour 3 photographed eight buildings and a built wall run.

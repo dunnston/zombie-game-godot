@@ -66,7 +66,7 @@ func build(world: World) -> void:
 		for tx in range(W):
 			var i := ty * W + tx
 			var art := TerrainRenderer.cell_art(world, tx, ty)
-			var c: Vector2i = art.cell
+			var c: Vector2i = _ground_cell(world, tx, ty, art)
 			data[i * 2] = c.x
 			data[i * 2 + 1] = c.y
 			if art.t == T.ROOF or art.t == T.FENCE:
@@ -94,7 +94,7 @@ func repaint(world: World, tx: int, ty: int) -> void:
 		return
 	var i := ty * W + tx
 	var art := TerrainRenderer.cell_art(world, tx, ty)
-	var c: Vector2i = art.cell
+	var c: Vector2i = _ground_cell(world, tx, ty, art)
 	_cells.set_pixel(tx, ty, Color8(c.x, c.y, 0))
 	_cells_tex.update(_cells)
 	if _block_of.has(i):
@@ -102,6 +102,19 @@ func repaint(world: World, tx: int, ty: int) -> void:
 			_place_block(world, int(_block_of[i]), tx, ty)
 		else:
 			blocks.multimesh.set_instance_transform(int(_block_of[i]), Transform3D(Basis().scaled(Vector3.ZERO), Vector3(tx + 0.5, -1.0, ty + 0.5)))
+
+
+## The ground under a tile. A house wall is a thin panel on its tile's outer
+## edge now (`Buildings3D`), so the tile under it shows: it takes the floor
+## beside it, and the room runs to the wall.
+static func _ground_cell(world: World, tx: int, ty: int, art: Dictionary) -> Vector2i:
+	if int(art.t) != T.WALL:
+		return art.cell
+	for d: Vector2i in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]:
+		var n := world.tile(tx + d.x, ty + d.y)
+		if n in [T.FLOOR_WOOD, T.FLOOR_TILE, T.DIRT, T.GRAVEL, T.LOT]:
+			return TerrainRenderer.cell_art(world, tx + d.x, ty + d.y).cell
+	return art.cell
 
 
 func _place_block(world: World, n: int, tx: int, ty: int) -> void:

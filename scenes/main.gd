@@ -625,9 +625,9 @@ func _smoke_3d(smoke: Node) -> void:
 	var house := s3.buildings.plan.inside(Vector2i(153, 153))
 	if house < 0:
 		smoke.fail("the 8x7 house at (150, 150) is not a building to the stage")
-	for piece: String in Buildings3D.PIECES:
+	for piece: String in Buildings3D.PARTS:
 		if not s3.buildings._mmi.has(piece):
-			smoke.fail("the town uses no '%s' piece" % piece)
+			smoke.fail("the town uses no '%s' part" % piece)
 	smoke_teleport(146, 158)
 	await smoke.frames(20)
 	if house >= 0 and not s3.buildings.roof_visible(house):
@@ -3423,6 +3423,7 @@ func _smoke_tour(smoke: Node, s3: Stage3D) -> void:
 		await smoke.checkpoint("tour_%s_in" % name)
 	# A run of wood walls with a corner, on the street south of the house.
 	smoke_teleport(146, 160)
+	p.bag.add("wood", 400)
 	await smoke.frames(5)
 	for t: Vector2i in [Vector2i(148, 161), Vector2i(149, 161), Vector2i(150, 161), Vector2i(151, 161), Vector2i(151, 160), Vector2i(151, 159)]:
 		smoke_clear_tile(t)

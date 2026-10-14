@@ -1,7 +1,9 @@
 extends "res://tests/test_case.gd"
-## `BuildingPlan`: the town's buildings read off the tiles for the building
-## kit. The starter house at (150, 150) is the generator's 8×7 with one
-## 2-tile doorway (`World._gen_*`), which makes every count below exact.
+## `BuildingPlan`: the town's buildings read off the tiles for the parts.
+## The starter house at (150, 150) is the generator's 8×7 with one 2-tile
+## doorway, the military compound is a 28×28 ring with two buildings in
+## it, and the hardware store has a room divider cut off by its own gaps:
+## one of each kind, so every rule below has a case.
 
 const T = Config.T
 
@@ -22,65 +24,90 @@ func _rect_at(pos: Vector2i) -> int:
 	return -1
 
 
-func _of(list: Array, ri: int, kind := "") -> Array:
+func _parts(ri: int, part := "") -> Array:
 	var out := []
-	for e in list:
-		if e.rect == ri and (kind.is_empty() or e.get("kind", "") == kind):
-			out.append(e)
+	for p in plan.parts:
+		if p.rect == ri and (part.is_empty() or p.part == part):
+			out.append(p)
 	return out
 
 
-func test_the_starter_house_is_found_whole() -> void:
-	ok(house >= 0, "the 8×7 house at (150, 150) is a building")
+func test_the_starter_house_is_a_building_dressed_whole() -> void:
+	ok(house >= 0, "the 8×7 house at (150, 150) is a component")
 	eq(plan.rects[house], Rect2i(150, 150, 8, 7))
-	# Its ring is 26 wall tiles less the 2-tile doorway.
-	eq(_of(plan.cores, house).size(), 24)
-	ok(plan.styles[house] >= 0 and plan.styles[house] < FacadeArt.STYLES.size(), "a style from the table")
-	ok(plan.rects.size() > 40, "the town has dozens of buildings, found %d" % plan.rects.size())
+	eq(plan.kinds[house], BuildingPlan.BUILDING)
+	ok(plan.styles[house] >= 0 and plan.styles[house] < FacadeArt.HOUSE_STYLES, "a house style")
+	# 30 outward faces, 2 of them the doorway: every other one is a panel,
+	# a window panel covering two.
+	var plain := _parts(house, "wall_1m").size()
+	var windows := _parts(house, "wall_window_2m").size()
+	eq(plain + 2 * windows, 28)
+	ok(windows >= 3, "a house this size has windows on three sides at least, has %d" % windows)
+	eq(_parts(house, "wall_doorway_2m").size(), 1)
+	eq(_parts(house, "door_open").size(), 1)
+	eq(_parts(house, "porch_roof_2m").size(), 1)
+	eq(_parts(house, "corner_post").size(), 4)
+	eq(_parts(house, "wall_interior_1m").size(), 0)
+	ok(house in plan.roofed(), "a building gets a roof")
+	ok(plan.rects.size() > 40, "the town has dozens of components, found %d" % plan.rects.size())
 
 
-func test_every_outward_face_is_dressed_and_the_doorway_gets_its_trim() -> void:
-	# 30 perimeter faces, 2 of them the doorway's gap.
-	var panels := _of(plan.faces, house, "facade").size() + _of(plan.faces, house, "facade_window").size()
-	eq(panels, 28)
-	eq(_of(plan.faces, house, "jamb").size(), 2)
-	eq(_of(plan.corners, house).size(), 4)
-	var porches := _of(plan.porches, house)
-	eq(porches.size(), 1)
-	eq(int(porches[0].width), 2)
-	# Every jamb faces along its side, at a tile that is not a wall.
-	for j in _of(plan.faces, house, "jamb"):
-		var g: Vector2i = j.tile + BuildingPlan.DIRS[j.dir]
-		ok(world().tile(g.x, g.y) != T.WALL, "a jamb faces the doorway")
-
-
-func test_windows_sit_in_a_rhythm_away_from_corners_and_doorways() -> void:
+func test_windows_sit_in_pairs_away_from_corners_and_doorways() -> void:
 	var r := plan.rects[house]
-	var windows := _of(plan.faces, house, "facade_window")
-	ok(windows.size() >= 6, "a house this size has at least six windows, has %d" % windows.size())
-	for w in windows:
-		var t: Vector2i = w.tile
-		var on_x_edge := t.x == r.position.x or t.x == r.end.x - 1
-		var on_y_edge := t.y == r.position.y or t.y == r.end.y - 1
-		ok(not (on_x_edge and on_y_edge), "no window on a corner tile %s" % t)
-		# Its neighbours along the wall are walls: never beside the doorway.
+	for w in _parts(house, "wall_window_2m"):
+		# The panel's origin is on the edge two wall tiles share; both
+		# tiles and their outer neighbours along the side are walls.
+		var at: Vector2 = w.at
 		var along := Vector2i(1, 0) if w.dir in [0, 2] else Vector2i(0, 1)
-		for s in [-1, 1]:
-			var n: Vector2i = t + along * s
-			eq(world().tile(n.x, n.y), T.WALL)
-	# A side without a doorway, 8 or 7 long, carries two windows.
-	for d in range(4):
-		var side := BuildingPlan._side(r, d)
-		var gaps := 0
-		for t in side:
-			if world().tile(t.x, t.y) != T.WALL:
-				gaps += 1
-		var n := 0
-		for w in windows:
-			if w.dir == d:
-				n += 1
-		if gaps == 0:
-			eq(n, 2)
+		var back := Vector2(BuildingPlan.DIRS[w.dir]) * 0.5
+		var mid := at - back
+		var ta := Vector2i(floori(mid.x - 0.5 * along.x), floori(mid.y - 0.5 * along.y))
+		var tb := ta + along
+		for t in [ta - along, ta, tb, tb + along]:
+			eq(world().tile(t.x, t.y), T.WALL, "window tile %s" % t)
+		for t: Vector2i in [ta, tb]:
+			var corner := (t.x == r.position.x or t.x == r.end.x - 1) and (t.y == r.position.y or t.y == r.end.y - 1)
+			ok(not corner, "no window on a corner %s" % t)
+
+
+func test_a_compound_is_a_yard_and_its_buildings_keep_their_roofs() -> void:
+	var yard := _rect_at(Vector2i(206, 206))
+	ok(yard >= 0, "the military compound's ring")
+	eq(plan.rects[yard].size, Vector2i(28, 28))
+	eq(plan.kinds[yard], BuildingPlan.YARD)
+	eq(plan.styles[yard], FacadeArt.YARD)
+	ok(not (yard in plan.roofed()), "a yard has no roof")
+	eq(_parts(yard, "wall_window_2m").size(), 0)
+	eq(_parts(yard, "porch_roof_2m").size(), 0)
+	eq(_parts(yard, "door_open").size(), 0)
+	ok(_parts(yard, "wall_1m").size() > 90, "the ring is panelled")
+	eq(_parts(yard, "corner_post").size(), 4)
+	var hut := _rect_at(Vector2i(210, 211))
+	ok(hut >= 0, "the hut inside it")
+	eq(plan.kinds[hut], BuildingPlan.BUILDING)
+	ok(hut in plan.roofed(), "the hut keeps its roof")
+	# Standing in the hut, the hut is what you are inside, not the yard.
+	eq(plan.inside(Vector2i(214, 214)), hut)
+	eq(plan.inside(Vector2i(208, 208)), -1)
+
+
+func test_a_divider_cut_off_by_its_gaps_belongs_to_its_building() -> void:
+	# The hardware store's middle wall is split from the ring by its own
+	# gaps, and two doorways cut a stub off its north-east corner. Both
+	# are the store's: one building, closed, with plaster dividers inside.
+	eq(_rect_at(Vector2i(205, 142)), -1)
+	eq(_rect_at(Vector2i(214, 136)), -1)
+	var store := _rect_at(Vector2i(196, 136))
+	ok(store >= 0, "the store")
+	eq(plan.kinds[store], BuildingPlan.BUILDING)
+	ok(store in plan.roofed(), "one roof over the store")
+	ok(_parts(store, "wall_interior_1m").size() >= 20, "its dividers are plaster, %d of them" % _parts(store, "wall_interior_1m").size())
+	eq(_parts(store, "wall_doorway_2m").size(), 2)
+	eq(plan.inside(Vector2i(206, 143)), store)
+	# Nothing in the town is roofed inside something else that is roofed.
+	for a in plan.roofed():
+		for b in plan.roofed():
+			ok(a == b or not plan.rects[a].grow(-1).encloses(plan.rects[b]), "roof %s over roof %s" % [plan.rects[a], plan.rects[b]])
 
 
 func test_inside_counts_the_walls_and_the_doorway() -> void:
@@ -88,10 +115,9 @@ func test_inside_counts_the_walls_and_the_doorway() -> void:
 	eq(plan.inside(Vector2i(150, 150)), house)
 	eq(plan.inside(Vector2i(157, 156)), house)
 	ok(plan.inside(Vector2i(149, 150)) != house, "the street is outside")
-	ok(plan.inside(Vector2i(150, 157)) != house, "the next row south is outside")
 
 
-func test_a_broken_wall_is_a_gap_without_trim() -> void:
+func test_a_broken_wall_is_a_gap_in_the_same_house() -> void:
 	var w := World.new()
 	var p := BuildingPlan.new()
 	p.build(w)
@@ -100,20 +126,23 @@ func test_a_broken_wall_is_a_gap_without_trim() -> void:
 		if p.rects[i].position == Vector2i(150, 150):
 			ri = i
 	ok(ri >= 0, "the house is in a fresh world too")
-	# A plain panel whose neighbours along the wall both stand.
+	# A mid-wall tile on the north side whose neighbours both stand.
 	var target := Vector2i(-1, -1)
-	for f in _of(p.faces, ri, "facade"):
-		var t: Vector2i = f.tile
-		if t.x > 150 and t.x < 157 and t.y == 150 and w.tile(t.x - 1, t.y) == T.WALL and w.tile(t.x + 1, t.y) == T.WALL:
-			target = t
+	for x in range(152, 156):
+		if w.tile(x, 150) == T.WALL and w.tile(x - 1, 150) == T.WALL and w.tile(x + 1, 150) == T.WALL:
+			target = Vector2i(x, 150)
 			break
-	ok(target.x >= 0, "a mid-wall panel on the north side")
+	ok(target.x >= 0, "a mid-wall tile on the north side")
+	var before := p.rects.size()
 	w.break_wall(target.x, target.y)
 	p.build(w)
-	for c in _of(p.cores, ri):
-		ok(c.tile != target, "a broken wall has no core")
-	for f in _of(p.faces, ri):
-		ok(f.tile != target, "a broken wall has no face")
-		if f.kind == "jamb":
-			ok(f.tile + BuildingPlan.DIRS[f.dir] != target, "rubble gets no door trim")
-	eq(_of(p.cores, ri).size(), 23)
+	eq(p.rects.size(), before)
+	eq(p.rects[ri], Rect2i(150, 150, 8, 7))
+	eq(p.kinds[ri], BuildingPlan.BUILDING)
+	for part in p.parts:
+		if part.rect != ri:
+			continue
+		var at: Vector2 = part.at
+		if part.part == "wall_1m" and part.dir == 2:
+			ok(absf(at.x - (target.x + 0.5)) > 0.01, "the broken tile has no panel")
+		ok(part.part != "porch_roof_2m" or at.y > 152.0, "rubble gets no canopy")

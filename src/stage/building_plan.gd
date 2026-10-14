@@ -1,62 +1,100 @@
 class_name BuildingPlan
 extends RefCounted
-## What the building kit dresses, read off the world's tiles: every run of
-## WALL tiles is a building (the generator makes rectangles of them with
-## doorway gaps, `World._building`), and each gets a rectangle, a style, a
-## siding panel on every outward face, windows in a rhythm along each side,
-## trim in the reveals beside a doorway, a corner board at each corner and a
-## canopy over each doorway. The roof is the stage's to build from the
-## rectangle. Nothing here is a node: a test reads it headless.
+## What the building parts dress, read off the world's tiles. Every
+## eight-connected run of WALL tiles is a component with a bounding
+## rectangle, and is one of three things:
 ##
-## Directions index `DIRS`: south, east, north, west — the yaw a piece modelled
-## facing south (+z) is turned by, in quarter turns.
+## - a **building**: its rectangle's edge is a closed ring of its own tiles
+##   with doorway gaps of at most three. It gets siding panels on every
+##   outward face, 2 m window panels in a rhythm along each side, a doorway
+##   panel with an open door and a canopy over each gap, a corner post at
+##   each corner, and a roof (the stage builds that from the rectangle);
+## - a **yard**: a closed ring with another closed ring inside it (the
+##   military compound, the junkyard). Plain concrete panels, posts, no
+##   windows, no roof: nothing goes over the buildings in it;
+## - a **partition**: anything that does not close — the room dividers
+##   inside a house, a line cut off by its own gaps. Plaster, no roof.
+##
+## Nothing here is a node; a test reads it headless. A wall chewed through
+## is rubble that still joins its ring (`world.breached`), so a breach
+## beside a doorway cannot cut a house in two.
+##
+## A part is placed by its origin on the ground (`at`, in tiles), its
+## facing (`dir`, quarter turns from south = +z) and a width scale. Parts
+## are modelled facing south with their body behind the face plane
+## (`tools/build_kit.py`).
 
 const T = Config.T
 const W := Config.WORLD_TILES
 const DIRS: Array[Vector2i] = [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]
-## Windows sit every this many tiles along a side.
-const WINDOW_EVERY := 3
+## A window panel is two tiles wide and comes every this many tiles.
+const WINDOW_EVERY := 4
+## A doorway wider than this is not a doorway: the ring is open.
+const GAP_MAX := 4
+
+const BUILDING := "building"
+const YARD := "yard"
+const PARTITION := "partition"
 
 var rects: Array[Rect2i] = []
+var kinds: PackedStringArray = PackedStringArray()
 var styles: PackedInt32Array = PackedInt32Array()
-## Every standing wall tile, with its building.
-var cores: Array[Dictionary] = []     # {tile, rect}
-## {tile, dir, kind ("facade", "facade_window", "jamb"), rect}
-var faces: Array[Dictionary] = []
-## {at: Vector2i (the tile corner point), rect}
-var corners: Array[Dictionary] = []
-## {at: Vector2 (the gap's centre on the face line, tiles), dir, width, rect}
-var porches: Array[Dictionary] = []
-var _rect_of := {}   # tile index -> rect index
+## {part, at: Vector2, dir, sx, rect}
+var parts: Array[Dictionary] = []
+var _members: Array = []    # per rect: Dictionary tile index -> true
 
 
 func build(world: World) -> void:
 	rects.clear()
+	kinds.clear()
 	styles.clear()
-	cores.clear()
-	faces.clear()
-	corners.clear()
-	porches.clear()
-	_rect_of.clear()
+	parts.clear()
+	_members.clear()
 	_components(world)
+	_merge_enclosed()
+	_classify()
 	for ri in range(rects.size()):
-		_dress(world, ri)
+		match kinds[ri]:
+			BUILDING:
+				_dress(world, ri, true)
+			YARD:
+				_dress(world, ri, false)
+			PARTITION:
+				_partition(world, ri)
 
 
-## The building the tile stands in, or -1: inside its rectangle, walls and
-## doorway included, which is when its roof comes off.
+## Which buildings get a roof: every building, by rect index.
+func roofed() -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for ri in range(rects.size()):
+		if kinds[ri] == BUILDING:
+			out.append(ri)
+	return out
+
+
+## The smallest building the tile stands in, or -1: inside its rectangle,
+## walls and doorway included, which is when its roof comes off.
 func inside(tile: Vector2i) -> int:
+	var best := -1
+	var area := 0
 	for ri in range(rects.size()):
-		if rects[ri].has_point(tile):
-			return ri
-	return -1
+		if kinds[ri] != BUILDING or not rects[ri].has_point(tile):
+			continue
+		var a := rects[ri].get_area()
+		if best < 0 or a < area:
+			best = ri
+			area = a
+	return best
 
 
-## Flood every WALL tile into its building (eight-connected: a partition
-## wall meets the ring at a corner) and take the bounding rectangle. A wall
-## chewed through is rubble now, but it still joins the ring it was part
-## of (`world.breached`), or a breach beside a doorway would cut a house in
-## two and give the stub a roof of its own.
+func count(part: String, rect := -1) -> int:
+	var n := 0
+	for p in parts:
+		if p.part == part and (rect < 0 or p.rect == rect):
+			n += 1
+	return n
+
+
 func _components(world: World) -> void:
 	var tiles := world.tiles
 	var ring := PackedByteArray()
@@ -73,12 +111,12 @@ func _components(world: World) -> void:
 			continue
 		var stack: Array[int] = [start]
 		seen[start] = 1
-		var members: Array[int] = []
+		var members := {}
 		var lo := Vector2i(W, W)
 		var hi := Vector2i(-1, -1)
 		while not stack.is_empty():
 			var i: int = stack.pop_back()
-			members.append(i)
+			members[i] = true
 			var x := i % W
 			var y := i / W
 			lo = Vector2i(mini(lo.x, x), mini(lo.y, y))
@@ -93,60 +131,167 @@ func _components(world: World) -> void:
 					if ring[n] == 1 and seen[n] == 0:
 						seen[n] = 1
 						stack.append(n)
-		var ri := rects.size()
 		rects.append(Rect2i(lo, hi - lo + Vector2i.ONE))
-		styles.append(int(Util.hash2(lo.x * 13, lo.y * 7) * FacadeArt.STYLES.size()))
-		for i in members:
-			_rect_of[i] = ri
-			if tiles[i] == T.WALL:
-				cores.append({"tile": Vector2i(i % W, i / W), "rect": ri})
+		styles.append(int(Util.hash2(lo.x * 13, lo.y * 7) * FacadeArt.HOUSE_STYLES))
+		_members.append(members)
 
 
-func _dress(world: World, ri: int) -> void:
+func _is_member(ri: int, t: Vector2i) -> bool:
+	return _members[ri].has(t.y * W + t.x)
+
+
+## A run that does not close and lies inside another component's rectangle
+## is that component's: a room divider cut off by its own gaps, or the stub
+## of a ring two doorways cut off at a corner (the hardware store's). A
+## closed ring inside another is a building in a yard and stays its own.
+func _merge_enclosed() -> void:
+	var gone := PackedByteArray()
+	gone.resize(rects.size())
+	var changed := true
+	while changed:
+		changed = false
+		for i in range(rects.size()):
+			if gone[i] == 1 or _closed(i):
+				continue
+			var best := -1
+			for j in range(rects.size()):
+				if j == i or gone[j] == 1 or not rects[j].encloses(rects[i]):
+					continue
+				if best < 0 or rects[j].get_area() < rects[best].get_area():
+					best = j
+			if best < 0:
+				continue
+			(_members[best] as Dictionary).merge(_members[i])
+			gone[i] = 1
+			changed = true
+	var rects2: Array[Rect2i] = []
+	var styles2 := PackedInt32Array()
+	var members2 := []
+	for i in range(rects.size()):
+		if gone[i] == 0:
+			rects2.append(rects[i])
+			styles2.append(styles[i])
+			members2.append(_members[i])
+	rects = rects2
+	styles = styles2
+	_members = members2
+
+
+## A closed ring: every edge tile is the component's, bar doorway gaps of
+## at most `GAP_MAX` that never take a corner.
+func _closed(ri: int) -> bool:
 	var r := rects[ri]
-	# Each side in turn: its outward direction, and the perimeter tiles
-	# along it, corner to corner.
+	if r.size.x < 3 or r.size.y < 3:
+		return false
+	for d in range(4):
+		var line := _side(r, d)
+		var run := 0
+		for k in range(line.size()):
+			if _is_member(ri, line[k]):
+				run = 0
+				continue
+			if k == 0 or k == line.size() - 1:
+				return false
+			run += 1
+			if run > GAP_MAX:
+				return false
+	return true
+
+
+func _classify() -> void:
+	kinds.resize(rects.size())
+	var closed := PackedByteArray()
+	closed.resize(rects.size())
+	for ri in range(rects.size()):
+		closed[ri] = 1 if _closed(ri) else 0
+	for ri in range(rects.size()):
+		if closed[ri] == 0:
+			kinds[ri] = PARTITION
+			continue
+		kinds[ri] = BUILDING
+		var inner := rects[ri].grow(-1)
+		for rj in range(rects.size()):
+			if rj != ri and closed[rj] == 1 and inner.encloses(rects[rj]):
+				kinds[ri] = YARD
+				styles[ri] = FacadeArt.YARD
+				break
+
+
+func _dress(world: World, ri: int, house: bool) -> void:
+	var r := rects[ri]
 	for d in range(4):
 		var dir := DIRS[d]
-		var line: Array[Vector2i] = _side(r, d)
-		var windows := _window_slots(world, line)
-		for k in range(line.size()):
-			var t := line[k]
-			if world.tile(t.x, t.y) != T.WALL:
-				continue
-			var kind := "facade_window" if windows[k] else "facade"
-			faces.append({"tile": t, "dir": d, "kind": kind, "rect": ri})
-			# A reveal: this wall's face along the side, toward a doorway.
-			for step: int in [-1, 1]:
-				var j := k + step
-				if j < 0 or j >= line.size():
-					continue
-				var g := line[j]
-				var gt := world.tile(g.x, g.y)
-				if gt != T.WALL and gt != T.RUBBLE:
-					var toward := g - t
-					faces.append({"tile": t, "dir": DIRS.find(toward), "kind": "jamb", "rect": ri})
-		# Canopies: each run of non-wall tiles along the side that is a way in.
+		var line := _side(r, d)
+		var windows := _window_pairs(ri, line) if house else PackedByteArray()
 		var k := 0
 		while k < line.size():
-			var gt := world.tile(line[k].x, line[k].y)
-			if gt == T.WALL or gt == T.RUBBLE:
+			var t := line[k]
+			if _is_member(ri, t) and world.tile(t.x, t.y) == T.WALL:
+				var at := Vector2(t) + Vector2(0.5, 0.5) + Vector2(dir) * 0.5
+				if windows.size() > k and windows[k] == 1:
+					# The pair k, k+1: the panel's origin on their shared edge.
+					var t2 := line[k + 1]
+					var mid := (Vector2(t) + Vector2(t2)) * 0.5 + Vector2(0.5, 0.5) + Vector2(dir) * 0.5
+					parts.append({"part": "wall_window_2m", "at": mid, "dir": d, "sx": 1.0, "rect": ri})
+					parts.append({"part": "window_single", "at": mid, "dir": d, "sx": 1.0, "rect": ri})
+					k += 2
+					continue
+				parts.append({"part": "wall_1m", "at": at, "dir": d, "sx": 1.0, "rect": ri})
 				k += 1
 				continue
+			if _is_member(ri, t):
+				# Rubble where a wall was: open air, nothing to dress.
+				k += 1
+				continue
+			# A doorway: the run of gap tiles, one panel across it with the
+			# door hung on its left post and a canopy over it.
 			var k0 := k
-			while k < line.size() and world.tile(line[k].x, line[k].y) != T.WALL and world.tile(line[k].x, line[k].y) != T.RUBBLE:
+			while k < line.size() and not _is_member(ri, line[k]):
 				k += 1
 			var a := Vector2(line[k0]) + Vector2(0.5, 0.5) + Vector2(dir) * 0.5
 			var b := Vector2(line[k - 1]) + Vector2(0.5, 0.5) + Vector2(dir) * 0.5
-			porches.append({"at": (a + b) * 0.5, "dir": d, "width": k - k0, "rect": ri})
-	# Corner boards where two outward faces meet: the four corners of the
-	# rectangle, while the corner tile still stands.
+			var width := k - k0
+			var centre := (a + b) * 0.5
+			parts.append({"part": "wall_doorway_2m", "at": centre, "dir": d, "sx": width / 2.0, "rect": ri})
+			if house:
+				# Along the face, left is the panel's -x: a quarter turn back.
+				var left := Vector2(DIRS[(d + 3) % 4])
+				var hinge := centre + left * (width / 2.0 - 0.06 - 0.5)
+				parts.append({"part": "door_open", "at": hinge, "dir": d, "sx": 1.0, "rect": ri})
+				parts.append({"part": "porch_roof_2m", "at": centre, "dir": d, "sx": width / 2.0, "rect": ri})
 	for c: Vector2i in [r.position, Vector2i(r.end.x - 1, r.position.y), Vector2i(r.position.x, r.end.y - 1), r.end - Vector2i.ONE]:
 		if world.tile(c.x, c.y) != T.WALL:
 			continue
 		var px := c.x + (1 if c.x == r.end.x - 1 else 0)
 		var py := c.y + (1 if c.y == r.end.y - 1 else 0)
-		corners.append({"at": Vector2i(px, py), "rect": ri})
+		parts.append({"part": "corner_post", "at": Vector2(px, py), "dir": 0, "sx": 1.0, "rect": ri})
+	# Room dividers inside a house are the house's own tiles off its ring.
+	for i in _members[ri]:
+		var t := Vector2i(i % W, i / W)
+		if world.tile(t.x, t.y) != T.WALL:
+			continue
+		if t.x == r.position.x or t.x == r.end.x - 1 or t.y == r.position.y or t.y == r.end.y - 1:
+			continue
+		_divider(world, ri, t)
+
+
+func _partition(world: World, ri: int) -> void:
+	for i in _members[ri]:
+		var t := Vector2i(i % W, i / W)
+		if world.tile(t.x, t.y) == T.WALL:
+			_divider(world, ri, t)
+
+
+## A plaster wall through the middle of its tile, run the way its
+## neighbours go.
+func _divider(world: World, ri: int, t: Vector2i) -> void:
+	var across := world.tile(t.x - 1, t.y) == T.WALL or world.tile(t.x + 1, t.y) == T.WALL
+	var down := world.tile(t.x, t.y - 1) == T.WALL or world.tile(t.x, t.y + 1) == T.WALL
+	var c := Vector2(t) + Vector2(0.5, 0.5)
+	if across or not down:
+		parts.append({"part": "wall_interior_1m", "at": c + Vector2(0.0, 0.125), "dir": 0, "sx": 1.0, "rect": ri})
+	if down:
+		parts.append({"part": "wall_interior_1m", "at": c + Vector2(0.125, 0.0), "dir": 1, "sx": 1.0, "rect": ri})
 
 
 ## The perimeter tiles along side `d` of `r`, in order.
@@ -168,26 +313,26 @@ static func _side(r: Rect2i, d: int) -> Array[Vector2i]:
 	return out
 
 
-## Which tiles along a side get a window: never a corner, never beside a
-## doorway, and otherwise one every `WINDOW_EVERY`, centred on the side.
-static func _window_slots(world: World, line: Array[Vector2i]) -> PackedByteArray:
+## Which tiles start a two-tile window panel along a side: never a corner,
+## never beside a doorway, one pair every `WINDOW_EVERY`, centred.
+func _window_pairs(ri: int, line: Array[Vector2i]) -> PackedByteArray:
 	var out := PackedByteArray()
 	out.resize(line.size())
 	var m := line.size() - 2
-	if m < 1:
+	if m < 2:
 		return out
-	var k := (m + 1) / WINDOW_EVERY
+	var k := (m + 2) / WINDOW_EVERY
 	if k < 1:
 		return out
-	var span := WINDOW_EVERY * (k - 1) + 1
+	var span := WINDOW_EVERY * (k - 1) + 2
 	var offset := (m - span) / 2
 	for j in range(k):
 		var i := 1 + offset + WINDOW_EVERY * j
-		if i < 1 or i > line.size() - 2:
+		if i < 1 or i + 1 > line.size() - 2:
 			continue
 		var clear := true
-		for n in range(i - 1, i + 2):
-			if world.tile(line[n].x, line[n].y) != T.WALL:
+		for n in range(i - 1, i + 3):
+			if not _is_member(ri, line[n]):
 				clear = false
 		if clear:
 			out[i] = 1
