@@ -84,3 +84,21 @@ func test_a_built_wall_is_the_house_panel_joined_by_posts() -> void:
 	var end: Dictionary = s._nodes.get(Vector2i(140, 160), {})
 	ok(not end.is_empty() and (end.parts as Array).size() == 2, "a run's end is a half panel and a post")
 	s.free()
+
+
+func test_the_ground_under_a_wall_is_the_room_floor_not_the_yard() -> void:
+	# The military hut is tiled inside and stands on the compound's gravel:
+	# its south wall shows the tiles, however the neighbours are ordered.
+	var w := world()
+	var hut := Rect2i(210, 211, 10, 8)
+	var t := Vector2i(hut.position.x + 4, hut.end.y - 1)
+	eq(w.tile(t.x, t.y), Config.T.WALL)
+	eq(w.tile(t.x, t.y - 1), Config.T.FLOOR_TILE)
+	eq(w.tile(t.x, t.y + 1), Config.T.GRAVEL)
+	var art := TerrainRenderer.cell_art(w, t.x, t.y)
+	eq(Terrain3D._ground_cell(w, t.x, t.y, art), TerrainRenderer.cell_art(w, t.x, t.y - 1).cell)
+	# A street wall with grass both sides keeps its own art.
+	var yard := Vector2i(206, 220)
+	eq(w.tile(yard.x, yard.y), Config.T.WALL)
+	var ya := TerrainRenderer.cell_art(w, yard.x, yard.y)
+	eq(Terrain3D._ground_cell(w, yard.x, yard.y, ya), TerrainRenderer.cell_art(w, yard.x + 1, yard.y).cell)

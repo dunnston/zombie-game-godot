@@ -106,15 +106,25 @@ func repaint(world: World, tx: int, ty: int) -> void:
 
 ## The ground under a tile. A house wall is a thin panel on its tile's outer
 ## edge now (`Buildings3D`), so the tile under it shows: it takes the floor
-## beside it, and the room runs to the wall.
+## beside it, and the room runs to the wall. A wall with ground on both
+## sides takes the most indoor of them (a floor over dirt over gravel over
+## a lot), so the military hut's tiles beat the compound's gravel (Codex).
+const INDOORS := [T.FLOOR_TILE, T.FLOOR_WOOD, T.DIRT, T.GRAVEL, T.LOT]
+
 static func _ground_cell(world: World, tx: int, ty: int, art: Dictionary) -> Vector2i:
 	if int(art.t) != T.WALL:
 		return art.cell
+	var best := Vector2i(-1, -1)
+	var rank := INDOORS.size()
 	for d: Vector2i in [Vector2i(0, 1), Vector2i(1, 0), Vector2i(0, -1), Vector2i(-1, 0)]:
 		var n := world.tile(tx + d.x, ty + d.y)
-		if n in [T.FLOOR_WOOD, T.FLOOR_TILE, T.DIRT, T.GRAVEL, T.LOT]:
-			return TerrainRenderer.cell_art(world, tx + d.x, ty + d.y).cell
-	return art.cell
+		var r := INDOORS.find(n)
+		if r >= 0 and r < rank:
+			rank = r
+			best = Vector2i(tx + d.x, ty + d.y)
+	if best.x < 0:
+		return art.cell
+	return TerrainRenderer.cell_art(world, best.x, best.y).cell
 
 
 func _place_block(world: World, n: int, tx: int, ty: int) -> void:

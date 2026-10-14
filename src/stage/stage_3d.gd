@@ -35,6 +35,7 @@ var _dist := 30.0
 var label_reach := 1400.0
 var _shake_rng := RandomNumberGenerator.new()
 var _pitch := 0.0
+var _buildings_dirty := false
 
 
 func _init(sim_: GameSim) -> void:
@@ -109,8 +110,12 @@ func rebuild_props() -> void:
 	props.rebuild()
 
 
+## A wall broken open, on the host from its event and on a guest from the
+## host's world update (`main._after_guest_step`): the ground cell now, the
+## buildings once this tick, however many walls went in one update.
 func repaint(tx: int, ty: int) -> void:
 	terrain.repaint(sim.world, tx, ty)
+	_buildings_dirty = true
 
 
 func set_local(p: PlayerSim) -> void:
@@ -128,7 +133,6 @@ func attach_build_bar(bar: BuildBar) -> void:
 func on_event(ev: Dictionary) -> void:
 	if ev.t == "wall_broken":
 		repaint(int(ev.tx), int(ev.ty))
-		buildings.build(sim.world)
 	fx.on_event(ev)
 	boss.on_event(ev)
 	actors.on_event(ev)
@@ -136,6 +140,9 @@ func on_event(ev: Dictionary) -> void:
 
 
 func tick(dt: float) -> void:
+	if _buildings_dirty:
+		_buildings_dirty = false
+		buildings.build(sim.world)
 	fx.tick(dt)
 	boss.tick(dt)
 	lights.tick(dt)
