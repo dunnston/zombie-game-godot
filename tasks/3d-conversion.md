@@ -45,6 +45,18 @@ owner has chosen 3D for good.
   drop zone: gitignored, `.gdignore` so Godot does not import it. Game-ready
   copies live in `assets/models/` under game names. `Zombie Game Art/` is
   the reference art the bible points at: committed, `.gdignore`.
+- **Static props are sorted by where they stand** (2026-10-14):
+  `assets/models/props/<place>/<name>.glb`, thirteen places (`nature`,
+  `street`, `vehicles`, `yard`, `furniture`, `kitchen`, `bathroom`,
+  `utility`, `store`, `office`, `electronics`, `decor`, `small`), snake_case
+  names, `_2` for a variant. `assets/models/props/README.md` is the catalog:
+  every file against the Meshy export it came from, and the folder rules.
+  Every Meshy export is unit-normalised, so `StaticModel.fit` is the only
+  place a prop gets a size. **The props are not in git**: 1.4 GB is past the
+  LFS quota, so the folders and README are tracked and the `.glb`s are
+  ignored. `tools\pack_props.cmd` zips them into `props.zip` for a teammate,
+  who unzips it into `assets\models\`. A clone without them still plays: a
+  missing model draws as a box (`Models.scene` returns null).
 - **Enemy → model** is a view-side table in `src/stage/models.gd`, never
   content. Kinds without a model draw as a capsule in their 2D colour at
   their 2D radius.
@@ -196,7 +208,11 @@ into `Structures3D` through `StaticModel.fit` rather than waiting for phase 3.
 - The toon + outline shader (bible: 2–3 hard tones, `#2F292B` line).
 - Weapon props on the hand bone from the owner's pipeline.
 - Armour as rigid props (head, body, legs, feet, offhand).
-- Real meshes for containers, trees, cars, structures. **Buildings: done
+- Real meshes for containers, trees, cars, structures. **Props, containers,
+  trees and cars: done (2026-10-14)** — `PropModels` is the view table,
+  `Props3D` batches one MultiMesh per model per chunk, and `Furnish` puts
+  the furniture where it belongs (PROJECT.md §4 *Furnished*). Still a
+  stand-in: hay bales, silos, reeds. **Buildings: done
   (2026-10-13)** — the building parts (`tools/build_kit.py`, `BuildingPlan`,
   `Buildings3D`; PROJECT.md §4 *The building parts*): Synty-style facades,
   windows, door trim, corner boards, canopies and a gable roof per

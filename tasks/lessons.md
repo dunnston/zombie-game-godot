@@ -618,3 +618,33 @@ it is one with a level and a condition on it, run against the old code first.
   is testing geometry it did not mean to: 30 px of walking moved the angle
   to the cursor by 0.26 rad. Put a test cursor far away (1e4 px) unless
   the distance is the point.
+
+## 2026-10-14 (the furnishing pass)
+
+- `Rect2i.expand(point)` grows the rectangle to the point's *edge*, so the
+  point's own row and column stay outside it. A flood fill over such a
+  rect never visits the last row or column, which is exactly where a
+  boxed-off corner is. Build an integer bounds rect from min and max by
+  hand, `size = max - min + 1`.
+- A static function named `_set` on a `RefCounted` fails to parse with
+  "the function signature doesn't match the parent": `_set`, `_get`,
+  `_init`, `_ready` and the rest are Object's virtuals whatever the
+  class. Every script that depends on it then fails to compile, and the
+  runtime error is "Nonexistent function 'house' in base 'GDScript'" —
+  the class resolved to a bare script. Read the first SCRIPT ERROR.
+- `Camera3D.look_at` before `add_child` does nothing (not in the tree),
+  and the sheet comes out as background colour. Add the node, then aim it.
+- The first frames after a scripted window opens render nothing: a
+  SubViewport captured on them is the clear colour. Wait thirty frames
+  before the first capture.
+- A test that stands the player wherever the spawn fell and builds four
+  tiles away was leaning on the RNG: when the generator's draws moved,
+  the spawn moved and the walls were "Too far". Put the player where the
+  test needs them.
+- A test that reads a wall tile by offset along a wall with a rolled
+  doorway was reading the door. Walk along the wall to the first wall tile.
+- The old `_stock` could box a floor corner off with two cabinets, and
+  nobody noticed for a year because nothing stood there. The moment
+  furniture had to cross the room, three buildings failed. A rule that
+  only furniture obeyed would have left the cabinets as the exception;
+  the rule went into `_stock` too.

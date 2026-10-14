@@ -71,6 +71,8 @@ func test_a_built_wall_is_the_house_panel_joined_by_posts() -> void:
 	var sim := new_sim()
 	var p := sim.players[0]
 	p.bag.add("wood", 400)
+	# On the highway beside the walls: build range, wherever the spawn fell.
+	p.pos = tile_centre(Vector2i(141, 162))
 	var s := Structures3D.new(sim)
 	for t: Vector2i in [Vector2i(140, 160), Vector2i(141, 160), Vector2i(142, 160), Vector2i(142, 159)]:
 		sim.world.unstick(Vector2(t) * Config.TILE, 4.0)
@@ -91,7 +93,10 @@ func test_the_ground_under_a_wall_is_the_room_floor_not_the_yard() -> void:
 	# its south wall shows the tiles, however the neighbours are ordered.
 	var w := world()
 	var hut := Rect2i(210, 211, 10, 8)
-	var t := Vector2i(hut.position.x + 4, hut.end.y - 1)
+	# The door is somewhere along that wall; take the first tile that is not it.
+	var t := Vector2i(hut.position.x + 1, hut.end.y - 1)
+	while w.tile(t.x, t.y) != Config.T.WALL:
+		t.x += 1
 	eq(w.tile(t.x, t.y), Config.T.WALL)
 	eq(w.tile(t.x, t.y - 1), Config.T.FLOOR_TILE)
 	eq(w.tile(t.x, t.y + 1), Config.T.GRAVEL)

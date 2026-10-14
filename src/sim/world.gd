@@ -45,6 +45,15 @@ var wall_hp := {}
 var gen_fingerprint := 0             # checksum of what the generator produced
 var containers: Array[Dictionary] = []
 var vehicle_spawns: Array[Dictionary] = []
+## Every building the generator stamped, for furnishing (`Furnish`): its
+## rectangle, floor, what it is for, its partition lines, its door tiles
+## and the floor it may furnish. Generation only.
+var buildings: Array[Dictionary] = []
+## Tiles something stands on without blocking them — a plant, a rug, a
+## picture on the wall — so nothing else lands on top. Generation only.
+var dressed := {}
+## The yards to lay once every building stands: [building, table, count].
+var _yards: Array = []
 var locations: Array[Dictionary] = []
 var spawn_tiles: Array[Vector2i] = []
 var rng: Rng
@@ -243,24 +252,29 @@ func _building(bx: int, by: int, bw: int, bh: int, opts: Dictionary = {}) -> Arr
 	var doors: int = opts.get("doors", 1)
 	var door_sides: Array = opts.get("door_sides", [])
 	var width: int = opts.get("door_width", 2)
+	var door_tiles: Array[Vector2i] = []
 	for d in range(doors):
 		var side: int = door_sides[d % door_sides.size()] if door_sides.size() > 0 else rng.irange(0, 3)
 		if side == 0:
 			var x := bx + rng.irange(1, maxi(1, bw - width - 1))
 			for i in range(width):
 				_put(x + i, by, floor_t)
+				door_tiles.append(Vector2i(x + i, by))
 		elif side == 1:
 			var x := bx + rng.irange(1, maxi(1, bw - width - 1))
 			for i in range(width):
 				_put(x + i, by + bh - 1, floor_t)
+				door_tiles.append(Vector2i(x + i, by + bh - 1))
 		elif side == 2:
 			var y := by + rng.irange(1, maxi(1, bh - width - 1))
 			for i in range(width):
 				_put(bx, y + i, floor_t)
+				door_tiles.append(Vector2i(bx, y + i))
 		elif side == 3:
 			var y := by + rng.irange(1, maxi(1, bh - width - 1))
 			for i in range(width):
 				_put(bx + bw - 1, y + i, floor_t)
+				door_tiles.append(Vector2i(bx + bw - 1, y + i))
 
 	# Partition lines: their gap tiles are the only way between rooms, so the
 	# furnishing pass must never put a wardrobe in one.
@@ -312,8 +326,9 @@ func _building(bx: int, by: int, bw: int, bh: int, opts: Dictionary = {}) -> Arr
 		vs.append(vx)
 		for y in range(by + 1, by + bh - 1):
 			_put(vx, y, T.WALL)
-		if bh > 11:
-			# Four rooms: every one of them gets a way into a neighbour.
+		if bh > 8:
+			# Four rooms (a kitchen, a living room, a bedroom and a bathroom,
+			# 2026-10-14): every one of them gets a way into a neighbour.
 			var hy := by + floori(bh / 2.0)
 			hs.append(hy)
 			for x in range(bx + 1, bx + bw - 1):
@@ -350,7 +365,93 @@ func _building(bx: int, by: int, bw: int, bh: int, opts: Dictionary = {}) -> Arr
 				or _opening(x, y + 1, bx, by, bw, bh, vs, hs, floor_t):
 				continue
 			interior.append(Vector2i(x, y))
+	# Nothing grows against the walls or in front of a door: the woodland
+	# pass could otherwise seal an alley, and a yard stays off the ring too.
+	_clearing(bx - 1, by - 1, bw + 2, bh + 2)
+	for d in door_tiles:
+		var out := Vector2i(-1 if d.x == bx else (1 if d.x == bx + bw - 1 else 0), -1 if d.y == by else (1 if d.y == by + bh - 1 else 0))
+		for k in range(1, 4):
+			var t := d + out * k
+			if in_bounds(t.x, t.y):
+				_no_tree[t.y * W + t.x] = 1
+	buildings.append({"rect": Rect2i(bx, by, bw, bh), "floor": floor_t, "use": String(opts.get("use", "")),
+		"vs": vs, "hs": hs, "doors": door_tiles, "interior": interior})
 	return interior
+
+
+## A home: stamped like any building, then furnished room by room
+## (`Furnish.house`, `Config.ROOMS`) — a kitchen, a bathroom, bedrooms —
+## with its searchable cabinets placed by the same pass so a fridge is in
+## the kitchen, and a yard on the lot if `use` has one (`Config.YARD`).
+## `opts.use` says what kind of home: house, farm, shack, cabin, apartment.
+func _house(bx: int, by: int, bw: int, bh: int, opts: Dictionary) -> void:
+	_building(bx, by, bw, bh, opts)
+	var b: Dictionary = buildings.back()
+	Furnish.house(self, b)
+	var use := String(opts.get("use", "house"))
+	if Config.YARD.has(use):
+		# Laid once every building stands (`_yards`), so a yard keeps off
+		# the neighbours' doors as well as its own.
+		_yards.append([b, Config.YARD[use], rng.irange(2, 4) if use == "house" else rng.irange(1, 2)])
+
+
+func _lay_yards() -> void:
+	for y in _yards:
+		Furnish.yard(self, y[0], y[1], y[2])
+	_yards.clear()
+
+
+## A thing the generator stands somewhere: furniture, a yard piece, a
+## picture on a wall, a corn stalk. `w` across its face and `h` deep, in
+## tiles; `at` its top-left tile; `dir` the way it faces, in quarter turns
+## from south. Solid things block their tiles; the rest are marked in
+## `dressed`. What it looks like is the stage's business (`PropModels`).
+func add_thing(kind: String, what: String, at: Vector2i, w: int, h: int, dir: int, solid: bool, extra := {}) -> Dictionary:
+	var foot := footprint_of(w, h, dir)
+	var p := {
+		"kind": kind, "what": what, "si": rng.irange(0, 3), "rot": 0.0, "dir": dir,
+		"tx": at.x, "ty": at.y, "w": w, "h": h, "solid": solid,
+		"x": (at.x + foot.x / 2.0) * TILE, "y": (at.y + foot.y / 2.0) * TILE,
+	}
+	p.merge(extra)
+	for j in range(foot.y):
+		for i in range(foot.x):
+			if solid:
+				_block(at.x + i, at.y + j, 1)
+			else:
+				dressed[(at.y + j) * W + at.x + i] = true
+	props.append(p)
+	return p
+
+
+## Takes back a thing or a container `add_thing` or `_add_container` just
+## placed (the furnishing pass tried it and it cut the room in two).
+func remove_thing(p: Dictionary) -> void:
+	if p.has("looted"):
+		containers.erase(p)
+		for k in range(containers.size()):
+			containers[k].id = k
+		blocked[int(p.ty) * W + int(p.tx)] = 0
+		return
+	props.erase(p)
+	var foot := footprint_of(int(p.get("w", 1)), int(p.get("h", 1)), int(p.get("dir", 0)))
+	for j in range(foot.y):
+		for i in range(foot.x):
+			var idx := (int(p.ty) + j) * W + int(p.tx) + i
+			if p.get("solid", false):
+				blocked[idx] = 0
+			dressed.erase(idx)
+
+
+## The tiles a thing `w` across and `h` deep covers when it faces `dir`.
+static func footprint_of(w: int, h: int, dir: int) -> Vector2i:
+	return Vector2i(w, h) if dir % 2 == 0 else Vector2i(h, w)
+
+
+## Whether the woodland pass leaves a tile alone (a lane, a trail, a
+## clearing): the yards keep off those too.
+func no_tree(x: int, y: int) -> bool:
+	return _no_tree[y * W + x] == 1
 
 
 func _on_line(x: int, y: int, bx: int, by: int, bw: int, bh: int, vs: Array[int], hs: Array[int]) -> bool:
@@ -416,6 +517,9 @@ func _stock(interior: Array[Vector2i], kinds, n: int) -> void:
 	var used := {}
 	var placed := 0
 	var guard := 0
+	var set := {}
+	for c in interior:
+		set[c.y * W + c.x] = true
 	while placed < n and guard < n * 25 and pool.size() > 0:
 		guard += 1
 		var cell: Vector2i = rng.pick(pool)
@@ -423,8 +527,18 @@ func _stock(interior: Array[Vector2i], kinds, n: int) -> void:
 			continue
 		used[cell] = true
 		var kind: String = _pick_kind(list, table)
-		if not _add_container(cell.x, cell.y, kind).is_empty():
-			placed += 1
+		var c := _add_container(cell.x, cell.y, kind)
+		if c.is_empty():
+			continue
+		# Two cabinets can box a corner of the floor off; one that would is
+		# taken back (the furnishing pass's rule, 2026-10-14).
+		if not Furnish.still_open(self, interior, set):
+			remove_thing(c)
+			continue
+		placed += 1
+	# What the place has besides its cabinets: aisles, benches, a wheelbarrow.
+	if kinds is String and Config.DECOR.has(kinds):
+		Furnish.dress(self, interior, Config.DECOR[kinds])
 
 
 func _pick_kind(list: Array, table: Array) -> String:
@@ -513,7 +627,7 @@ func _plant_litter(x: int, y: int, res: String) -> Dictionary:
 	if not in_bounds(x, y):
 		return {}
 	var i := y * W + x
-	if blocked[i] or prop_grid.has(i):
+	if blocked[i] or prop_grid.has(i) or dressed.has(i):
 		return {}
 	# The surface policy lives here rather than in each caller. The camp
 	# starter-cache used to plant through this function without one, which is
@@ -531,7 +645,8 @@ func _plant_litter(x: int, y: int, res: String) -> Dictionary:
 	return prop
 
 
-## Solid scenery that is not harvestable: hay bales (1 tile), silos (2x2).
+## Solid scenery that is not harvestable: hay bales (1 tile), silos (2x2),
+## a stump, a log, a tractor (2x1). `w` and `h` are its tiles.
 func _add_scenery(kind: String, tx: int, ty: int, w := 1, h := 1) -> Dictionary:
 	for j in range(h):
 		for i in range(w):
@@ -540,7 +655,8 @@ func _add_scenery(kind: String, tx: int, ty: int, w := 1, h := 1) -> Dictionary:
 	for j in range(h):
 		for i in range(w):
 			_block(tx + i, ty + j, 1)
-	var p := {"kind": kind, "si": rng.irange(0, 2), "rot": 0.0, "x": (tx + w / 2.0) * TILE, "y": (ty + h / 2.0) * TILE, "w": w, "h": h}
+	var p := {"kind": kind, "si": rng.irange(0, 2), "rot": 0.0, "tx": tx, "ty": ty, "solid": true,
+		"x": (tx + w / 2.0) * TILE, "y": (ty + h / 2.0) * TILE, "w": w, "h": h}
 	props.append(p)
 	return p
 
@@ -576,7 +692,7 @@ func _plant_big(x: int, y: int, kind: String) -> Dictionary:
 	if not in_bounds(x, y):
 		return {}
 	var i := y * W + x
-	if blocked[i] or prop_grid.has(i):
+	if blocked[i] or prop_grid.has(i) or dressed.has(i):
 		return {}
 	var t := tiles[i]
 	if t != T.GRASS and t != T.DIRT and t != T.GRAVEL and t != T.SAND:
@@ -620,14 +736,21 @@ func _grow(x: int, y: int) -> void:
 	var t := tiles[i]
 	if t != T.GRASS and t != T.DIRT:
 		return
-	if blocked[i] or prop_grid.has(i):
+	if blocked[i] or prop_grid.has(i) or dressed.has(i):
 		return
 	var p := _growth(x, y)
 	if p <= 0 or not rng.chance(p):
 		return
-	if rng.chance(0.72):
+	# Mostly trees; now and then what is left of one — a stump, a fallen
+	# log — and the rest bushes and rocks.
+	var r := rng.next()
+	if r < 0.66:
 		var pine := rng.chance(0.7 if y < 62 else 0.15)
 		_plant_tree(x, y, pine)
+	elif r < 0.70:
+		_add_scenery("stump", x, y)
+	elif r < 0.73:
+		_add_scenery("log", x, y)
 	else:
 		_plant_scenery(x, y)
 
@@ -687,6 +810,7 @@ func _generate() -> void:
 	_gen_forest()
 	_gen_city()
 	_gen_junkyard()
+	_lay_yards()
 
 	# Roadside wrecks on the main arteries — cover and obstacles.
 	for i in range(70):
@@ -749,9 +873,14 @@ func _clear_props(r: Rect2i) -> void:
 		if not r.has_point(t):
 			continue
 		props.remove_at(i)
-		prop_grid.erase(t.y * W + t.x)
-		if p.get("solid", false):
-			blocked[t.y * W + t.x] = 0
+		var foot := footprint_of(int(p.get("w", 1)), int(p.get("h", 1)), int(p.get("dir", 0)))
+		for j in range(foot.y):
+			for k in range(foot.x):
+				var idx := (t.y + j) * W + t.x + k
+				prop_grid.erase(idx)
+				dressed.erase(idx)
+				if p.get("solid", false):
+					blocked[idx] = 0
 
 
 ## A doorway that answers the interact key instead of letting you through:
@@ -926,6 +1055,7 @@ func _gen_school(d: Dictionary) -> void:
 	# What is in it.
 	for r in north + south:
 		_stock(_furnishable(r), "schoolClass", rng.irange(3, 5))
+		Furnish.classroom(self, _furnishable(r), r)
 	_stock(_furnishable(hall), ["schoolLocker"], rng.irange(6, 9))
 	_stock(_furnishable(cafeteria), "schoolCafeteria", rng.irange(5, 7))
 	_stock(_furnishable(nurse), ["nurseCabinet", "nurseCabinet", "pharmacy"], 3)
@@ -1016,24 +1146,22 @@ func _gen_range() -> void:
 
 func _gen_town() -> void:
 	# camp: a couple of shacks, a wreck, and easy pickings.
-	_stock(_building(150, 150, 8, 7, {"doors": 1}), "house", 4)
-	_stock(_building(164, 164, 7, 6, {"doors": 1}), "house", 4)
-	_stock(_building(148, 166, 9, 6, {"doors": 2}), "house", 5)
+	_house(150, 150, 8, 7, {"doors": 1, "use": "shack"})
+	_house(164, 164, 7, 6, {"doors": 1, "use": "shack"})
+	_house(148, 166, 9, 6, {"doors": 2, "use": "shack"})
 
-	# suburbs
+	# suburbs: the driveway and the car first, so the yard keeps off them.
 	for lot in [
 		[90, 90, 13, 10], [108, 88, 12, 9], [126, 90, 14, 11],
 		[90, 110, 12, 10], [110, 110, 15, 11], [130, 112, 12, 9],
 		[92, 128, 14, 11], [114, 130, 13, 10], [132, 130, 12, 9],
 		[88, 146, 12, 9], [120, 146, 11, 8],
 	]:
-		var doors := rng.irange(1, 2)
-		var interior := _building(lot[0], lot[1], lot[2], lot[3], {"doors": doors, "rooms": true})
-		var n := rng.irange(5, 8)
-		_stock(interior, "house", n)
 		_fill(lot[0] + 2, lot[1] + lot[3], 3, 3, T.GRAVEL)
 		if rng.chance(0.55):
 			_add_car(lot[0] + 2, lot[1] + lot[3] + 1, 0)
+		var doors := rng.irange(1, 2)
+		_house(lot[0], lot[1], lot[2], lot[3], {"doors": doors, "rooms": true, "use": "house"})
 
 	# east homes
 	for lot in [
@@ -1041,12 +1169,10 @@ func _gen_town() -> void:
 		[178, 106, 12, 10], [198, 106, 14, 11], [216, 108, 13, 10],
 		[180, 122, 15, 8], [202, 122, 14, 8], [220, 122, 10, 8],
 	]:
-		var doors := rng.irange(1, 2)
-		var interior := _building(lot[0], lot[1], lot[2], lot[3], {"doors": doors, "rooms": true})
-		var n := rng.irange(6, 9)
-		_stock(interior, "house", n)
 		if rng.chance(0.5):
 			_add_car(lot[0] + 3, lot[1] + lot[3] + 1, 0)
+		var doors := rng.irange(1, 2)
+		_house(lot[0], lot[1], lot[2], lot[3], {"doors": doors, "rooms": true, "use": "house"})
 
 	# market row
 	var conv := _building(174, 138, 16, 12, {"floor": T.FLOOR_TILE, "doors": 2, "door_sides": [0, 2]})
@@ -1137,9 +1263,11 @@ func _gen_town() -> void:
 
 
 func _gen_country() -> void:
-	# farms: north farmstead, above the north road.
-	var h := _building(8, 74, 12, 9, {"doors": 1, "door_sides": [3], "rooms": true})
-	_stock(h, "house", 7)
+	# farms: north farmstead, above the north road. The truck and the
+	# tractor stand before the house's yard is laid, so it keeps off them.
+	_add_car(22, 84, 0)                       # the farm truck
+	_add_scenery("tractor", 31, 84, 2, 1)
+	_house(8, 74, 12, 9, {"doors": 1, "door_sides": [3], "rooms": true, "use": "farm"})
 	var b := _building(34, 72, 14, 10, {"floor": T.DIRT, "doors": 1, "door_sides": [2], "door_width": 3})
 	_stock(b, "barn", 8)
 	_silo(49, 73)
@@ -1147,9 +1275,9 @@ func _gen_country() -> void:
 		var hx := 36 + i * 2 + rng.irange(0, 1)
 		var hy := 84 + rng.irange(0, 1)
 		_hay(hx, hy)
-	_add_car(22, 84, 0)                       # the farm truck
 	_field(6, 88, 20, 12)
 	_field(34, 88, 16, 12)
+	Furnish.corn(self, Rect2i(6, 88, 20, 12))
 	# Windbreak between the north fields and the middle ones.
 	for x in range(6, 52, 2):
 		if x < 27 or x > 31:
@@ -1160,6 +1288,7 @@ func _gen_country() -> void:
 		_hay(37 + i * 3, 110)
 	_field(4, 126, 22, 14)
 	_field(34, 118, 16, 24)
+	Furnish.corn(self, Rect2i(4, 126, 22, 14))
 	var feed := _building(34, 146, 14, 9, {"floor": T.FLOOR_TILE, "doors": 2, "door_sides": [1, 2]})
 	_stock(feed, "farmstore", 9)
 	_fill(32, 155, 18, 2, T.LOT)
@@ -1168,15 +1297,16 @@ func _gen_country() -> void:
 	_add_car(36, 155, 0)
 	_add_car(44, 155, 0)
 	# South farmstead, below the highway.
-	h = _building(8, 170, 11, 8, {"doors": 1, "door_sides": [3], "rooms": true})
-	_stock(h, "house", 6)
+	var coop := _building(22, 170, 5, 4, {"doors": 1, "door_sides": [1]})
+	_stock(coop, ["cabinet", "crate"], 1)
+	_house(8, 170, 11, 8, {"doors": 1, "door_sides": [3], "rooms": true, "use": "farm"})
 	b = _building(36, 168, 12, 9, {"floor": T.DIRT, "doors": 1, "door_sides": [2], "door_width": 3})
 	_stock(b, "barn", 7)
 	_silo(49, 169)
-	var coop := _building(22, 170, 5, 4, {"doors": 1, "door_sides": [1]})
-	_stock(coop, ["cabinet", "crate"], 1)
+	_add_scenery("tractor", 32, 178, 2, 1)
 	_field(4, 182, 22, 14)
 	_field(32, 182, 18, 12)
+	Furnish.corn(self, Rect2i(4, 182, 22, 14))
 	for i in range(4):
 		_hay(34 + i * 3, 196)
 	for x in range(6, 52, 2):
@@ -1185,11 +1315,11 @@ func _gen_country() -> void:
 			_plant_tree(x, 200, pine)
 
 	# ranch
-	var rh := _building(8, 212, 12, 8, {"doors": 1, "door_sides": [3], "rooms": true})
-	_stock(rh, "house", 6)
+	_add_car(22, 220, 0)
+	_house(8, 212, 12, 8, {"doors": 1, "door_sides": [3], "rooms": true, "use": "farm"})
 	var stable := _building(32, 208, 16, 8, {"floor": T.DIRT, "doors": 2, "door_sides": [1, 2], "door_width": 3})
 	_stock(stable, "barn", 8)
-	_add_car(22, 220, 0)
+	_add_scenery("tractor", 36, 218, 2, 1)
 	_fence_rect(6, 224, 44, 28, [[28, 224], [29, 224], [30, 224], [6, 236], [6, 237]])
 	for i in range(7):
 		var hx := 9 + rng.irange(0, 38)
@@ -1215,8 +1345,7 @@ func _gen_forest() -> void:
 	_lane(94, 22, 32, 26, T.DIRT)          # the yard
 	var mill := _building(96, 24, 14, 9, {"floor": T.FLOOR_WOOD, "doors": 1, "door_sides": [1], "door_width": 3})
 	_stock(mill, "lumber", 8)
-	var bunk := _building(114, 26, 10, 7, {"doors": 1, "door_sides": [1]})
-	_stock(bunk, "cabin", 5)
+	_house(114, 26, 10, 7, {"doors": 1, "door_sides": [1], "use": "cabin"})   # the bunkhouse
 	for i in range(8):
 		_add_container(96 + i * 2, 38, "logPile")
 	for i in range(7):
@@ -1227,8 +1356,7 @@ func _gen_forest() -> void:
 	_add_wreck(120, 46)
 
 	# lake: the lodge and its boathouse on the south shore.
-	var lodge := _building(174, 44, 13, 8, {"doors": 2, "door_sides": [0, 1], "rooms": true})
-	_stock(lodge, "cabin", 8)
+	_house(174, 44, 13, 8, {"doors": 2, "door_sides": [0, 1], "rooms": true, "use": "cabin"})
 	var boat := _building(206, 43, 7, 5, {"floor": T.FLOOR_WOOD, "doors": 1, "door_sides": [0]})
 	_stock(boat, ["crate", "toolbox", "footlocker"], 2)
 	_lane(188, 50, 12, 4)
@@ -1241,8 +1369,7 @@ func _gen_forest() -> void:
 
 	# hunting cabins + trails
 	for c in [[24, 20, 7, 6], [140, 12, 7, 6], [228, 30, 7, 6], [46, 46, 6, 5]]:
-		var cabin := _building(c[0], c[1], c[2], c[3], {"doors": 1})
-		_stock(cabin, "cabin", 3)
+		_house(c[0], c[1], c[2], c[3], {"doors": 1, "use": "cabin"})
 		_clearing(c[0] - 2, c[1] - 2, c[2] + 4, c[3] + 4)
 	_trail([[27, 27], [27, 66]])
 	_trail([[49, 52], [49, 66]])
@@ -1261,9 +1388,7 @@ func _gen_city() -> void:
 	]:
 		var s0 := rng.irange(0, 1)
 		var s1 := rng.irange(2, 3)
-		var interior := _building(blk[0], blk[1], blk[2], blk[3], {"floor": T.FLOOR_TILE, "doors": 2, "door_sides": [s0, s1], "grid": 6})
-		var n := rng.irange(9, 13)
-		_stock(interior, "apartment", n)
+		_house(blk[0], blk[1], blk[2], blk[3], {"floor": T.FLOOR_TILE, "doors": 2, "door_sides": [s0, s1], "grid": 6, "use": "apartment"})
 	var corner := _building(266, 112, 22, 14, {"floor": T.FLOOR_TILE, "doors": 2, "door_sides": [1, 3]})
 	_stock(corner, "store", 9)
 	for y in [83, 109, 129]:

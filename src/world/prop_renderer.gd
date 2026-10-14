@@ -133,6 +133,25 @@ func _draw_prop(p: Dictionary) -> void:
 			draw_arc(c, 27, 0, TAU, 32, Color("#77776f"), 1.5)
 		"wreck":
 			_draw_wreck(c, p.si)
+		"corn":
+			for dx: float in [-5.0, 0.0, 5.0]:
+				draw_line(c + Vector2(dx, 8), c + Vector2(dx * 1.4, -14), Color("#8aa03a"), 2.0)
+		"tractor":
+			draw_rect(Rect2(c.x - 30, c.y - 12, 60, 24), Color("#8a2f2f"))
+			draw_rect(Rect2(c.x - 10, c.y - 20, 18, 16), Color("#3a2e28"))
+		"wall":
+			pass
+		_:
+			# What the furnishing pass stood here (2026-10-14): a box on its
+			# tiles. The 2D stage is frozen, not broken (`tasks/rollback-to-2d.md`).
+			var foot := World.footprint_of(int(p.get("w", 1)), int(p.get("h", 1)), int(p.get("dir", 0)))
+			var hw := foot.x * 16.0 - 3.0
+			var hh := foot.y * 16.0 - 3.0
+			var paint := Color("#7a6248") if p.kind == "furniture" else Color("#5f6b5a")
+			if p.get("solid", true):
+				draw_rect(Rect2(c.x - hw + 2, c.y - hh + 3, hw * 2, hh * 2), SHADOW)
+			draw_rect(Rect2(c.x - hw, c.y - hh, hw * 2, hh * 2), paint)
+			draw_rect(Rect2(c.x - hw, c.y - hh, hw * 2, hh * 2), paint.darkened(0.4), false, 2.0)
 
 
 func _poly(c: Vector2, pts: Array) -> PackedVector2Array:

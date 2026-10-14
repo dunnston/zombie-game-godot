@@ -27,5 +27,20 @@ tools/_*.gd.uid
 Meshy Models/*
 !Meshy Models/.gdignore
 
+# The static props (assets/models/props/<place>/*.glb, 1.4 GB) are too big for
+# the LFS quota. The folders and README stay in git; the files travel as
+# props.zip (tools\pack_props.cmd), unzipped into assets\models\. The game
+# plays without them: a missing model draws as a box.
+assets/models/props/**/*.glb
+assets/models/props/**/*.glb.import
+# ...and the textures Godot's importer extracts beside each of them.
+assets/models/props/**/*.jpg
+assets/models/props/**/*.jpg.import
+assets/models/props/**/*.png
+assets/models/props/**/*.png.import
+# The owner's inbox copy of the structure models under their Meshy names;
+# the game's copies are assets/models/structures/.
+assets/models/buildable_props/
+
 # Blender save backups
 *.blend1
