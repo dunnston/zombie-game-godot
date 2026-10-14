@@ -431,32 +431,6 @@ def build_floors():
     return out
 
 
-def build_base():
-    """The player's base walls: the same kit in raw wood."""
-    out = []
-    p = Piece("wood_wall_1m")
-    x = -0.5
-    k = 0
-    while x < 0.5 - 1e-6:
-        top = 2.0 + (0.08 if k % 2 else 0.0)
-        p.box(x + 0.01, min(x + 0.2, 0.5) - 0.01, 0.0, 0.08, 0.0, top, "wood_raw")
-        x += 0.2
-        k += 1
-    p.box(-0.5, 0.5, 0.08, 0.14, 0.5, 0.62, "wood_dark")
-    p.box(-0.5, 0.5, 0.08, 0.14, 1.5, 1.62, "wood_dark")
-    out.append(p.finish())
-    p = Piece("wood_wall_post")
-    p.box(-0.14, 0.14, -0.14, 0.14, 0.0, 2.25, "wood_dark")
-    out.append(p.finish())
-    p = Piece("wood_wall_frame_1m")
-    p.box(-0.5, 0.5, 0.05, 0.15, 0.0, 0.1, "wood_raw")
-    p.box(-0.5, 0.5, 0.05, 0.15, 1.9, 2.0, "wood_raw")
-    for x in (-0.45, 0.0, 0.45):
-        p.box(x - 0.025, x + 0.025, 0.05, 0.15, 0.1, 1.9, "wood_raw")
-    out.append(p.finish())
-    return out
-
-
 # ----------------------------------------------------------------- layout --
 
 def label(text, at):
@@ -549,7 +523,6 @@ def build():
         ("roofs", build_roofs()),
         ("porch", build_porch()),
         ("floors", build_floors()),
-        ("base", build_base()),
     ]
     os.makedirs(OUT_DIR, exist_ok=True)
     # The game's file: parts only, every part at the origin.

@@ -3415,5 +3415,6 @@ until `Buildings3D` is rebuilt on the parts. PR #78 is a draft meanwhile.
       closed ring containing other rings is a yard wall (no roof, no
       windows); `STAGE3D.wall_h` 3.0; thin walls and what collision does
       about them; the canopy's roof colour; built walls as
-      `wood_wall_1m` runs joined by `wood_wall_post`.
+      `wall_1m` in `wood_raw` / `concrete` / `metal` (the owner rejected a
+      separate palisade part: one wall, many materials).
 - [ ] The tour gives the player materials before it builds.
