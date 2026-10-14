@@ -617,6 +617,26 @@ func _smoke_3d(smoke: Node) -> void:
 	await smoke.checkpoint("3d_build_ghost")
 	build_bar.toggle()
 	await smoke.frames(2)
+	# The starter house at (150, 150), dressed with the building kit: seen
+	# from the street with its roof on, then from inside with it off.
+	var house := s3.buildings.plan.inside(Vector2i(153, 153))
+	if house < 0:
+		smoke.fail("the 8x7 house at (150, 150) is not a building to the stage")
+	for piece: String in Buildings3D.PIECES:
+		if not s3.buildings._mmi.has(piece):
+			smoke.fail("the town uses no '%s' piece" % piece)
+	smoke_teleport(146, 158)
+	await smoke.frames(20)
+	if house >= 0 and not s3.buildings.roof_visible(house):
+		smoke.fail("from the street the house has no roof")
+	await smoke.checkpoint("3d_house")
+	smoke_teleport(153, 153)
+	await smoke.frames(20)
+	if house >= 0 and s3.buildings.roof_visible(house):
+		smoke.fail("inside the house its roof is still on")
+	await smoke.checkpoint("3d_house_inside")
+	smoke_teleport(120, 160)
+	await smoke.frames(10)
 	# Night, and the torch the dark lights.
 	sim.clock.t = 0.82
 	sim.clock.phase = "day"

@@ -379,8 +379,10 @@ const STAGE_UNITS := 32.0
 const CAMERA3D := {"pitch": 52.0, "fov": 30.0, "distance": 30.0, "edge": 12.0}
 
 ## The 3D stage's shapes, in metres: how tall a house wall, a roof block and
-## a fence stand, and how far above the ground a carried light floats.
-const STAGE3D := {"wall_h": 2.2, "roof_h": 2.8, "fence_h": 0.8, "light_h": 1.3, "ground_eps": 0.02}
+## a fence stand, and how far above the ground a carried light floats. A
+## roof block (a building you cannot enter) stays just under the wall top,
+## because the gable roof `Buildings3D` builds over its walls starts there.
+const STAGE3D := {"wall_h": 2.2, "roof_h": 2.1, "fence_h": 0.8, "light_h": 1.3, "ground_eps": 0.02}
 
 const CAMERA := {"follow": 7.5, "view_height": 580.0, "min_zoom": 0.9, "max_zoom": 2.6, "lead": 0.22, "lead_max": 170.0,
 	"arena_zoom": 0.72, "arena_frame": 0.4}

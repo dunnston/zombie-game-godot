@@ -35,6 +35,11 @@ until the owner chooses. Models come from the owner's Meshy pipeline into
 and do the first step only unless told otherwise. `2d-final` is the tag.
 
 - The Godot MCP (`run_project`, `get_debug_output`) reads `GODOT_PATH` from `~/.claude.json`.
+- **The town's buildings are dressed by the view** (`BuildingPlan`, `Buildings3D`)
+  with a kit built in Blender: `.	oolsuild_kit.cmd` rewrites
+  `assets/models/buildings/kit.glb` from `tools/build_kit.py`. The target look is
+  Synty's POLYGON Town Pack (owner, 2026-10-13). New wall pieces go in that
+  script, new colours in `FacadeArt.STYLES`; never hand-place a house.
 - **Content lives in `data/`** and is edited with the local editor: the owner
   double-clicks `Content Editor.cmd` in the project folder (it calls
   `tools\edit.cmd`; PROJECT.md §10, *Editing content*). The owner's shell is Windows

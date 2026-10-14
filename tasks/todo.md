@@ -3329,3 +3329,60 @@ behind you while you walk forward" can happen. The MOVE TOWARD CURSOR row,
   idle; its result is in the PR.
 - The feel is the owner's: `face_hold` (0.35 s) and `TURN_RATE` (a half
   turn in 0.2 s) are the two numbers to tune.
+
+## The building kit — walls, windows, doors and roofs in the Synty way (2026-10-13)
+
+Owner: the 1 m wall blocks on the 3D stage are "too thin and square"; the
+target is Synty's POLYGON Town Pack (modular house kit: wide siding panels,
+windows and doors as inserts, pitched roof segments, houses that differ by
+siding and roof colour, not by mesh) painted the way the bible's reference
+house is (clapboard, blue trim, brick skirt, slate shingles, outlines).
+The same kit is to dress the player's base walls later.
+
+### Decisions
+
+- **The sim is untouched.** Buildings are already rectangles of 1 m wall
+  tiles with 2-tile doorways (`World._building`); the view reads them and
+  dresses them. Collision stays one solid tile, so walls keep their 1 m
+  core and the facade is a thin panel on each outward face.
+- **The kit is a Blender script**, `tools/build_kit.py`, exported to
+  `assets/models/buildings/kit.glb` (LFS): pieces are boxes at exact
+  metres with named materials, which is what a script does best and Meshy
+  does worst. Meshy stays for props. The owner can open the GLB in Blender.
+- **Materials by name, painted at boot.** `FacadeArt` paints the siding,
+  brick and shingle tiles in code (as `TileArt` paints the ground) and
+  `facade.gdshader` tints them per instance, so a house's style is a
+  colour triple (siding, trim, roof) chosen by its position, never a mesh.
+- **Roofs are built per building** (gable along the long side, overhang,
+  fascia) with `SurfaceTool`, since every building is a different
+  rectangle, and **a roof hides while the local player is inside its
+  rectangle**: an enterable house with a roof has to open when you walk in.
+- Wall height stays `Config.STAGE3D.wall_h`; the kit is authored at 2.2 m
+  and scaled to it.
+
+### Plan
+
+- [x] 1. `tools/build_kit.py` + `tools/build_kit.cmd`: `core` (plaster box),
+      `facade` (siding + brick skirt + frieze), `facade_window` (frame,
+      sill, glass, muntins), `jamb` (the reveal beside a doorway),
+      `corner_board`, `porch_roof` (2 m canopy over a doorway). Exported GLB
+      with materials `siding, brick, trim, glass, door, plaster, shingle`.
+- [x] 2. `FacadeArt` (`src/stage/facade_art.gd`): siding, brick, shingle
+      textures; `facade.gdshader` with a `part` per material and the
+      per-instance tint; `BuildingStyles` table.
+- [x] 3. `BuildingPlan` (`src/stage/building_plan.gd`, RefCounted, pure):
+      wall components → rects; outward faces; window rhythm (every third
+      tile, never a corner or beside a doorway); jambs and porches at the
+      doorway gaps; a style per rect.
+- [x] 4. `Buildings3D` (`src/stage/buildings_3d.gd`): one MultiMesh per
+      piece, a roof mesh per rect, roof hidden when the local player is
+      inside; `rebuild` on `wall_broken`. `Terrain3D` keeps ROOF and FENCE
+      blocks and stops drawing WALL tiles.
+- [x] 5. Tests: `building_plan_test.gd` (the starter house is found as
+      8×7, its faces, windows, jambs, the roof rule, a broken wall) and
+      `building_kit_test.gd` (the GLB has every piece at its size).
+- [ ] 6. Smoke 3D leg: a checkpoint at the starter house from outside and
+      one inside with the roof gone; screenshots read.
+- [ ] 7. PROJECT.md, `tasks/3d-conversion.md`, PR to `main`.
+- [ ] Later (not this PR): base walls dressed with the kit, chimneys,
+      hip roofs, the toon/outline shader, dormers.

@@ -12,6 +12,7 @@ extends Stage
 
 var world3: Node3D
 var terrain: Terrain3D
+var buildings: Buildings3D
 var actors: Actors3D
 var structures: Structures3D
 var props: Props3D
@@ -48,6 +49,8 @@ func _init(sim_: GameSim) -> void:
 	world3.add_child(lights)
 	terrain = Terrain3D.new()
 	world3.add_child(terrain)
+	buildings = Buildings3D.new()
+	world3.add_child(buildings)
 	props = Props3D.new(sim)
 	world3.add_child(props)
 	doors = Doors3D.new(sim)
@@ -83,6 +86,7 @@ func _init(sim_: GameSim) -> void:
 
 func build() -> void:
 	terrain.build(sim.world)
+	buildings.build(sim.world)
 	props.rebuild()
 	doors.rebuild()
 	camera.make_current()
@@ -92,6 +96,7 @@ func build() -> void:
 
 func rebuild() -> void:
 	terrain.build(sim.world)
+	buildings.build(sim.world)
 	props.rebuild()
 	doors.rebuild()
 	actors.rebuild()
@@ -111,6 +116,7 @@ func repaint(tx: int, ty: int) -> void:
 func set_local(p: PlayerSim) -> void:
 	local = p
 	actors.local = p
+	buildings.local = p
 	labels.local = p
 
 
@@ -122,6 +128,7 @@ func attach_build_bar(bar: BuildBar) -> void:
 func on_event(ev: Dictionary) -> void:
 	if ev.t == "wall_broken":
 		repaint(int(ev.tx), int(ev.ty))
+		buildings.build(sim.world)
 	fx.on_event(ev)
 	boss.on_event(ev)
 	actors.on_event(ev)
@@ -135,6 +142,7 @@ func tick(dt: float) -> void:
 	actors.frame(dt)
 	props.frame(dt)
 	structures.frame()
+	buildings.frame()
 	pickups.frame()
 	vehicles.frame()
 	survivors.frame()

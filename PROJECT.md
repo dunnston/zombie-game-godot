@@ -316,6 +316,58 @@ What each row was measured against is in `tasks/port-inventory.md` (history now)
 
 ## 4. What is built
 
+### The building kit (2026-10-13)
+
+The town's buildings on the 3D stage, dressed the way Synty's POLYGON
+Town Pack builds a house and painted the way the bible's reference house
+is: wide clapboard facades, windows and door trim as inserts, a brick
+skirt, a frieze under the eave, corner boards, a canopy over the door and
+a shingled gable roof. The owner's brief: the 1 m wall blocks were "too
+thin and square"; the target is that pack (`tasks/todo.md`, *The building
+kit*).
+
+- **The sim is untouched.** Buildings were always rectangles of 1 m WALL
+  tiles with 2-tile doorways (`World._building`); collision is still one
+  solid tile. **`BuildingPlan`** (`src/stage/building_plan.gd`, no nodes)
+  reads them: every eight-connected run of walls is a building and its
+  bounding box its rectangle; a panel on each outward face, a window on
+  every third tile of a side (centred, never a corner, never beside a
+  doorway), trim in the reveals beside a doorway, a corner board at each
+  corner, a canopy over each doorway run, and a style (siding, trim and
+  roof colours from `FacadeArt.STYLES`) by a hash of the corner. A wall
+  chewed through is rubble that still joins its ring (`world.breached`),
+  so a breach beside a doorway cannot cut a house in two.
+- **The kit is a Blender script**, `tools/build_kit.py`
+  (`toolsuild_kit.cmd`), exported to `assets/models/buildings/kit.glb`
+  (LFS, 27 KB): `core`, `facade`, `facade_window`, `jamb`, `corner_board`,
+  `porch_roof`, boxes at exact metres with named materials and UVs that
+  tile per metre, authored at 2.2 m and scaled to `STAGE3D.wall_h`. Meshy
+  stays for props: a kit wants exact modules and shared UVs, which a
+  generator cannot give.
+- **`FacadeArt`** paints the siding, brick and shingle textures at boot
+  (128 px to the metre, nearest-filtered) as `TileArt` paints the ground,
+  grey where a house tints them; `facade.gdshader` has a `part` per
+  material name and takes a piece's colours from `INSTANCE_CUSTOM` in a
+  MultiMesh or from uniforms on a roof.
+- **`Buildings3D`**: one MultiMesh per piece for the whole town, and a
+  gable roof per building built with `SurfaceTool` from its rectangle:
+  ridge along the longer side at 30°, 0.45 m overhang, fascia in trim,
+  gable ends in siding. **A roof comes off while the local player is
+  inside its rectangle**, doorway and walls included, and goes back when
+  they leave. The whole thing is rebuilt when a wall breaks. `Terrain3D`
+  keeps the roof blocks (buildings you cannot enter, now 2.1 m so they sit
+  under the gable) and the fences, and no longer draws WALL tiles.
+- Tests: `building_plan_test` (the starter house is found as 8×7 with 24
+  cores, 28 panels, 2 jambs, 4 corners, 1 porch; windows keep their
+  rhythm; `inside`; a breach) and `building_kit_test` (every piece at its
+  size in known materials; the town uses every piece; the roof rule).
+  Smoke: `3d_house` from the street, `3d_house_inside` with the roof off.
+
+Not yet: the player's base walls dressed with the kit, chimneys, hip
+roofs, dormers, interior partition walls with more than plaster, a fade
+instead of a cut when a roof comes off, and the toon/outline pass that the
+reference house's look still needs.
+
 ### You look where you walk (2026-10-13)
 
 The owner, after V Rising: you look where you are going, or where you are
@@ -362,9 +414,10 @@ it always had. `Config.STAGE` is `"3d"`; `--stage=2d` is the game as it was.
   every tile up in a 320×320 cell texture built from
   `TerrainRenderer.cell_art` — the choice `_paint` always made, split out
   so both stages draw the same picture — and samples the same atlas
-  `TileArt` bakes at boot. Walls, roofs and fences are one MultiMesh of
-  boxes (2.2 m, 2.8 m, 0.8 m) topped with their own atlas art. `repaint`
-  changes one cell and flattens one box. 167 ms at boot.
+  `TileArt` bakes at boot. Roof blocks and fences are one MultiMesh of
+  boxes (2.1 m, 0.8 m) topped with their own atlas art; house walls are
+  `Buildings3D`'s since the building kit (above). `repaint` changes one
+  cell and flattens one box. 167 ms at boot.
 - **`ActorModel`** and **`Actors3D`**: a rigged GLB per player and per
   enemy that has one (`Models.ENEMY_MODELS`: walker, runner, coach), a capsule at
   the 2D radius in the 2D colour for the rest; state read from the sim
@@ -2493,6 +2546,7 @@ Phases 1–4 respecting it.
 | 2026-10-13 | **Bodies are solid to each other, each half moving only its own body; a rolling player and a charging boss go through** (`Enemies._hold_off_players`, `Enemies.hold_off`, `Enemies.solid`) | Owner: zombies walked through the player and bit from inside. A hard set-back to touching distance rather than a velocity push, because the bite plays from where the body is and a soft push leaves it half inside. Each side moves itself so neither shoves the other and a guest can predict its own half. Held solid, a roll bulldozed the zombie ahead of it and a charge never reached its wall, so both are let through | Yes: two calls |
 | 2026-10-13 | **Space is a jump; the dash is the roll, on Sprint + Space** (`LocalInput`, `Config.JUMP`) | Owner: the dash drawn as a hop looked wrong, and Space should just jump. A chord of two keys the player already has rather than a binding of its own, so Controls needs no chord editor. The jump is cosmetic (pillar 3): a key that did something would be a system to finish | Yes |
 | 2026-10-13 | **X is the dance** (`Config.DANCE`, `PlayerSim.step_moves`) | Owner's Thriller. One rule for what ends it, run by host and guest alike, with a 60 s cap so a walked-away keyboard does not dance for ever | Yes: the key is in Controls |
+| 2026-10-13 | **Buildings are dressed by the view from the tiles, with a kit built in Blender** (`BuildingPlan`, `Buildings3D`, `tools/build_kit.py`) | The owner wants Synty's POLYGON Town Pack look and the sim already makes rectangles of 1 m walls with doorways, so the view reads them and lays modular pieces along them; nobody assembles a house by hand. Collision stays one solid tile and the wall keeps its 1 m core: a 0.2 m Synty panel would leave you stopping short of a wall you can see through. The kit is boxes at exact metres with shared UVs, which is a script's job and not a generator's; Meshy keeps the props. A gable roof over an enterable house has to come off when you walk in, so it does, for the local player. | Yes: the kit is a file, the plan is a class |
 | 2026-10-13 | **A `Stage` is what draws the world** (`src/stage/`): main owns the sim, the wire, the menus and the screens, and asks the stage to build, follow, convert the cursor and take every event | The first step of the 3D conversion (`tasks/3d-conversion.md`), and a refactor with no behaviour in it: the seventy lines that built the views, the camera maths and the fan-out of events moved out of `main.gd` unchanged, so a 3D stage can stand where the 2D one does and the smoke's 94 checkpoints prove nothing else moved. `Config.STAGE` picks; `--stage=` overrides, which is how the smoke keeps running the stage it was written for. | Yes: the seam costs nothing to keep |
 | 2026-10-13 | **The game goes 3D, behind a flag, on the same sim** (`tasks/3d-conversion.md`) | The sprite route failed on animation volume: five directions × every clip × every weapon, consistent frame to frame, and neither a scripted puppet nor paint over one reached the turnaround's quality in motion. A rigged model animates once and faces any way, and the owner now has a pipeline that makes them. The sim never touched a node and the UI never touched the world, so what changes is `src/world/` and ~120 lines of `main.gd`; the map, the rules, the screens and the wire are the same game. | Yes: `Config.STAGE`, then `tasks/rollback-to-2d.md`, then the `2d-final` tag |
 | 2026-10-13 | 32 px = 1 m; sim `y` is 3D `z`; the camera is perspective at ~50°, south of you looking north | A 1.70 m model is a 54 px person, which is what `PLAYER.r` 13 px always meant. North stays up so every compass instinct from 2D, and every smoke leg that walks by compass, still holds. The bible's 3/4 view is the look the references were painted in. | Yes, `Config.CAMERA3D` and `Units` |
@@ -3323,6 +3377,7 @@ moment the parent merges.
 
 | Date | What |
 | --- | --- |
+| 2026-10-13 | **The building kit.** `tools/build_kit.py` + `toolsuild_kit.cmd` → `assets/models/buildings/kit.glb` (six pieces, LFS); `FacadeArt` (siding, brick, shingle, `STYLES`), `facade.gdshader`; `BuildingPlan` (rects, faces, windows, jambs, corners, porches, `inside`); `Buildings3D` (MultiMesh per piece, a gable roof per building, off while you are inside); `Terrain3D` draws roof blocks and fences only, `STAGE3D.roof_h` 2.1; `Stage3D` wires it and rebuilds on `wall_broken`; smoke `3d_house` / `3d_house_inside`. `building_plan_test` (5), `building_kit_test` (2). `tools/test`: 962 tests, 0 failures |
 | 2026-10-13 | **Bodies collide, Space jumps, Sprint + Space rolls, X dances, the swing is the sword slash.** `Enemies._hold_off_players` / `hold_off` / `solid` / `push_apart`, the stuck rescue ignores a zombie held off in reach; `Intent.jump` / `dance`, `PlayerSim.jump_t` / `dance_t` / `step_moves`, `Config.JUMP` / `DANCE`, `PF_JUMP` / `PF_DANCE` (protocol 16), a guest predicts both; `KeyBinds` `jump` (Space) and `dance` (X), `LocalInput` reads Sprint + Space as the roll; `tools/build_anims`: `attack` = Stable Sword Outward Slash cut to the blow (`strike` 0.3), `punch`, `roll` = Stand To Roll, `dance` = Thriller Part 2, the jump cut to its air; `Models.family_of` "fists", `fists_attack`; `Actors3D` roll / jump / dance / the swing paced to the cooldown and restarted on its edge (`ActorModel.play` seeks on a same-clip restart). `bodies_test` (5), `actors_test` +3. `tools/test`: 954 tests, 0 failures |
 | 2026-10-13 | **Animation pass 2: the player's weapons, the zombies' moves.** The gait from the sim's flags (`WALK_PACE`, `RUN_PACE`, `SNEAK_PACE`); clip families per weapon (`Models.family_of`, `ActorModel.play(family, variant)`): rifle, pistol and bow idle/walk/run, `shoot` / `bow_shoot`, `bow_reload`, `bow_equip` / `bow_disarm`; `jump` on the dash, `crouch` on the sneak; `PlayerSim.shot` (`PF_SHOT`); a player's body left where they died; a zombie's swipe and neck bite in turns, two deaths, `eat` over the dead (`Config.FEED`, `EnemySim.feed_t`, `Damage._feed_on`, `EF_FEED`, protocol 15); any boss cue marks it awake (Codex, PR #74). `actors_test` (14), `feed_test` (4). `tools/test`: 945 tests, 0 failures |
 | 2026-10-13 | **The animation pass.** The owner's Mixamo clips on Mixamo rigs for the player, walker, runner and the Coach, baked by `tools/build_anims.gd` into `assets/models/**.glb` + `assets/anims/*.res`; `Models` tables by state; `ActorModel` plays a library, `clip_speed`, `clip_strike`, cross-fades; `Actors3D.on_event` cues a boss's moves, stun, roar and wake, and the floor before it; `Config.CRAWL`, `Damage.knock_down`, `EnemySim.crawl_t` / `getup_t`, `Enemies.crawl_rng`, ambient crawlers; `EF_CRAWL` / `EF_GETUP` (protocol 14); dev **floor**. `crawl_test` (9), `models_test` (5). `tools/test`: 927 tests, 0 failures |
