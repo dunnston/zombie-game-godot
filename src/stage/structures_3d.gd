@@ -109,22 +109,29 @@ func _make_wall(s: Dictionary, node: Node3D) -> Array:
 		_parts = Buildings3D.load_parts(WALL_PARTS)
 	var out := []
 	var mask := StructureView.join_mask(sim.structs, s.tx, s.ty)
-	var across := (mask & 0b0101) != 0
-	var down := (mask & 0b1010) != 0
 	var hs := float(HEIGHTS.wall) / Buildings3D.KIT_H
+	# Half a panel from the centre toward each neighbour, so nothing
+	# sticks out past a corner or an end: [part, origin, facing, width].
+	# `SIDES` bits: 1 west, 2 north, 4 east, 8 south.
 	var pieces: Array = []
-	if across or not down:
-		pieces.append(["wall_upper_1m", Vector2(0.0, 0.125), 0])
-	if down:
-		pieces.append(["wall_upper_1m", Vector2(0.125, 0.0), 1])
+	if mask == 0:
+		pieces.append(["wall_upper_1m", Vector2(0.0, 0.125), 0, 1.0])
+	if mask & 1:
+		pieces.append(["wall_upper_1m", Vector2(-0.25, 0.125), 0, 0.5])
+	if mask & 4:
+		pieces.append(["wall_upper_1m", Vector2(0.25, 0.125), 0, 0.5])
+	if mask & 2:
+		pieces.append(["wall_upper_1m", Vector2(0.125, -0.25), 1, 0.5])
+	if mask & 8:
+		pieces.append(["wall_upper_1m", Vector2(0.125, 0.25), 1, 0.5])
 	if mask != 0b0101 and mask != 0b1010:
-		pieces.append(["corner_post", Vector2.ZERO, 0])
+		pieces.append(["corner_post", Vector2.ZERO, 0, 1.0])
 	for pc in pieces:
 		if not _parts.has(pc[0]):
 			continue
 		var mi := MeshInstance3D.new()
 		mi.mesh = _parts[pc[0]]
-		mi.transform = Buildings3D.part_xf(pc[1], pc[2], hs)
+		mi.transform = Buildings3D.part_xf(pc[1], pc[2], hs, pc[3])
 		node.add_child(mi)
 		out.append(mi)
 	return out
