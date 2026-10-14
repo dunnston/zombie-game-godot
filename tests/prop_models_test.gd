@@ -82,7 +82,7 @@ func test_the_batch_builder_files_a_prop_under_its_model_or_a_stand_in() -> void
 	var oak := {"kind": "tree", "si": 0, "x": 100.0, "y": 100.0}
 	var hay := {"kind": "hay", "si": 0, "x": 100.0, "y": 100.0}
 	props._collect(lists, hay, PropModels.for_prop(hay))
-	ok(lists.has("stand-in:hay"), "hay goes to its stand-in batch")
+	ok(lists.has("stand-in:hay#1x1"), "hay goes to its stand-in batch, keyed by its footprint")
 	props._collect(lists, oak, PropModels.for_prop(oak))
 	var oak_keys := lists.keys().filter(func(k: String) -> bool: return k.find("oak.glb") >= 0)
 	var have_file := ResourceLoader.exists(PropModels.P + "nature/oak.glb")

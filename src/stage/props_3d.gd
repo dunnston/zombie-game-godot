@@ -67,7 +67,9 @@ func _collect(lists: Dictionary, p: Dictionary, parts: Array) -> void:
 	if drawn:
 		return
 	var kind := _kind_of(p)
-	var key := "stand-in:" + kind
+	# A stand-in takes its box from the prop, so a bed and a pool cannot
+	# share one: the footprint is part of the key (Codex, PR #79).
+	var key := "stand-in:%s#%dx%d" % [kind, int(p.get("w", 1)), int(p.get("h", 1))]
 	if not lists.has(key):
 		lists[key] = {"mesh": _mesh_for(kind, p), "local": Transform3D.IDENTITY, "props": [], "model": false, "chunk": -1}
 	lists[key].props.append(p)
@@ -153,10 +155,13 @@ func _set_instance(b: Dictionary, i: int, p: Dictionary, now: int) -> void:
 	var at := Units.to3(Vector2(p.x, p.y))
 	var place := Transform3D(Basis(Vector3.UP, yaw_of(p)), at)
 	if p.get("kind", "") == "wall":
-		# Hung on the inner face of its wall tile's panel: the siding on an
-		# outer wall sits at the tile's outer edge, a divider through its
-		# middle (`BuildingPlan`).
-		place.origin += place.basis * Vector3(0, 0, -0.25 if p.get("outer", true) else -0.08)
+		# Hung on the room-facing surface of its wall tile's panel. An outer
+		# wall's siding sits at the tile's outer edge, 0.25 m thick, so its
+		# inner face is a quarter metre from the tile's centre toward the
+		# outside (behind the piece, -z); a divider's plaster runs through the
+		# tile's middle, so its face is an eighth toward the room (+z)
+		# (`BuildingPlan`, `tools/build_kit.py`; Codex, PR #79).
+		place.origin += place.basis * Vector3(0, 0, -0.25 if p.get("outer", true) else 0.125)
 	mm.set_instance_transform(i, place * b.local)
 	var col := Color.WHITE
 	if b.model:
